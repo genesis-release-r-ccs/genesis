@@ -1,0 +1,109 @@
+/* src/config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* c compiler version */
+#undef COMPILE_CC_VER
+
+/* c flags */
+#undef COMPILE_CFLAGS
+
+/* defined variables */
+#undef COMPILE_DEFINED_VARIABLES
+
+/* fortran flags */
+#undef COMPILE_FCFLAGS
+
+/* fortran compiler version */
+#undef COMPILE_FC_VER
+
+/* genesis version */
+#undef COMPILE_GENESIS_VERSION
+
+/* hostname */
+#undef COMPILE_HOST
+
+/* ld flags */
+#undef COMPILE_LDFLAGS
+
+/* cuda version */
+#undef COMPILE_NVCC_VER
+
+/* username */
+#undef COMPILE_USER
+
+/* defined if cuda_gpu is used. */
+#undef CUDAGPU
+
+/* defined if Debug is used. */
+#undef DEBUG
+
+/* defined always. */
+#undef DSFMT_MEXP
+
+/* defined if FFTE is used. */
+#undef FFTE
+
+/* defined if HM_DISK is used. */
+#undef HM_DISK
+
+/* defined if Intel compiler is used. */
+#undef INTEL
+
+/* defined if K-computer compiler is used. */
+#undef KCOMP
+
+/* defined if LAPACK is used. */
+#undef LAPACK
+
+/* defined if MPI is used. */
+#undef MPI
+
+/* defined if OpenMP is used. */
+#undef OMP
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* defined if pgi and cuda are used. */
+#undef PGICUDA
+
+/* defined if --host=postK is set. */
+#undef POST_K
+
+/* defined if gpu is used. */
+#undef USE_GPU
+
+/* Version number of package */
+#undef VERSION
+
+/* defined if _LARGE_INT is used. */
+#undef _LARGE_INT
+
+/* defined if _MIXED is used. */
+#undef _MIXED
+
+/* defined if _SINGLE is used. */
+#undef _SINGLE
+
+/* defined if GCC gfortran compiler is used. */
+#undef __GFORTRAN__
+
+/* defined if pgi compiler is used. */
+#undef __PGI
