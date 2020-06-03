@@ -30,3 +30,24 @@
 *.exe
 *.out
 *.app
+
+# Backup file
+*~
+*.bak
+
+# Other files
+config.log
+config.status
+src/config.log
+Makefile
+Makefile.in
+src/stamp-h1
+src/lib/.deps/
+src/lib/dSFMT/.deps/
+src/lib/dSFMT/.dirstamp
+src/lib/Lbfgsb.3.0/.deps/
+src/lib/Lbfgsb.3.0/.dirstamp
+src/spdyn/.deps/
+bin/
+src/spdyn/spdyn
+autom4te.cache/
