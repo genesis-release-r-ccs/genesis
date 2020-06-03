@@ -39,6 +39,7 @@
 config.log
 config.status
 src/config.log
+src/config.h
 Makefile
 Makefile.in
 src/stamp-h1
