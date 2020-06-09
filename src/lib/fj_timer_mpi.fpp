@@ -10,6 +10,9 @@
 #ifdef INTEL
 #define gettod clockx
 #endif
+#ifdef __GFORTRAN__
+#define gettod gfortran_time
+#endif
 
 module fj_timer_mod
 
@@ -35,10 +38,12 @@ end module fj_timer_mod
       character*256 env
       real*4 rdum, rarray(2)
 
+#ifndef __GFORTRAN__
       external lnblnk
       integer  lnblnk
       external etime
       real*4   etime
+#endif
 
       ! real, user, sys of total
       rdum = etime(rarray)
@@ -181,9 +186,11 @@ end module fj_timer_mod
       integer pid
       real*4 rdum, rarray(2)
 
+#ifndef __GFORTRAN__
       external etime, getpid
       real*4   etime
       integer getpid
+#endif
 
       ! set timer name
       do i = 1, n_tim_
@@ -642,3 +649,22 @@ end module fj_timer_mod
       return
     end subroutine timer_set
 
+#ifdef __GFORTRAN__
+    subroutine gfortran_time(gx)
+      real(8),                 intent(inout)    :: gx
+      integer                  :: values(8)
+
+      call date_and_time(values=values)
+
+      gx = (   values(5)) * 6.0d1
+      gx = (gx+values(6)) * 6.0d1
+      gx = (gx+values(7)) * 1.0d3
+      gx = (gx+values(8))
+
+      gx = gx * 1.0d3
+
+
+      return
+
+    end subroutine gfortran_time
+#endif
