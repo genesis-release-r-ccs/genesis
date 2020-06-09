@@ -30,7 +30,7 @@ module sp_boundary_mod
     real(wp)            :: box_size_x    = 0.0_wp
     real(wp)            :: box_size_y    = 0.0_wp
     real(wp)            :: box_size_z    = 0.0_wp
-    real(wp)            :: cell_size_buffer = 0.6_wp
+    real(wp)            :: cell_size_buffer = -1.0_wp
     integer             :: num_cells_x   = 0
     integer             :: num_cells_y   = 0
     integer             :: num_cells_z   = 0
@@ -95,7 +95,7 @@ contains
         write(MsgOut,'(A)') '# box_size_x    = 0.0       # box size (x) in [PBC]'
         write(MsgOut,'(A)') '# box_size_y    = 0.0       # box size (y) in [PBC]'
         write(MsgOut,'(A)') '# box_size_z    = 0.0       # box size (z) in [PBC]'
-        write(MsgOut,'(A)') '# cell_size_buffer = 0.6    # buffer added in cell size'
+        write(MsgOut,'(A)') '# cell_size_buffer = 0.0    # buffer added in cell size'
 
         write(MsgOut,'(A)') 'domain_x      = 0         # domain size (x)'
         write(MsgOut,'(A)') 'domain_y      = 0         # domain size (y)'
@@ -462,6 +462,17 @@ contains
     integer                  :: nc(3,100), cell_size(3,100)
     logical                  :: defined_proc
 
+    buffer  = bound_info%pbc_info%cell_size_buffer
+    if (buffer < 0.0_wp) then
+      if (ensemble == EnsembleNPT  .or. &
+          ensemble == EnsembleNPAT .or. &
+          ensemble == EnsembleNPgT) then
+        buffer = 0.6_wp
+      else
+        buffer = 0.0_wp
+      end if
+    end if
+
     ! check processor number based on the num of domains
     !
     if (bound_info%domain_x /= 0 .and. &
@@ -525,7 +536,6 @@ contains
     bsize_x = boundary%box_size_x
     bsize_y = boundary%box_size_y
     bsize_z = boundary%box_size_z
-    buffer  = bound_info%pbc_info%cell_size_buffer
 
     nx  = int (bsize_x / (pairlistdist+2.0_wp+buffer))
     ny  = int (bsize_y / (pairlistdist+2.0_wp+buffer))
@@ -799,6 +809,7 @@ contains
     ! local variables
     real(wp)                 :: csize_x, csize_y, csize_z, cutoff
     real(wp)                 :: bsize_x, bsize_y, bsize_z
+    real(wp)                 :: cell_size_buffer
     integer                  :: k, ncell
     integer                  :: ncell_x, ncell_y, ncell_z
     logical                  :: extend, extend1
@@ -808,7 +819,18 @@ contains
     num_domain     => boundary%num_domain
     num_domain_max => boundary%num_domain_max
 
-    cutoff = pairlistdist + 2.0_wp + buffer
+    cell_size_buffer = buffer
+    if (cell_size_buffer < 0.0_wp) then
+      if (ensemble == EnsembleNPT  .or. &
+          ensemble == EnsembleNPAT .or. &
+          ensemble == EnsembleNPgT) then
+        cell_size_buffer = 0.6_wp
+      else
+        cell_size_buffer = 0.0_wp
+      end if
+    end if
+
+    cutoff = pairlistdist + 2.0_wp + cell_size_buffer
 
     if (dsize_cg) then
       cutoff=max(dmin_size_cg,pairlistdist)
