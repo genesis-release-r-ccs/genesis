@@ -591,10 +591,8 @@ if test x"${with_cuda}" != x"no"; then
        GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
 	fi
 	if test ${NVCC_VER} -gt 080000; then
+       GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
        GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"' #GTX1080
-	fi
-	if test ${NVCC_VER} -gt 085000; then
-       GENCODEFLAG+=' --generate-code=arch=compute_70,code=\"sm_70,compute_70\"' #GTX1080
 	fi
 
 # NVCCFLAG
