@@ -305,8 +305,8 @@ contains
 
       if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
           ri1(1:3) == 'SOL') then
-           
-        if (m1 > m2) then
+
+        if (abs(m1-m2) > EPS) then
           enefunc%table%water_bond_calc_OH = .true.
           enefunc%table%OH_bond = &
                prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
