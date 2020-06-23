@@ -324,7 +324,6 @@ contains
       end if
 
     end do
-    write(*,*) 'test',enefunc%table%water_bond_calc_OH
 
     found = 0 
     do i = 1, ncel
