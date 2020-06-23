@@ -307,12 +307,14 @@ contains
           ri1(1:3) == 'SOL') then
 
         if (abs(m1-m2) > EPS) then
+          enefunc%table%water_bond_calc = .true.
           enefunc%table%water_bond_calc_OH = .true.
           enefunc%table%OH_bond = &
                prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
           enefunc%table%OH_force = &
                prmtop%bond_fcons_uniq(prmtop%bond_inc_hy(3,i))
         else if (m1 == m2 .and. m1 < LIGHT_ATOM_MASS_LIMIT) then
+          enefunc%table%water_bond_calc = .true.
           enefunc%table%water_bond_calc_HH = .true.
           enefunc%table%HH_bond = &
                prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
@@ -322,6 +324,7 @@ contains
       end if
 
     end do
+    write(*,*) 'test',enefunc%table%water_bond_calc_OH
 
     found = 0 
     do i = 1, ncel
