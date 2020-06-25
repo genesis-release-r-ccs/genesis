@@ -549,10 +549,11 @@ if test x"${with_cuda}" != x"no"; then
 
 #	AC_CHECK_PROG(NVCC, nvcc)
 	nvcc_ver_info=$(${NVCC} -V)
+	version=""
 	for vtok in ${nvcc_ver_info} ; do
       if test x"${vtok}" = x"(NVCC)"; then
         check_ver=yes
-      else
+      elif echo ${vtok} | egrep -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
         version=${vtok}
       fi
 	done
