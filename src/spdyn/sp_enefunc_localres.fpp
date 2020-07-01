@@ -176,7 +176,9 @@ contains
     enefunc%num_bond_all = found
 #endif
 
-    if (enefunc%num_bond_all-oldbonds /= irest) &
+    if (enefunc%num_bond_all-oldbonds /= irest .and.                           &
+        enefunc%num_bond_all+2*enefunc%table%num_water-oldbonds /= irest .and. &
+        enefunc%num_bond_all+3*enefunc%table%num_water-oldbonds /= irest)      &
       call error_msg( &
            'Setup_Enefunc_Localres_Bond> Some Bond Paremeters are missing.')
 
@@ -295,7 +297,8 @@ contains
     enefunc%num_angl_all = found
 #endif
 
-    if (enefunc%num_angl_all-oldangle /= irest) &
+    if (enefunc%num_angl_all-oldangle /= irest .and.                    &
+        enefunc%num_angl_all-oldangle+enefunc%table%num_water /= irest) &
       call error_msg( &
            'Setup_Enefunc_Localres_Angle> Some Angle Paremeters are missing.')
 
