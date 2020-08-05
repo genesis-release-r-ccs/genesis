@@ -6,6 +6,7 @@
 *.lo
 *.o
 *.obj
+*.lst
 
 # Precompiled Headers
 *.gch
@@ -36,10 +37,15 @@
 *.bak
 
 # Other files
+autom4te.cache/
 config.log
+configure
+compile
 config.status
 src/config.log
 src/config.h
+src/config.status
+src/stamp-h1
 Makefile
 Makefile.in
 src/stamp-h1
@@ -51,4 +57,10 @@ src/lib/Lbfgsb.3.0/.dirstamp
 src/spdyn/.deps/
 bin/
 src/spdyn/spdyn
-autom4te.cache/
+src/*/.deps
+src/*/*/.deps
+src/*/*/.d*
+src/*/Makefile
+src/*/Makefile.in
+src/*/*/Makefile
+src/*/*/Makefile.in

@@ -57,25 +57,6 @@ How to submit jobs on Fugaku
 
   pjstat
 
-
-======================
-Contents of saved data
-======================
-
-1. 1.5Mx_systems: Conventional MD results for 1.5M system and its duplications
-
-1) input: initial strucutre file and parameter/topology files
-
-2) Except input directory, we generate the directory according to the Figure/Table numbers
-
-2. gREST_105.1M: gREST benchmark results
-
-1) input: initial structure and parameter/topology files
-
-2) Operation_Number: Operation count calculation
-
-3) Except input and Operation_Number, we generate the directory according to the Table numbers.
-
 ========================
 How to generate profiler
 ========================
@@ -95,18 +76,4 @@ How to generate profiler
   ./configure --enable-single --host=Fugaku --enable-pktimer --with-fapp
 
 6. Do the same procedure as 2-4 and we can obtain profiler information.
-
-=======================
-How to generate Figures
-=======================
-
-1. Figures 1, 3, 4, 5, 7 are drawn by Microsoft Powerpoint. Drawn figures are saved as jpg files.
-
-2. Figure 2 is imported from https://www.r-ccs.riken.jp/en/postk/project/outline
-
-3. Crowd system in Figure 6 and 9 are drawn by VMD software. 
-
-4. Figure 8 is drawn by Origin 8.5J. After making a plot in Origin, the graph is exported as eps and character font is refined by Adobe Illustrator CS5. 
-
-In all cases, we drew without specfic usgae of scripts.
 
