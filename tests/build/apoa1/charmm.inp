@@ -1,0 +1,105 @@
+* Generate PSF and CHARMM coordinate
+*
+
+! --- Read in Topology and  Parameter files
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/top_all27_prot_lipid.rtf
+read RTF card unit 1
+close unit 1
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/par_all27_prot_lipid.prm
+read PARA card unit 1
+close unit 1
+
+
+! --- Read sequence from the PDB coordinate file
+
+open read card unit 10 name ./pdb/pro1_s.pdb
+read sequence pdb unit 10
+generate PRO1 setup warn first NTER last CTER
+
+open read card unit 10 name ./pdb/pro1_s.pdb
+read coor pdb  unit 10 resid
+
+open read card unit 20 name ./pdb/pro2_s.pdb
+read sequence pdb unit 20
+generate PRO2 setup warn first NTER last CTER
+
+open read card unit 20 name ./pdb/pro2_s.pdb
+read coor pdb  unit 20 resid
+
+READ SEQUENCE POPC 80
+GENERATE LIP1 first none last none
+open read card unit 10 name ./pdb/lip1_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE POPC 80
+GENERATE LIP2 first none last none
+open read card unit 10 name ./pdb/lip2_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 1842
+GENERATE WAT1 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat1_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 1277
+GENERATE WAT2 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat2_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 1280
+GENERATE WAT3 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat3_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 1825
+GENERATE WAT4 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat4_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 4601
+GENERATE WAT5 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat5_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 2103
+GENERATE WAT6 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat6_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 1700
+GENERATE WAT7 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat7_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 2241
+GENERATE WAT8 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat8_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 4589
+GENERATE WAT9 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat9_s.pdb
+read coor pdb  unit 10 resid
+
+
+! --- write psf, pdb, and crd file
+
+open write formatted unit 27 name apoa1_xplor.psf
+write psf card xplor unit 27 
+close unit 27
+
+open write formatted unit 27 name apoa1.psf
+write psf card unit 27
+close unit 27
+
+open unit 1 card write name apoa1.pdb
+write coor pdb unit 1
+close unit 1
+
+!open unit 1 card write name apoa1.crd
+!write coor unit 1 card
+!close unit 1
+
+stop

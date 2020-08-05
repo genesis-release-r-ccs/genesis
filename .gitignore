@@ -64,3 +64,5 @@ src/*/Makefile
 src/*/Makefile.in
 src/*/*/Makefile
 src/*/*/Makefile.in
+tests/*/*/*/*/error
+tests/*/*/*/*/test

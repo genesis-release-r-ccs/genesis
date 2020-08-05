@@ -1,0 +1,600 @@
+1
+                 Chemistry at HARvard Macromolecular Mechanics
+                   (CHARMM) - Developmental Version 34b1     August 15, 2007   
+       Copyright(c) 1984-2001  President and Fellows of Harvard College
+                              All Rights Reserved
+      Current operating system: Linux-2.6.18-128.el5(x86_64)@salmon.ad78.rik
+                 Created on 12/ 2/11 at 18:19:15 by user: tmori       
+
+            Maximum number of ATOMS:    240480, and RESidues:       80160
+            Current HEAP size:        10240000, and STACK size:  10000000
+
+ RDTITL> * GENERATE PSF AND CHARMM COORDINATE
+ RDTITL> *
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- Read in Topology and  Parameter files
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/top_all27_prot_lipid.rtf
+ VOPEN> Attempting to open::/home/mdsoft/charmm/c34b1/toppar/top_all27_prot_lipid.rtf::
+ OPNLGU> Unit  1 opened for READONLY access to /home/mdsoft/charmm/c34b1/toppar/top_all27_prot_lipid.rtf
+  
+ CHARMM>    read RTF card unit 1
+ MAINIO> Residue topology file being read from unit   1.
+ TITLE> *> CHARMM22 ALL-HYDROGEN TOPOLOGY FILE FOR PROTEINS AND LIPIDS <<
+ TITLE> *>>>>>> INCLUDES PHI, PSI CROSS TERM MAP (CMAP) CORRECTION <<<<<<
+ TITLE> *>>>>>>>>>>>>>>>>>>>>>>   JULY 2004    <<<<<<<<<<<<<<<<<<<<<<<<<<
+ TITLE> * ALL COMMENTS TO ADM JR. VIA THE CHARMM WEB SITE: WWW.CHARMM.ORG
+ TITLE> *               PARAMETER SET DISCUSSION FORUM
+ TITLE> *
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/par_all27_prot_lipid.prm
+ VOPEN> Attempting to open::/home/mdsoft/charmm/c34b1/toppar/par_all27_prot_lipid.prm::
+ OPNLGU> Unit  1 opened for READONLY access to /home/mdsoft/charmm/c34b1/toppar/par_all27_prot_lipid.prm
+  
+ CHARMM>    read PARA card unit 1
+
+          PARAMETER FILE BEING READ FROM UNIT  1
+ TITLE> *>CHARMM22 ALL-HYDROGEN PARAMETER FILE FOR PROTEINS AND LIPIDS <<
+ TITLE> *>>>>> INCLUDES PHI, PSI CROSS TERM MAP (CMAP) CORRECTION <<<<<<<
+ TITLE> *>>>>>>>>>>>>>>>>>>>>>>   JULY, 2003   <<<<<<<<<<<<<<<<<<<<<<<<<<
+ TITLE> * ALL COMMENTS TO ADM JR. VIA THE CHARMM WEB SITE: WWW.CHARMM.ORG
+ TITLE> *               PARAMETER SET DISCUSSION FORUM
+ TITLE> *
+ PARMIO> NONBOND, HBOND lists and IMAGE atoms cleared.
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- Read sequence from the PDB coordinate file
+ CHARMM>     
+  
+ CHARMM>    open read card unit 10 name ./pdb/pro1_s.pdb
+ VOPEN> Attempting to open::./pdb/pro1_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/pro1_s.pdb
+  
+ CHARMM>    read sequence pdb unit 10
+ MAINIO> Sequence information being read from unit  10.
+ TITLE>  *
+
+          RESIDUE SEQUENCE --   196 RESIDUES
+          ASP ASN TRP ASP SER VAL THR SER THR PHE SER LYS LEU ARG GLU GLN LEU GLY PRO VAL 
+          THR GLN GLU PHE TRP ASP ASN LEU GLU LYS GLU THR GLU GLY LEU ARG GLN GLU MET SER 
+          LYS ASP LEU GLU GLU VAL LYS ALA LYS VAL GLN PRO TYR LEU ASP ASP PHE GLN LYS LYS 
+          TRP GLN GLU GLU MET GLU LEU TYR ARG GLN LYS VAL GLU PRO LEU ARG ALA GLU LEU GLN 
+          GLU GLY ALA ARG GLN LYS LEU HSD GLU LEU GLN GLU LYS LEU SER PRO LEU GLY GLU GLU 
+          MET ARG ASP ARG ALA ARG ALA HSD VAL ASP ALA LEU ARG THR HSD LEU ALA PRO TYR SER 
+          ASP GLU LEU ARG GLN ARG LEU ALA ALA ARG LEU GLU ALA LEU LYS GLU ASN GLY GLY ALA 
+          ARG LEU ALA GLU TYR HSD ALA LYS ALA THR GLU HSD LEU SER THR LEU SER GLU LYS ALA 
+          LYS PRO ALA LEU GLU ASP LEU ARG GLN GLY LEU LEU PRO VAL LEU GLU SER PHE LYS VAL 
+          SER PHE LEU SER ALA LEU GLU GLU TYR THR LYS LYS LEU ASN THR GLN 
+ ***** Message from SEQRDR ***** THE SYSTEM CONTAINS 60 TITRATABLE GROUPS
+ THE USER MUST PREDETERMINE THE PROTONATION STATE THROUGH THE SEQUENCE AND RTF
+ HIS -  0  ASP - 10  GLU - 28  LYS - 17  TYR -  5
+  
+ CHARMM>    generate PRO1 setup warn first NTER last CTER
+ THE PATCH 'NTER' WILL BE USED FOR THE FIRST RESIDUE
+ THE PATCH 'CTER' WILL BE USED FOR THE LAST  RESIDUE
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE   1 ASP   .
+ ATOMS "N     " "HN    " WERE REQUESTED.
+ ** WARNING ** IMPROPER NOT FOUND FOR RESIDUE   1 ASP   .
+ ATOMS "N     " "-C    " "CA    " "HN    " WERE REQUESTED.
+ ** WARNING ** CROSSTERM NOT FOUND FOR RESIDUE   1 ASP   .
+ ATOMS "-C    " "N     " "CA    " "C     "
+ ATOMS "N     " "CA    " "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** DONOR NOT FOUND FOR RESIDUE   1 ASP   .
+ ATOMS "HN    " "N     " WERE REQUESTED.
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE 196 GLN   .
+ ATOMS "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE 196 GLN   .
+ ATOMS "O     " "C     " WERE REQUESTED.
+ ** WARNING ** IMPROPER NOT FOUND FOR RESIDUE 196 GLN   .
+ ATOMS "C     " "CA    " "+N    " "O     " WERE REQUESTED.
+ ** WARNING ** CROSSTERM NOT FOUND FOR RESIDUE 196 GLN   .
+ ATOMS "-C    " "N     " "CA    " "C     "
+ ATOMS "N     " "CA    " "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** ACCEPTOR NOT FOUND FOR RESIDUE 196 GLN   .
+ ATOMS "O     " "C     " WERE REQUESTED.
+ GENPSF> Segment   1 has been generated. Its identifier is PRO1.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        1   Number of residues   =      196
+         Number of atoms         =     3205   Number of groups     =      940
+         Number of bonds         =     3232   Number of angles     =     5859
+         Number of dihedrals     =     8585   Number of impropers  =      541
+         Number of cross-terms   =      194
+         Number of HB acceptors  =      320   Number of HB donors  =      379
+         Number of NB exclusions =        0   Total charge =   -7.00000
+  
+ CHARMM>     
+  
+ CHARMM>    open read card unit 10 name ./pdb/pro1_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/pro1_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/pro1_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    open read card unit 20 name ./pdb/pro2_s.pdb
+ VOPEN> Attempting to open::./pdb/pro2_s.pdb::
+ OPNLGU> Unit 20 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/pro2_s.pdb
+  
+ CHARMM>    read sequence pdb unit 20
+ MAINIO> Sequence information being read from unit  20.
+ TITLE>  *
+
+          RESIDUE SEQUENCE --   196 RESIDUES
+          ASP ASN TRP ASP SER VAL THR SER THR PHE SER LYS LEU ARG GLU GLN LEU GLY PRO VAL 
+          THR GLN GLU PHE TRP ASP ASN LEU GLU LYS GLU THR GLU GLY LEU ARG GLN GLU MET SER 
+          LYS ASP LEU GLU GLU VAL LYS ALA LYS VAL GLN PRO TYR LEU ASP ASP PHE GLN LYS LYS 
+          TRP GLN GLU GLU MET GLU LEU TYR ARG GLN LYS VAL GLU PRO LEU ARG ALA GLU LEU GLN 
+          GLU GLY ALA ARG GLN LYS LEU HSD GLU LEU GLN GLU LYS LEU SER PRO LEU GLY GLU GLU 
+          MET ARG ASP ARG ALA ARG ALA HSD VAL ASP ALA LEU ARG THR HSD LEU ALA PRO TYR SER 
+          ASP GLU LEU ARG GLN ARG LEU ALA ALA ARG LEU GLU ALA LEU LYS GLU ASN GLY GLY ALA 
+          ARG LEU ALA GLU TYR HSD ALA LYS ALA THR GLU HSD LEU SER THR LEU SER GLU LYS ALA 
+          LYS PRO ALA LEU GLU ASP LEU ARG GLN GLY LEU LEU PRO VAL LEU GLU SER PHE LYS VAL 
+          SER PHE LEU SER ALA LEU GLU GLU TYR THR LYS LYS LEU ASN THR GLN 
+ ***** Message from SEQRDR ***** THE SYSTEM CONTAINS 60 TITRATABLE GROUPS
+ THE USER MUST PREDETERMINE THE PROTONATION STATE THROUGH THE SEQUENCE AND RTF
+ HIS -  0  ASP - 10  GLU - 28  LYS - 17  TYR -  5
+  
+ CHARMM>    generate PRO2 setup warn first NTER last CTER
+ THE PATCH 'NTER' WILL BE USED FOR THE FIRST RESIDUE
+ THE PATCH 'CTER' WILL BE USED FOR THE LAST  RESIDUE
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE 197 ASP   .
+ ATOMS "N     " "HN    " WERE REQUESTED.
+ ** WARNING ** IMPROPER NOT FOUND FOR RESIDUE 197 ASP   .
+ ATOMS "N     " "-C    " "CA    " "HN    " WERE REQUESTED.
+ ** WARNING ** CROSSTERM NOT FOUND FOR RESIDUE 197 ASP   .
+ ATOMS "-C    " "N     " "CA    " "C     "
+ ATOMS "N     " "CA    " "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** DONOR NOT FOUND FOR RESIDUE 197 ASP   .
+ ATOMS "HN    " "N     " WERE REQUESTED.
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE 392 GLN   .
+ ATOMS "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** BOND NOT FOUND FOR RESIDUE 392 GLN   .
+ ATOMS "O     " "C     " WERE REQUESTED.
+ ** WARNING ** IMPROPER NOT FOUND FOR RESIDUE 392 GLN   .
+ ATOMS "C     " "CA    " "+N    " "O     " WERE REQUESTED.
+ ** WARNING ** CROSSTERM NOT FOUND FOR RESIDUE 392 GLN   .
+ ATOMS "-C    " "N     " "CA    " "C     "
+ ATOMS "N     " "CA    " "C     " "+N    " WERE REQUESTED.
+ ** WARNING ** ACCEPTOR NOT FOUND FOR RESIDUE 392 GLN   .
+ ATOMS "O     " "C     " WERE REQUESTED.
+ GENPSF> Segment   2 has been generated. Its identifier is PRO2.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        2   Number of residues   =      392
+         Number of atoms         =     6410   Number of groups     =     1880
+         Number of bonds         =     6464   Number of angles     =    11718
+         Number of dihedrals     =    17170   Number of impropers  =     1082
+         Number of cross-terms   =      388
+         Number of HB acceptors  =      640   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>     
+  
+ CHARMM>    open read card unit 20 name ./pdb/pro2_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   20 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/pro2_s.pdb::
+ OPNLGU> Unit 20 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/pro2_s.pdb
+  
+ CHARMM>    read coor pdb  unit 20 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 20
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE POPC 80
+  
+ CHARMM>    GENERATE LIP1 first none last none
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   3 has been generated. Its identifier is LIP1.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        3   Number of residues   =      472
+         Number of atoms         =    17130   Number of groups     =     4760
+         Number of bonds         =    17104   Number of angles     =    32198
+         Number of dihedrals     =    45650   Number of impropers  =     1242
+         Number of cross-terms   =      388
+         Number of HB acceptors  =      640   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/lip1_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/lip1_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/lip1_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE POPC 80
+  
+ CHARMM>    GENERATE LIP2 first none last none
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   4 has been generated. Its identifier is LIP2.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        4   Number of residues   =      552
+         Number of atoms         =    27850   Number of groups     =     7640
+         Number of bonds         =    27744   Number of angles     =    52678
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =      640   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/lip2_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/lip2_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/lip2_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 1842
+  
+ CHARMM>    GENERATE WAT1 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   5 has been generated. Its identifier is WAT1.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        5   Number of residues   =     2394
+         Number of atoms         =    33376   Number of groups     =     9482
+         Number of bonds         =    33270   Number of angles     =    54520
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =     2482   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat1_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat1_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat1_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 1277
+  
+ CHARMM>    GENERATE WAT2 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   6 has been generated. Its identifier is WAT2.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        6   Number of residues   =     3671
+         Number of atoms         =    37207   Number of groups     =    10759
+         Number of bonds         =    37101   Number of angles     =    55797
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =     3759   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat2_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat2_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat2_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 1280
+  
+ CHARMM>    GENERATE WAT3 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   7 has been generated. Its identifier is WAT3.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        7   Number of residues   =     4951
+         Number of atoms         =    41047   Number of groups     =    12039
+         Number of bonds         =    40941   Number of angles     =    57077
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =     5039   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat3_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat3_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat3_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 1825
+  
+ CHARMM>    GENERATE WAT4 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   8 has been generated. Its identifier is WAT4.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        8   Number of residues   =     6776
+         Number of atoms         =    46522   Number of groups     =    13864
+         Number of bonds         =    46416   Number of angles     =    58902
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =     6864   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat4_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat4_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat4_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 4601
+  
+ CHARMM>    GENERATE WAT5 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   9 has been generated. Its identifier is WAT5.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        9   Number of residues   =    11377
+         Number of atoms         =    60325   Number of groups     =    18465
+         Number of bonds         =    60219   Number of angles     =    63503
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =    11465   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat5_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat5_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat5_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 2103
+  
+ CHARMM>    GENERATE WAT6 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment  10 has been generated. Its identifier is WAT6.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =       10   Number of residues   =    13480
+         Number of atoms         =    66634   Number of groups     =    20568
+         Number of bonds         =    66528   Number of angles     =    65606
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =    13568   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat6_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat6_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat6_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 1700
+  
+ CHARMM>    GENERATE WAT7 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment  11 has been generated. Its identifier is WAT7.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =       11   Number of residues   =    15180
+         Number of atoms         =    71734   Number of groups     =    22268
+         Number of bonds         =    71628   Number of angles     =    67306
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =    15268   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat7_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat7_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat7_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 2241
+  
+ CHARMM>    GENERATE WAT8 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment  12 has been generated. Its identifier is WAT8.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =       12   Number of residues   =    17421
+         Number of atoms         =    78457   Number of groups     =    24509
+         Number of bonds         =    78351   Number of angles     =    69547
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =    17509   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat8_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat8_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat8_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3 4589
+  
+ CHARMM>    GENERATE WAT9 SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment  13 has been generated. Its identifier is WAT9.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =       13   Number of residues   =    22010
+         Number of atoms         =    92224   Number of groups     =    29098
+         Number of bonds         =    92118   Number of angles     =    74136
+         Number of dihedrals     =    74130   Number of impropers  =     1402
+         Number of cross-terms   =      388
+         Number of HB acceptors  =    22098   Number of HB donors  =      758
+         Number of NB exclusions =        0   Total charge =  -14.00000
+  
+ CHARMM>    open read card unit 10 name ./pdb/wat9_s.pdb
+ OPNLGU> Unit already open. The old file will be closed first.
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VOPEN> Attempting to open::./pdb/wat9_s.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/genesis/build/apoa1/./pdb/wat9_s.pdb
+  
+ CHARMM>    read coor pdb  unit 10 resid
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- write psf, pdb, and crd file
+ CHARMM>     
+  
+ CHARMM>    open write formatted unit 27 name apoa1.psf
+ VOPEN> Attempting to open::apoa1.psf::
+ OPNLGU> Unit 27 opened for WRITE access to /home/tmori/genesis/build/apoa1/apoa1.psf
+  
+ CHARMM>    write psf card unit 27
+ RDTITL> CLOSE UNIT 27
+ RDTITL> No title read.
+  
+ CHARMM>    close unit 27
+ VCLOSE: Closing unit   27 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card write name apoa1.pdb
+ VOPEN> Attempting to open::apoa1.pdb::
+ OPNLGU> Unit  1 opened for WRITE access to /home/tmori/genesis/build/apoa1/apoa1.pdb
+  
+ CHARMM>    write coor pdb unit 1
+ RDTITL> CLOSE UNIT 1
+ RDTITL> No title read.
+  Write CHARMM-pdb format
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card write name apoa1.crd
+ VOPEN> Attempting to open::apoa1.crd::
+ OPNLGU> Unit  1 opened for WRITE access to /home/tmori/genesis/build/apoa1/apoa1.crd
+  
+ CHARMM>    write coor unit 1 card
+ RDTITL> CLOSE UNIT 1
+ RDTITL> No title read.
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>    close unit 1
+ CLOLGU>  *****  WARNING  ***** Attempt to close unit that was not open.
+  
+ CHARMM>     
+  
+ CHARMM>    stop
+ Parallel load balance (sec.):
+ Node Eext      Eint   Wait    Comm    List   Integ   Total
+   0     0.0     0.0     0.0     0.0     0.0     0.0     0.0
+ VCLOSE: Closing unit   10 with status "KEEP"
+ VCLOSE: Closing unit   20 with status "KEEP"
+
+      $$$$$$  New timer profile Local node$$$$$
+
+ Total time                     31.49 Other:            0.00
+
+         $$$$$$  Average   profile $$$$$
+
+ Total time                     31.49 Other:            0.00
+
+                    NORMAL TERMINATION BY NORMAL STOP
+                    MAXIMUM STACK SPACE USED IS 1198912
+                    STACK CURRENTLY IN USE IS         0
+                    NO WARNINGS WERE ISSUED
+                    HEAP PRINTOUT-  HEAP SIZE         10240000
+                    SPACE CURRENTLY IN USE IS            13824
+                    MAXIMUM SPACE USED IS               303126
+                    FREE LIST
+  PRINHP> ADDRESS:               1 LENGTH:        10225676 NEXT:        10239501
+  PRINHP> ADDRESS:        10239501 LENGTH:             500 NEXT:               0
+
+                    $$$$$ JOB ACCOUNTING INFORMATION $$$$$
+                     ELAPSED TIME:    31.49  SECONDS 
+                         CPU TIME:     0.00  SECONDS 

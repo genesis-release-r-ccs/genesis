@@ -1,0 +1,48 @@
+* Generate PSF and CHARMM coordinate
+*
+
+! --- Read in Topology and  Parameter files
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/top_all22_prot.inp
+read RTF card unit 1
+close unit 1
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/par_all22_prot.inp
+read PARA card unit 1
+close unit 1
+
+
+! --- Read sequence from the PDB coordinate file
+
+open read card unit 10 name ./pdb/pro1_s.pdb
+read sequence pdb unit 10
+generate PRO1 setup warn first NTER last CTER
+
+open read card unit 10 name ./pdb/pro1_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 7023
+GENERATE WAT1 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat1_s.pdb
+read coor pdb  unit 10 resid
+
+
+! --- write psf, pdb, and crd file
+
+open write formatted unit 27 name jac.psf
+write psf card unit 27
+close unit 27
+
+open write formatted unit 27 name jac_xplor.psf
+write psf card xplor unit 27
+close unit 27
+
+open unit 1 card write name jac.pdb
+write coor pdb unit 1
+close unit 1
+
+!open unit 1 card write name jac.crd
+!write coor unit 1 card
+!close unit 1
+
+stop

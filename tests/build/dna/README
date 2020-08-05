@@ -1,0 +1,36 @@
+poly(A)-poly(T) decamer DNA embedded in water box
+
+dna_charmm.psf - charmm-type psf file (built with ../../param/top_all27_na.rtf)
+dna_xplor.psf  - xplor-type psf file (built with ../../param/top_all27_na.rtf)
+dna.psf        - symbolic link to 'dna_charmm.psf'
+dna.pdb        - coordinate file (equilibrated under NVE around 300K)
+
+Here explains what I did in making dna.psf and dna.pdb files.
+The protocols are based on a NAMD tutorial
+"Modeling Nanopores for Sequencing DNA" by Comer et al.
+
+1. generate a structure of cannonical decamer B-DNA structure 
+   on 3D-DART (http://haddock.chem.uu.nl/services/3DDART/).
+   a. Enter A for the sequence and 10 for the repeats.
+   b. check "Convert nucleic acid 1 letter to 3 letter notation" under "Step 3:".
+   c. Click "Submit"
+   d. unzip the file and copy "jobnr8-PDBeditor/dna1_fixed.pdb" to "pdb/dna_original.pdb"
+
+2. create psf and pdb files by using psfgen,
+   and solvate and neutralize by using vmd packages.
+
+   $ vmd -dispdev text -eofexit <setup.tcl | tee setup.out
+
+3. equilibrate the system by using namd
+
+   a. minimize and gradual heating with restraints under NVT
+   $ namd2 +p16 ./eq1.conf 2>&1 | tee eq1.out
+
+   a. equilibrate under NVE
+   $ namd2 +p16 ./eq2.conf 2>&1 | tee eq2.out
+   
+3. make symbolic links
+
+   $ ln -s dna_charmm.psf dna.psf
+   $ ln -s out/eq2.coor dna.pdb
+

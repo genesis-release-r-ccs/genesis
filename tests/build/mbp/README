@@ -1,0 +1,41 @@
+Maltose binding protein in water box
+
+mbp_charmm.psf - charmm-type psf file (built with ../../param/top_all27_prot_lipid.rtf)
+mbp_xplor.psf  - xplor-type psf file (built with ../../param/top_all27_prot_lipid.rtf)
+mbp.psf        - symbolic link to 'mbp_charmm.psf'
+mbp.pdb        - coordinate file (equilibrated under 300K 1atm)
+
+The procedure for building the system: 
+
+1. download PDB file and manually edit the file
+
+   a. donload PDB file
+   $ curl -o pdb/1omp_original.pdb http://www.rcsb.org/pdb/files/1omp.pdb
+
+   b. edit the PDB file
+   $ cp pdb/1omp_original.pdb pdb/1omp_edited.pdb 
+   $ vi pdb/1omp_edited.pdb 
+      rename C terminal O to OT1
+      rename C terminal OXT to OT2
+
+2. run vmd and create psf file
+
+   $ vmd -dispdev text -eofexit <setup.tcl | tee setup.out
+      setup.tcl invokes the psfgen plugin to create psf file
+      and the solvate plugin solvates the protein
+      also the autoionize plugin add ions to neutralize the system
+
+3. equilibrate the system by using NAMD
+
+   a. minimize and equilibrate under NVT (300K)
+   $ namd2 +p16 ./eq1.conf 2>&1 | tee eq1.out
+
+   b. equilibrate under NPT (300K, 1atm)
+   $ namd2 +p16 ./eq2.conf 2>&1 | tee eq2.out
+   
+4. make symbolic links
+
+   $ ln -s mbp_charmm.psf mbp.psf
+   $ ln -s out/eq2.coor mbp.pdb
+
+

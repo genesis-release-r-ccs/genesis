@@ -1,0 +1,45 @@
+* Generate PSF and CHARMM coordinate
+*
+
+! --- Read in Topology and  Parameter files
+
+open unit 1 card read name /home/mdsoft/charmm/c35b2/toppar/top_all27_prot_lipid.rtf
+read RTF card unit 1
+close unit 1
+
+open unit 1 card read name /home/mdsoft/charmm/c35b2/toppar/par_all27_prot_lipid.prm
+read PARA card unit 1
+close unit 1
+
+
+! --- Read sequence from the PDB coordinate file
+
+READ SEQUENCE TIP3  3072
+GENERATE WATR SETUP NOANGLE NODIHEDRAL
+
+open read card unit 10 name ./pdb/water3072_eq2.pdb
+read coor pdb  unit 10
+
+
+! --- write psf, pdb, and crd file
+
+open write formatted unit 27 name water_xplor.psf
+write psf card xplor unit 27
+close unit 27
+
+open write formatted unit 27 name water.psf
+write psf card unit 27
+close unit 27
+
+open unit 1 card write name water.pdb
+write coor pdb unit 1
+close unit 1
+
+open unit 1 card write name water.crd
+write coor unit 1 card
+close unit 1
+
+
+stop
+
+

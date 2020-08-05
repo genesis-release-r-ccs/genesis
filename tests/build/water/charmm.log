@@ -1,0 +1,172 @@
+1
+                 Chemistry at HARvard Macromolecular Mechanics
+                   (CHARMM) - Developmental Version 34b1     August 15, 2007   
+       Copyright(c) 1984-2001  President and Fellows of Harvard College
+                              All Rights Reserved
+      Current operating system: Linux-2.6.18-194.32.1.el5(x86_64)@octopus
+                 Created on  4/21/11 at 13:42:56 by user: tmori       
+
+            Maximum number of ATOMS:    240480, and RESidues:       80160
+            Current HEAP size:        10240000, and STACK size:  10000000
+
+ RDTITL> * GENERATE PSF AND CHARMM COORDINATE
+ RDTITL> *
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- Read in Topology and  Parameter files
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card read name /home/mdsoft/charmm/c35b2/toppar/top_all27_prot_lipid.rtf
+ VOPEN> Attempting to open::/home/mdsoft/charmm/c35b2/toppar/top_all27_prot_lipid.rtf::
+ OPNLGU> Unit  1 opened for READONLY access to /home/mdsoft/charmm/c35b2/toppar/top_all27_prot_lipid.rtf
+  
+ CHARMM>    read RTF card unit 1
+ MAINIO> Residue topology file being read from unit   1.
+ TITLE> *> CHARMM22 ALL-HYDROGEN TOPOLOGY FILE FOR PROTEINS AND LIPIDS <<
+ TITLE> *>>>>>> INCLUDES PHI, PSI CROSS TERM MAP (CMAP) CORRECTION <<<<<<
+ TITLE> *>>>>>>>>>>>>>>>>>>>>>>   JULY 2004    <<<<<<<<<<<<<<<<<<<<<<<<<<
+ TITLE> * ALL COMMENTS TO ADM JR. VIA THE CHARMM WEB SITE: WWW.CHARMM.ORG
+ TITLE> *               PARAMETER SET DISCUSSION FORUM
+ TITLE> *
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card read name /home/mdsoft/charmm/c35b2/toppar/par_all27_prot_lipid.prm
+ VOPEN> Attempting to open::/home/mdsoft/charmm/c35b2/toppar/par_all27_prot_lipid.prm::
+ OPNLGU> Unit  1 opened for READONLY access to /home/mdsoft/charmm/c35b2/toppar/par_all27_prot_lipid.prm
+  
+ CHARMM>    read PARA card unit 1
+
+          PARAMETER FILE BEING READ FROM UNIT  1
+ TITLE> *>CHARMM22 ALL-HYDROGEN PARAMETER FILE FOR PROTEINS AND LIPIDS <<
+ TITLE> *>>>>> INCLUDES PHI, PSI CROSS TERM MAP (CMAP) CORRECTION <<<<<<<
+ TITLE> *>>>>>>>>>>>>>>>>>>>>>>   JULY, 2003   <<<<<<<<<<<<<<<<<<<<<<<<<<
+ TITLE> * ALL COMMENTS TO ADM JR. VIA THE CHARMM WEB SITE: WWW.CHARMM.ORG
+ TITLE> *               PARAMETER SET DISCUSSION FORUM
+ TITLE> *
+ PARMIO> NONBOND, HBOND lists and IMAGE atoms cleared.
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- Read sequence from the PDB coordinate file
+ CHARMM>     
+  
+ CHARMM>    READ SEQUENCE TIP3  3072
+  
+ CHARMM>    GENERATE WATR SETUP NOANGLE NODIHEDRAL
+ NO PATCHING WILL BE DONE ON THE FIRST RESIDUE
+ NO PATCHING WILL BE DONE ON THE LAST  RESIDUE
+ GENPSF> Segment   1 has been generated. Its identifier is WATR.
+ PSFSUM> PSF modified: NONBOND lists and IMAGE atoms cleared.
+ PSFSUM> Summary of the structure file counters :
+         Number of segments      =        1   Number of residues   =     3072
+         Number of atoms         =     9216   Number of groups     =     3072
+         Number of bonds         =     9216   Number of angles     =     3072
+         Number of dihedrals     =        0   Number of impropers  =        0
+         Number of cross-terms   =        0
+         Number of HB acceptors  =     3072   Number of HB donors  =        0
+         Number of NB exclusions =        0   Total charge =    0.00000
+  
+ CHARMM>     
+  
+ CHARMM>    open read card unit 10 name ./pdb/water3072_eq2.pdb
+ VOPEN> Attempting to open::./pdb/water3072_eq2.pdb::
+ OPNLGU> Unit 10 opened for READONLY access to /home/tmori/zz/Develop/genesis/0.2/0.2.6_110415_TM/tests/build/water/./pdb/water3072_eq2.pdb
+  
+ CHARMM>    read coor pdb  unit 10
+  read CHARMM-pdb format
+          SPATIAL COORDINATES BEING READ FROM UNIT 10
+ TITLE>  *
+  
+ CHARMM>     
+  
+ CHARMM>     
+  
+ CHARMM>    ! --- write psf, pdb, and crd file
+ CHARMM>     
+  
+ CHARMM>    !open write formatted unit 27 name water_xplor.psf
+ CHARMM>    !write psf card xplor unit 27
+ CHARMM>    !close unit 27
+ CHARMM>     
+  
+ CHARMM>    open write formatted unit 27 name water.psf
+ VOPEN> Attempting to open::water.psf::
+ OPNLGU> Unit 27 opened for WRITE access to /home/tmori/zz/Develop/genesis/0.2/0.2.6_110415_TM/tests/build/water/water.psf
+  
+ CHARMM>    write psf card unit 27
+ RDTITL> CLOSE UNIT 27
+ RDTITL> No title read.
+  
+ CHARMM>    close unit 27
+ VCLOSE: Closing unit   27 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card write name water.pdb
+ VOPEN> Attempting to open::water.pdb::
+ OPNLGU> Unit  1 opened for WRITE access to /home/tmori/zz/Develop/genesis/0.2/0.2.6_110415_TM/tests/build/water/water.pdb
+  
+ CHARMM>    write coor pdb unit 1
+ RDTITL> CLOSE UNIT 1
+ RDTITL> No title read.
+  Write CHARMM-pdb format
+  
+ CHARMM>    close unit 1
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>     
+  
+ CHARMM>    open unit 1 card write name water.crd
+ VOPEN> Attempting to open::water.crd::
+ OPNLGU> Unit  1 opened for WRITE access to /home/tmori/zz/Develop/genesis/0.2/0.2.6_110415_TM/tests/build/water/water.crd
+  
+ CHARMM>    write coor unit 1 card
+ RDTITL> CLOSE UNIT 1
+ RDTITL> No title read.
+ VCLOSE: Closing unit    1 with status "KEEP"
+  
+ CHARMM>    close unit 1
+ CLOLGU>  *****  WARNING  ***** Attempt to close unit that was not open.
+  
+ CHARMM>     
+  
+ CHARMM>     
+  
+ CHARMM>    stop
+ Parallel load balance (sec.):
+ Node Eext      Eint   Wait    Comm    List   Integ   Total
+   0     0.0     0.0     0.0     0.0     0.0     0.0     0.0
+ VCLOSE: Closing unit   10 with status "KEEP"
+
+      $$$$$$  New timer profile Local node$$$$$
+
+ Total time                      0.27 Other:            0.00
+
+         $$$$$$  Average   profile $$$$$
+
+ Total time                      0.27 Other:            0.00
+
+                    NORMAL TERMINATION BY NORMAL STOP
+                    MAXIMUM STACK SPACE USED IS  119808
+                    STACK CURRENTLY IN USE IS         0
+                    NO WARNINGS WERE ISSUED
+                    HEAP PRINTOUT-  HEAP SIZE         10240000
+                    SPACE CURRENTLY IN USE IS            13824
+                    MAXIMUM SPACE USED IS                19124
+                    FREE LIST
+  PRINHP> ADDRESS:               1 LENGTH:        10225676 NEXT:        10239501
+  PRINHP> ADDRESS:        10239501 LENGTH:             500 NEXT:               0
+
+                    $$$$$ JOB ACCOUNTING INFORMATION $$$$$
+                     ELAPSED TIME:     0.27  SECONDS 
+                         CPU TIME:     0.00  SECONDS 

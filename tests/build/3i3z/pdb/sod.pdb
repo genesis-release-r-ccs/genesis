@@ -1,0 +1,10 @@
+ATOM      1  SOD SOD     1       0.812 -17.128   5.266  1.00  0.00      SOD 
+ATOM      2  SOD SOD     2     -10.999   5.521  -2.191  1.00  0.00      SOD 
+ATOM      3  SOD SOD     3      20.459  -4.801   5.383  1.00  0.00      SOD 
+ATOM      4  SOD SOD     4      -6.558  -9.910   6.753  1.00  0.00      SOD 
+ATOM      5  SOD SOD     5     -14.534  -7.390   8.756  1.00  0.00      SOD 
+ATOM      6  SOD SOD     6       1.935  17.573 -13.725  1.00  0.00      SOD 
+ATOM      7  SOD SOD     7     -12.704  13.850  -3.653  1.00  0.00      SOD 
+ATOM      8  SOD SOD     8     -18.898 -10.848  -7.233  1.00  0.00      SOD 
+TER
+END

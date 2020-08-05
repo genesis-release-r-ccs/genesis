@@ -1,0 +1,98 @@
+* Generate PSF and CHARMM coordinate
+*
+
+! --- Read in Topology and  Parameter files
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/top_all27_prot_lipid.rtf
+read RTF card unit 1
+close unit 1
+
+open unit 1 card read name /home/mdsoft/charmm/c34b1/toppar/par_all27_prot_lipid.prm
+read PARA card unit 1
+close unit 1
+
+
+! --- Read sequence from the PDB coordinate file
+
+! Read PROA
+open read card unit 10 name ./pdb/proa_s.pdb
+read sequence pdb unit 10
+generate PROA setup warn first NTER last CTER
+
+patch ASPP PROA 194 setup warn
+autogenerate angles dihedrals
+patch GLUP PROA 318 setup warn
+autogenerate angles dihedrals
+
+open read card unit 10 name ./pdb/proa_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 7000
+GENERATE WT01 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat1_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 7000
+GENERATE WT02 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat2_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 7000
+GENERATE WT03 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat3_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 7000
+GENERATE WT04 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat4_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE TIP3 2665
+GENERATE WT05 SETUP NOANGLE NODIHEDRAL
+open read card unit 10 name ./pdb/wat5_s.pdb
+read coor pdb  unit 10 resid
+
+READ SEQUENCE SOD 98
+GENERATE SOD WARN
+open read card unit 10 name ./pdb/sod_s.pdb
+read coor pdb  unit 10 resid 
+
+READ SEQUENCE CLA 74
+GENERATE CLA WARN
+open read card unit 10 name ./pdb/cla_s.pdb
+read coor pdb  unit 10 resid
+
+
+! --- write psf, pdb, and crd file
+
+open write formatted unit 27 name seca.psf
+write psf card unit 27
+close unit 27
+
+open unit 1 card write name seca.pdb
+write coor pdb unit 1
+close unit 1
+
+open unit 1 card write name seca.crd
+write coor unit 1 card
+close unit 1
+
+
+crystal define orth 108.0 132.0 78.0 90.0 90.0 90.0
+crystal build
+
+! --- minimized
+
+nbonds elec noewald cdie shift -
+       vdw vatom vswitch -
+       nbxmod 5 -
+       ctonnb 8.0 ctofnb 12.0 cutnb 13.0
+
+mini sd nstep 10000
+
+open unit 1 card write name seca_mined.crd
+write coor unit 1 card
+close unit 1
+
+
+stop

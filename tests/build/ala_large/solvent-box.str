@@ -1,0 +1,192 @@
+*NAME: solvent-box.str
+*PURPOSE: make a TIP3 box with user-defined edges, and make room for solute
+*AUTHOR: Lennart Nilsson, Karolinska Institutet (October 7, 2003)
+* THERE IS NO ERROR CHECKING IN THIS FILE
+*
+!ASSUMPTIONS:
+! The psf and coordinates of the solute are present
+! A selection "SOLUTE" defining the solute has been made 
+! (define solute sele ... end)
+! There is no segment present with segid WAT, WAT0, WAT1, WAT2 or WAT3
+! XSIZ, YSIZ and ZSIZ have been s set to the desired box dimensions
+! Uses read-watbox.str to get coordinates for primary water box
+!RESULT:
+! At return there will be a new segment named WAT containing TIP3 water 
+! molecules ! that have their oxygen atom in the box, and not overlapping
+! with the solute.
+! The system is centered at the origin, with the main axis of inertia of the
+! SOLUTE! along the x-axis. For the deletion of overlapping waters only 
+! heavy solute atoms and water oxygens are considered; overlap distance 
+! criteria are defined below
+! No other manipulations (minimizations etc) are performed on the system; 
+! bomblevel is set to -2 to avoid stopping at empty selections or
+!  empty segments
+
+!USAGE EXAMPLE:
+!read rtf  card name /applic/charmm/toppar/top_all22_prot.inp
+!read para card name /applic/charmm/toppar/par_all22_prot.inp
+!read psf card name my_structure.psf
+!read coor card name my_structure.crd
+!set XSIZ 27.0
+!set YSIZ 30.0 
+!set ZSIZ 35.0 
+!define SOLUTE sele segid prot .or. segid dna1 .or. segid dna2 end
+!stream solvent-box.str
+!! here you may want to add some boundary potential
+!cons harm force 50.0 sele SOLUTE end
+!mini sd nstep 50
+!mini abnr nstep 50
+!. . . 
+!LOCAL VARIABLES:
+! XTR,YTR,ZTR,XNUM,YNUM,ZNUM,BOX,XB2,YB2,ZB2
+! NW0,NROD,NSLAB,OVERLAP,OVERAP2,I
+!Defines selection SOLUTE1 
+! distance to use when deleting waters that overlap with the solute
+! possibly different for second overlay of slightly shifted/rotated slab
+set OVERLAP   2.2 
+set OVERLAP2  2.2
+! solvation will be done by sliding a slab of TIP3 along the x-axis
+! the water box we start with is a cube with 18.856A side containing 216 TIP3
+set BOX 18.856
+set NW0 216
+! for the water-deletions we will use only the heavy atoms of the solute
+define SOLUTE1 sele SOLUTE .and. .not. hydrogen end
+! set bomblevel to -2 to avoid stopping on empty selections or empty segments
+bomb -2
+
+! begin calculations
+! place SOLUTE along xaxis centered at (XSIZ/2,YSIZ/2,ZSIZ/2) in first octant so
+! we can easily move our box around to cover the solute
+calc XB2 = @XSIZ / 2.0
+calc YB2 = @YSIZ / 2.0
+calc ZB2 = @ZSIZ / 2.0
+coor orient sele SOLUTE end
+coor trans xdir @XB2 ydir @YB2 zdir @ZB2
+
+calc XNUM = INT(@XSIZ / @BOX + 1) 
+calc YNUM = INT(@YSIZ / @BOX + 1) 
+calc ZNUM = INT(@ZSIZ / @BOX + 1) 
+
+! number of water molecules in a rod and in a slab
+calc NROD = @NW0 * @YNUM
+calc NSLAB = @ZNUM * @NROD
+
+!generate one rod of boxes along Y-axis
+read sequence tip3 216
+gene wat0 noangle nodihe
+stream read-watbox.str
+! put it in the first octant
+coor stat sele segid wat0 .and. .not. hydrogen end
+calc XTR = - ?XMIN
+calc YTR = - ?YMIN
+calc ZTR = - ?ZMIN
+coor trans xdir @XTR ydir @YTR zdir @ZTR sele segid WAT0 end
+
+read sequence tip3 216
+gene wat noangle nodihe
+coor dupl sele segid wat0 end sele segid wat end
+
+if YNUM .eq. 1 goto do_z
+! loop over the remaining 2 to NUM boxes in the rod
+set I 2
+label yloop
+  read sequence tip3 216
+  gene wat1 noangle nodihe
+  coor dupl sele segid wat0 end sele segid wat1 end
+  coor transl ydir @BOX sele segid wat1 end
+  coor transl ydir @BOX sele segid wat0 end
+  join wat wat1 renumber
+  incr I by 1
+  if I le @YNUM goto yloop
+
+! done with the rod, make a slab perpendicular to X-axis
+label DO_Z
+! wat0 is no longer needed
+delete atom sele segid wat0 end
+if ZNUM .eq. 1 goto do_x
+rename segid wat0 sele segid wat end
+read sequence tip3 @NROD
+gene wat noangle nodihe
+coor dupl sele segid wat0 end sele segid wat end
+
+set I 2
+label ZLOOP
+  read sequence tip3 @NROD
+  gene wat1 noangle nodihe
+  coor dupl sele segid wat0 end sele segid wat1 end
+  coor transl zdir @BOX sele segid wat1 end
+  coor transl zdir @BOX sele segid wat0 end
+  join wat wat1 renumber
+  incr I by 1
+  if I le @ZNUM goto zloop
+
+! done with the slab, now let it slide along the x-axis, after centering everything at orig
+label DO_X
+delete atom sele segid wat0 end
+rename segid wat0 sele segid wat end
+
+coor transl xdir -@XB2  ydir -@YB2 zdir -@ZB2
+
+read sequence tip3 @NSLAB
+gene wat2 noangle nodihe
+coor dupl sele segid wat0 end sele segid wat2 end
+! delete water molecules further away than XB2, YB2, ZB2  A from origin
+delete atom sele .byres. ( segid wat2 .and. type OH2 .and.  -
+  ( property abs x .gt. @XB2 .or. property abs y .gt. @YB2 - 
+   .or. property abs z .gt. @ZB2) ) end 
+! and also those overlapping with the SOLUTE 
+delete atom sele .byres. ( segid wat2 .and. type OH2 .and.  -
+  ( SOLUTE1 .around. @OVERLAP ) ) end 
+! do the same slab again, but translated -1A and rotated 30 degrees around the x-axis
+read sequence tip3 @NSLAB
+gene wat3 noangle nodihe
+coor dupl sele segid wat0 end sele segid wat3 end
+coor rota xdir 1.0 phi 30.0 sele segid wat3 end
+coor transl xdir -1.0  sele segid wat3 end
+! delete water molecules further away than XB2, YB2, ZB2  A from origin
+delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+  ( property abs x .gt. @XB2 .or. property abs y .gt. @YB2 - 
+   .or. property abs z .gt. @ZB2) ) end 
+! and also those overlapping with the SOLUTE or existing WAT2 segment
+delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+( (SOLUTE1 .or. (segid wat2 .and. type OH2)) .around. @OVERLAP2 ) ) end 
+join wat2 wat3 renumber
+
+if XNUM .eq. 1 goto done
+
+set I 2
+label XLOOP
+  read sequence tip3 @NSLAB
+  gene wat3 noangle nodihe
+  coor dupl sele segid wat0 end sele segid wat3 end
+  coor transl xdir @BOX sele segid wat3 end
+  coor transl xdir @BOX sele segid wat0 end
+! delete water molecules further away than XB2, YB2, ZB2  A from origin
+  delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+  ( property abs x .gt. @XB2 .or. property abs y .gt. @YB2 - 
+   .or. property abs z .gt. @ZB2) ) end 
+  ! and also those overlapping with the SOLUTE
+  delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+   ( SOLUTE1 .around. @OVERLAP ) ) end 
+  join wat2 wat3 renumber
+  ! do the same slab again, but translated -1A and rotated 30 degrees around the x-axis
+  read sequence tip3 @NSLAB
+  gene wat3 noangle nodihe
+  coor dupl sele segid wat0 end sele segid wat3 end
+  coor rota xdir 1.0 phi 30.0 sele segid wat3 end
+  coor transl xdir -1.0  sele segid wat3 end
+! delete water molecules further away than XB2, YB2, ZB2  A from origin
+  delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+  ( property abs x .gt. @XB2 .or. property abs y .gt. @YB2 - 
+   .or. property abs z .gt. @ZB2) ) end 
+  ! and also those overlapping with the SOLUTE or existing WAT2 segment
+  delete atom sele .byres. ( segid wat3 .and. type OH2 .and.  -
+   ( (SOLUTE1 .or. (segid wat2 .and. type OH2) ).around. @OVERLAP2 ) ) end 
+  join wat2 wat3 renumber
+  incr I by 1
+  if I le @XNUM goto xloop
+
+label DONE
+delete atom sele segid wat0 end
+rename segid wat sele segid wat2 end
+return
