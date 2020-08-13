@@ -21,6 +21,7 @@ class Genesis(object):
         self.dict_error = {}
         self.is_passed = False
         self.is_fujitsu = False
+        self.is_fugaku = False
         self.is_single = False
         self.is_gpu    = False
 
@@ -52,6 +53,7 @@ class Genesis(object):
         patternNONBOND = re.compile('^  nonbonding')
         patternCPU = re.compile('^  cpu model')
         patternFUJITSU = re.compile('SPARC')
+        patternFUGAKU = re.compile('Fugaku')
         patternPRECISION = re.compile('^  precision')
         patternSINGLE = re.compile('single')
         patternGPU = re.compile('GPU')
@@ -71,7 +73,14 @@ class Genesis(object):
                     text.append(data_each)
                     tmp = []
                     for i in range(len(data_each)):
-                        if data_each[i][-1].isdigit(): # number ?
+                        if data_each[i].replace('.','',1).isdigit(): # positive number
+#                            print "test-posi %s" % data_each[i]
+                            tmp = tmp + [(float(data_each[i]))]
+                        elif data_each[i][0]=="-" and data_each[i][1:].replace('.','',1).isdigit(): # negative number 
+#                            print "test-nega %s" % data_each[i]
+                            tmp = tmp + [(float(data_each[i]))]
+                        elif data_each[i][-1].isdigit() and data_each[i][0].isdigit(): # number ?
+#                            print "test-nani %s" % data_each[i]
                             tmp = tmp + [(float(data_each[i]))]
                         else: # Not a Number !
                             tmp = tmp + [(float(999999))] 
@@ -92,6 +101,8 @@ class Genesis(object):
                 result = patternCPU.search(line)
                 if result is not None:
                     self.is_fujitsu = patternFUJITSU.search(line)
+                if result is not None:
+                    self.is_fugaku = patternFUGAKU.search(line)
                 result = patternPRECISION.search(line)
                 if result is not None:
                     self.is_single = patternSINGLE.search(line)
