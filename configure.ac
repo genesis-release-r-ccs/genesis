@@ -773,7 +773,6 @@ else
       FCFLAGS="-m -Kocl "
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
-#      FCFLAGS_KERNELS=" -m -Kocl  -Kfast,openmp,parallel,simd=2,swp_strong,noalias=s -Nlst=t -Koptmsg=2"      
       FCFLAGS=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
       FCFLAGS_KERNELS=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"      
       FCFLAGS_KERNELS_PAIRLIST="-m -Kocl -Kopenmp -Nlst=t -Koptmsg=2" 
@@ -805,7 +804,7 @@ else
       FCFLAGS="-g  -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
     elif test x"${FC_ACT}" = x"frtpx"; then
-      FCFLAGS="-g -m -Kocl "
+      FCFLAGS="-g -m -Kocl -Kopenmp"
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
       FCFLAGS=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
@@ -840,10 +839,9 @@ else
 
     elif test x"${FC_ACT}" = x"frtpx"; then
 #      FCFLAGS="-O0 -g -Hs -Hu -Ha"
-      FCFLAGS="-O0 -g -Kocl"
+      FCFLAGS="-O0 -g -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
-#      FCFLAGS="-O0 -g -Hs -Hu -Ha"
       FCFLAGS=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
       FCFLAGS_KERNELS=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"      
       FCFLAGS_KERNELS_PAIRLIST=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2" 
