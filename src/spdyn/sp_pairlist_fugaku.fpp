@@ -299,10 +299,12 @@ contains
       end do
       ix = natom(i)
       num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ix,i))
+      if (num_nb15_calc(ix,i) > 0) then
       do k = 1, num_add_prefetch
         nb15_calc_list(num_nb15_calc(ix,i)+k,ix,i) &
               = nb15_calc_list(num_nb15_calc(ix,i),ix,i)
       end do
+      end if
     end do
 
     !$omp end parallel

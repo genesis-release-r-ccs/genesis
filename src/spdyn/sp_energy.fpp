@@ -3296,7 +3296,7 @@ contains
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic
+    integer                  :: ncell, natom, id, i, ix, ic, k
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -3313,12 +3313,52 @@ contains
     virial_ext(1:3,1:3)             = 0.0_dp 
 
     if (domain%nonbond_kernel /= NBK_GPU) then
-      force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-      force_pbc   (1:natom,1:3,1:ncell,1:nthread) = 0.0_wp
+
+      if (domain%nonbond_kernel == NBK_Fugaku) then
+
+        !$omp parallel do private(k, id, i, ix)
+        do id = 1, nthread
+          do i = 1, ncell
+!ocl nosimd
+            do ix = 1, natom
+              force_omp(1,ix,i,id) = 0.0_wp
+              force_omp(2,ix,i,id) = 0.0_wp
+              force_omp(3,ix,i,id) = 0.0_wp
+            end do
+          end do
+!ocl nosimd
+          do i = 1, MaxAtom*ncell
+            force_pbc(1,i,1,id) = 0.0_wp
+            force_pbc(2,i,1,id) = 0.0_wp
+            force_pbc(3,i,1,id) = 0.0_wp
+          end do
+        end do
+        !$omp end parallel do
+
+      else
+
+        !$omp parallel do
+        do id = 1, nthread
+          force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+          force_pbc(1:natom,1:3,1:ncell,id) = 0.0_wp
+        end do
+        !$omp end parallel do
+
+      end if
+
     else
-      force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-      force_pbc   (1:natom,1:3,1:ncell,1) = 0.0_wp
+      !$omp parallel do
+      do id = 1, nthread
+        force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+      end do
+      !$omp end parallel do
+      !$omp parallel do
+      do i = 1, ncell
+        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      end do
+      !$omp end parallel do
     end if
+
     virial_omp    (1:3,1:3,1:nthread) = 0.0_dp 
     virial_ext_omp(1:3,1:3,1:nthread) = 0.0_dp 
     virial_cell   (1:3,1:maxcell) = 0.0_dp 
@@ -3414,30 +3454,73 @@ contains
 
     ! gather values
     !
-    !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
+    if (domain%nonbond_kernel /= NBK_Fugaku) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
 #ifdef OMP
       id = omp_get_thread_num()
 #else
       id = 0
 #endif
-    do i = id+1, ncell, nthread
-      do ix = 1, domain%num_atom(i)
-        force_tmp(1:3) = force_omp(1:3,ix,i,1)
-        force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
-        if (domain%nonbond_kernel /= NBK_GPU) then
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-            force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
-          end do
-        else
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-          end do
-        end if
-        force(1:3,ix,i) = force_tmp(1:3)
+      do i = id+1, ncell, nthread
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1:3) = force_omp(1:3,ix,i,1)
+          force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
+
+          if (domain%nonbond_kernel /= NBK_GPU) then
+
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+              force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
+            end do
+
+          else
+
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+            end do
+
+          end if
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
       end do
-    end do
-    !$omp end parallel
+      !$omp end parallel
+
+    else
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = (i-1)*MaxAtom
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,1)
+
+!ocl nosimd
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    end if
 
     return
 
@@ -3500,7 +3583,7 @@ contains
     real(dp)                 :: erbdihed_omp(nthread)
     real(dp)                 :: eposi_omp   (nthread)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic
+    integer                  :: ncell, natom, id, i, ix, ic, k
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -3517,12 +3600,52 @@ contains
     virial_ext(1:3,1:3)             = 0.0_dp 
 
     if (domain%nonbond_kernel /= NBK_GPU) then
-      force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-      force_pbc   (1:natom,1:3,1:ncell,1:nthread) = 0.0_wp
+
+      if (domain%nonbond_kernel == NBK_Fugaku) then
+
+        !$omp parallel do private(k, id, i, ix)
+        do id = 1, nthread
+          do i = 1, ncell
+!ocl nosimd
+            do ix = 1, natom
+              force_omp(1,ix,i,id) = 0.0_wp
+              force_omp(2,ix,i,id) = 0.0_wp
+              force_omp(3,ix,i,id) = 0.0_wp
+            end do
+          end do
+!ocl nosimd
+          do i = 1, MaxAtom*ncell
+            force_pbc(1,i,1,id) = 0.0_wp
+            force_pbc(2,i,1,id) = 0.0_wp
+            force_pbc(3,i,1,id) = 0.0_wp
+          end do
+        end do
+        !$omp end parallel do
+
+      else
+
+        !$omp parallel do
+        do id = 1, nthread
+          force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+          force_pbc(1:natom,1:3,1:ncell,id) = 0.0_wp
+        end do
+        !$omp end parallel do
+
+      end if
+
     else
-      force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-      force_pbc   (1:natom,1:3,1:ncell,1) = 0.0_wp
+      !$omp parallel do
+      do id = 1, nthread
+        force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+      end do
+      !$omp end parallel do
+      !$omp parallel do
+      do i = 1, ncell
+        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      end do
+      !$omp end parallel do
     end if
+
     virial_omp    (1:3,1:3,1:nthread) = 0.0_dp 
     virial_ext_omp(1:3,1:3,1:nthread) = 0.0_dp 
     virial_cell   (1:3,1:maxcell) = 0.0_dp 
@@ -3617,25 +3740,73 @@ contains
 
     ! gather values
     !
-    !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
-    do i = id+1, ncell, nthread
-      do ix = 1, domain%num_atom(i)
-        force_tmp(1:3) = force_omp(1:3,ix,i,1)
-        force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
-        if (domain%nonbond_kernel /= NBK_GPU) then
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-            force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
-          end do
-        else
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-          end do
-        end if
-        force(1:3,ix,i) = force_tmp(1:3)
+    if (domain%nonbond_kernel /= NBK_Fugaku) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1:3) = force_omp(1:3,ix,i,1)
+          force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
+
+          if (domain%nonbond_kernel /= NBK_GPU) then
+
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+              force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
+            end do
+
+          else
+
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+            end do
+
+          end if
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
       end do
-    end do
-    !$omp end parallel 
+      !$omp end parallel
+
+    else
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = (i-1)*MaxAtom
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,1)
+
+!ocl nosimd
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    end if
 
     return
 
