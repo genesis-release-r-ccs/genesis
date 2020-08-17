@@ -770,10 +770,15 @@ else
       FCFLAGS="-m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
     elif test x"${FC_ACT}" = x"frtpx"; then
-      FCFLAGS="-m "
+      FCFLAGS="-m -Kocl "
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
-      FCFLAGS="-m "
+      FCFLAGS=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_KERNELS=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"      
+      FCFLAGS_KERNELS_PAIRLIST="-m -Kocl -Kopenmp -Nlst=t -Koptmsg=2" 
+      FCFLAGS_FFTE_KERNEL_FPP__PGI__SP=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_FPP__PGI_NOOPT=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_DIHEDRAL=" -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"     
 
     elif test x"${FC_ACT}" = x"frt"; then
       FCFLAGS="-m "
@@ -799,10 +804,15 @@ else
       FCFLAGS="-g  -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
     elif test x"${FC_ACT}" = x"frtpx"; then
-      FCFLAGS="-g -m "
+      FCFLAGS="-g -m -Kocl -Kopenmp"
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
-      FCFLAGS="-g -m "
+      FCFLAGS=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_KERNELS=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"      
+      FCFLAGS_KERNELS_PAIRLIST=" -g -m -Kocl -Kopenmp -Nlst=t -Koptmsg=2" 
+      FCFLAGS_FFTE_KERNEL_FPP__PGI__SP=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_FPP__PGI_NOOPT=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"
+      FCFLAGS_DIHEDRAL=" -g -m -Kocl -Kopenmp  -Nlst=t -Koptmsg=2"     
 
     elif test x"${FC_ACT}" = x"frt"; then
       FCFLAGS="-g -m "
@@ -828,15 +838,16 @@ else
       FCFLAGS="-O0 -g -m64 -Msmartalloc=huge"
 
     elif test x"${FC_ACT}" = x"frtpx"; then
-      FCFLAGS="-O0 -g -Hs -Hu -Ha"
+#      FCFLAGS="-O0 -g -Hs -Hu -Ha"
+      FCFLAGS="-O0 -g -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
 
     elif test x"${FC_ACT}" = x"mpifrtpx"; then
-      FCFLAGS="-O0 -g -Hs -Hu -Ha"
-      FCFLAGS_KERNELS="-O0 -g -Hs -Hu -Ha -Kopenmp"      
-      FCFLAGS_KERNELS_PAIRLIST="-O0 -g -Hs -Hu -Ha -Kopenmp"
-      FCFLAGS_FFTE_KERNEL_FPP__PGI__SP="-O0 -g -Hs -Hu -Ha -Kopenmp"
-      FCFLAGS_FPP__PGI_NOOPT="-O0 -g -Hs -Hu -Ha -Kopenmp"
-      FCFLAGS_DIHEDRAL="-O0 -g -Hs -Hu -Ha -Kopenmp"     
+      FCFLAGS=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
+      FCFLAGS_KERNELS=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"      
+      FCFLAGS_KERNELS_PAIRLIST=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2" 
+      FCFLAGS_FFTE_KERNEL_FPP__PGI__SP=" -O0 -g -m -Kocl -Kopenmp  -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
+      FCFLAGS_FPP__PGI_NOOPT=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha  -Nlst=t -Koptmsg=2"
+      FCFLAGS_DIHEDRAL=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha  -Nlst=t -Koptmsg=2"     
 
     elif test x"${FC_ACT}" = x"frt"; then
       FCFLAGS="-O0 -g"
@@ -927,10 +938,10 @@ else
       CFLAGS="-fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
     elif test x"${CC_ACT}" = x"fccpx"; then
-      CFLAGS="-m "
+      CFLAGS="-m -Kocl"
 
     elif test x"${CC_ACT}" = x"mpifccpx"; then
-      CFLAGS="-m "
+      CFLAGS="-m -Kocl"
 
     elif test x"${CC_ACT}" = x"fcc"; then
       CFLAGS="-m -Am -Kfast"
@@ -956,10 +967,10 @@ else
       CFLAGS="-g -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
     elif test x"${CC_ACT}" = x"fccpx"; then
-      CFLAGS="-g -m "
+      CFLAGS="-g -m -Kocl"
 
     elif test x"${CC_ACT}" = x"mpifccpx"; then
-      CFLAGS="-g -m "
+      CFLAGS="-g -m -Kocl"
 
     elif test x"${CC_ACT}" = x"fcc"; then
       CFLAGS="-g -m -Am -Kfast"
@@ -985,10 +996,11 @@ else
       CFLAGS="-O0 -g -m64 -Msmartalloc=huge"
 
     elif test x"${CC_ACT}" = x"fccpx"; then
-      CFLAGS="-O0 -g -Hs -Hu -Ha"
+#      CFLAGS="-O0 -g -Hs -Hu -Ha"
+      CFLAGS="-O0 -g -Kocl"
 
     elif test x"${CC_ACT}" = x"mpifccpx"; then
-      CFLAGS="-O0 -g -Hs -Hu -Ha"
+      CFLAGS="-O0 -g -Kocl"
 
     elif test x"${CC_ACT}" = x"fcc"; then
       CFLAGS="-O0 -g"

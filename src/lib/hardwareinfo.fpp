@@ -177,7 +177,6 @@ contains
     logical                  :: gpu_ecc
 #endif /* USE_GPU */
 
-#ifndef KCOMP
     write(MsgOut,'(A)') 'Runtime_Information> Machine and Library Information'
 
     call date_and_time(values=tval)
@@ -193,7 +192,6 @@ contains
 
     call get_cpu_information(cpuname)
     write(MsgOut,*) ' cpu model    = ',trim(cpuname)
-#endif
 #ifdef USE_GPU
     call get_gpu_information(gpu)
     gpu_modelname(1:256) = ' '
@@ -211,12 +209,10 @@ contains
                     trim(adjustl(gpu_minor)), ")"
     write(MsgOut,*) ' gpu ECC      = ',gpu_ecc
 #endif /* USE_GPU */
-#ifndef KCOMP
     call get_env_information(ldlibrary,rt_host,rt_user)
     write(MsgOut,*) ' exec. host   = ',trim(rt_user),'@',trim(rt_host)
     write(MsgOut,*) ' LD library   = ',trim(ldlibrary)
     write(MsgOut,'(A)')
-#endif
 
     return
 
@@ -329,6 +325,11 @@ contains
     logical       :: exists
 
     exists=.false.
+
+#ifdef KCOMP
+    cpuname="Fugaku"
+    return
+#endif
 
     inquire(file=cpuinfo, EXIST=exists)
     if (.not. exists) then

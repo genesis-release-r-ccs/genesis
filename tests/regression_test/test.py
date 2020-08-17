@@ -56,6 +56,7 @@ is_atdyn = False
 is_spdyn = False
 is_parallelio = False
 is_gpu = False
+is_fugaku = False
 
 test_dirs = []
 
@@ -74,6 +75,13 @@ else:
         is_parallelio = True
     elif sys.argv[2] == "gpu":
         is_gpu = True
+        if len(sys.argv) == 4:
+            if is_number.match(sys.argv[3]):
+                tolerance = float(sys.argv[3])
+    elif sys.argv[2] == "fugaku":
+        mpiexec_command = genesis_command.split(' ',2)[0]
+        genesis_path = genesis_command.split(' ',2)[1]
+        is_fugaku = True
         if len(sys.argv) == 4:
             if is_number.match(sys.argv[3]):
                 tolerance = float(sys.argv[3])
@@ -146,6 +154,9 @@ for dir in test_dirs:
         print "Error: %s, this test directory does not exist" % dir
         sys.exit(3)
 
+if (is_fugaku):
+    genesis_mpi_number = 8
+
 ###### run tests
 if (is_atdyn or is_spdyn) and (not is_parallelio):
     print "======================================================================="
@@ -162,6 +173,8 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
             continue
         if ("CUTOFF" in dirname) and (is_gpu) : 
             continue
+        if ("martini" in dirname) and (is_fugaku) : 
+            continue
         if ("TMD" in dirname) : 
             continue
         itried = itried + 1
@@ -175,7 +188,10 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
         
         inputname = "inp"
         testname = "test"
-        commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, testname)
+        if (is_fugaku):
+            commandline = '%s -stdout %s -stderr error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
+        else:
+            commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, testname)
         print "$ %s" % commandline
         status = commands.getstatusoutput(commandline)
         
