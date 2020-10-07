@@ -148,7 +148,7 @@ contains
         ! gradient: dE/dX
         !
 !       sin_t  = sin(t123)
-        sin_t  = sqrt(1.0_wp-cos_t*cos_t)
+        sin_t  = sin(t123)
         sin_t  = max ( EPS, sin_t )
         cc_frc = - ( 2.0_wp * fc(ix,i) * t_dif ) / sin_t
         cc_frc2 = cos_t * inv_r12_2
@@ -244,8 +244,7 @@ contains
 
           ! gradient: dE/dX
           !
-!         sin_t  = sin(t123)
-          sin_t  = sqrt(1.0_wp-cos_t*cos_t)
+          sin_t  = sin(t123)
           sin_t  = max ( EPS, sin_t )
           cc_frc = - (2.0_wp*enefunc%table%HOH_force*t_dif) / sin_t
           cc_frc2 = cos_t * inv_r12_2
