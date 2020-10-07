@@ -82,7 +82,8 @@ contains
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
-    real(wp),         pointer :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer :: coord(:,:,:)
+    real(wp),         pointer :: charge(:,:)
     real(wp),         pointer :: trans1(:,:,:)
     real(wp),         pointer :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer :: density, cutoff
@@ -333,7 +334,8 @@ contains
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
-    real(wp),         pointer,contiguous :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer,contiguous :: coord(:,:,:)
+    real(wp),         pointer,contiguous :: charge(:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:)
     real(wp),         pointer,contiguous :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer            :: density, cutoff
@@ -552,7 +554,8 @@ contains
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
-    real(wp),         pointer,contiguous :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer,contiguous :: coord(:,:,:)
+    real(wp),         pointer,contiguous :: charge(:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:)
     real(wp),         pointer,contiguous :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer            :: density, cutoff
@@ -769,7 +772,8 @@ contains
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
-    real(wp),         pointer :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer :: coord(:,:,:)
+    real(wp),         pointer :: charge(:,:)
     real(wp),         pointer :: trans1(:,:,:)
     real(wp),         pointer :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer :: density, cutoff
@@ -1000,7 +1004,8 @@ contains
     integer                   :: ncell, ncell_local
     
 
-    real(wp),         pointer,contiguous :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer,contiguous :: coord(:,:,:)
+    real(wp),         pointer,contiguous :: charge(:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:)
     real(wp),         pointer,contiguous :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer            :: density, cutoff
@@ -1202,7 +1207,8 @@ contains
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
-    real(wp),         pointer,contiguous :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer,contiguous :: coord(:,:,:)
+    real(wp),         pointer,contiguous :: charge(:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:)
     real(wp),         pointer,contiguous :: nonb_lj12(:,:), nonb_lj6(:,:)
     real(wp),         pointer            :: density, cutoff
