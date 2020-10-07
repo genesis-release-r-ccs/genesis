@@ -1236,11 +1236,11 @@ contains
 
     ! RATTLE VV2
     !
+    virial_constraint(1:3) = 0.0_dp
     if (constraints%rigid_bond) then
 
       call compute_constraints(ConstraintModeVVER2, .false., dt, coord_ref,  &
                                domain, constraints, coord, vel, viri_const)
-      virial_constraint(1:3) = 0.0_dp
       !$omp parallel private(i, ix, id, vel_change)  &
       !$omp          reduction(+:virial_constraint)
 #ifdef OMP
