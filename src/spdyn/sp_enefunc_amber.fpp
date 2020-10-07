@@ -738,15 +738,13 @@ contains
       ri2 = mol_res_name(i2)
       ri3 = mol_res_name(i3)
 
-      if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .and. &
-          ri1(1:3) == 'SOL' .or. ri3(1:3) == 'TIP' .and. &
-          ri3(1:3) == 'WAT' .or. ri3(1:3) == 'SOL') then
+      if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
+          ri1(1:3) == 'SOL') then
 
         enefunc%table%HOH_angle = &
             prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
         enefunc%table%HOH_force = &
             prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
-        write(*,*) 'testtest',enefunc%table%HOH_angle,enefunc%table%HOH_force
         exit
       end if
     end do

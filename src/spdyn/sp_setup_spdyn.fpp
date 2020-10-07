@@ -489,6 +489,10 @@ contains
     call setup_constraints(ctrl_data%cons_info, par, prmtop, &
                            grotop, molecule, domain,         &
                            enefunc, constraints)
+    ! setup experiments
+        !
+            call setup_experiments(ctrl_data%exp_info, molecule, restraints, &
+                                               enefunc)
 
     call dealloc_restraints_all(restraints)
     call dealloc_molecules_all(molecule)
