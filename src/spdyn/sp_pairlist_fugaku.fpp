@@ -65,7 +65,7 @@ contains
 
     integer :: num_add_prefetch, k
 
-    real(wp),         pointer,contiguous :: coord(:,:,:)
+    real(wip),        pointer,contiguous :: coord(:,:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:), coord_pbc(:,:,:)
     integer,          pointer,contiguous :: natom(:)
     integer(int2),    pointer,contiguous :: cell_pairlist1(:,:)

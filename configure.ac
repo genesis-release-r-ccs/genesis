@@ -734,6 +734,10 @@ else
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none"
+      echo ${FC_GNU_VER}
+      if test ${FC_GNU_VER} -gt 100000; then
+          FCFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O2 -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -765,6 +769,9 @@ else
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-Wall -ffree-line-length-none"
+      if test ${FC_GNU_VER} -gt 100000; then
+          FCFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -799,6 +806,9 @@ else
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-g -Wall -ffree-line-length-none"
+      if test ${FC_GNU_VER} -gt 100000; then
+          FCFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-g  -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -833,6 +843,9 @@ else
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O0 -g -Wall -fbounds-check -ffree-line-length-none -fbacktrace"
+      if test ${FC_GNU_VER} -gt 100000; then
+          FCFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O0 -g -m64 -Msmartalloc=huge"
@@ -867,6 +880,9 @@ else
 
     elif   test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O0 -g -fbacktrace -fcheck=all,no-array-temps"
+      if test ${FC_GNU_VER} -gt 100000; then
+          FCFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     else
       AC_MSG_ERROR([DEBUG=4 is only allowed in IFORT])
@@ -907,6 +923,9 @@ else
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O3 -ffast-math -march=native"
+      if test ${FC_GNU_VER} -gt 100000; then
+          CFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O3 -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -933,6 +952,9 @@ else
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-Wall"
+      if test ${FC_GNU_VER} -gt 100000; then
+          CFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -962,6 +984,9 @@ else
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-g -Wall"
+      if test ${FC_GNU_VER} -gt 100000; then
+          CFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-g -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -991,6 +1016,9 @@ else
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O0 -g -Wall -fbounds-check"
+      if test ${FC_GNU_VER} -gt 100000; then
+          CFLAGS+=" -fallow-argument-mismatch -fallow-invalid-boz"
+      fi
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O0 -g -m64 -Msmartalloc=huge"
