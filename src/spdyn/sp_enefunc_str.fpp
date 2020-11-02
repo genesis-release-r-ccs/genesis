@@ -27,9 +27,10 @@ module sp_enefunc_str_mod
     ! General table
     logical                       :: table
     logical                       :: water_table
-    logical                       :: water_bond_calc
-    logical                       :: water_bond_calc_OH
-    logical                       :: water_bond_calc_HH
+    logical                       :: water_bond_calc = .false.
+    logical                       :: water_angle_calc = .false.
+    logical                       :: water_bond_calc_OH = .false.
+    logical                       :: water_bond_calc_HH = .false.
     integer                       :: atom_cls_no_O
     integer                       :: atom_cls_no_H
     integer                       :: atom_cls_no_D
@@ -42,11 +43,11 @@ module sp_enefunc_str_mod
     real(wp)                      :: mass_H
     real(wp)                      :: mass_D
     real(wp)                      :: OH_bond
-    real(wp)                      :: OH_force
+    real(wp)                      :: OH_force = 0.0_wp
     real(wp)                      :: HH_bond
-    real(wp)                      :: HH_force
+    real(wp)                      :: HH_force = 0.0_wp
     real(wp)                      :: HOH_angle
-    real(wp)                      :: HOH_force
+    real(wp)                      :: HOH_force = 0.0_wp
 
     real(wp),         allocatable :: table_ene(:)
     real(wp),         allocatable :: table_grad(:)

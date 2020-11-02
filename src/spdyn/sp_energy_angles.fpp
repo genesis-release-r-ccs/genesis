@@ -207,7 +207,7 @@ contains
 
     !angle energy for water (for the case of no constraint)
     !
-    if (enefunc%table%water_bond_calc) then
+    if (enefunc%table%water_angle_calc) then
 
       do i = id+1, ncell_local, nthread
 
@@ -240,6 +240,7 @@ contains
           cos_t  = max( -1.0_wp, cos_t )
           t123   = acos(cos_t)
           t_dif  = t123 - enefunc%table%HOH_angle
+
           eangle_temp = eangle_temp + enefunc%table%HOH_force *t_dif*t_dif
 
           ! gradient: dE/dX

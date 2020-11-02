@@ -750,6 +750,7 @@ contains
           (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
            ci2 .eq. par%angl_atom_cls(2, j) .and.  &
            ci1 .eq. par%angl_atom_cls(1, j))) then
+        enefunc%table%water_angle_calc = .true.
         enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
         enefunc%table%HOH_force = par%angl_force_const(j)
         exit

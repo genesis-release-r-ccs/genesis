@@ -153,6 +153,17 @@ contains
           force(1:3,list(1),i,1) = force(1:3,list(1),i,1) - work(1:3)
           force(1:3,list(3),i,1) = force(1:3,list(3),i,1) + work(1:3)
 
+          ! HH
+          !
+          d12(1:3) = coord(1:3,list(2),i) - coord(1:3,list(3),i)
+          r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+          r_dif = r12 - enefunc%table%HH_bond
+          ebond_temp = ebond_temp + enefunc%table%HH_force*r_dif*r_dif
+          cc_frc  = (2.0_wp*enefunc%table%HH_force*r_dif) / r12
+          work(1:3) = cc_frc * d12(1:3)
+          force(1:3,list(2),i,1) = force(1:3,list(2),i,1) - work(1:3)
+          force(1:3,list(3),i,1) = force(1:3,list(3),i,1) + work(1:3)
+
         end do
 
         ebond(id+1) = ebond(id+1) + ebond_temp

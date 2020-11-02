@@ -745,6 +745,7 @@ contains
             prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
         enefunc%table%HOH_force = &
             prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
+        enefunc%table%water_angle_calc = .true.
         exit
       end if
     end do

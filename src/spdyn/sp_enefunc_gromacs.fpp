@@ -759,6 +759,7 @@ contains
                 res1(1:3) == 'SOL') then
 
               nangl_a = nangl_a + domain%num_duplicate
+              enefunc%table%water_angle_calc = .true.
               enefunc%table%HOH_angle = gromol%angls(k)%theta_0 * RAD
               enefunc%table%HOH_force = &
                     gromol%angls(k)%kt * JOU2CAL * 0.5_wp
