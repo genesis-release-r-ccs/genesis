@@ -831,14 +831,14 @@ contains
 
     ! assigen center of the system and shift coordinates according to center
     !
-    center(1:3) = 0.0_wp
-    do i = 1, natom
-      center(1:3) = center(1:3) + molecule%atom_coord(1:3,i)
-    end do
-    center(1:3) = center(1:3) / real(natom,wp)
-    do i = 1, natom
-      molecule%atom_coord(1:3,i) = molecule%atom_coord(1:3,i) - center(1:3)
-    end do
+!   center(1:3) = 0.0_wp
+!   do i = 1, natom
+!     center(1:3) = center(1:3) + molecule%atom_coord(1:3,i)
+!   end do
+!   center(1:3) = center(1:3) / real(natom,wp)
+!   do i = 1, natom
+!     molecule%atom_coord(1:3,i) = molecule%atom_coord(1:3,i) - center(1:3)
+!   end do
 
     return
 
