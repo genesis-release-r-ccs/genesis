@@ -87,15 +87,13 @@ contains
 
         write(MsgOut,'(A)') '[ENSEMBLE]'
         write(MsgOut,'(A)') 'ensemble      = NVE       # [NVE,NVT,NPT,NPAT,NPgT]'
-        write(MsgOut,'(A)') 'tpcontrol     = NO        # [NO,BERENDSEN,BUSSI,LANGEVIN]'
+        write(MsgOut,'(A)') 'tpcontrol     = NO        # [NO,BERENDSEN,BUSSI,NHC]'
         write(MsgOut,'(A)') '# temperature   = 298.15    # initial and target temperature (K)'
         write(MsgOut,'(A)') '# pressure      = 1.0       # target pressure (atm)'
         write(MsgOut,'(A)') '# gamma         = 0.0       # target surface tension (dyn/cm)'
         write(MsgOut,'(A)') '# tau_t         = 5.0       # temperature coupling time (ps) in [BERENDSEN,NOSE-HOOVER,BUSSI]'
         write(MsgOut,'(A)') '# tau_p         = 5.0       # pressure coupling time (ps)    in [BERENDSEN,BUSSI]'
         write(MsgOut,'(A)') '# compressibility = 4.63e-5 # compressibility (atm-1) in [BERENDSEN]'
-        write(MsgOut,'(A)') '# gamma_t       = 1.0       # thermostat friction (ps-1) in [LANGEVIN]'
-        write(MsgOut,'(A)') '# gamma_p       = 0.1       # barostat friction (ps-1)   in [LANGEVIN]'
         write(MsgOut,'(A)') '# isotropy      = ISO       # [ISO,SEMI-ISO,ANISO,XY-FIXED]'
         write(MsgOut,'(A)') '# group_tp      = NO        # usage of group tempeature and pressure'
         write(MsgOut,'(A)') ' '
@@ -110,7 +108,7 @@ contains
 
         write(MsgOut,'(A)') '[ENSEMBLE]'
         write(MsgOut,'(A)') 'ensemble      = NVE       # [NVE,NVT,NPT,NPAT,NPgT]'
-        write(MsgOut,'(A)') 'tpcontrol     = NO        # [NO,BERENDSEN,BUSSI,LANGEVIN]'
+        write(MsgOut,'(A)') 'tpcontrol     = NO        # [NO,BERENDSEN,BUSSI,NHC]'
         write(MsgOut,'(A)') ' '
 
       end select
@@ -195,9 +193,8 @@ contains
         ens_info%isotropy /= IsotropySEMI_ISO) &
       call error_msg('Read_Ctrl_Ensemble> NPgT is available with SEMI-ISO')
 
-    if (ens_info%ensemble == EnsembleNPgT .and.  &
-        ens_info%tpcontrol /= TpcontrolLangevin) &
-      call error_msg('Read_Ctrl_Ensemble> NPgT is available with Langevin')
+    if (ens_info%tpcontrol == TpcontrolLangevin) &
+      call error_msg('Read_Ctrl_Ensemble> Langevin is not available')
 
     ! write parameters to MsgOut
     !
@@ -236,13 +233,8 @@ contains
         case (TpcontrolBerendsen)
           write(MsgOut,'(A20,F10.3)') '  tau_t           = ', ens_info%tau_t
 
-        case (TpcontrolLangevin)
-          write(MsgOut,'(A20,F10.3)') '  gamma_t         = ', ens_info%gamma_t
-
         case (TpcontrolNoseHoover)
           write(MsgOut,'(A20,F10.3)') '  tau_t           = ', ens_info%tau_t
-
-        case (TpcontrolAndersen)
 
         case (TpcontrolBussi)
           write(MsgOut,'(A20,F10.3)') '  tau_t           = ', ens_info%tau_t
@@ -258,22 +250,6 @@ contains
       case (EnsembleNPT)
 
         select case (ens_info%tpcontrol)
-
-        case (TpcontrolLangevin)
-          write(MsgOut,'(A20,A10)')   '  ensemble        = ', &
-                                      trim(EnsembleTypes(ens_info%ensemble))
-          write(MsgOut,'(A20,F10.3)') '  temperature     = ', &
-                                      ens_info%temperature
-          write(MsgOut,'(A20,F10.3)') '  pressure        = ', &
-                                      ens_info%pressure
-          write(MsgOut,'(A20,A10)')   '  tpcontrol       = ', &
-                                      trim(TpcontrolTypes(ens_info%tpcontrol))
-          write(MsgOut,'(A20,F10.3)') '  gamma_t         = ', &
-                                      ens_info%gamma_t
-          write(MsgOut,'(A20,F10.3)') '  gamma_p         = ', &
-                                      ens_info%gamma_p
-          write(MsgOut,'(A20,A10)')   '  isotropy        = ', &
-                                      trim(IsotropyTypes(ens_info%isotropy))
 
         case (TpcontrolBussi, TpcontrolBerendsen, TpcontrolNHC)
           write(MsgOut,'(A20,A10)')   '  ensemble        = ', &
@@ -321,22 +297,6 @@ contains
           write(MsgOut,'(A20,A10)')   '  isotropy        = ', &
                                       trim(IsotropyTypes(ens_info%isotropy))
 
-        case (TpcontrolLangevin)
-          write(MsgOut,'(A20,A10)')   '  ensemble        = ', &
-                                      trim(EnsembleTypes(ens_info%ensemble))
-          write(MsgOut,'(A20,F10.3)') '  temperature     = ', &
-                                      ens_info%temperature
-          write(MsgOut,'(A20,F10.3)') '  pressure        = ', &
-                                      ens_info%pressure
-          write(MsgOut,'(A20,A10)')   '  tpcontrol       = ', &
-                                      trim(TpcontrolTypes(ens_info%tpcontrol))
-          write(MsgOut,'(A20,F10.3)') '  gamma_t         = ', &
-                                      ens_info%gamma_t
-          write(MsgOut,'(A20,F10.3)') '  gamma_p         = ', &
-                                      ens_info%gamma_p
-          write(MsgOut,'(A20,A10)')   '  isotropy        = ', &
-                                      trim(IsotropyTypes(ens_info%isotropy))
-
         case default
           call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
 
@@ -363,24 +323,6 @@ contains
                                       ens_info%tau_p
           write(MsgOut,'(A20,E10.3)') '  compressibility = ', &
                                       ens_info%compressibility
-          write(MsgOut,'(A20,A10)')   '  isotropy        = ', &
-                                      trim(IsotropyTypes(ens_info%isotropy))
-
-        case (TpcontrolLangevin)
-          write(MsgOut,'(A20,A10)')   '  ensemble        = ', &
-                                      trim(EnsembleTypes(ens_info%ensemble))
-          write(MsgOut,'(A20,F10.3)') '  temperature     = ', &
-                                      ens_info%temperature
-          write(MsgOut,'(A20,F10.3)') '  pressure        = ', &
-                                      ens_info%pressure
-          write(MsgOut,'(A20,F10.3)') '  gamma           = ', &
-                                      ens_info%gamma
-          write(MsgOut,'(A20,A10)')   '  tpcontrol       = ', &
-                                      trim(TpcontrolTypes(ens_info%tpcontrol))
-          write(MsgOut,'(A20,F10.3)') '  gamma_t         = ', &
-                                      ens_info%gamma_t
-          write(MsgOut,'(A20,F10.3)') '  gamma_p         = ', &
-                                      ens_info%gamma_p
           write(MsgOut,'(A20,A10)')   '  isotropy        = ', &
                                       trim(IsotropyTypes(ens_info%isotropy))
 
