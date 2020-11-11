@@ -858,8 +858,9 @@ contains
           dij(2) = rtmp(2) - coord_pbc(2,ij,1)
           dij(3) = rtmp(3) - coord_pbc(3,ij,1)
           rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-          if (rij2 < cutoff2) within_cutoff = 1.0_wp
-          if (rij2 >= cutoff2) within_cutoff = 0.0_wp
+          within_cutoff = merge(0.0_wp,1.0_wp,rij2>cutoff2)
+!         if (rij2 < cutoff2) within_cutoff = 1.0_wp
+!         if (rij2 >= cutoff2) within_cutoff = 0.0_wp
           rij2_inv = 1.0_wp / rij2
           rij2    = cutoff2*density*rij2_inv
 
@@ -1117,8 +1118,9 @@ contains
           jqtmp   = coord_pbc(4,ij,1)
 
           rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3
-          if (rij2 < cutoff2) within_cutoff = 1.0_wp
-          if (rij2 >= cutoff2) within_cutoff = 0.0_wp
+          within_cutoff = merge(0.0_wp,1.0_wp,rij2>cutoff2)
+!         if (rij2 < cutoff2) within_cutoff = 1.0_wp
+!         if (rij2 >= cutoff2) within_cutoff = 0.0_wp
           rij2_inv = 1.0_wp / rij2
           rij2   = cutoff2 * density * rij2_inv
           L      = int(rij2)
@@ -1319,8 +1321,9 @@ contains
           jqtmp   = coord_pbc(4,ij,1)
 
           rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-          if (rij2 < cutoff2) within_cutoff = 1.0_wp
-          if (rij2 >= cutoff2) within_cutoff = 0.0_wp
+          within_cutoff = merge(0.0_wp,1.0_wp,rij2>cutoff2)
+!         if (rij2 < cutoff2) within_cutoff = 1.0_wp
+!         if (rij2 >= cutoff2) within_cutoff = 0.0_wp
           rij2_inv = 1.0_wp / rij2
           rij2   = cutoff2 * density * rij2_inv
           L      = int(rij2)
