@@ -12,43 +12,34 @@
 [STEP0] Architecture and Compiler Information
  
 GENESIS_Information> GENESIS Information
-  version      = 1.1.0
+  version      = 2.0.0
   commit ID    = $GENESIS_VERSION$
   precision    = double
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = jung@dolphin1
-  fortran      = ifort (IFORT) 18.0.2 20180210
+  build host   = jung@eel
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
-  C            = icc (ICC) 18.0.2 20180210
+ -xHost -axCORE-AVX2 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 19.0.5.281 20190815
   option       = -O3 -ip -axCORE-AVX2  -qopenmp
   defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_l
- apack95_lp64 
+  -assume byterecl -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_
+ lapack95_lp64 
 
 Runtime_Information> Machine and Library Information
-  date       = 2018/08/23 14:41:56
-  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
-  exec. host   = jung@
+  date       = 2020/11/17 17:36:24
+  cpu model    = Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz
+  exec. host   = jung@eel10.local
   LD library   = 
- /usr/local/cuda-9.1/lib64:/opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/ho
- me/jung/program/mpi3.0_intel18/lib:/opt/intel/compilers_and_libraries_2018.2.19
- 9/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries_2018.2.199/linu
- x/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2018.2.199/linux/
- mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.2.199/linux/mpi/mic/lib
- :/opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/lib/intel64:/opt/intel
- /compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/opt/intel/c
- ompilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/opt/intel/compiler
- s_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/compilers_an
- d_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/debugger_2018/ig
- a/lib:/opt/intel/debugger_2018/libipt/intel64/lib:/opt/intel/compilers_and_libr
- aries_2018.2.199/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_
- 2018.2.199/linux/daal/../tbb/lib/intel64_lin/gcc4.4:/usr/local/cuda-9.1/lib64:/
- opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/home/jung/program/mpi3.0_inte
- l18/lib:
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5_pbspro/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019
+ .5.281/linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and
+ _libraries_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/
+ compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/inte
+ l/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
 
 [STEP1] Read Control Parameters
  
@@ -58,6 +49,7 @@ Read_Ctrl_Input> Input Files
   strfile = ../../../param/toppar_water_ions.str
   psffile = ../../../build//dppc/dppc.psf
   pdbfile = ../../../build//dppc/dppc.pdb
+  selfile = 
   rstfile = ../../../build//dppc//rst
  
 Read_Ctrl_Output> Output Files
@@ -68,7 +60,7 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   cutoffdist      =          12.000
   pairlistdist    =          13.500
   dielec_const    =           1.000
- vdW force_switch =              no
+  VDW type        =          SWITCH
   electrostatic   =             PME
   pme_ngrid(x,y,z)=    72   72   72
   pme_nspline     =               4
@@ -77,7 +69,6 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   nonbond_kernel  =      AUTOSELECT
   table_order     =               1
   table_density   =          20.000
-  water_model     =            NONE
   output_style    =         GENESIS
   dispersion_corr =            none
   nonb_limiter    =              no
@@ -162,7 +153,7 @@ Setup_Restart_Pre> Coordinates and velocities were replaced
 
 Setup_Boundary_Cell> Set Variables for Boundary Condition
   domains (x,y,z) =          2         2         2
-  ncells (x,y,z)  =         10        10        10
+  ncells (x,y,z)  =          8         8         8
  
 Select_kernel> 
   Pairlist        = KNL         
@@ -171,7 +162,7 @@ Select_kernel>
 Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
 
 Define_Enefunc_Charmm> Number of Interactions in Each Term
-  bond_ene        =      35964  angle_ene       =      45522
+  bond_ene        =      30942  angle_ene       =      45522
   torsion_ene     =      73872  improper_ene    =        324
   cmap_ene        =          0
   nb_exclusions   =      76464  nb14_calc       =      56538
@@ -193,9 +184,9 @@ INFO:          0     -61153.5819         11.2765        983.2740       5081.7874
 
 INFO:          2     -63284.2074          8.4561        869.2455       4710.0766       2262.0592       7767.8100         75.4928      -5016.9374     -73951.9540
 
-INFO:          4     -64850.7054          6.1085       1167.9652       4422.6812       2156.7717       7745.1434         62.3355      -5054.8377     -75350.7647
+INFO:          4     -64850.7054          6.1085       1167.9652       4422.6811       2156.7717       7745.1434         62.3355      -5054.8377     -75350.7647
 
-INFO:          6     -65979.8566          4.4650       1651.0845       4200.5949       2049.8056       7721.2174         49.5994      -5085.7469     -76566.4116
+INFO:          6     -65979.8566          4.4650       1651.0845       4200.5949       2049.8057       7721.2174         49.5994      -5085.7469     -76566.4116
 
 INFO:          8     -66838.9969          3.5809       2010.9957       4015.6988       1942.7609       7696.9674         38.6495      -5110.8759     -77433.1933
 
@@ -215,19 +206,19 @@ INFO:         20     -70088.1877          1.7368       1969.0877       3313.4672
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       1.222
-    setup         =       1.222
-    dynamics      =       0.000
-      energy      =       0.675
+  total time      =       1.053
+    setup         =       0.410
+    dynamics      =       0.642
+      energy      =       0.625
       integrator  =       0.000
-      pairlist    =       0.022 (       0.019,       0.025)
+      pairlist    =       0.026 (       0.026,       0.028)
   energy           
-    bond          =       0.003 (       0.002,       0.005)
-    angle         =       0.006 (       0.005,       0.008)
-    dihedral      =       0.008 (       0.003,       0.011)
-    nonbond       =       0.611 (       0.610,       0.612)
-      pme real    =       0.502 (       0.480,       0.524)
-      pme recip   =       0.109 (       0.087,       0.131)
+    bond          =       0.001 (       0.001,       0.001)
+    angle         =       0.004 (       0.004,       0.005)
+    dihedral      =       0.007 (       0.006,       0.008)
+    nonbond       =       0.579 (       0.578,       0.580)
+      pme real    =       0.497 (       0.480,       0.515)
+      pme recip   =       0.082 (       0.064,       0.099)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
@@ -235,8 +226,8 @@ Output_Time> Averaged timer profile (Min, Max)
     qmmm          =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.000 (       0.000,       0.000)
-    update        =       0.000 (       0.000,       0.000)
+    update        =       0.008 (       0.008,       0.009)
     comm_coord    =       0.000 (       0.000,       0.000)
     comm_force    =       0.000 (       0.000,       0.000)
-    comm_migrate  =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.001 (       0.000,       0.001)
 

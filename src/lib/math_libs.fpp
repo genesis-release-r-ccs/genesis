@@ -35,8 +35,9 @@ module math_libs_mod
   public  :: powersinh
   public  :: sum_gauss
   private :: factorization_prime
-  public   :: cubic_spline
-  public   :: cubic_spline_coeff
+  public  :: cubic_spline
+  public  :: cubic_spline_coeff
+  public  :: lcm
 
 contains
 
@@ -943,5 +944,34 @@ contains
     end do
 
   end subroutine cubic_spline_coeff
+
+  function lcm(a, b) ! Greatest Common Divisor
+
+    integer :: lcm
+    integer, intent(in) :: a, b
+    integer :: gcd, num_small, num_big, i
+
+    gcd = 1
+    i = 2
+    if (a <= b) then
+      num_small = a 
+      num_big   = b
+    else
+      num_small = b 
+      num_big   = a
+    end if
+
+    do while (i <= num_small)
+      if (mod(num_small,i) == 0 .and. mod(num_big,i) == 0) then
+        gcd = gcd * i
+        num_small = num_small / i
+        num_big   = num_big   / i
+      else
+        i = i + 1
+      end if
+    end do
+    lcm = gcd * num_small * num_big
+
+    end function lcm
 
 end module math_libs_mod

@@ -842,7 +842,7 @@ contains
   
       call setup_the(t0_info, ctrl_data, domain)
 
-      if (local_my_rank == 0)                       &
+      if (local_my_rank == 0 .and. filename1 /= '')  &
         call pio_write_selection(filename1, restraints)
  
       call pio_write_domain_rst(filename,           &

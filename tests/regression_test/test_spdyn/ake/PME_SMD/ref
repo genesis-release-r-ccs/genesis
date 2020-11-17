@@ -18,11 +18,11 @@ GENESIS_Information> GENESIS Information
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = jung@dolphin1
-  fortran      = ifort (IFORT) 18.0.2 20180210
+  build host   = jung@eel
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
-  C            = icc (ICC) 18.0.2 20180210
+ -xHost -axCORE-AVX2 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 19.0.5.281 20190815
   option       = -O3 -ip -axCORE-AVX2  -qopenmp
   defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
@@ -30,25 +30,16 @@ Build_Information> Compiler Information
  lapack95_lp64 
 
 Runtime_Information> Machine and Library Information
-  date       = 2020/04/16 18:07:50
-  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
-  exec. host   = jung@
+  date       = 2020/11/17 17:00:43
+  cpu model    = Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz
+  exec. host   = jung@eel10.local
   LD library   = 
- /usr/local/cuda-9.1/lib64:/opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/ho
- me/jung/program/mpi3.0_intel18/lib:/opt/intel/compilers_and_libraries_2018.2.19
- 9/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries_2018.2.199/linu
- x/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2018.2.199/linux/
- mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.2.199/linux/mpi/mic/lib
- :/opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/lib/intel64:/opt/intel
- /compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/opt/intel/c
- ompilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/opt/intel/compiler
- s_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/compilers_an
- d_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/debugger_2018/ig
- a/lib:/opt/intel/debugger_2018/libipt/intel64/lib:/opt/intel/compilers_and_libr
- aries_2018.2.199/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_
- 2018.2.199/linux/daal/../tbb/lib/intel64_lin/gcc4.4:/opt/intel/compilers_and_li
- braries_2018.2.199/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_201
- 8.2.199/linux/mpi/mic/lib
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5_pbspro/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019
+ .5.281/linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and
+ _libraries_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/
+ compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/inte
+ l/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
 
 [STEP1] Read Control Parameters
  
@@ -136,8 +127,8 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
  
 Setup_Mpi_Md> Summary of Setup MPI
   number of MPI processes   =          8
-  number of OpenMP threads  =          1
-  total number of CPU cores =          8
+  number of OpenMP threads  =          3
+  total number of CPU cores =         24
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -168,7 +159,7 @@ Setup_Restart_Pre> Coordinates and velocities were replaced
 
 Setup_Boundary_Cell> Set Variables for Boundary Condition
   domains (x,y,z) =          2         2         2
-  ncells (x,y,z)  =         10        10        10
+  ncells (x,y,z)  =         12        10        12
  
 Select_kernel> 
   Pairlist        = KNL         
@@ -393,52 +384,52 @@ Setup_Restart_Post> Parameters were replaced
  
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT            RMSD     RMSD_target RESTRAINT_TOTAL     TEMPERATURE          VOLUME
  --------------- --------------- --------------- --------------- ---------------
-INFO:          2          0.0040    -156450.8268    -194025.2536      37574.4268         14.2373        605.1174       1667.8417       2150.8557         98.9628      27457.7665       -934.0136    -225071.7842          7.3007          7.3005          0.0000        300.3813     627773.9886
+INFO:          2          0.0040    -156452.7515    -194025.2536      37572.5021         14.2373        605.1174       1667.8417       2150.8557         98.9628      27457.7665       -934.0136    -225071.7842          7.3007          7.3005          0.0000        300.3813     627773.9886
 
-INFO:          4          0.0080    -156450.0661    -194085.9026      37635.8365         14.2266        620.8482       1657.2864       2150.7700         93.7091      27440.0909       -934.0136    -225114.5936          7.3007          7.3005          0.0000        300.8689     627773.9886
+INFO:          4          0.0080    -156451.8072    -194085.9026      37634.0954         14.2266        620.8482       1657.2864       2150.7700         93.7091      27440.0909       -934.0136    -225114.5936          7.3007          7.3005          0.0000        300.8689     627773.9886
 
-INFO:          6          0.0120    -156450.7175    -194108.9136      37658.1962         14.2360        599.6900       1716.0125       2151.6803         89.9343      27425.8532       -934.0136    -225158.0704          7.3007          7.3004          0.0000        301.0724     627773.9886
+INFO:          6          0.0120    -156448.0759    -194108.9136      37660.8378         14.2360        599.6900       1716.0125       2151.6803         89.9343      27425.8532       -934.0136    -225158.0704          7.3007          7.3004          0.0000        301.0724     627773.9886
 
-INFO:          8          0.0160    -156449.5034    -194177.4066      37727.9032         14.2181        577.6225       1672.0673       2147.7771         91.7163      27429.2945       -934.0136    -225161.8707          7.3009          7.3004          0.0000        301.5957     627773.9886
+INFO:          8          0.0160    -156450.3944    -194177.4066      37727.0122         14.2181        577.6225       1672.0673       2147.7771         91.7163      27429.2945       -934.0136    -225161.8707          7.3009          7.3004          0.0000        301.5957     627773.9886
 
-INFO:         10          0.0200    -156443.1547    -194121.4634      37678.3087         14.2124        586.5772       1669.0431       2142.0742         97.4192      27453.4068       -934.0136    -225135.9702          7.3012          7.3003          0.0000        301.2250     627773.9886
+INFO:         10          0.0200    -156440.4676    -194121.4634      37680.9958         14.2124        586.5772       1669.0431       2142.0742         97.4192      27453.4068       -934.0136    -225135.9702          7.3012          7.3003          0.0000        301.2250     627773.9886
 
-INFO:         12          0.0240    -156431.7905    -194069.9540      37638.1635         14.2297        617.4398       1660.4565       2140.5020        102.5901      27481.5142       -934.0136    -225138.4431          7.3016          7.3002          0.0000        300.8903     627773.9886
+INFO:         12          0.0240    -156437.0117    -194069.9540      37632.9423         14.2297        617.4398       1660.4565       2140.5020        102.5901      27481.5142       -934.0136    -225138.4431          7.3016          7.3002          0.0000        300.8903     627773.9886
 
-INFO:         14          0.0280    -156431.2091    -194085.9779      37654.7688         14.2336        621.9280       1649.3475       2144.0459        103.3151      27513.6237       -934.0136    -225184.2244          7.3019          7.3002          0.0000        301.0184     627773.9886
+INFO:         14          0.0280    -156433.5938    -194085.9779      37652.3841         14.2336        621.9280       1649.3475       2144.0459        103.3151      27513.6237       -934.0136    -225184.2244          7.3019          7.3002          0.0000        301.0184     627773.9886
 
-INFO:         16          0.0320    -156433.4376    -194062.8518      37629.4143         14.2213        590.8684       1714.3985       2146.1860         97.2403      27553.2028       -934.0136    -225230.7342          7.3020          7.3001          0.0000        300.8261     627773.9886
+INFO:         16          0.0320    -156436.2258    -194062.8518      37626.6260         14.2213        590.8684       1714.3985       2146.1860         97.2403      27553.2028       -934.0136    -225230.7342          7.3020          7.3001          0.0000        300.8261     627773.9886
 
-INFO:         18          0.0360    -156432.3794    -194066.3033      37633.9240         14.2355        593.7851       1703.7057       2149.6830         88.3857      27595.1697       -934.0136    -225263.0190          7.3023          7.3001          0.0000        300.8579     627773.9886
+INFO:         18          0.0360    -156434.6729    -194066.3033      37631.6305         14.2355        593.7851       1703.7057       2149.6830         88.3857      27595.1697       -934.0136    -225263.0190          7.3023          7.3001          0.0000        300.8579     627773.9886
 
-INFO:         20          0.0400    -156440.0282    -194053.3717      37613.3434         14.2385        587.8874       1707.4492       2160.7213         84.7905      27651.5124       -934.0136    -225311.7190          7.3025          7.3000          0.0001        300.7109     627773.9886
+INFO:         20          0.0400    -156436.3923    -194053.3717      37616.9794         14.2385        587.8874       1707.4492       2160.7213         84.7905      27651.5124       -934.0136    -225311.7190          7.3025          7.3000          0.0001        300.7109     627773.9886
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       2.881
-    setup         =       1.266
-    dynamics      =       1.615
-      energy      =       1.302
-      integrator  =       0.096
-      pairlist    =       0.254 (       0.249,       0.261)
+  total time      =       1.719
+    setup         =       1.051
+    dynamics      =       0.667
+      energy      =       0.588
+      integrator  =       0.037
+      pairlist    =       0.053 (       0.051,       0.055)
   energy           
-    bond          =       0.001 (       0.000,       0.001)
-    angle         =       0.002 (       0.001,       0.002)
-    dihedral      =       0.005 (       0.003,       0.006)
-    nonbond       =       1.227 (       1.224,       1.231)
-      pme real    =       0.986 (       0.949,       1.029)
-      pme recip   =       0.241 (       0.200,       0.282)
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.001 (       0.001,       0.001)
+    dihedral      =       0.002 (       0.002,       0.003)
+    nonbond       =       0.526 (       0.525,       0.526)
+      pme real    =       0.417 (       0.392,       0.453)
+      pme recip   =       0.109 (       0.074,       0.134)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
-    restraint     =       0.008 (       0.005,       0.011)
+    restraint     =       0.009 (       0.008,       0.010)
     qmmm          =       0.000 (       0.000,       0.000)
   integrator       
-    constraint    =       0.045 (       0.045,       0.046)
-    update        =       0.050 (       0.048,       0.052)
-    comm_coord    =       0.019 (       0.010,       0.024)
-    comm_force    =       0.010 (       0.008,       0.011)
-    comm_migrate  =       0.003 (       0.001,       0.005)
+    constraint    =       0.015 (       0.014,       0.016)
+    update        =       0.019 (       0.019,       0.020)
+    comm_coord    =       0.007 (       0.004,       0.009)
+    comm_force    =       0.004 (       0.004,       0.005)
+    comm_migrate  =       0.001 (       0.000,       0.001)
 

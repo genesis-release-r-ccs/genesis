@@ -167,6 +167,7 @@ contains
     real(dp)                 :: rmsg, viri_ke, viri_ke_ext
     real(wip)                :: gamma_t, dt, scale_v
     real(dp)                 :: virial_sum(3), virial_ext_sum(3)
+    real(dp)                 :: ekin_sum
     integer(iintegers)       :: num_degree
     integer                  :: i, ix, k, l
 
@@ -215,6 +216,16 @@ contains
       end do
     end do
 
+    ekin_sum = 0.0_dp
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        ekin_sum = ekin_sum + mass(ix,i)*(vel_ref(1,ix,i)*vel_ref(1,ix,i) &
+                                         +vel_ref(2,ix,i)*vel_ref(2,ix,i) &
+                                         +vel_ref(3,ix,i)*vel_ref(3,ix,i))
+      end do
+    end do
+    ekin_sum = ekin_sum * 0.5_dp
+
     ! virial
     !
     virial_sum(1) = virial(1,1)
@@ -234,10 +245,11 @@ contains
                          dynvars%energy%van_der_waals,      &
                          dynvars%energy%restraint_position, &
                          dynvars%energy%total,              &
-                         virial_sum, virial_ext_sum, rmsg)
+                         virial_sum, virial_ext_sum, rmsg,  &
+                         ekin_sum)
 #endif
 
-    dynvars%total_kene  = ekin_full
+    dynvars%total_kene  = ekin_sum
     dynvars%temperature = 2.0_dp*ekin/(real(num_degree,dp)*KBOLTZ)
 
     ! potential energy(t+dt) and total energy(t+dt)
@@ -918,15 +930,15 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine reduce_property(val1, val2, val3, val4, val5, val6, val7, val8,   &
-                             val9, val10, val11, val12, val13)
+                             val9, val10, val11, val12, val13, val14)
 
     ! formal arguments
     real(dp),               intent(inout) ::  val1, val2, val3, val4, val5
     real(dp),               intent(inout) ::  val6, val7, val8, val9, val10
-    real(dp),               intent(inout) :: val11(3), val12(3), val13
+    real(dp),               intent(inout) ::  val11(3), val12(3), val13, val14
 
     ! local variables
-    real(dp)                :: before_reduce(17), after_reduce(17)
+    real(dp)                :: before_reduce(18), after_reduce(18)
 
     before_reduce(1)     = val1
     before_reduce(2)     = val2
@@ -941,12 +953,13 @@ contains
     before_reduce(11:13) = val11(1:3)
     before_reduce(14:16) = val12(1:3)
     before_reduce(17)    = val13
+    before_reduce(18)    = val14
 
 #ifdef MPI
-    call mpi_allreduce(before_reduce, after_reduce, 17, mpi_real8, &
+    call mpi_allreduce(before_reduce, after_reduce, 18, mpi_real8, &
                       mpi_sum, mpi_comm_country, ierror)
 #else
-    after_reduce(1:17) = before_reduce(1:17)
+    after_reduce(1:18) = before_reduce(1:18)
 #endif
 
     val1       = after_reduce(1)
@@ -962,6 +975,7 @@ contains
     val11(1:3) = after_reduce(11:13)
     val12(1:3) = after_reduce(14:16)
     val13      = after_reduce(17)
+    val14      = after_reduce(18)
 
     return
 

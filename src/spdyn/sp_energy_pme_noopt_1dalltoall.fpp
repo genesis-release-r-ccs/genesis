@@ -274,16 +274,17 @@ contains
 
       ! Check grid point in z direction
       !
-      remainder = mod(ngrid(3),nz*nx)
-      if (remainder /= 0) ngrid(3) = ngrid(3) + nz*nx - remainder
+      k = lcm(nz*nx, nz*ny)
+      remainder = mod(ngrid(3),k)
+      if (remainder /= 0) ngrid(3) = ngrid(3) + k - remainder
 
-      quotient = ngrid(3)/(nz*nx)
+      quotient = ngrid(3)/(k)
       if (quotient <= Index(NumIndex)) then
         do i = 1, NumIndex
           if (quotient <= Index(i)) exit
         end do
         quotient = Index(i)
-        ngrid(3) = (nz*nx) * quotient
+        ngrid(3) = k * quotient
       else
         expo = int(log(real(quotient,wp))/log(real(2,wp)))
         if (2**expo >= quotient) then
@@ -291,27 +292,7 @@ contains
         else
           quotient = 2**(expo+1)
         end if
-        ngrid(3) = (nz*nx) * quotient
-      end if
-
-      remainder = mod(ngrid(3),nz*ny)
-      if (remainder /= 0) ngrid(3) = ngrid(3) + nz*ny - remainder
-
-      quotient = ngrid(3)/(nz*ny)
-      if (quotient <= Index(NumIndex)) then
-        do i = 1, NumIndex
-          if (quotient <= Index(i)) exit
-        end do
-        quotient = Index(i)
-        ngrid(3) = (nz*ny) * quotient
-      else
-        expo = int(log(real(quotient,wp))/log(real(2,wp)))
-        if (2**expo >= quotient) then
-          quotient = 2**expo
-        else
-          quotient = 2**(expo+1)
-        end if
-        ngrid(3) = (nz*ny) * quotient
+        ngrid(3) = k * quotient
       end if
 
       if ((enefunc%pme_ngrid_x /= ngrid(1)) .or. &

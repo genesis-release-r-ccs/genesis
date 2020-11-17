@@ -72,7 +72,7 @@ module sp_energy_mod
     integer               :: pme_ngrid_y      = FakeDefault
     integer               :: pme_ngrid_z      = FakeDefault
     integer               :: pme_nspline      = 4
-    real(wp)              :: pme_max_spacing  = 1.2_wp
+    real(wp)              :: pme_max_spacing  = 1.4_wp
     integer               :: pme_scheme       = FFT_AutoSelect
     integer               :: nonbond_kernel   = NBK_AutoSelect
     logical               :: table            = .true.

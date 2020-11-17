@@ -12,43 +12,34 @@
 [STEP0] Architecture and Compiler Information
  
 GENESIS_Information> GENESIS Information
-  version      = 1.1.0
+  version      = 2.0.0
   commit ID    = $GENESIS_VERSION$
   precision    = double
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = jung@dolphin1
-  fortran      = ifort (IFORT) 18.0.2 20180210
+  build host   = jung@eel
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
-  C            = icc (ICC) 18.0.2 20180210
+ -xHost -axCORE-AVX2 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 19.0.5.281 20190815
   option       = -O3 -ip -axCORE-AVX2  -qopenmp
   defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_l
- apack95_lp64 
+  -assume byterecl -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_
+ lapack95_lp64 
 
 Runtime_Information> Machine and Library Information
-  date       = 2018/08/23 14:34:00
-  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
-  exec. host   = jung@
+  date       = 2020/11/17 17:34:44
+  cpu model    = Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz
+  exec. host   = jung@eel10.local
   LD library   = 
- /usr/local/cuda-9.1/lib64:/opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/ho
- me/jung/program/mpi3.0_intel18/lib:/opt/intel/compilers_and_libraries_2018.2.19
- 9/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries_2018.2.199/linu
- x/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2018.2.199/linux/
- mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.2.199/linux/mpi/mic/lib
- :/opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/lib/intel64:/opt/intel
- /compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/opt/intel/c
- ompilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/opt/intel/compiler
- s_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/compilers_an
- d_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/debugger_2018/ig
- a/lib:/opt/intel/debugger_2018/libipt/intel64/lib:/opt/intel/compilers_and_libr
- aries_2018.2.199/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_
- 2018.2.199/linux/daal/../tbb/lib/intel64_lin/gcc4.4:/usr/local/cuda-9.1/lib64:/
- opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/home/jung/program/mpi3.0_inte
- l18/lib:
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5_pbspro/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019
+ .5.281/linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and
+ _libraries_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/
+ compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/inte
+ l/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
 
 [STEP1] Read Control Parameters
  
@@ -57,6 +48,7 @@ Read_Ctrl_Input> Input Files
   parfile = ../../../param/par_all27_na.prm
   psffile = ../../../build/dna/dna.psf
   pdbfile = ../../../build/dna/dna.pdb
+  selfile = 
   rstfile = ../../../build//dna//rst
  
 Read_Ctrl_Output> Output Files
@@ -67,7 +59,7 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   cutoffdist      =          12.000
   pairlistdist    =          13.500
   dielec_const    =           1.000
- vdW force_switch =              no
+  VDW type        =          SWITCH
   electrostatic   =             PME
   pme_ngrid(x,y,z)=    64   64   64
   pme_nspline     =               4
@@ -76,7 +68,6 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   nonbond_kernel  =      AUTOSELECT
   table_order     =               1
   table_density   =          20.000
-  water_model     =            NONE
   output_style    =         GENESIS
   dispersion_corr =            none
   nonb_limiter    =              no
@@ -171,7 +162,7 @@ Select_kernel>
 Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
 
 Define_Enefunc_Charmm> Number of Interactions in Each Term
-  bond_ene        =      24080  angle_ene       =       9046
+  bond_ene        =      16282  angle_ene       =       9046
   torsion_ene     =       2190  improper_ene    =         50
   cmap_ene        =          0
   nb_exclusions   =      25328  nb14_calc       =       1598
@@ -202,7 +193,7 @@ Setup_Restart_Post> Parameters were replaced
  
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER         VDWAALS           ELECT     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
  --------------- --------------- --------------- --------------- ---------------
-INFO:          2          0.0020     -98121.0647    -102998.2827       4877.2180          6.9501       1780.1456        284.9104        111.4632        620.0303          3.8213      13013.3488    -118812.0024         68.6727     262144.0000         64.0000         64.0000         64.0000       8277.7924       3027.6000       3110.6208       2958.7605       3013.4187
+INFO:          2          0.0020     -98121.0647    -102998.2826       4877.2180          6.9501       1780.1456        284.9104        111.4632        620.0303          3.8213      13013.3488    -118812.0024         68.6727     262144.0000         64.0000         64.0000         64.0000       8277.7924       3027.6000       3110.6208       2958.7605       3013.4187
 
 INFO:          4          0.0040     -97969.2681    -102018.8045       4049.5364          9.7040      11946.5323       1414.4739        110.7674        619.2030          3.6958      13284.9598    -129398.4367         58.6032     262144.0000         64.0000         64.0000         64.0000    -113200.6354     -28863.8095     -29066.2515     -28814.4367     -28710.7402
 
@@ -226,19 +217,19 @@ INFO:         20          0.0200     -97807.7685     -99813.4761       2005.7076
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.776
-    setup         =       0.405
-    dynamics      =       0.371
-      energy      =       0.391
-      integrator  =       0.014
-      pairlist    =       0.023 (       0.020,       0.026)
+  total time      =       0.551
+    setup         =       0.247
+    dynamics      =       0.304
+      energy      =       0.283
+      integrator  =       0.009
+      pairlist    =       0.016 (       0.016,       0.016)
   energy           
-    bond          =       0.001 (       0.000,       0.003)
-    angle         =       0.002 (       0.001,       0.003)
-    dihedral      =       0.001 (       0.000,       0.003)
-    nonbond       =       0.368 (       0.368,       0.369)
-      pme real    =       0.284 (       0.267,       0.301)
-      pme recip   =       0.085 (       0.067,       0.102)
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.001 (       0.001,       0.001)
+    dihedral      =       0.001 (       0.000,       0.001)
+    nonbond       =       0.265 (       0.264,       0.266)
+      pme real    =       0.212 (       0.201,       0.222)
+      pme recip   =       0.052 (       0.043,       0.063)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
@@ -246,8 +237,8 @@ Output_Time> Averaged timer profile (Min, Max)
     qmmm          =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.000 (       0.000,       0.000)
-    update        =       0.010 (       0.009,       0.011)
-    comm_coord    =       0.005 (       0.003,       0.006)
-    comm_force    =       0.002 (       0.001,       0.003)
-    comm_migrate  =       0.000 (       0.000,       0.000)
+    update        =       0.009 (       0.008,       0.010)
+    comm_coord    =       0.003 (       0.003,       0.004)
+    comm_force    =       0.003 (       0.002,       0.003)
+    comm_migrate  =       0.001 (       0.000,       0.002)
 
