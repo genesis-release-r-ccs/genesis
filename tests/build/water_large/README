@@ -1,2 +1,0 @@
-charmm <charmm.inp 2>&1 | tee charmm.out
-
