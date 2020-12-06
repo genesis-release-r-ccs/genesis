@@ -322,10 +322,10 @@ contains
     case (FFT_opt_2dalltoall)
       if (pme_nspline == 4) then
         call pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
-!     else if (pme_nspline == 6) then
-!       call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
-!     else if (pme_nspline == 8) then
-!       call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
+      else if (pme_nspline == 6) then
+        call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
+      else if (pme_nspline == 8) then
+        call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
       end if
 
     case (FFT_noopt_2dalltoall)
