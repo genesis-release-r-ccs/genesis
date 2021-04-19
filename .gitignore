@@ -40,7 +40,6 @@
 autom4te.cache/
 config.log
 configure
-compile
 config.status
 src/config.log
 src/config.h
