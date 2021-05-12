@@ -398,7 +398,7 @@ contains
     integer,            pointer :: bond(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
-    integer,            pointer :: id_l2g(:,:)
+    integer,            pointer :: id_l2g(:,:), id_l2g_sol(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
 
@@ -407,6 +407,7 @@ contains
     cell_pair     => domain%cell_pair
     id_g2l        => domain%id_g2l
     id_l2g        => domain%id_l2g
+    id_l2g_sol    => domain%id_l2g_solute
 
     HGr_local     => constraints%HGr_local
     HGr_bond_list => constraints%HGr_bond_list
@@ -499,9 +500,9 @@ contains
                     do m = 1, connect
 
                       do n = 1, HGr_local(m,icel)
-                        ih1 = id_l2g(HGr_bond_list(1,n,m,icel),icel)
+                        ih1 = id_l2g_sol(HGr_bond_list(1,n,m,icel),icel)
                         do ih = 1, m
-                          ih2 = id_l2g(HGr_bond_list(ih+1,n,m,icel),icel)
+                          ih2 = id_l2g_sol(HGr_bond_list(ih+1,n,m,icel),icel)
 
                           if (ih1 == idx1 .and. ih2 == idx2 .or. &
                             ih2 == idx1 .and. ih1 == idx2) then
@@ -945,12 +946,13 @@ contains
     integer                  :: dupl, ioffset_dupl
     integer                  :: i, j, k
     integer                  :: ioffset, found
+    integer                  :: i1, i2, i3, i4
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), phase(:,:)
     integer,            pointer :: dihe(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
@@ -967,6 +969,7 @@ contains
     phase     => enefunc%dihe_phase
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
+    sollist   => enefunc%table%solute_list_inv
     notation  = 100
 
     do dupl = 1, domain%num_duplicate
@@ -984,10 +987,15 @@ contains
                 .and. gromol%dihes(k)%func /= 9) &
               cycle
 
-            idx1 = gromol%dihes(k)%atom_idx1 + ioffset + ioffset_dupl
-            idx2 = gromol%dihes(k)%atom_idx2 + ioffset + ioffset_dupl
-            idx3 = gromol%dihes(k)%atom_idx3 + ioffset + ioffset_dupl
-            idx4 = gromol%dihes(k)%atom_idx4 + ioffset + ioffset_dupl
+            i1 = gromol%dihes(k)%atom_idx1 + ioffset
+            i2 = gromol%dihes(k)%atom_idx2 + ioffset
+            i3 = gromol%dihes(k)%atom_idx3 + ioffset
+            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+
+            idx1 = sollist(i1) + ioffset_dupl
+            idx2 = sollist(i2) + ioffset_dupl
+            idx3 = sollist(i3) + ioffset_dupl
+            idx4 = sollist(i4) + ioffset_dupl
 
             icel1 = id_g2l(1,idx1)
             icel2 = id_g2l(1,idx4)
@@ -1063,12 +1071,13 @@ contains
     integer                  :: dupl, ioffset_dupl
     integer                  :: i, j, k
     integer                  :: ioffset, found
+    integer                  :: i1, i2, i3, i4
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: c(:,:,:)
     integer,            pointer :: dihe(:), list(:,:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
@@ -1081,6 +1090,7 @@ contains
     dihe      => enefunc%num_rb_dihedral
     list      => enefunc%rb_dihe_list
     c         => enefunc%rb_dihe_c
+    sollist   => enefunc%table%solute_list_inv
 
     do dupl = 1, domain%num_duplicate
 
@@ -1096,10 +1106,15 @@ contains
             if (gromol%dihes(k)%func /= 3) &
               cycle
 
-            idx1 = gromol%dihes(k)%atom_idx1 + ioffset + ioffset_dupl
-            idx2 = gromol%dihes(k)%atom_idx2 + ioffset + ioffset_dupl
-            idx3 = gromol%dihes(k)%atom_idx3 + ioffset + ioffset_dupl
-            idx4 = gromol%dihes(k)%atom_idx4 + ioffset + ioffset_dupl
+            i1 = gromol%dihes(k)%atom_idx1 + ioffset
+            i2 = gromol%dihes(k)%atom_idx2 + ioffset
+            i3 = gromol%dihes(k)%atom_idx3 + ioffset
+            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+
+            idx1 = sollist(i1) + ioffset_dupl
+            idx2 = sollist(i2) + ioffset_dupl
+            idx3 = sollist(i3) + ioffset_dupl
+            idx4 = sollist(i4) + ioffset_dupl
 
             icel1 = id_g2l(1,idx1)
             icel2 = id_g2l(1,idx4)
@@ -1169,13 +1184,14 @@ contains
     ! local variables 
     integer                  :: dupl, ioffset_dupl
     integer                  :: i, j, k
+    integer                  :: i1, i2, i3, i4
     integer                  :: ioffset, found
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), phase(:,:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
@@ -1190,6 +1206,7 @@ contains
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
+    sollist   => enefunc%table%solute_list_inv
 
     do dupl = 1, domain%num_duplicate
 
@@ -1205,10 +1222,15 @@ contains
             if (gromol%dihes(k)%func /= 2) &
               cycle
 
-            idx1 = gromol%dihes(k)%atom_idx1 + ioffset + ioffset_dupl
-            idx2 = gromol%dihes(k)%atom_idx2 + ioffset + ioffset_dupl
-            idx3 = gromol%dihes(k)%atom_idx3 + ioffset + ioffset_dupl
-            idx4 = gromol%dihes(k)%atom_idx4 + ioffset + ioffset_dupl
+            i1 = gromol%dihes(k)%atom_idx1 + ioffset
+            i2 = gromol%dihes(k)%atom_idx2 + ioffset
+            i3 = gromol%dihes(k)%atom_idx3 + ioffset
+            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+
+            idx1 = sollist(i1) + ioffset_dupl
+            idx2 = sollist(i2) + ioffset_dupl
+            idx3 = sollist(i3) + ioffset_dupl
+            idx4 = sollist(i4) + ioffset_dupl
 
             icel1 = id_g2l(1,idx1)
             icel2 = id_g2l(1,idx4)
