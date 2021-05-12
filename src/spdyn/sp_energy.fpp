@@ -491,12 +491,21 @@ contains
 
     ! Decision of VDW types
     !
+
     if (ene_info%switchdist /= ene_info%cutoffdist) then
       ene_info%vdw = VDWSwitch
       if (ene_info%vdw_shift) ene_info%vdw = VDWShift
       if (ene_info%vdw_force_switch) ene_info%vdw = VDWFSW
     else
       ene_info%vdw = VDWCutoff
+      if (ene_info%vdw_force_switch .and. &
+          ene_info%electrostatic == ElectrostaticCutoff) then
+        ene_info%vdw = VDWFSW
+        if (main_rank) &
+          write(MsgOut,'(A)') &
+          'Read_Ctrl_Energy>  WARNING: vdw_force_swith is used for shift '//&
+          'function for electrostatic energy in cutoff'
+      endif
     end if
     if (ene_info%dispersion_pme) ene_info%vdw = VDWPME   
     
