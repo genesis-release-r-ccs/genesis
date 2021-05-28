@@ -194,6 +194,7 @@ contains
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variable
+    real(wp)                 :: m1, m2
     integer                  :: dupl, ioffset
     integer                  :: i, j, icel_local
     integer                  :: icel1, icel2
@@ -281,45 +282,41 @@ contains
             end if
   
           end if
- 
+
+        else if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
+                 ri1(1:3) == 'SOL') then
+          m1 = molecule%mass(i1) 
+          m2 = molecule%mass(i2) 
+          if (abs(m1-m2) > EPS) then
+            do j = 1, nbond_p
+              if ((ci1 == par%bond_atom_cls(1, j) .and.  &
+                   ci2 == par%bond_atom_cls(2, j)) .or.  &
+                  (ci1 == par%bond_atom_cls(2, j) .and.  &
+                   ci2 == par%bond_atom_cls(1, j))) then
+                enefunc%table%OH_bond = par%bond_dist_min(j)
+                enefunc%table%OH_force = par%bond_force_const(j)
+                enefunc%table%water_bond_calc_OH = .true.
+                enefunc%table%water_bond_calc = .true.
+                exit
+              end if
+            end do
+          else if (abs(m1-m2) < EPS .and. m1 < LIGHT_ATOM_MASS_LIMIT) then
+            do j = 1, nbond_p
+              if ((ci1 == par%bond_atom_cls(1, j) .and.  &
+                   ci2 == par%bond_atom_cls(2, j)) .or.  &
+                  (ci1 == par%bond_atom_cls(2, j) .and.  &
+                   ci2 == par%bond_atom_cls(1, j))) then
+                enefunc%table%HH_bond = par%bond_dist_min(j)
+                enefunc%table%HH_force = par%bond_force_const(j)
+                enefunc%table%water_bond_calc_HH = .true.
+                exit
+              end if
+            end do
+          end if
         end if
  
       end do
     end do
-
-    ! bond/angel from water
-    !
-    i1 = enefunc%table%water_list(1,1)
-    i2 = enefunc%table%water_list(2,1)
-    i3 = enefunc%table%water_list(3,1)
-    ci1 = molecule%atom_cls_name(i1)
-    ci2 = molecule%atom_cls_name(i2)
-    ci3 = molecule%atom_cls_name(i3)
-    do j = 1, nbond_p
-      if ((ci1 == par%bond_atom_cls(1, j) .and.  &
-           ci2 == par%bond_atom_cls(2, j)) .or.  &
-          (ci1 == par%bond_atom_cls(2, j) .and.  &
-           ci2 == par%bond_atom_cls(1, j))) then
-        enefunc%table%OH_bond = par%bond_dist_min(j)
-        enefunc%table%OH_force = par%bond_force_const(j)
-        enefunc%table%water_bond_calc_OH = .true.
-        exit
-      end if
-    end do
-    do j = 1, nbond_p
-      if ((ci2 == par%bond_atom_cls(1, j) .and.  &
-           ci3 == par%bond_atom_cls(2, j)) .or.  &
-          (ci2 == par%bond_atom_cls(2, j) .and.  &
-           ci3 == par%bond_atom_cls(1, j))) then
-        enefunc%table%HH_bond = par%bond_dist_min(j)
-        enefunc%table%HH_force = par%bond_force_const(j)
-        if (enefunc%table%HH_force > EPS) &
-          enefunc%table%water_bond_calc_HH = .true.
-        exit
-      end if
-    end do
-
-    enefunc%table%water_bond_calc = .true.
 
     found  = 0
     found1 = 0
@@ -731,30 +728,26 @@ contains
     
           end if
 
+        else if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
+                 ri1(1:3) == 'SOL') then
+
+          do j = 1, nangl_p
+            if ((ci1 .eq. par%angl_atom_cls(1, j) .and.  &
+                 ci2 .eq. par%angl_atom_cls(2, j) .and.  &
+                 ci3 .eq. par%angl_atom_cls(3, j)) .or.  &
+                (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
+                 ci2 .eq. par%angl_atom_cls(2, j) .and.  &
+                 ci1 .eq. par%angl_atom_cls(1, j))) then
+              enefunc%table%water_angle_calc = .true.
+              enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
+              enefunc%table%HOH_force = par%angl_force_const(j)
+              exit
+            end if
+          end do
+
         end if
 
       end do
-
-    end do
-
-    ! angle from water
-    !
-    list(1:3) = enefunc%table%water_list(1:3,1)
-    ci1 = molecule%atom_cls_name(list(2))
-    ci2 = molecule%atom_cls_name(list(1))
-    ci3 = molecule%atom_cls_name(list(3))
-    do j = 1, nangl_p
-      if ((ci1 .eq. par%angl_atom_cls(1, j) .and.  &
-           ci2 .eq. par%angl_atom_cls(2, j) .and.  &
-           ci3 .eq. par%angl_atom_cls(3, j)) .or.  &
-          (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
-           ci2 .eq. par%angl_atom_cls(2, j) .and.  &
-           ci1 .eq. par%angl_atom_cls(1, j))) then
-        enefunc%table%water_angle_calc = .true.
-        enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
-        enefunc%table%HOH_force = par%angl_force_const(j)
-        exit
-      end if
     end do
 
     found = 0

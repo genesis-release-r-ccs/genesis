@@ -182,7 +182,7 @@ sp_parallel_io.o: sp_parallel_io.fpp sp_constraints_str_mod.mod sp_domain_str_mo
 sp_parallel_io_mod.mod: sp_parallel_io.fpp sp_parallel_io.o
 sp_remd.o: sp_remd.fpp sp_md_vverlet_mod.mod sp_pairlist_mod.mod sp_boundary_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_enefunc_restraints_mod.mod sp_md_leapfrog_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_energy_restraints_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_md_respa_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod 
 sp_remd_mod.mod: sp_remd.fpp sp_remd.o
-sp_remd_str.o: sp_remd_str.fpp  
+sp_remd_str.o: sp_remd_str.fpp sp_energy_str.fpp 
 sp_remd_str_mod.mod: sp_remd_str.fpp sp_remd_str.o
 sp_restart.o: sp_restart.fpp sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod 
 sp_restart_mod.mod: sp_restart.fpp sp_restart.o

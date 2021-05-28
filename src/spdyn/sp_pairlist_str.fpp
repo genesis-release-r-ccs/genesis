@@ -161,7 +161,7 @@ contains
                      stat = dealloc_stat)
       end if
 
-      if (.not. allocated(pairlist%num_nb15_calc))           &
+      if (.not. allocated(pairlist%num_nb15_calc1))           &
         allocate(pairlist%num_nb15_calc  (MaxAtom, var_size), &
                  pairlist%nb15_calc_list_fugaku               &
                       (MaxNb15_Fugaku, MaxAtom, var_size),    &

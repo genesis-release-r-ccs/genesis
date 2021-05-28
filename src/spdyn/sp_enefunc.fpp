@@ -122,6 +122,7 @@ contains
     enefunc%minimum_contact   = ene_info%minimum_contact
     enefunc%err_minimum_contact = ene_info%err_minimum_contact
 
+
     if (ene_info%structure_check == StructureCheckDomain) then
       enefunc%pairlist_check = .true.
       enefunc%bonding_check  = .true.
@@ -153,7 +154,7 @@ contains
 
     ! dispersion correction
     !
-    call setup_enefunc_dispcorr(ene_info, domain, enefunc)
+    call setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
 
     ! bonding_checker
     !
@@ -278,7 +279,7 @@ contains
 
     ! dispersion correction
     !
-    call setup_enefunc_dispcorr(ene_info, domain, enefunc)
+    call setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
 
     ! lookup table
     !
@@ -1170,17 +1171,18 @@ contains
   !! @param[inout] enefunc  : energy potential functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
-  subroutine setup_enefunc_dispcorr(ene_info, domain, enefunc)
+  subroutine setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info
     type(s_domain),  target, intent(inout) :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
+    type(s_constraints),     intent(inout) :: constraints
 
     ! local variables
-    integer                  :: i, j, iatmcls, ntypes
+    integer                  :: i, j, iatmcls, jatmcls, ntypes
     integer                  :: icel1, icel2, icel3, icel4
-    integer                  :: i1, i2, i3, i4
+    integer                  :: i1, i2, i3, i4, k, ih
     integer                  :: num_all_atoms, natom2, nexpair
     real(wip)                :: lj6_tot, lj6_diff, lj6_ex
     real(wip)                :: factor, rpair
@@ -1262,6 +1264,35 @@ contains
       lj6_ex = 0.0_wip
       nexpair = 0
       do i = 1, domain%num_cell_local
+
+        !constraint
+        !
+        do j = 1, constraints%connect
+          do k = 1, constraints%HGr_local(j,i)
+            iatmcls = atmcls(constraints%HGr_bond_list(1,k,j,i),i)
+            do ih = 1, j
+              jatmcls = atmcls(constraints%HGr_bond_list(ih+1,k,j,i),i)
+              lj6_ex = lj6_ex + 2.0_wp*enefunc%nonb_lj6(iatmcls,jatmcls)
+              nexpair = nexpair + 2
+            end do
+          end do
+        end do
+
+        do j = 1, domain%num_water(i)
+          iatmcls = atmcls(domain%water_list(1,j,i),i)
+          jatmcls = atmcls(domain%water_list(2,j,i),i)
+          lj6_ex  = lj6_ex + 2.0_wp*enefunc%nonb_lj6(iatmcls,jatmcls)
+          nexpair = nexpair + 2
+          iatmcls = atmcls(domain%water_list(1,j,i),i)
+          jatmcls = atmcls(domain%water_list(3,j,i),i)
+          lj6_ex  = lj6_ex + 2.0_wp*enefunc%nonb_lj6(iatmcls,jatmcls)
+          nexpair = nexpair + 2
+          iatmcls = atmcls(domain%water_list(2,j,i),i)
+          jatmcls = atmcls(domain%water_list(3,j,i),i)
+          lj6_ex  = lj6_ex + 2.0_wp*enefunc%nonb_lj6(iatmcls,jatmcls)
+          nexpair = nexpair + 2
+        end do
+
         ! self
         do j = 1, domain%num_atom(i)
           iatmcls = atmcls(j,i)
@@ -1274,7 +1305,7 @@ contains
           i1    = id_g2l(2,bondlist(1,j,i))
           icel2 = id_g2l(1,bondlist(2,j,i))
           i2    = id_g2l(2,bondlist(2,j,i))
-          lj6_ex= lj6_ex + enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i2,icel2))
+          lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i2,icel2))
         end do
 
         ! angles
@@ -1283,7 +1314,7 @@ contains
           i1    = id_g2l(2,anglelist(1,j,i))
           icel3 = id_g2l(1,anglelist(3,j,i))
           i3    = id_g2l(2,anglelist(3,j,i))
-          lj6_ex= lj6_ex + enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i3,icel3))
+          lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i3,icel3))
         end do
 
         ! dihedral
@@ -1292,7 +1323,7 @@ contains
           i1    = id_g2l(2,dihelist(1,j,i))
           icel4 = id_g2l(1,dihelist(4,j,i))
           i4    = id_g2l(2,dihelist(4,j,i))
-          lj6_ex= lj6_ex + enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
+          lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
         end do
 
         ! RB dihedral
@@ -1301,7 +1332,7 @@ contains
           i1    = id_g2l(2,rb_dihelist(1,j,i))
           icel4 = id_g2l(1,rb_dihelist(4,j,i))
           i4    = id_g2l(2,rb_dihelist(4,j,i))
-          lj6_ex= lj6_ex + enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
+          lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
         end do
 
         ! improper
@@ -1310,15 +1341,15 @@ contains
           i1    = id_g2l(2,imprlist(1,j,i))
           icel4 = id_g2l(1,imprlist(4,j,i))
           i4    = id_g2l(2,imprlist(4,j,i))
-          lj6_ex= lj6_ex + enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
+          lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
         end do
 
         nexpair = nexpair + domain%num_atom(i)        &
-                          + enefunc%num_bond(i)        &
-                          + enefunc%num_angle(i)       &
-                          + enefunc%num_dihedral(i)    &
-                          + enefunc%num_rb_dihedral(i) &
-                          + enefunc%num_improper(i)
+                          + 2*enefunc%num_bond(i)        &
+                          + 2*enefunc%num_angle(i)       &
+                          + 2*enefunc%num_dihedral(i)    &
+                          + 2*enefunc%num_rb_dihedral(i) &
+                          + 2*enefunc%num_improper(i)
       end do
 #ifdef MPI
       call mpi_allreduce(mpi_in_place, num_all_atoms, 1, mpi_integer, &
@@ -1331,7 +1362,7 @@ contains
       lj6_diff = (lj6_tot - lj6_ex)
 
       natom2 = num_all_atoms*num_all_atoms
-      rpair  = real(natom2/(natom2-nexpair),wip)
+      rpair  = real(natom2,wip)/real(natom2-nexpair,wip)
       factor       = 2.0_wip*PI*rpair*lj6_diff
 
       switchdist   = enefunc%switchdist

@@ -497,11 +497,14 @@ contains
     ! grid data in each subdomain (noopt case)
     !
     grid_space = boundary%box_size_x / real(ngrid(1),wp)
-    ngridmax   = int(boundary%cell_size_x / grid_space)
+!   ngridmax   = int(boundary%cell_size_x / grid_space)
+    ngridmax   = ngrid(1) / boundary%num_domain(1)
     grid_space = boundary%box_size_y / real(ngrid(2),wp)
-    ngridmax   = min(ngridmax,int(boundary%cell_size_y/grid_space))
+!   ngridmax   = min(ngridmax,int(boundary%cell_size_y/grid_space))
+    ngridmax   = min(ngridmax, ngrid(2) / boundary%num_domain(2))
     grid_space = boundary%box_size_z / real(ngrid(3),wp)
-    ngridmax   = min(ngridmax,int(boundary%cell_size_z/grid_space))
+!   ngridmax   = min(ngridmax,int(boundary%cell_size_z/grid_space))
+    ngridmax   = min(ngridmax, ngrid(3) / boundary%num_domain(3))
     if (ngridmax < pme_nspline) then
       calc_pme_scheme(FFT_noopt_1dalltoall) = .false.
       calc_pme_scheme(FFT_noopt_2dalltoall) = .false.

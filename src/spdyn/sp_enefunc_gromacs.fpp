@@ -311,6 +311,7 @@ contains
               if (m1 /= m2) then
                 nbond_a = nbond_a + domain%num_duplicate
                 enefunc%table%water_bond_calc_OH = .true.
+                enefunc%table%water_bond_calc = .true.
                 enefunc%table%OH_bond = gromol%bonds(k)%b0 * 10.0_wp
                 enefunc%table%OH_force = &
                     gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
@@ -1303,7 +1304,7 @@ contains
     type(s_enefunc),         intent(inout) :: enefunc
 
     ! local variables
-    real(wp)                 :: eps, sig, ei, ej, si, sj
+    real(wp)                 :: eps1, sig, ei, ej, si, sj
     real(wp)                 :: c6i, c6j, c12i, c12j, c6, c12
     real(wp)                 :: vi, vj, wi, wj, vij, wij
     integer                  :: nnonb, ncel, i, j, k, excl_level
@@ -1347,43 +1348,39 @@ contains
 
       do j = 1, nnonb
 
-        ! combination rule
-        !
-        if (grotop%num_nbonparms == 0) then
+        vi = grotop%atomtypes(i)%v
+        vj = grotop%atomtypes(j)%v
+        wi = grotop%atomtypes(i)%w
+        wj = grotop%atomtypes(j)%w
 
-          vi = grotop%atomtypes(i)%v
-          vj = grotop%atomtypes(j)%v
-          wi = grotop%atomtypes(i)%w
-          wj = grotop%atomtypes(j)%w
+        if (grotop%defaults%combi_rule == 2) then
 
-          if (grotop%defaults%combi_rule == 2) then
+          si = vi * 10.0_wp
+          sj = vj * 10.0_wp
 
-            si = vi * 10.0_wp
-            sj = vj * 10.0_wp
+          ei = wi * JOU2CAL
+          ej = wj * JOU2CAL
 
-            ei = wi * JOU2CAL
-            ej = wj * JOU2CAL
+          sig = (si + sj) * 0.5_wp
+          eps1 = sqrt(ei * ej)
 
-            sig = (si + sj) * 0.5_wp
-            eps = sqrt(ei * ej)
+          c6  = 4.0_wp * eps1 * (sig ** 6)
+          c12 = 4.0_wp * eps1 * (sig ** 12)
 
-            c6  = 4.0_wp * eps * (sig ** 6)
-            c12 = 4.0_wp * eps * (sig ** 12)
+        else ! combi_rule == 1 or 3
 
-          else ! combi_rule == 1 or 3
+          c6i  = vi * 1000000.0_wp * JOU2CAL
+          c6j  = vj * 1000000.0_wp * JOU2CAL
 
-            c6i  = vi * 1000000.0_wp * JOU2CAL
-            c6j  = vj * 1000000.0_wp * JOU2CAL
+          c12i = wi * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+          c12j = wj * 1000000.0_wp * 1000000.0_wp * JOU2CAL
 
-            c12i = wi * 1000000.0_wp * 1000000.0_wp * JOU2CAL
-            c12j = wj * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+          c6  = sqrt(c6i  * c6j)
+          c12 = sqrt(c12i * c12j)
 
-            c6  = sqrt(c6i  * c6j)
-            c12 = sqrt(c12i * c12j)
+        end if
 
-          end if
-
-        else
+        if (grotop%num_nbonparms > 0) then
 
           vij = 0.0_wp
           wij = 0.0_wp
@@ -1405,21 +1402,22 @@ contains
             end if
           end do
 
-          if (vij == 0.0_wp .or. wij == 0.0_wp) &
-            call error_msg('Setup_Enefunc_Nonb> combination is not found.')
+          if (abs(vij) > eps .and. abs(wij) > eps) then
 
-          if (grotop%defaults%combi_rule == 2) then
+            if (grotop%defaults%combi_rule == 2) then
 
-            sig = vij * 10.0_wp
-            eps = wij * JOU2CAL
+              sig = vij * 10.0_wp
+              eps1 = wij * JOU2CAL
+  
+              c6  = 4.0_wp * eps1 * (sig ** 6)
+              c12 = 4.0_wp * eps1 * (sig ** 12)
 
-            c6  = 4.0_wp * eps * (sig ** 6)
-            c12 = 4.0_wp * eps * (sig ** 12)
+            else ! combi_rule = 1 or 3
 
-          else ! combi_rule = 1 or 3
+              c6  = vij * 1000000.0_wp * JOU2CAL
+              c12 = wij * 1000000.0_wp * 1000000.0_wp * JOU2CAL
 
-            c6  = vij * 1000000.0_wp * JOU2CAL
-            c12 = wij * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+            end if
 
           end if
 

@@ -538,10 +538,12 @@ contains
       end do
     end do
 
-    call compute_constraints(ConstraintModeLEAP, .true., -dt, coord_ref, &
-                             domain, constraints, coord, vel_ref,        &
-                             dynvars%virial_const)
-    dynvars%virial_const(1:3,1:3) = 2.0_dp * dynvars%virial_const(1:3,1:3)
+    if (constraints%rigid_bond) then
+      call compute_constraints(ConstraintModeLEAP, .true., -dt, coord_ref, &
+                               domain, constraints, coord, vel_ref,        &
+                               dynvars%virial_const)
+      dynvars%virial_const(1:3,1:3) = 2.0_dp * dynvars%virial_const(1:3,1:3)
+    end if
 
     kin_ref(1:3) = 0.0_dp
     do i = 1, ncell
