@@ -160,6 +160,7 @@ module sp_enefunc_str_mod
     real(wp),         allocatable :: bond_force_const(:,:)
     real(wp),         allocatable :: bond_dist_min(:,:)
     integer(1),       allocatable :: bond_kind(:,:)
+    integer(1),       allocatable :: bond_pbc (:,:)
 
     ! bond for parallel I/O input
     integer,          allocatable :: bond_list_pio(:,:,:,:)
@@ -173,6 +174,7 @@ module sp_enefunc_str_mod
     real(wp),         allocatable :: urey_force_const(:,:)
     real(wp),         allocatable :: urey_rmin(:,:)
     integer(1),       allocatable :: angle_kind(:,:)
+    integer(1),       allocatable :: angle_pbc (:,:,:)
 
     ! angle for parallel I/O input
     integer,          allocatable :: angle_list_pio(:,:,:,:)
@@ -187,6 +189,7 @@ module sp_enefunc_str_mod
     integer,          allocatable :: dihe_periodicity(:,:)
     real(wp),         allocatable :: dihe_phase(:,:)
     integer(1),       allocatable :: dihe_kind(:,:)
+    integer(1),       allocatable :: dihe_pbc (:,:,:)
 
     ! dihedral for parallel I/O input
     integer,          allocatable :: dihe_list_pio(:,:,:,:)
@@ -197,6 +200,7 @@ module sp_enefunc_str_mod
     ! dihedral (size = num_local_rb_dihedrals for each cell)
     integer,          allocatable :: rb_dihe_list(:,:,:)
     real(wp),         allocatable :: rb_dihe_c(:,:,:)
+    integer(1),       allocatable :: rb_dihe_pbc(:,:,:)
 
     ! dihedral for parallel I/O input
     integer,          allocatable :: rb_dihe_list_pio(:,:,:,:)
@@ -207,6 +211,7 @@ module sp_enefunc_str_mod
     real(wp),         allocatable :: impr_force_const(:,:)
     integer,          allocatable :: impr_periodicity(:,:)
     real(wp),         allocatable :: impr_phase(:,:)
+    integer(1),       allocatable :: impr_pbc(:,:,:)
 
     ! improper for parallel I/O input
     integer,          allocatable :: impr_list_pio(:,:,:,:)
@@ -221,6 +226,7 @@ module sp_enefunc_str_mod
     integer,          allocatable :: cmap_resolution(:)
     integer,          allocatable :: cmap_type(:,:)
     real(wp),         allocatable :: cmap_coef(:,:,:,:,:)
+    integer(1),       allocatable :: cmap_pbc(:,:,:)
 
     ! cmap for parallel I/O input
     integer,          allocatable :: cmap_list_pio(:,:,:,:)
@@ -268,6 +274,11 @@ module sp_enefunc_str_mod
     integer                       :: pme_nspline
     integer                       :: pme_scheme
     real(wp)                      :: pme_max_spacing
+
+    ! external electric field
+    !
+    logical                       :: use_efield
+    real(wp)                      :: efield(3)
 
     ! flag for position restraint 
     logical                       :: restraint_posi
@@ -611,6 +622,9 @@ contains
     enefunc%pme_nspline            = 0
     enefunc%pme_max_spacing        = 1.2_wp
 
+    enefunc%use_efield             = .false.
+    enefunc%efield(1:3)            = 0.0_wp
+
     enefunc%restraint_posi         = .false.
     enefunc%restraint_rmsd         = .false.
     enefunc%restraint_rmsd_target  = .false.
@@ -779,6 +793,7 @@ contains
                      enefunc%bond_force_const, &
                      enefunc%bond_dist_min,    &
                      enefunc%bond_kind,        &
+                     enefunc%bond_pbc,         &
                      stat = dealloc_stat)
       end if
 
@@ -787,6 +802,7 @@ contains
                  enefunc%bond_force_const(MaxBond, var_size),    &
                  enefunc%bond_dist_min   (MaxBond, var_size),    &
                  enefunc%bond_kind       (MaxBond, var_size),    &
+                 enefunc%bond_pbc        (MaxBond, var_size),    &
                  stat = alloc_stat)
 
       enefunc%bond_list       (1:2, 1:MaxBond, 1:var_size) = 0
@@ -844,24 +860,26 @@ contains
                      enefunc%urey_force_const,  &
                      enefunc%urey_rmin,         &
                      enefunc%angle_kind,        &
+                     enefunc%angle_pbc,         &
                      stat = dealloc_stat)
       end if
 
       if (.not. allocated(enefunc%angle_list)) &
-        allocate(enefunc%angle_list       (3, MaxAngle, var_size), &
-                 enefunc%angle_force_const(MaxAngle, var_size),    &
-                 enefunc%angle_theta_min  (MaxAngle, var_size),    &
-                 enefunc%urey_force_const (MaxAngle, var_size),    &
-                 enefunc%urey_rmin        (MaxAngle, var_size),    &
-                 enefunc%angle_kind       (MaxAngle, var_size),    &
+        allocate(enefunc%angle_list       (3, MaxAngle, var_size),    &
+                 enefunc%angle_force_const(   MaxAngle, var_size),    &
+                 enefunc%angle_theta_min  (   MaxAngle, var_size),    &
+                 enefunc%urey_force_const (   MaxAngle, var_size),    &
+                 enefunc%urey_rmin        (   MaxAngle, var_size),    &
+                 enefunc%angle_kind       (   MaxAngle, var_size),    &
+                 enefunc%angle_pbc        (3, MaxAngle, var_size),    &
                  stat = alloc_stat)
 
       enefunc%angle_list       (1:3, 1:MaxAngle, 1:var_size) = 0
-      enefunc%angle_force_const(1:MaxAngle, 1:var_size)      = 0.0_wp
-      enefunc%angle_theta_min  (1:MaxAngle, 1:var_size)      = 0.0_wp
-      enefunc%urey_force_const (1:MaxAngle, 1:var_size)      = 0.0_wp
-      enefunc%urey_rmin        (1:MaxAngle, 1:var_size)      = 0.0_wp
-      enefunc%angle_kind       (1:MaxAngle, 1:var_size)      = 0
+      enefunc%angle_force_const(     1:MaxAngle, 1:var_size)      = 0.0_wp
+      enefunc%angle_theta_min  (     1:MaxAngle, 1:var_size)      = 0.0_wp
+      enefunc%urey_force_const (     1:MaxAngle, 1:var_size)      = 0.0_wp
+      enefunc%urey_rmin        (     1:MaxAngle, 1:var_size)      = 0.0_wp
+      enefunc%angle_kind       (     1:MaxAngle, 1:var_size)      = 0
 
     case (EneFuncAngl_pio)
 
@@ -898,15 +916,17 @@ contains
                      enefunc%dihe_periodicity, &
                      enefunc%dihe_phase,       &
                      enefunc%dihe_kind,        &
+                     enefunc%dihe_pbc,         &
                      stat = dealloc_stat)
       end if
 
       if (.not. allocated(enefunc%dihe_list)) &
-        allocate(enefunc%dihe_list       (4, MaxDihe, var_size), &
-                 enefunc%dihe_force_const(MaxDihe, var_size),    &
-                 enefunc%dihe_periodicity(MaxDihe, var_size),    &
-                 enefunc%dihe_phase      (MaxDihe, var_size),    &
-                 enefunc%dihe_kind       (MaxDihe, var_size),    &
+        allocate(enefunc%dihe_list       (4, MaxDihe, var_size),    &
+                 enefunc%dihe_force_const(   MaxDihe, var_size),    &
+                 enefunc%dihe_periodicity(   MaxDihe, var_size),    &
+                 enefunc%dihe_phase      (   MaxDihe, var_size),    &
+                 enefunc%dihe_kind       (   MaxDihe, var_size),    &
+                 enefunc%dihe_pbc        (3, MaxDihe, var_size),    &
                  stat = alloc_stat)
 
       enefunc%dihe_list       (1:4, 1:MaxDihe, 1:var_size) = 0
@@ -945,12 +965,14 @@ contains
         if (size(enefunc%rb_dihe_list(1,1,:)) /= var_size) &
           deallocate(enefunc%rb_dihe_list, &
                      enefunc%rb_dihe_c,    &
+                     enefunc%rb_dihe_pbc,  &
                      stat = dealloc_stat)
       end if
 
       if (.not. allocated(enefunc%rb_dihe_list)) &
         allocate(enefunc%rb_dihe_list    (4, MaxDihe, var_size), &
                  enefunc%rb_dihe_c       (6, MaxDihe, var_size), &
+                 enefunc%rb_dihe_pbc     (3, MaxDihe, var_size), &
                  stat = alloc_stat)
 
       enefunc%rb_dihe_list(1:4, 1:MaxDihe, 1:var_size) = 0
@@ -982,14 +1004,16 @@ contains
                      enefunc%impr_force_const, &
                      enefunc%impr_periodicity, &
                      enefunc%impr_phase,       &
+                     enefunc%impr_pbc,         &
                      stat = dealloc_stat)
       end if
 
       if (.not. allocated(enefunc%impr_list)) &
         allocate(enefunc%impr_list       (4, MaxImpr, var_size), &
-                 enefunc%impr_force_const(MaxImpr, var_size),    &
-                 enefunc%impr_periodicity(MaxImpr, var_size),    &
-                 enefunc%impr_phase      (MaxImpr, var_size),    &
+                 enefunc%impr_force_const(   MaxImpr, var_size), &
+                 enefunc%impr_periodicity(   MaxImpr, var_size), &
+                 enefunc%impr_phase      (   MaxImpr, var_size), &
+                 enefunc%impr_pbc        (3, MaxImpr, var_size), &
                  stat = alloc_stat)
 
       enefunc%impr_list       (1:4, 1:MaxImpr, 1:var_size) = 0
@@ -1029,14 +1053,16 @@ contains
                      enefunc%cmap_list,       &
                      enefunc%cmap_type,       &
                      enefunc%cmap_coef,       &
+                     enefunc%cmap_pbc,        &
                      stat = dealloc_stat)
       end if
 
-      if (.not. allocated(enefunc%cmap_resolution)) &
+      if (.not. allocated(enefunc%cmap_resolution))      &
         allocate(enefunc%cmap_resolution(var_size2),     &
                  enefunc%cmap_list(8,MaxCmap, var_size), &
-                 enefunc%cmap_type(MaxCmap, var_size),   &
+                 enefunc%cmap_type(  MaxCmap, var_size), &
                  enefunc%cmap_coef(4, 4, var_size1, var_size1, var_size2), &
+                 enefunc%cmap_pbc (6,MaxCmap, var_size), &
                  stat = alloc_stat)
 
       enefunc%cmap_resolution(1:var_size2)          = 0
@@ -1388,32 +1414,32 @@ contains
         allocate(enefunc%bond_exit            (var_size),               &
                  enefunc%bond_add             (var_size1),              &
                  enefunc%bond_exit_index      (BondMove, var_size),     &
-                 enefunc%buf_bond_integer     (3, BondMove, var_size1), &
+                 enefunc%buf_bond_integer     (4, BondMove, var_size1), &
                  enefunc%buf_bond_real        (2, BondMove, var_size1), &
                  enefunc%angle_exit           (var_size),               &
                  enefunc%angle_add            (var_size1),              &
                  enefunc%angle_exit_index     (AngleMove, var_size),    &
-                 enefunc%buf_angle_integer    (4, AngleMove, var_size1),&
+                 enefunc%buf_angle_integer    (7, AngleMove, var_size1),&
                  enefunc%buf_angle_real       (4, AngleMove, var_size1),&
                  enefunc%dihed_exit           (var_size),               &
                  enefunc%dihed_add            (var_size1),              &
                  enefunc%dihed_exit_index     (DiheMove, var_size),     &
-                 enefunc%buf_dihed_integer    (6, DiheMove, var_size1), &
+                 enefunc%buf_dihed_integer    (9, DiheMove, var_size1), &
                  enefunc%buf_dihed_real       (2, DiheMove, var_size1), &
                  enefunc%rb_dihed_exit        (var_size),               &
                  enefunc%rb_dihed_add         (var_size1),              &
                  enefunc%rb_dihed_exit_index  (DiheMove, var_size),     &
-                 enefunc%buf_rb_dihed_integer (4, DiheMove, var_size1), &
+                 enefunc%buf_rb_dihed_integer (7, DiheMove, var_size1), &
                  enefunc%buf_rb_dihed_real    (6, DiheMove, var_size1), &
                  enefunc%impr_exit            (var_size),               &
                  enefunc%impr_add             (var_size1),              &
                  enefunc%impr_exit_index      (ImprMove, var_size),     &
-                 enefunc%buf_impr_integer     (5, ImprMove, var_size1), &
+                 enefunc%buf_impr_integer     (8, ImprMove, var_size1), &
                  enefunc%buf_impr_real        (2, ImprMove, var_size1), &
                  enefunc%cmap_exit            (var_size),               &
                  enefunc%cmap_add             (var_size1),              &
                  enefunc%cmap_exit_index      (CmapMove, var_size),     &
-                 enefunc%buf_cmap_integer     (9, CmapMove, var_size1), &
+                 enefunc%buf_cmap_integer     (15,CmapMove, var_size1), &
                  enefunc%contact_exit         (var_size),               &
                  enefunc%contact_add          (var_size1),              &
                  enefunc%contact_exit_index   (ContactMove, var_size),  &
@@ -1434,27 +1460,27 @@ contains
       enefunc%bond_exit            (1:var_size)                    = 0
       enefunc%bond_add             (1:var_size1)                   = 0
       enefunc%bond_exit_index      (1:BondMove, 1:var_size)        = 0
-      enefunc%buf_bond_integer     (1:3, 1:BondMove, 1:var_size1)  = 0
+      enefunc%buf_bond_integer     (1:4, 1:BondMove, 1:var_size1)  = 0
       enefunc%buf_bond_real        (1:2, 1:BondMove, 1:var_size1)  = 0.0_wp
       enefunc%angle_exit           (1:var_size)                    = 0
       enefunc%angle_add            (1:var_size1)                   = 0
       enefunc%angle_exit_index     (1:AngleMove, 1:var_size)       = 0
-      enefunc%buf_angle_integer    (1:4, 1:AngleMove, 1:var_size1) = 0
+      enefunc%buf_angle_integer    (1:7, 1:AngleMove, 1:var_size1) = 0
       enefunc%buf_angle_real       (1:4, 1:AngleMove, 1:var_size1) = 0.0_wp
       enefunc%dihed_exit           (1:var_size)                    = 0
       enefunc%dihed_add            (1:var_size1)                   = 0
       enefunc%dihed_exit_index     (1:DiheMove, 1:var_size)        = 0
-      enefunc%buf_dihed_integer    (1:6, 1:DiheMove, 1:var_size1)  = 0
+      enefunc%buf_dihed_integer    (1:9, 1:DiheMove, 1:var_size1)  = 0
       enefunc%buf_dihed_real       (1:2, 1:DiheMove, 1:var_size1)  = 0.0_wp
       enefunc%rb_dihed_exit        (1:var_size)                    = 0
       enefunc%rb_dihed_add         (1:var_size1)                   = 0
       enefunc%rb_dihed_exit_index  (1:DiheMove, 1:var_size)        = 0
-      enefunc%buf_rb_dihed_integer (1:4, 1:DiheMove, 1:var_size1)  = 0
+      enefunc%buf_rb_dihed_integer (1:7, 1:DiheMove, 1:var_size1)  = 0
       enefunc%buf_rb_dihed_real    (1:6, 1:DiheMove, 1:var_size1)  = 0.0_wp
       enefunc%impr_exit            (1:var_size)                    = 0
       enefunc%impr_add             (1:var_size1)                   = 0
       enefunc%impr_exit_index      (1:ImprMove, 1:var_size)        = 0
-      enefunc%buf_impr_integer     (1:5, 1:ImprMove, 1:var_size1)  = 0
+      enefunc%buf_impr_integer     (1:8, 1:ImprMove, 1:var_size1)  = 0
       enefunc%buf_impr_real        (1:2, 1:ImprMove, 1:var_size1)  = 0.0_wp
       enefunc%cmap_exit            (1:var_size)                    = 0
       enefunc%cmap_add             (1:var_size1)                   = 0

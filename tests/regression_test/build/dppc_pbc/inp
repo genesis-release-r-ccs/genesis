@@ -1,0 +1,57 @@
+[INPUT]
+grotopfile      = ../../build/dppc_pbc/topol.top
+grocrdfile      = ../../build/dppc_pbc/test.gro
+groreffile      = ../../build/dppc_pbc/test.gro
+
+[OUTPUT]
+
+[ENERGY]
+forcefield      = GROAMBER
+electrostatic   = PME
+switchdist      =  8.0
+cutoffdist      = 10.0
+pairlistdist    = 11.0
+pme_ngrid_x     = 64
+pme_ngrid_y     = 64
+pme_ngrid_z     = 64
+pme_nspline     = 4
+output_style    = GENESIS
+
+[DYNAMICS]
+integrator      = VVER
+nsteps          =   20
+timestep        = 0.001
+eneout_period   =    2
+nbupdate_period =    4
+verbose         = yes
+iseed           = 314529
+
+[CONSTRAINTS]
+rigid_bond      = YES
+shake_iteration = 500
+shake_tolerance = 1.0e-10
+water_model     = SOL
+
+[ENSEMBLE]
+ensemble        = NPT
+tpcontrol       = BUSSI
+temperature     = 300
+pressure        = 1.0
+isotropy        = semi-iso
+
+[SELECTION]
+group1          = rnam:DPPC
+
+[RESTRAINTS]
+nfunctions      = 1
+function1       = POSI
+constant1       = 10.0
+select_index1   = 1
+pressure_position = YES
+
+[BOUNDARY]
+type            = PBC
+box_size_x      = 47.7595
+box_size_y      = 47.7595
+box_size_z      = 77.4453
+

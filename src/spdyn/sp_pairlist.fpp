@@ -15,7 +15,6 @@
 module sp_pairlist_mod
 
   use sp_pairlist_gpu_mod
-  use sp_pairlist_knl_mod
   use sp_pairlist_fugaku_mod
   use sp_pairlist_generic_mod
   use sp_pairlist_str_mod
@@ -75,8 +74,9 @@ contains
         call alloc_pairlist(pairlist, PairListFugaku, &
                             domain%num_cell_local+domain%num_cell_boundary)
 
-      case (PLK_Knl)
-        call alloc_pairlist(pairlist, PairListKNL, domain%num_cell_local)
+      case (PLK_Intel)
+        call alloc_pairlist(pairlist, PairListFugaku, &
+                            domain%num_cell_local+domain%num_cell_boundary)
 
       case (PLK_GPU)
         call alloc_pairlist(pairlist, PairListGPU, domain%num_cell_local)
@@ -113,7 +113,7 @@ contains
 
     ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
-    type(s_domain),   target, intent(in)    :: domain
+    type(s_domain),   target, intent(inout) :: domain
     type(s_pairlist), target, intent(inout) :: pairlist
 
  
@@ -130,11 +130,11 @@ contains
       case (PLK_Fugaku)
         call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
 
+      case (PLK_Intel)
+        call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
+
       case (PLK_GPU)
         call update_pairlist_pbc_gpu(enefunc, domain, pairlist)
-
-      case (PLK_Knl)
-        call update_pairlist_pbc_knl(enefunc, domain, pairlist)
 
       end select
 

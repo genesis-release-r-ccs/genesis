@@ -33,6 +33,7 @@ module sp_energy_str_mod
     real(dp)         :: cmap
     real(dp)         :: electrostatic
     real(dp)         :: van_der_waals
+    real(dp)         :: electric_field
     real(dp)         :: contact
     real(dp)         :: noncontact
     ! restraint
@@ -105,6 +106,7 @@ contains
     energy%cmap               = 0.0_dp
     energy%electrostatic      = 0.0_dp
     energy%van_der_waals      = 0.0_dp
+    energy%electric_field     = 0.0_dp
     energy%contact            = 0.0_dp
     energy%noncontact         = 0.0_dp
     energy%restraint_position = 0.0_dp

@@ -295,7 +295,7 @@ end module fj_timer_mod
   !--- sp_energy_table_linear_bondcorr.fpp ------------------
       name(220)     = 'pme_bond_corr_linear_general'
 
-  !--- sp_energy_table_linear_nowater.fpp ------------------
+  !--- sp_energy_nonbond_pme_table.fpp ------------------
       name(222)     = 'compute_energy_nonbond_table_linear'
 
   !--- sp_energy_table_linear.fpp ------------------
@@ -394,7 +394,7 @@ end module fj_timer_mod
       name(406)     = 'nonbond_pme:mpi_barrier'
       name(407)     = 'nonbond_pme:pme_recip'
 
-  !--- sp_energy_table_linear_nowater.fpp ------------------
+  !--- sp_energy_nonbond_pme_table.fpp ------------------
       ! compute_force_nonbond_table_linear
       name(411)     = 'nonbond_table_linear:compute_force_nonbond_table_charmm_npt'
       name(412)     = 'nonbond_table_linear:compute_force_nonbond_table_charmm'

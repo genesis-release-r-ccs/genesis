@@ -177,7 +177,7 @@ contains
   subroutine setup_enefunc_bond(molecule, prmtop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_prmtop),          intent(in)    :: prmtop
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
@@ -186,27 +186,35 @@ contains
     real(wp)                 :: m1, m2
     integer                  :: dupl, ioffset
     integer                  :: i, found, i1, i2, icel1, icel2
+    integer                  :: ia, ib, pbc_int
     integer                  :: icel_local
     character(6)             :: ri1, ri2
+    real(wp)                 :: cwork(3,2), dij(3)
 
-    real(wp),        pointer :: force(:,:), dist(:,:)
+    real(wp),        pointer :: force(:,:), dist(:,:), coord(:,:)
+    real(wp),        pointer :: box_size(:)
     integer,         pointer :: nwater(:), bond(:), list(:,:,:)
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nbond, sollist(:)
+    integer(1),      pointer :: bond_pbc(:,:)
 
+
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
     nwater    => domain%num_water
+    box_size  => domain%system_size
 
     bond      => enefunc%num_bond
     list      => enefunc%bond_list
     force     => enefunc%bond_force_const
     dist      => enefunc%bond_dist_min
     sollist   => enefunc%table%solute_list_inv
+    bond_pbc  => enefunc%bond_pbc
 
     do dupl = 1, domain%num_duplicate
 
@@ -247,6 +255,7 @@ contains
                              prmtop%bond_fcons_uniq(prmtop%bond_inc_hy(3,i))
               dist (  nbond,icel_local) = &
                              prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
+              bond_pbc(bond(icel_local),icel_local) = 13
             end if
 
           end if
@@ -284,6 +293,8 @@ contains
                              prmtop%bond_fcons_uniq(prmtop%bond_wo_hy(3,i))
             dist (  nbond,icel_local) = &
                              prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
+            bond_pbc(bond(icel_local),icel_local) = 13
+
           end if
 
         end if
@@ -361,7 +372,7 @@ contains
 
     ! formal arguments
     type(s_prmtop),              intent(in)    :: prmtop
-    type(s_molecule),            intent(in)    :: molecule
+    type(s_molecule),    target, intent(in)    :: molecule
     type(s_domain),      target, intent(in)    :: domain
     type(s_constraints), target, intent(inout) :: constraints
     type(s_enefunc),     target, intent(inout) :: enefunc
@@ -375,14 +386,16 @@ contains
     integer                      :: tmp_mole_no, mole_no
     character(6)                 :: ri1, ri2
 
-    real(wp),            pointer :: force(:,:), dist(:,:)
+    real(wp),            pointer :: force(:,:), dist(:,:), coord(:,:)
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     integer,             pointer :: bond(:), list(:,:,:), ncel
     integer,             pointer :: id_l2g(:,:), sollist(:)
     integer(int2),       pointer :: cell_pair(:,:)
     integer(int2),       pointer :: id_g2l(:,:)
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
+    integer(1),          pointer :: bond_pbc(:,:)
 
+    coord         => molecule%atom_coord
 
     ncel          => domain%num_cell_local
     cell_pair     => domain%cell_pair
@@ -398,6 +411,7 @@ contains
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
     sollist       => enefunc%table%solute_list_inv
+    bond_pbc      => enefunc%bond_pbc
 
     connect       =  constraints%connect
 
@@ -443,6 +457,8 @@ contains
                                prmtop%bond_fcons_uniq(prmtop%bond_wo_hy(3,i))
               dist (  bond(icel_local),icel_local) = &
                                prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
+              bond_pbc(bond(icel_local),icel_local) = 13
+
             end if
           end if
 
@@ -624,6 +640,7 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nangl, sollist(:), nwater(:)
     character(6),    pointer :: mol_res_name(:)
+    integer(1),      pointer :: angl_pbc(:,:,:)
 
     mol_res_name => molecule%residue_name
 
@@ -637,6 +654,7 @@ contains
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     sollist   => enefunc%table%solute_list_inv
+    angl_pbc  => enefunc%angle_pbc
 
     do dupl = 1, domain%num_duplicate
 
@@ -680,6 +698,7 @@ contains
                                prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
               theta(    nangl,icel_local) = &
                                prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
+              angl_pbc(1:3,nangl,icel_local) = 13
             end if
 
           end if
@@ -718,6 +737,7 @@ contains
                              prmtop%angl_fcons_uniq(prmtop%angl_wo_hy(4,i))
             theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
+            angl_pbc(1:3,nangl,icel_local) = 13
           end if
 
         end if
@@ -802,6 +822,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nangl, sollist(:)
+    integer(1),      pointer :: angl_pbc(:,:,:)
 
 
     ncel      => domain%num_cell_local
@@ -813,6 +834,7 @@ contains
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     sollist   => enefunc%table%solute_list_inv
+    angl_pbc  => enefunc%angle_pbc
 
     do dupl = 1, domain%num_duplicate
 
@@ -856,6 +878,7 @@ contains
                                prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
               theta(    nangl,icel_local) = &
                                prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
+              angl_pbc(1:3,nangl,icel_local) = 13
             end if
   
           end if
@@ -894,6 +917,7 @@ contains
                              prmtop%angl_fcons_uniq(prmtop%angl_wo_hy(4,i))
             theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
+            angl_pbc(1:3,nangl,icel_local) = 13
           end if
 
         end if
@@ -951,11 +975,12 @@ contains
 
     real(wp),           pointer :: force(:,:), phase(:,:)
     integer,            pointer :: dihe(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
     integer,            pointer :: notation
+    integer(1),         pointer :: dihe_pbc(:,:,:)
 
 
     ncel      => domain%num_cell_local
@@ -968,6 +993,8 @@ contains
     phase     => enefunc%dihe_phase
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
+    sollist       => enefunc%table%solute_list_inv
+    dihe_pbc  => enefunc%dihe_pbc
 
     notation = 100
     if (prmtop%num_uniqdihe > 100) then
@@ -991,10 +1018,10 @@ contains
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_inc_hy(4,i)  / 3 + 1
 
-        i1 = i1 + ioffset
-        i2 = i2 + ioffset
-        i3 = i3 + ioffset
-        i4 = i4 + ioffset
+        i1 = sollist(i1) + ioffset
+        i2 = sollist(i2) + ioffset
+        i3 = sollist(i3) + ioffset
+        i4 = sollist(i4) + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i4)
@@ -1022,6 +1049,7 @@ contains
               period(ndihe,icel_local) = period(  ndihe,icel_local) &
                               + prmtop%dihe_inc_hy(5,i)*notation
             endif
+            dihe_pbc(1:3,ndihe,icel_local) = 13
 
           end if
 
@@ -1039,10 +1067,10 @@ contains
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_wo_hy(4,i)  / 3 + 1
 
-        i1 = i1 + ioffset
-        i2 = i2 + ioffset
-        i3 = i3 + ioffset
-        i4 = i4 + ioffset
+        i1 = sollist(i1) + ioffset
+        i2 = sollist(i2) + ioffset
+        i3 = sollist(i3) + ioffset
+        i4 = sollist(i4) + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i4)
@@ -1070,6 +1098,7 @@ contains
               period(ndihe,icel_local) = period(  ndihe,icel_local) &
                               + prmtop%dihe_wo_hy(5,i)*notation
             endif
+            dihe_pbc(1:3,ndihe,icel_local) = 13
 
           end if
 
@@ -1109,28 +1138,34 @@ contains
   subroutine setup_enefunc_impr(molecule, prmtop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_prmtop),          intent(in)    :: prmtop
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: dupl, ioffset
+    integer                  :: dupl, ioffset, pbc_int
     integer                  :: i, found
     integer                  :: i1, i2, i3, i4, icel1, icel2, icel_local
+    integer                  :: ia, ib, ic, id
+    real(wp)                 :: cwork(3,4), dij(3)
 
-    real(wp),           pointer :: force(:,:), phase(:,:)
+    real(wp),           pointer :: force(:,:), phase(:,:), coord(:,:)
+    real(wp),           pointer :: box_size(:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
     integer,            pointer :: notation
+    integer(1),         pointer :: impr_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     impr      => enefunc%num_improper
     list      => enefunc%impr_list
@@ -1138,6 +1173,8 @@ contains
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
     notation  => enefunc%notation_14types
+    sollist   => enefunc%table%solute_list_inv
+    impr_pbc  => enefunc%impr_pbc
 
     do dupl = 1, domain%num_duplicate
 
@@ -1153,13 +1190,13 @@ contains
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_inc_hy(4,i)) / 3 + 1
 
-        i1 = i1 + ioffset
-        i2 = i2 + ioffset
-        i3 = i3 + ioffset
-        i4 = i4 + ioffset
+        ia = sollist(i1) + ioffset
+        ib = sollist(i2) + ioffset
+        ic = sollist(i3) + ioffset
+        id = sollist(i4) + ioffset
 
-        icel1 = id_g2l(1,i1)
-        icel2 = id_g2l(1,i4)
+        icel1 = id_g2l(1,ia)
+        icel2 = id_g2l(1,id)
 
         if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1173,13 +1210,16 @@ contains
             if (nimpr > MaxImpr) &
               call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
 
-            list(1:4,nimpr,icel_local) = (/i1,i2,i3,i4/)
+            list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
             force (  nimpr,icel_local) = &
                               prmtop%dihe_fcons_uniq(prmtop%dihe_inc_hy(5,i))
             phase (  nimpr,icel_local) = &
                               prmtop%dihe_phase_uniq(prmtop%dihe_inc_hy(5,i))
             period(  nimpr,icel_local) = &
                          int(prmtop%dihe_perio_uniq(prmtop%dihe_inc_hy(5,i)))
+            impr_pbc(1,nimpr,icel_local) = 13
+            impr_pbc(2,nimpr,icel_local) = 13
+            impr_pbc(3,nimpr,icel_local) = 13
             if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
               period(nimpr,icel_local) = period(  nimpr,icel_local) &
                               + prmtop%dihe_inc_hy(5,i)*notation
@@ -1201,13 +1241,13 @@ contains
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_wo_hy(4,i)) / 3 + 1
 
-        i1 = i1 + ioffset
-        i2 = i2 + ioffset
-        i3 = i3 + ioffset
-        i4 = i4 + ioffset
+        ia = sollist(i1) + ioffset
+        ib = sollist(i2) + ioffset
+        ic = sollist(i3) + ioffset
+        id = sollist(i4) + ioffset
 
-        icel1 = id_g2l(1,i1)
-        icel2 = id_g2l(1,i4)
+        icel1 = id_g2l(1,ia)
+        icel2 = id_g2l(1,id)
 
         if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1221,13 +1261,16 @@ contains
             if (nimpr > MaxImpr) &
               call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
 
-            list(1:4,nimpr,icel_local) = (/i1,i2,i3,i4/)
+            list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
             force (  nimpr,icel_local) = &
                               prmtop%dihe_fcons_uniq(prmtop%dihe_wo_hy(5,i))
             phase (  nimpr,icel_local) = &
                               prmtop%dihe_phase_uniq(prmtop%dihe_wo_hy(5,i))
             period(  nimpr,icel_local) = &
                             int(prmtop%dihe_perio_uniq(prmtop%dihe_wo_hy(5,i)))
+            impr_pbc(1,nimpr,icel_local) = 13
+            impr_pbc(2,nimpr,icel_local) = 13
+            impr_pbc(3,nimpr,icel_local) = 13
 
             if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
               period(nimpr,icel_local) = period(  nimpr,icel_local) &

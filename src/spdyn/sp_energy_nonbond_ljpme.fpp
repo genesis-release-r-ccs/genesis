@@ -15,10 +15,9 @@
 module sp_energy_nonbond_ljpme_mod
 
   use sp_energy_nonbond_gpu_mod
-  use sp_energy_nonbond_intel_knl_mod
-  use sp_energy_nonbond_k_generic_mod
   use sp_energy_nonbond_fugaku_mod
   use sp_energy_nonbond_generic_mod
+  use sp_energy_nonbond_intel_mod
   use sp_pairlist_str_mod
   use sp_enefunc_str_mod
   use sp_domain_str_mod
@@ -55,17 +54,17 @@ contains
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_nonbond_table_ljpme( &
-                                                domain, enefunc, pairlist, &
-                                                npt, coord_pbc, force_pbc, &
-                                                virial_cell, virial,       &
-                                                eelec, evdw, ene_virial)
+  subroutine compute_energy_nonbond_table_ljpme(domain, enefunc, pairlist,  &
+                                          npt, atmcls_pbc, coord_pbc,       &
+                                          force_pbc, virial_cell, virial,   &
+                                          eelec, evdw, ene_virial)
 
     ! formal arguments
     type(s_domain),   target, intent(in)    :: domain
     type(s_enefunc),  target, intent(in)    :: enefunc
     type(s_pairlist), target, intent(in)    :: pairlist
     logical,                  intent(in)    :: npt
+    integer,                  intent(inout) :: atmcls_pbc(:)
     real(wp),                 intent(inout) :: coord_pbc(:,:,:)
     real(wp),                 intent(inout) :: force_pbc(:,:,:,:)
     real(dp),                 intent(inout) :: virial_cell(:,:)
@@ -77,35 +76,27 @@ contains
 
     select case(domain%nonbond_kernel)
 
-!   case (NBK_Generic)
-!     call compute_energy_nonbond_tbl_lnr_generic( &
+    case (NBK_Generic)
+      call compute_energy_nonbond_tbl_ljpme_generic( &
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
+
+    case (NBK_Fugaku)
+      call compute_energy_nonbond_tbl_ljpme_fugaku( &
+                              domain, enefunc, pairlist, atmcls_pbc, &
+                              coord_pbc, force_pbc, virial, eelec, evdw)
+
+!   case (NBK_IntelGeneric)
+!     call compute_energy_nonbond_tbl_ljpme_intel_generic( &
 !                                    domain, enefunc, pairlist,          &
 !                                    coord_pbc, force_pbc, virial_cell,  &
 !                                    eelec, evdw)
-
-!   case (NBK_KGeneric)
-!     call compute_energy_nonbond_tbl_lnr_k_generic( &
-!                                    domain, enefunc, pairlist,          &
-!                                    coord_pbc, force_pbc, virial_cell,  &
-!                                    eelec, evdw)
-
-!   case (NBK_PostkGeneric)
-!     call compute_energy_nonbond_tbl_lnr_postk_generic( &
-!                                    domain, enefunc, pairlist,          &
-!                                    coord_pbc, force_pbc, virial_cell,  &
-!                                    eelec, evdw)
-
-    case (NBK_IntelKnl)
-      call compute_energy_nonbond_tbl_ljpme_intel_knl( &
-                                     domain, enefunc, pairlist,          &
-                                     coord_pbc, force_pbc, virial_cell,  &
-                                     eelec, evdw)
 
     case (NBK_GPU)
       call compute_energy_nonbond_tbl_ljpme_gpu( &
-                                     domain, enefunc, pairlist,          &
-                                     npt, coord_pbc, force_pbc,          &
-                                     virial, eelec, evdw, ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              coord_pbc, force_pbc, virial,          &
+                              eelec, evdw, ene_virial)
 
     end select
 
@@ -132,12 +123,10 @@ contains
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_force_nonbond_table_ljpme( &
-                                             domain, enefunc, pairlist, &
-                                             npt, cpu_calc, coord_pbc,  &
-                                             force, force_pbc,          &
-                                             virial_cell, virial,       &
-                                             ene_virial)
+  subroutine compute_force_nonbond_table_ljpme(domain, enefunc, pairlist, &
+                                          npt, cpu_calc, atmcls_pbc,      &
+                                          coord_pbc, force, force_pbc,    &
+                                          virial_cell, virial, ene_virial)
 
     ! formal arguments
     type(s_domain),   target, intent(in)    :: domain
@@ -145,6 +134,7 @@ contains
     type(s_pairlist), target, intent(in)    :: pairlist
     logical,                  intent(in)    :: npt
     logical,                  intent(in)    :: cpu_calc
+    integer,                  intent(inout) :: atmcls_pbc(:)
     real(wp),                 intent(inout) :: coord_pbc(:,:,:)
     real(wp),                 intent(inout) :: force(:,:,:,:)
     real(wp),                 intent(inout) :: force_pbc(:,:,:,:)
@@ -152,36 +142,30 @@ contains
     real(dp),                 intent(inout) :: virial(:,:,:)
     real(dp),                 intent(inout) :: ene_virial(:)
 
-
     select case(domain%nonbond_kernel)
 
     case (NBK_Generic)
-!     call compute_force_nonbond_notbl_generic( &
+      call compute_force_nonbond_tbl_ljpme_generic( &
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell)
+
+    case (NBK_Fugaku)
+      call compute_force_nonbond_tbl_ljpme_fugaku( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc, force_pbc, virial)
+
+
+!   case (NBK_IntelGeneric)
+!     call compute_force_nonbond_tbl_ljpme_intel_generic( &
 !                                    domain, enefunc, pairlist, &
 !                                    coord_pbc, force_pbc, virial_cell)
-
-!   case (NBK_KGeneric)
-!     call compute_force_nonbond_notbl_k_generic( &
-!                                    domain, enefunc, pairlist, &
-!                                    coord_pbc, force_pbc, virial_cell)
-
-!   case (NBK_PostkGeneric)
-!     call compute_force_nonbond_notbl_postk_generic( &
-!                                    domain, enefunc, pairlist, &
-!                                    coord_pbc, force_pbc, virial_cell)
-
-
-    case (NBK_IntelKnl)
-      call compute_force_nonbond_tbl_ljpme_intel_knl( &
-                                     domain, enefunc, pairlist, &
-                                     coord_pbc, force_pbc, virial_cell)
 
 
     case (NBK_GPU)
       call compute_force_nonbond_tbl_ljpme_gpu( &
-                                     domain, enefunc, pairlist, &
-                                     npt, cpu_calc, coord_pbc, force, &
-                                     force_pbc, virial, ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              cpu_calc, coord_pbc, force,            &
+                              force_pbc, virial, ene_virial)
 
     end select
 

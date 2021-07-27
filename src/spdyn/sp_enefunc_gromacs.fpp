@@ -191,7 +191,7 @@ contains
   subroutine setup_enefunc_bond(molecule, grotop, domain, constraints, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_grotop),          intent(in)    :: grotop
     type(s_domain),  target, intent(in)    :: domain
     type(s_constraints),     intent(in)    :: constraints
@@ -200,28 +200,34 @@ contains
     ! local variables
     real(wp)                 :: water_dist(3), m1, m2
     integer                  :: dupl, ioffset_dupl
-    integer                  :: i, j, k, i1, i2
+    integer                  :: i, j, k, i1, i2, ia, ib, pbc_int
     integer                  :: ioffset, nbond_a
     integer                  :: idx1, idx2, icel1, icel2, icel_local
     character(6)             :: res1, res2
+    real(wp)                 :: cwork(3,2), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: force(:,:), dist(:,:)
+    real(wp),           pointer :: force(:,:), dist(:,:), coord(:,:)
+    real(wp),           pointer :: box_size(:)
     integer,            pointer :: bond(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
+    integer(1),         pointer :: bond_pbc(:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     bond      => enefunc%num_bond
     list      => enefunc%bond_list
     force     => enefunc%bond_force_const
     dist      => enefunc%bond_dist_min
     sollist   => enefunc%table%solute_list_inv
+    bond_pbc  => enefunc%bond_pbc
 
     nbond_a   = 0
 
@@ -246,12 +252,14 @@ contains
               if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
                   res1(1:3) /= 'SOL' .and. res2(1:3) /= 'TIP' .and. &
                   res2(1:3) /= 'WAT' .and. res2(1:3) /= 'SOL') then
+
+                idx1 = idx1 + ioffset  
+                idx2 = idx2 + ioffset  
+                ia   = sollist(idx1) + ioffset_dupl
+                ib   = sollist(idx2) + ioffset_dupl
   
-                idx1 = sollist(idx1+ioffset) + ioffset_dupl
-                idx2 = sollist(idx2+ioffset) + ioffset_dupl
-  
-                icel1 = id_g2l(1,idx1)
-                icel2 = id_g2l(1,idx2)
+                icel1 = id_g2l(1,ia)
+                icel2 = id_g2l(1,ib)
   
                 if (icel1 /= 0 .and. icel2 /= 0) then
   
@@ -265,12 +273,18 @@ contains
                     nbond_a = nbond_a + 1
   
                     bond(icel_local) = bond(icel_local) + 1
-                    list (1,bond(icel_local),icel_local) = idx1
-                    list (2,bond(icel_local),icel_local) = idx2
+                    list (1,bond(icel_local),icel_local) = ia
+                    list (2,bond(icel_local),icel_local) = ib
                     force(  bond(icel_local),icel_local) = &
-                                   gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+                            gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
                     dist (  bond(icel_local),icel_local) = &
-                                   gromol%bonds(k)%b0 * 10.0_wp
+                            gromol%bonds(k)%b0 * 10.0_wp
+                    cwork(1:3,1) = coord(1:3,idx1)
+                    cwork(1:3,2) = coord(1:3,idx2)
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    bond_pbc(bond(icel_local),icel_local) = pbc_int
+
                   end if
   
                 end if
@@ -375,7 +389,7 @@ contains
                                            constraints, enefunc)
 
     ! formal arguments
-    type(s_molecule),            intent(in)    :: molecule
+    type(s_molecule),    target, intent(in)    :: molecule
     type(s_grotop),              intent(in)    :: grotop
     type(s_domain),      target, intent(in)    :: domain
     type(s_constraints), target, intent(inout) :: constraints
@@ -383,32 +397,36 @@ contains
 
     ! local variables
     real(wp)                 :: water_dist(3)
-    integer                  :: dupl, ioffset_dupl
+    integer                  :: dupl, ioffset_dupl, pbc_int
     integer                  :: i, j, k, m, n
     integer                  :: nwat, ioffset, nbond_a, nbond_c
-    integer                  :: icel, connect, ih, ih1, ih2
+    integer                  :: icel, connect, ih, ih1, ih2, ia, ib
     integer                  :: i1, i2, idx1, idx2, icel1, icel2, icel_local
     integer                  :: wat_bonds, wat_found, nbond_sys
     character(6)             :: res1, res2
     character(6)             :: atm1, atm2
     logical                  :: cl1, cl2
+    real(wp)                 :: cwork(3,2), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), dist(:,:)
+    real(wp),           pointer :: coord(:,:), box_size(:)
     real(wip),          pointer :: HGr_bond_dist(:,:,:,:)
     integer,            pointer :: bond(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
-    integer,            pointer :: id_l2g(:,:), id_l2g_sol(:,:)
+    integer,            pointer :: id_l2g(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
+    integer(1),         pointer :: bond_pbc(:,:)
 
+    coord         => molecule%atom_coord
 
     ncel          => domain%num_cell_local
     cell_pair     => domain%cell_pair
     id_g2l        => domain%id_g2l
     id_l2g        => domain%id_l2g
-    id_l2g_sol    => domain%id_l2g_solute
+    box_size      => domain%system_size
 
     HGr_local     => constraints%HGr_local
     HGr_bond_list => constraints%HGr_bond_list
@@ -420,6 +438,7 @@ contains
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
     sollist       => enefunc%table%solute_list_inv
+    bond_pbc      => enefunc%bond_pbc
     nwat          =  enefunc%table%num_water
 
     nbond_sys = 0
@@ -457,13 +476,15 @@ contains
                 cl2 = (cl2 .and. &
                    gromol%atoms(i2)%mass > LIGHT_ATOM_MASS_LIMIT) 
               endif
-              idx1 = sollist(i1+ioffset) + ioffset_dupl
-              idx2 = sollist(i2+ioffset) + ioffset_dupl
+              idx1 = i1 + ioffset
+              idx2 = i2 + ioffset
+              ia   = sollist(idx1) + ioffset_dupl
+              ib   = sollist(idx2) + ioffset_dupl
 
               if (cl1 .and. cl2) then
 
-                icel1 = id_g2l(1,idx1)
-                icel2 = id_g2l(1,idx2)
+                icel1 = id_g2l(1,ia)
+                icel2 = id_g2l(1,ib)
 
                 if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -477,12 +498,18 @@ contains
                     nbond_a = nbond_a + 1
 
                     bond(icel_local) = bond(icel_local) + 1
-                    list (1,bond(icel_local),icel_local) = idx1
-                    list (2,bond(icel_local),icel_local) = idx2
+                    list (1,bond(icel_local),icel_local) = ia
+                    list (2,bond(icel_local),icel_local) = ib
                     force(  bond(icel_local),icel_local) = &
-                                   gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+                            gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
                     dist (  bond(icel_local),icel_local) = &
-                                   gromol%bonds(k)%b0 * 10.0_wp
+                            gromol%bonds(k)%b0 * 10.0_wp
+                    cwork(1:3,1) = coord(1:3,idx1)
+                    cwork(1:3,2) = coord(1:3,idx2)
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    bond_pbc(bond(icel_local),icel_local) = pbc_int
+
                   end if
 
                 end if
@@ -501,9 +528,9 @@ contains
                     do m = 1, connect
 
                       do n = 1, HGr_local(m,icel)
-                        ih1 = id_l2g_sol(HGr_bond_list(1,n,m,icel),icel)
+                        ih1 = id_l2g(HGr_bond_list(1,n,m,icel),icel)
                         do ih = 1, m
-                          ih2 = id_l2g_sol(HGr_bond_list(ih+1,n,m,icel),icel)
+                          ih2 = id_l2g(HGr_bond_list(ih+1,n,m,icel),icel)
 
                           if (ih1 == idx1 .and. ih2 == idx2 .or. &
                             ih2 == idx1 .and. ih1 == idx2) then
@@ -643,35 +670,41 @@ contains
   subroutine setup_enefunc_angl(molecule, grotop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_grotop),  target, intent(in)    :: grotop
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: dupl, ioffset_dupl
-    integer                  :: i, j, k
+    integer                  :: dupl, ioffset_dupl, pbc_int
+    integer                  :: i, j, k, ia, ib, ic
     integer                  :: ioffset, nangl_a
     integer                  :: idx1, idx2, idx3, icel1, icel2, icel_local
     character(6)             :: res1, res2, res3
+    real(wp)                 :: cwork(3,3), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), theta(:,:)
+    real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: angle(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
+    integer(1),         pointer :: angl_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     angle     => enefunc%num_angle
     list      => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     sollist   => enefunc%table%solute_list_inv
+    angl_pbc  => enefunc%angle_pbc
 
     nangl_a   = 0
 
@@ -698,13 +731,16 @@ contains
 
               if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
                   res1(1:3) /= 'SOL') then
- 
-                idx1 = sollist(idx1+ioffset) + ioffset_dupl
-                idx2 = sollist(idx2+ioffset) + ioffset_dupl
-                idx3 = sollist(idx3+ioffset) + ioffset_dupl
+
+                idx1 = idx1 + ioffset 
+                idx2 = idx2 + ioffset 
+                idx3 = idx3 + ioffset 
+                ia   = sollist(idx1) + ioffset_dupl
+                ib   = sollist(idx2) + ioffset_dupl
+                ic   = sollist(idx3) + ioffset_dupl
                 
-                icel1 = id_g2l(1,idx1)
-                icel2 = id_g2l(1,idx3)
+                icel1 = id_g2l(1,ia)
+                icel2 = id_g2l(1,ic)
 
                 if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -718,11 +754,24 @@ contains
                     nangl_a = nangl_a + 1
 
                     angle(icel_local) = angle(icel_local) + 1
-                    list (1:3,angle(icel_local),icel_local) = (/idx1, idx2, idx3/)
+                    list (1:3,angle(icel_local),icel_local) = (/ia, ib, ic/)
                     force(    angle(icel_local),icel_local) = &
                                       gromol%angls(k)%kt * JOU2CAL * 0.5_wp
                     theta(    angle(icel_local),icel_local) = &
                                       gromol%angls(k)%theta_0 * RAD
+                    cwork(1:3,1) = coord(1:3,idx1)
+                    cwork(1:3,2) = coord(1:3,idx2)
+                    cwork(1:3,3) = coord(1:3,idx3)
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(3,angle(icel_local),icel_local) = pbc_int
+
                   end if
   
                 end if
@@ -800,37 +849,43 @@ contains
                                            constraints, enefunc)
 
     ! formal arguments
-    type(s_molecule),            intent(in)    :: molecule
+    type(s_molecule),    target, intent(in)    :: molecule
     type(s_grotop),              intent(in)    :: grotop
     type(s_domain),      target, intent(in)    :: domain
     type(s_constraints), target, intent(in)    :: constraints
     type(s_enefunc),     target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: dupl, ioffset_dupl
-    integer                  :: i, j, k
+    integer                  :: dupl, ioffset_dupl, pbc_int
+    integer                  :: i, j, k, ia, ib, ic
     integer                  :: nwat, ioffset, icel_local, nangl_a
     integer                  :: i1, i2, i3, idx1, idx2, idx3, icel1, icel2
     integer                  :: nangl_sys
     character(6)             :: res1, res2, res3
+    real(wp)                 :: cwork(3,3), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), theta(:,:)
+    real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: angle(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
+    integer(1),         pointer :: angl_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     angle     => enefunc%num_angle
     list      => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     sollist   => enefunc%table%solute_list_inv
+    angl_pbc  => enefunc%angle_pbc
     nwat      =  enefunc%table%num_water
 
     nangl_sys = 0
@@ -861,12 +916,15 @@ contains
                   res2(1:4) /= constraints%water_model .and. &
                   res3(1:4) /= constraints%water_model) then
 
-                idx1 = sollist(i1+ioffset) + ioffset_dupl
-                idx2 = sollist(i2+ioffset) + ioffset_dupl
-                idx3 = sollist(i3+ioffset) + ioffset_dupl
+                idx1 = i1 + ioffset
+                idx2 = i2 + ioffset
+                idx3 = i3 + ioffset
+                ia   = sollist(idx1) + ioffset_dupl
+                ib   = sollist(idx2) + ioffset_dupl
+                ic   = sollist(idx3) + ioffset_dupl
 
-                icel1 = id_g2l(1,idx1)
-                icel2 = id_g2l(1,idx3)
+                icel1 = id_g2l(1,ia)
+                icel2 = id_g2l(1,ic)
 
                 if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -875,16 +933,30 @@ contains
                   if (icel_local > 0 .and. icel_local <= ncel) then
 
                     if (angle(icel_local)+1 > MaxAngle) &
-              call error_msg('Setup_Enefunc_Angl_Constraint> Too many angles.')
+                      call error_msg( &
+                              'Setup_Enefunc_Angl_Constraint> Too many angles.')
 
                     nangl_a = nangl_a + 1
 
                     angle(icel_local) = angle(icel_local) + 1
-                    list (1:3,angle(icel_local),icel_local) = (/idx1,idx2,idx3/)
+                    list (1:3,angle(icel_local),icel_local) = (/ia,ib,ic/)
                     force(    angle(icel_local),icel_local) = &
                                       gromol%angls(k)%kt * JOU2CAL * 0.5_wp
                     theta(    angle(icel_local),icel_local) = &
                                       gromol%angls(k)%theta_0 * RAD
+                    cwork(1:3,1) = coord(1:3,idx1)
+                    cwork(1:3,2) = coord(1:3,idx2)
+                    cwork(1:3,3) = coord(1:3,idx3)
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    angl_pbc(3,angle(icel_local),icel_local) = pbc_int
+
                   end if
 
                 end if
@@ -938,31 +1010,35 @@ contains
   subroutine setup_enefunc_dihe(molecule, grotop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_grotop),  target, intent(in)    :: grotop
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: dupl, ioffset_dupl
-    integer                  :: i, j, k
+    integer                  :: dupl, ioffset_dupl, pbc_int
+    integer                  :: i, j, k, ia, ib, ic, id
     integer                  :: ioffset, found
-    integer                  :: i1, i2, i3, i4
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), phase(:,:)
+    real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: dihe(:), list(:,:,:), period(:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
     integer,            pointer :: notation
+    integer(1),         pointer :: dihe_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     dihe      => enefunc%num_dihedral
     list      => enefunc%dihe_list
@@ -971,11 +1047,12 @@ contains
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
     sollist   => enefunc%table%solute_list_inv
+    dihe_pbc  => enefunc%dihe_pbc
     notation  = 100
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*molecule%num_atoms
+      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -988,18 +1065,17 @@ contains
                 .and. gromol%dihes(k)%func /= 9) &
               cycle
 
-            i1 = gromol%dihes(k)%atom_idx1 + ioffset
-            i2 = gromol%dihes(k)%atom_idx2 + ioffset
-            i3 = gromol%dihes(k)%atom_idx3 + ioffset
-            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+            idx1 = gromol%dihes(k)%atom_idx1 + ioffset
+            idx2 = gromol%dihes(k)%atom_idx2 + ioffset
+            idx3 = gromol%dihes(k)%atom_idx3 + ioffset
+            idx4 = gromol%dihes(k)%atom_idx4 + ioffset
+            ia   = sollist(idx1) + ioffset_dupl
+            ib   = sollist(idx2) + ioffset_dupl
+            ic   = sollist(idx3) + ioffset_dupl
+            id   = sollist(idx4) + ioffset_dupl
 
-            idx1 = sollist(i1) + ioffset_dupl
-            idx2 = sollist(i2) + ioffset_dupl
-            idx3 = sollist(i3) + ioffset_dupl
-            idx4 = sollist(i4) + ioffset_dupl
-
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx4)
+            icel1 = id_g2l(1,ia)
+            icel2 = id_g2l(1,id)
 
             if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1013,12 +1089,27 @@ contains
                 if (ndihe > MaxDihe) &
                   call error_msg('Setup_Enefunc_Dihe> Too many dihedrals.') 
 
-                list (1:4,ndihe,icel_local) = (/idx1, idx2, idx3, idx4/)
+                list (1:4,ndihe,icel_local) = (/ia, ib, ic, id/)
                 force (   ndihe,icel_local) = gromol%dihes(k)%kp * JOU2CAL
                 phase (   ndihe,icel_local) = gromol%dihes(k)%ps * RAD
                 period(   ndihe,icel_local) = gromol%dihes(k)%multiplicity
+                cwork(1:3,1) = coord(1:3,idx1)
+                cwork(1:3,2) = coord(1:3,idx2)
+                cwork(1:3,3) = coord(1:3,idx3)
+                cwork(1:3,4) = coord(1:3,idx4)
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(1,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(2,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(3,ndihe,icel_local) = pbc_int
+
                 if (period(ndihe,icel_local) >  enefunc%notation_14types) &
               call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
+
               end if
 
             end if
@@ -1063,39 +1154,44 @@ contains
   subroutine setup_enefunc_rb_dihe(molecule, grotop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),         intent(in)    :: molecule
+    type(s_molecule), target, intent(in)    :: molecule
     type(s_grotop),   target, intent(in)    :: grotop
     type(s_domain),   target, intent(in)    :: domain
     type(s_enefunc),  target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: dupl, ioffset_dupl
+    integer                  :: dupl, ioffset_dupl, pbc_int
     integer                  :: i, j, k
     integer                  :: ioffset, found
-    integer                  :: i1, i2, i3, i4
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    integer                  :: ia, ib, ic, id
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: c(:,:,:)
+    real(wp),           pointer :: c(:,:,:), box_size(:), coord(:,:)
     integer,            pointer :: dihe(:), list(:,:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
+    integer(1),         pointer :: dihe_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     dihe      => enefunc%num_rb_dihedral
     list      => enefunc%rb_dihe_list
     c         => enefunc%rb_dihe_c
     sollist   => enefunc%table%solute_list_inv
+    dihe_pbc  => enefunc%rb_dihe_pbc
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*molecule%num_atoms
+      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -1107,18 +1203,17 @@ contains
             if (gromol%dihes(k)%func /= 3) &
               cycle
 
-            i1 = gromol%dihes(k)%atom_idx1 + ioffset
-            i2 = gromol%dihes(k)%atom_idx2 + ioffset
-            i3 = gromol%dihes(k)%atom_idx3 + ioffset
-            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+            idx1 = gromol%dihes(k)%atom_idx1 + ioffset
+            idx2 = gromol%dihes(k)%atom_idx2 + ioffset
+            idx3 = gromol%dihes(k)%atom_idx3 + ioffset
+            idx4 = gromol%dihes(k)%atom_idx4 + ioffset
+            ia   = sollist(idx1) + ioffset_dupl
+            ib   = sollist(idx2) + ioffset_dupl
+            ic   = sollist(idx3) + ioffset_dupl
+            id   = sollist(idx4) + ioffset_dupl
 
-            idx1 = sollist(i1) + ioffset_dupl
-            idx2 = sollist(i2) + ioffset_dupl
-            idx3 = sollist(i3) + ioffset_dupl
-            idx4 = sollist(i4) + ioffset_dupl
-
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx4)
+            icel1 = id_g2l(1,ia)
+            icel2 = id_g2l(1,id)
 
             if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1132,8 +1227,21 @@ contains
                 if (ndihe > MaxDihe) &
                 call error_msg('Setup_Enefunc_RB_Dihe> Too many dihedrals.') 
   
-                list (1:4,ndihe,icel_local) = (/idx1, idx2, idx3, idx4/)
+                list (1:4,ndihe,icel_local) = (/ia, ib, ic, id/)
                 c    (1:6,ndihe,icel_local) = gromol%dihes(k)%c(1:6) * JOU2CAL
+                cwork(1:3,1) = coord(1:3,idx1)
+                cwork(1:3,2) = coord(1:3,idx2)
+                cwork(1:3,3) = coord(1:3,idx3)
+                cwork(1:3,4) = coord(1:3,idx4)
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(1,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(2,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(3,ndihe,icel_local) = pbc_int
               end if
 
             end if
@@ -1177,30 +1285,35 @@ contains
   subroutine setup_enefunc_impr(molecule, grotop, domain, enefunc)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
+    type(s_molecule),target, intent(in)    :: molecule
     type(s_grotop),  target, intent(in)    :: grotop
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables 
     integer                  :: dupl, ioffset_dupl
-    integer                  :: i, j, k
-    integer                  :: i1, i2, i3, i4
+    integer                  :: i, j, k, pbc_int
     integer                  :: ioffset, found
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    integer                  :: ia, ib, ic, id
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), phase(:,:)
+    real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
+    integer(1),         pointer :: impr_pbc(:,:,:)
 
+    coord     => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     impr      => enefunc%num_improper
     list      => enefunc%impr_list
@@ -1208,10 +1321,11 @@ contains
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
     sollist   => enefunc%table%solute_list_inv
+    impr_pbc  => enefunc%impr_pbc
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*molecule%num_atoms
+      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -1223,18 +1337,17 @@ contains
             if (gromol%dihes(k)%func /= 2) &
               cycle
 
-            i1 = gromol%dihes(k)%atom_idx1 + ioffset
-            i2 = gromol%dihes(k)%atom_idx2 + ioffset
-            i3 = gromol%dihes(k)%atom_idx3 + ioffset
-            i4 = gromol%dihes(k)%atom_idx4 + ioffset
+            idx1 = gromol%dihes(k)%atom_idx1 + ioffset 
+            idx2 = gromol%dihes(k)%atom_idx2 + ioffset 
+            idx3 = gromol%dihes(k)%atom_idx3 + ioffset 
+            idx4 = gromol%dihes(k)%atom_idx4 + ioffset 
+            ia   = sollist(idx1) + ioffset_dupl
+            ib   = sollist(idx2) + ioffset_dupl
+            ic   = sollist(idx3) + ioffset_dupl
+            id   = sollist(idx4) + ioffset_dupl
 
-            idx1 = sollist(i1) + ioffset_dupl
-            idx2 = sollist(i2) + ioffset_dupl
-            idx3 = sollist(i3) + ioffset_dupl
-            idx4 = sollist(i4) + ioffset_dupl
-
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx4)
+            icel1 = id_g2l(1,ia)
+            icel2 = id_g2l(1,id)
 
             if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1248,11 +1361,25 @@ contains
                 if (nimpr > MaxImpr) &
                   call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
 
-                list (1:4,nimpr,icel_local) = (/idx1, idx2, idx3, idx4/)
+                list (1:4,nimpr,icel_local) = (/ia, ib, ic, id/)
                 force (   nimpr,icel_local) = gromol%dihes(k)%kp & 
                                             * JOU2CAL * 0.5_wp
                 phase (   nimpr,icel_local) = gromol%dihes(k)%ps * RAD
                 period(   nimpr,icel_local) = gromol%dihes(k)%multiplicity
+                cwork(1:3,1) = coord(1:3,idx1)
+                cwork(1:3,2) = coord(1:3,idx2)
+                cwork(1:3,3) = coord(1:3,idx3)
+                cwork(1:3,4) = coord(1:3,idx4)
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(1,nimpr,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(2,nimpr,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(3,nimpr,icel_local) = pbc_int
+
               end if
 
             end if

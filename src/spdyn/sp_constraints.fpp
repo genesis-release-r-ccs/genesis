@@ -280,7 +280,7 @@ contains
 
       ! setup SETTLE
       !
-      if (constraints%fast_water) then
+      if (constraints%fast_water .and. enefunc%table%num_water > 0) then
 
         if (constraints%tip4) then
           call setup_fast_water_tip4(par, prmtop, grotop, &
@@ -319,12 +319,13 @@ contains
 
       end if
 
-    else if (constraints%fast_water .and. .not.enefunc%table%tip4) then
+    else if (constraints%fast_water .and. .not.enefunc%table%tip4 .and. &
+             enefunc%table%num_water > 0) then
 
       call setup_fast_water(par, prmtop, grotop, &
                             molecule, enefunc, constraints)
 
-    else if (enefunc%table%tip4) then
+    else if (enefunc%table%tip4 .and. enefunc%table%num_water > 0) then
 
       call setup_tip4_dummy(par, prmtop, grotop, &
                             molecule, enefunc, constraints)
@@ -419,11 +420,9 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_constraints(cons_mode, vel_update, dt, coord_ref, &
-                                 domain, constraints, coord, vel, virial)
+                                 domain, constraints, coord,  &
+                                 vel, virial)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
 
     ! formal arguments
     integer,                 intent(in)    :: cons_mode
@@ -435,55 +434,22 @@ contains
     real(wip),               intent(inout) :: coord(:,:,:)
     real(wip),               intent(inout) :: vel(:,:,:)
     real(dp ),               intent(inout) :: virial(:,:)
-#ifdef PKTIMER
-    real(dp)                 :: sas,eae
-#endif
 
     call timer(TimerConstraint, TimerOn)
 
     ! constraints
     !
-#ifdef PKTIMER
-    call gettod(sas)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Constraint",24,0)
-#endif
-    call timer_sta(24)
-#endif
-
     select case (cons_mode)
 
     case (ConstraintModeLEAP)
 
       virial(1:3,1:3) = 0.0_dp 
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_sta(171)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Constraint_compute_settle",171,0)
-#endif
-#endif
       call compute_settle(vel_update, dt, coord_ref, domain, &
                           constraints, coord, vel, virial)
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(171)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop ("Constraint_compute_settle",171,0)
-      call fapp_start("Constraint_compute_shake",172,0)
-#endif
-      call timer_sta(172)
-#endif
-
       call compute_shake (vel_update, dt, coord_ref, domain, &
                           constraints, coord, vel, virial)
-
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(172)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop("Constraint_compute_shake",172,0)
-#endif
-#endif
 
       if (constraints%tip4) &
         call decide_dummy(domain, constraints, coord)
@@ -492,77 +458,22 @@ contains
 
     case (ConstraintModeVVER1)
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_sta(173)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Constraint_compute_settle",171,0)
-#endif
-#endif
-
       call compute_rattle_fast_vv1(dt, coord_ref, &
                                    domain, constraints, coord, vel)
-
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(173)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop ("Constraint_compute_settle",171,0)
-      call fapp_start("Constraint_compute_shake",172,0)
-#endif
-      call timer_sta(174)
-#endif
 
       call compute_rattle_vv1     (dt, coord_ref, &
                                    domain, constraints, coord, vel)
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(174)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop("Constraint_compute_shake",172,0)
-#endif
-#endif
-      
       if (constraints%tip4) &
         call decide_dummy(domain, constraints, coord)
 
     case (ConstraintModeVVER2)
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_sta(175)
-#ifdef FJ_PROF_FAPP
-      call fapp_start("Constraint_compute_rattle_fast_vv2",175,0)
-#endif
-#endif
-
       call compute_rattle_fast_vv2(domain, constraints, coord, vel)
-
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(175)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop ("Constraint_compute_rattle_fast_vv2",175,0)
-      call fapp_start("Constraint_compute_rattle_vv2",176,0)
-#endif
-      call timer_sta(176)
-#endif
 
       call compute_rattle_vv2     (domain, constraints, coord, vel)
 
-#ifdef FJ_TIMER_DETAIL
-      call timer_end(176)
-#ifdef FJ_PROF_FAPP
-      call fapp_stop ("Constraint_compute_rattle_vv2",176,0)
-#endif
-#endif
-
     end select
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Constraint",24,0)
-#endif
-    call timer_end(24)
-    call gettod(eae)
-    Timc(6)=Timc(6)+(eae-sas)
-#endif
 
     call timer(TimerConstraint, TimerOff)
 
@@ -1700,10 +1611,6 @@ contains
   subroutine compute_kin_group(constraints, ncell, nwater, water_list, mass, &
                                vel, kin, ekin)
 
-#ifdef PKTIMER
-  use Ctim
-#endif
-
     ! formal arguments
     type(s_constraints), target, intent(in)    :: constraints
     integer,                     intent(in)    :: ncell, nwater(:)
@@ -1727,17 +1634,6 @@ contains
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
-
-#ifdef PKTIMER
-  real(8)  :: st,et
-#endif
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
     kinetic_omp(1:3,1:nthread) = 0.0_dp
     kin(1:3) = 0.0_dp
@@ -1796,32 +1692,11 @@ contains
       kin(3)      = kin(3)      + kinetic_omp(3,id)
     end do
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
 #ifdef MPI
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_country,ierror)
-      call gettod(et)
-      mpi_bari(12)=mpi_bari(12)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_allreduce(mpi_in_place, kin, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(1,12)=mpi_tran(1,12)+(et-st)
 #endif
 
-#endif
     ekin = 0.5_dp*(kin(1)+kin(2)+kin(3))
 
 

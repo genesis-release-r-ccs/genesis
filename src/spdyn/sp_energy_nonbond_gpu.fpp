@@ -86,7 +86,7 @@ contains
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -102,7 +102,7 @@ contains
     integer                   :: univ_ncell_nonzero
     integer                   :: univ_update
       
-    integer                   :: ncell_max, ij, i, j
+    integer                   :: ncell_max, ij, i, j, ix, ixx, start_i
     integer                   :: cutoff_int
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
@@ -110,6 +110,7 @@ contains
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -151,22 +152,33 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,ixx,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     !
     ! launch GPU kernels
     call gpu_launch_compute_energy_nonbond_table_linear_univ( &
          coord_pbc, force(:,:,:,1), ene_virial,               &
-         coord, trans1, cell_move, charge, atmcls, natom,     &
+         cell_move, natom, start_atom,                        &
          nonb_lj12, nonb_lj6, nonb_lj6_factor, table_ene,     &
          table_grad, univ_cell_pairlist1, univ_mask2,         &
          univ_ix_natom, univ_ix_list, univ_iy_natom,          &
          univ_iy_list, univ_ij_sort_list, virial_check,       &
-         MaxAtom, MaxAtomCls, num_atom_cls,                   &
-         ncell_local, ncell_bound, ncell_max,                 &
+         domain%num_atom_domain, MaxAtom, MaxAtomCls,         &
+         num_atom_cls, ncell_local, ncell_bound, ncell_max,   &
          cutoff_int, univ_maxcell, univ_maxcell1,             &
          univ_ncell_nonzero, univ_ncell_near, univ_update,    &
          univ_mask2_size, univ_natom_max, maxcell, density,   &
-         cutoff2,                                             &
-         system_size(1), system_size(2), system_size(3) )
+         cutoff2, system_size(1), system_size(2), system_size(3) )
 
 #endif
 
@@ -225,7 +237,7 @@ contains
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -241,7 +253,7 @@ contains
     integer                   :: univ_ncell_nonzero
     integer                   :: univ_update
       
-    integer                   :: ncell_max, ij, i, j
+    integer                   :: ncell_max, ij, i, j, ix, ixx, start_i
     integer                   :: cutoff_int
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
@@ -249,6 +261,7 @@ contains
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -290,22 +303,33 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     !
     ! launch GPU kernels
     call gpu_launch_compute_energy_nonbond_table_ljpme_univ(  &
          coord_pbc, force(:,:,:,1), ene_virial,               &
-         coord, trans1, cell_move, charge, atmcls, natom,     &
-         nonb_lj12, nonb_lj6, nonb_lj6_factor,                &
-         table_ene, table_grad, univ_cell_pairlist1,          &
-         univ_mask2, univ_ix_natom, univ_ix_list,             &
-         univ_iy_natom, univ_iy_list, univ_ij_sort_list,      &
-         virial_check, MaxAtom, MaxAtomCls, num_atom_cls,     &
-         ncell_local, ncell_bound, ncell_max,                 &
+         cell_move, natom, start_atom,                        &
+         nonb_lj12, nonb_lj6, nonb_lj6_factor, table_ene,     &
+         table_grad, univ_cell_pairlist1, univ_mask2,         &
+         univ_ix_natom, univ_ix_list, univ_iy_natom,          &
+         univ_iy_list, univ_ij_sort_list, virial_check,       &
+         domain%num_atom_domain, MaxAtom, MaxAtomCls,         &
+         num_atom_cls, ncell_local, ncell_bound, ncell_max,   &
          cutoff_int, univ_maxcell, univ_maxcell1,             &
          univ_ncell_nonzero, univ_ncell_near, univ_update,    &
          univ_mask2_size, univ_natom_max, maxcell, density,   &
-         cutoff2,                                             &
-         system_size(1), system_size(2), system_size(3) )
+         cutoff2, system_size(1), system_size(2), system_size(3) )
 
 #endif
 
@@ -364,7 +388,7 @@ contains
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -380,7 +404,7 @@ contains
     integer                   :: univ_ncell_nonzero
     integer                   :: univ_update
       
-    integer                   :: ncell_max, ij, i, j
+    integer                   :: ncell_max, ij, i, j, ix, ixx, start_i
     integer                   :: cutoff_int
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
@@ -388,6 +412,7 @@ contains
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -429,22 +454,32 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
-    !
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,ixx,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     ! launch GPU kernels
     call gpu_launch_compute_energy_nonbond_notable_univ(      &
          coord_pbc, force(:,:,:,1), ene_virial,               &
-         coord, trans1, cell_move, charge, atmcls, natom,     &
+         cell_move, natom, start_atom,                        &
          nonb_lj12, nonb_lj6, nonb_lj6_factor, table_ene,     &
          table_grad, univ_cell_pairlist1, univ_mask2,         &
          univ_ix_natom, univ_ix_list, univ_iy_natom,          &
          univ_iy_list, univ_ij_sort_list, virial_check,       &
-         MaxAtom, MaxAtomCls, num_atom_cls,                   &
-         ncell_local, ncell_bound, ncell_max,                 &
+         domain%num_atom_domain, MaxAtom, MaxAtomCls,         &
+         num_atom_cls, ncell_local, ncell_bound, ncell_max,   &
          cutoff_int, univ_maxcell, univ_maxcell1,             &
          univ_ncell_nonzero, univ_ncell_near, univ_update,    &
          univ_mask2_size, univ_natom_max, maxcell, density,   &
-         cutoff2,                                             &
-         system_size(1), system_size(2), system_size(3) )
+         cutoff2, system_size(1), system_size(2), system_size(3) )
 
 #endif
 
@@ -504,7 +539,7 @@ contains
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
     integer(int2),    pointer :: cell_pairlist(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -524,10 +559,12 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+    integer                   :: ij, start_i, ix, i
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -568,18 +605,30 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     !  launch GPU kernels (data transfer from CPU to GPU as well)
     !
     univ_gpu_start = ncell_local
     call gpu_launch_compute_force_nonbond_table_linear_univ( &
-         coord_pbc, force(:,:,:,1), ene_virial,              &  ! argments
-         coord, trans1, cell_move, charge, atmcls, natom,    &  ! arrays
-         nonb_lj12, nonb_lj6, nonb_lj6_factor, table_grad,   &  ! arrays
-         univ_cell_pairlist1, univ_mask2, univ_ix_natom,     &
-         univ_ix_list, univ_iy_natom, univ_iy_list,          &
-         univ_ij_sort_list, virial_check,                    &
-         MaxAtom, MaxAtomCls, num_atom_cls,                  &  ! size
-         ncell_local, ncell_bound, ncell_max, cutoff_int,    &  ! size
+         coord_pbc, force(:,:,:,1), ene_virial,              &            
+         cell_move, natom, start_atom, nonb_lj12, nonb_lj6,  &
+         nonb_lj6_factor, table_grad, univ_cell_pairlist1,   &
+         univ_mask2, univ_ix_natom, univ_ix_list,            &
+         univ_iy_natom, univ_iy_list, univ_ij_sort_list,     &
+         virial_check, domain%num_atom_domain, MaxAtom,      &
+         MaxAtomCls, num_atom_cls,                           &            
+         ncell_local, ncell_bound, ncell_max, cutoff_int,    &           
          univ_maxcell, univ_maxcell1, univ_ncell_nonzero,    &
          univ_ncell_near, univ_update, univ_mask2_size,      &
          univ_natom_max, npt, cpu_calc, density, cutoff2,    &
@@ -644,7 +693,7 @@ contains
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
     integer(int2),    pointer :: cell_pairlist(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -664,10 +713,12 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+    integer                   :: ij, start_i, ix, i
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -708,18 +759,30 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     !  launch GPU kernels (data transfer from CPU to GPU as well)
     !
     univ_gpu_start = ncell_local
     call gpu_launch_compute_force_nonbond_table_ljpme_univ(  &
-         coord_pbc, force(:,:,:,1), ene_virial,              &  ! argments
-         coord, trans1, cell_move, charge, atmcls, natom,    &  ! arrays
-         nonb_lj12, nonb_lj6, nonb_lj6_factor, table_grad,   &  ! arrays
-         univ_cell_pairlist1, univ_mask2, univ_ix_natom,     &
-         univ_ix_list, univ_iy_natom, univ_iy_list,          &
-         univ_ij_sort_list, virial_check,                    &
-         MaxAtom, MaxAtomCls, num_atom_cls,                  &  ! size
-         ncell_local, ncell_bound, ncell_max, cutoff_int,    &  ! size
+         coord_pbc, force(:,:,:,1), ene_virial,              &  
+         cell_move, natom, start_atom, nonb_lj12, nonb_lj6,  &
+         nonb_lj6_factor, table_grad, univ_cell_pairlist1,   &
+         univ_mask2, univ_ix_natom, univ_ix_list,            &
+         univ_iy_natom, univ_iy_list, univ_ij_sort_list,     &
+         virial_check, domain%num_atom_domain, MaxAtom,      &
+         MaxAtomCls, num_atom_cls,                           &  
+         ncell_local, ncell_bound, ncell_max, cutoff_int,    & 
          univ_maxcell, univ_maxcell1, univ_ncell_nonzero,    &
          univ_ncell_near, univ_update, univ_mask2_size,      &
          univ_natom_max, npt, cpu_calc, density, cutoff2,    &
@@ -783,7 +846,7 @@ contains
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: atmcls(:,:)
     integer(int2),    pointer :: cell_pairlist(:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int1),    pointer :: virial_check(:,:)
 
     ! for GPU
@@ -803,10 +866,12 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+    integer                   :: ij, start_i, ix, i
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
+    start_atom      => domain%start_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
     charge          => domain%charge
@@ -847,18 +912,30 @@ contains
     univ_ncell_nonzero  =  pairlist%univ_ncell_nonzero
     univ_update         =  pairlist%univ_update
 
+    ij = domain%num_atom_domain
+    !$omp parallel do private(i,ix,start_i)
+    do i = 1, ncell
+      start_i = start_atom(i)
+      do ix = 1, natom(i)
+        coord_pbc(     start_i+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(  ij+start_i+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(2*ij+start_i+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
     !  launch GPU kernels (data transfer from CPU to GPU as well)
     !
     univ_gpu_start = ncell_local
-    call gpu_launch_compute_force_nonbond_notable_univ( &
-         coord_pbc, force(:,:,:,1), ene_virial,              &  ! argments
-         coord, trans1, cell_move, charge, atmcls, natom,    &  ! arrays
-         nonb_lj12, nonb_lj6, nonb_lj6_factor, table_grad,   &  ! arrays
-         univ_cell_pairlist1, univ_mask2, univ_ix_natom,     &
-         univ_ix_list, univ_iy_natom, univ_iy_list,          &
-         univ_ij_sort_list, virial_check,                    &
-         MaxAtom, MaxAtomCls, num_atom_cls,                  &  ! size
-         ncell_local, ncell_bound, ncell_max, cutoff_int,    &  ! size
+    call gpu_launch_compute_force_nonbond_notable_univ(      &
+         coord_pbc, force(:,:,:,1), ene_virial,              &  
+         cell_move, natom, start_atom, nonb_lj12, nonb_lj6,  &
+         nonb_lj6_factor, table_grad, univ_cell_pairlist1,   &
+         univ_mask2, univ_ix_natom, univ_ix_list,            &
+         univ_iy_natom, univ_iy_list, univ_ij_sort_list,     &
+         virial_check, domain%num_atom_domain, MaxAtom,      &
+         MaxAtomCls, num_atom_cls,                           &  
+         ncell_local, ncell_bound, ncell_max, cutoff_int,    & 
          univ_maxcell, univ_maxcell1, univ_ncell_nonzero,    &
          univ_ncell_near, univ_update, univ_mask2_size,      &
          univ_natom_max, npt, cpu_calc, density, cutoff2,    &

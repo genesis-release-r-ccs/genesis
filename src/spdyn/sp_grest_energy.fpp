@@ -692,12 +692,12 @@ contains
   subroutine copy_grest_from_ref(domain, remd, enefunc)
 
     ! formal arguments
-    type(s_domain),  target, intent(in)    :: domain
+    type(s_domain),  target, intent(inout) :: domain
     type(s_remd),    target, intent(in)    :: remd
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables
-    integer                          :: i, icel, ix, jx, ig
+    integer                          :: i, icel, ix, jx, ig, n
     integer                          :: ncell_local, ncell
     integer                          :: ncmap_type, ncls
     integer                          :: list(4)
@@ -789,11 +789,22 @@ contains
                 charge(ix,icel) = charge_ref(ix,icel)
               end if
             end do
-#ifdef USE_GPU
-            call gpu_upload_charge( charge );
-#endif /* USE_GPU */
-
           end do
+#ifdef USE_GPU
+          if (domain%nonbond_kernel == NBK_GPU) then
+            n = domain%num_atom_domain
+            do icel = 1, ncell
+              ig = domain%start_atom(icel)
+              do ix = 1, domain%num_atom(icel)
+                domain%translated(    ig+ix,1,1) = domain%coord(1,ix,icel) + domain%trans_vec(1,ix,icel)
+                domain%translated(  n+ig+ix,1,1) = domain%coord(2,ix,icel) + domain%trans_vec(2,ix,icel)
+                domain%translated(2*n+ig+ix,1,1) = domain%coord(3,ix,icel) + domain%trans_vec(3,ix,icel)
+                domain%translated(3*n+ig+ix,1,1) = charge(ix,icel)
+              end do
+            end do
+            call gpu_upload_charge( domain%translated );
+          end if
+#endif
 
           ! PME self energy from the reference charge
           !
@@ -1053,10 +1064,22 @@ contains
             charge(ix,i) = coeff_half * charge(ix,i)
           end if
         end do
-#ifdef USE_GPU
-        call gpu_upload_charge( charge );
-#endif /* USE_GPU */
       end do
+#ifdef USE_GPU
+      if (domain%nonbond_kernel == NBK_GPU) then
+        n = domain%num_atom_domain
+        do i = 1, ncell
+          ig = domain%start_atom(i)
+          do ix = 1, domain%num_atom(i)
+            domain%translated(    ig+ix,1,1) = domain%coord(1,ix,i) + domain%trans_vec(1,ix,i)
+            domain%translated(  n+ig+ix,1,1) = domain%coord(2,ix,i) + domain%trans_vec(2,ix,i)
+            domain%translated(2*n+ig+ix,1,1) = domain%coord(3,ix,i) + domain%trans_vec(3,ix,i)
+            domain%translated(3*n+ig+ix,1,1) = charge(ix,i)
+          end do
+        end do
+        call gpu_upload_charge( domain%translated );
+      end if
+#endif
 
       ! need to update PME self energy
       !

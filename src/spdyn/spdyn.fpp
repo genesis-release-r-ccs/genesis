@@ -48,9 +48,6 @@ program spdyn
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef PKTIMER
-  use Ctim
-#endif
 #ifdef MPI
   use mpi
 #endif
@@ -112,49 +109,7 @@ program spdyn
 
   ! run genesis
   !
-#ifdef PKTIMER
-  Timc=0.d0
-  call gettod(sas)
-  call timer_init
-  call timer_sta(1)
-#endif
-
   call domain_decomposition_genesis(ctrl_filename, genesis_run_mode)
-
-#ifdef PKTIMER
-  call gettod(eae)
-  Timc(8)=Timc(8)+(eae-sas)
-! do i = 0, nproc_country-1
-  do i = 0, 31
-    call mpi_barrier(mpi_comm_country, ierror)
-    if (my_country_rank == i) then
-      print *,'My_country_rank               :',i
-      print *,'Total_Calc_Time Nonb15F       :',Timc(1)*1.E-6
-      print *,'Total_Calc_Time Recip FFT     :',Timc(2)*1.E-6
-      print *,'Total_Calc_Time Recip PRE     :',Timc(3)*1.E-6
-      print *,'Total_Calc_Time Recip POST    :',Timc(4)*1.E-6
-      print *,'Total_Calc_Time PairList      :',Timc(5)*1.E-6
-      print *,'Total_Calc_Time constraint    :',Timc(6)*1.E-6
-      print *,'Total_Calc_Time run_md        :',Timc(7)*1.E-6
-      print *,'Total_Calc_Time run_genesis   :',Timc(8)*1.E-6
-      print *,'Total_barrier_Time in FFT     :',Timb(1)*1.E-6
-      print *,'Total_barrier_Time in coor    :',Timb(3)*1.E-6
-      print *,'Total_barrier_Time in force   :',Timb(2)*1.E-6
-      print *,'Total_barrier_Time in barosta :',Timb(4)*1.E-6
-      print *,'Total_barrier_Time in prepost :',Timb(5)*1.E-6
-      print *,'Total_Trans_Time_FFT_allgather:',Timt(1)*1.E-6
-      print *,'Total_Trans_Time_FFT_alltoall :',Timt(2)*1.E-6
-      print *,'Total_Trans_Time_coor         :',Timt(4)*1.E-6
-      print *,'Total_Trans_Time_force        :',Timt(3)*1.E-6
-      print *,'Total_Trans_Time_tb_bcast     :',Timt(5)*1.E-6
-      print *,'Total_Trans_Time_tb_allreduce :',Timt(6)*1.E-6
-      print *,'Total_Trans_Time_pre          :',Timt(7)*1.E-6
-      print *,'Total_Trans_Time_post         :',Timt(8)*1.E-6
-    end if
-  end do
-  call timer_end(1)
-! call timer_fin
-#endif
 
 #ifdef MPI
   call mpi_barrier(mpi_comm_world,ierror)
@@ -360,14 +315,6 @@ contains
     call mpi_barrier(mpi_comm_world, ierror)
     call timer(TimerDynamics, TimerOn)
 
-#ifdef PKTIMER
-      call gettod(sas)
-#ifdef FJ_PROF_FAPP
-      call fapp_start("run_md",3,0)
-#endif
-      call timer_sta(3)
-#endif
-
     select case (genesis_run_mode)
 
     case (GenesisMD)
@@ -411,15 +358,6 @@ contains
                     boundary, constraints, ensemble, comm, rpath, remd)
 
     end select
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-      call fapp_stop("run_md",3,0)
-#endif
-      call gettod(eae)
-      Timc(7)=Timc(7)+(eae-sas)
-      call timer_end(3)
-#endif
 
     call timer(TimerDynamics, TimerOff)
 

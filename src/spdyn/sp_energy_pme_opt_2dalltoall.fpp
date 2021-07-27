@@ -740,10 +740,6 @@ contains
 
   subroutine pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
     real(wip),               intent(inout) :: force(:,:,:)
@@ -769,9 +765,6 @@ contains
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
-#ifdef PKTIMER
-    real(dp)  :: sas,eae,st,et
-#endif
 
     complex(wp), allocatable :: work1(:), work2(:)
     real(wip),       pointer :: coord(:,:,:)
@@ -800,25 +793,6 @@ contains
     !$omp         start, end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd, &
     !$omp         iyyzz)
 
-#ifdef PKTIMER
-    !$omp master
-    call gettod(sas)
-    call timer_sta(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(111)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_1",111,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
- 
 #ifdef OMP
     id = omp_get_thread_num()
 #else
@@ -976,47 +950,11 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(111)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_1",111,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
     call communicate_pme_pre
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(112)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_2",112,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
 
     !$omp do
     do iz = 1, nlocalz
@@ -1031,45 +969,12 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp master
-    call gettod(eae)
-    Timc(3)=Timc(3)+(eae-sas)
-    call gettod(sas)
-    call timer_end(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(112)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_2",112,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
 #ifdef MPI
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commx,ierror)
-      call gettod(et)
-      mpi_bari(8)=mpi_bari(8)+(et-st)
-      call gettod(st)
-#endif
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(10,2)=mpi_tran(10,2)+(et-st)
-#endif
-
 #else
     qdf_work(1:nlocalx*nlocaly*nlocalz,1) = qdf_real(1:nlocalx*nlocaly*nlocalz)
 #endif
@@ -1091,23 +996,6 @@ contains
     !
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(130)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_pme_recip",130,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     iproc = my_z_rank + 1
 
@@ -1191,23 +1079,6 @@ contains
     end if
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(130)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_pme_recip",130,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     call bfft3d_2d_alltoall(qdf_work, qdf_real, ftqdf, ftqdf, ftqdf,       &
                             ftqdf_work, ftqdf_work, ftqdf_work2, work1,    &
@@ -1217,27 +1088,6 @@ contains
                             id, nthread, grid_commx, grid_commz, grid_commxy)
 
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call gettod(eae)
-    Timc(2)=Timc(2)+(eae-sas)
-    call gettod(sas)
-    call timer_sta(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(121)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_POST_1",121,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
 
     ! X is saved on qdf
     !
@@ -1255,47 +1105,11 @@ contains
  
     !$omp barrier
 
-#ifdef PKTIMER
-    !$omp master 
-    call timer_end(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master 
-    call timer_end(121)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_POST_1",121,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
     call communicate_pme_post
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(122)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_POST_2",122,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
 
     do icel = id+1, ncell_local, nthread
       do i = 1, natom(icel)
@@ -1359,28 +1173,6 @@ contains
 
     !$omp end parallel
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(122)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_POST_2",122,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_POST",22,0)
-#endif
-#endif
-    !$omp master
-    call gettod(eae)
-    Timc(4)=Timc(4)+(eae-sas)
-    !$omp end master
-#endif
- 
     return
 
   end subroutine pme_recip_opt_2dalltoall_4
@@ -2345,35 +2137,12 @@ contains
 
   subroutine communicate_pme_pre
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! local variable
     integer                  :: k, ix, iy, iz, ki
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
 #ifdef MPI
     integer                  :: istatus(mpi_status_size)
-#endif
-
-#ifdef PKTIMER
-    real(dp)                 :: st,et
-#endif
-
-#ifdef PKTIMER
-    !call start_collection("PmeRecip_PRE")
-    call timer_sta(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_sta(113)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_3",113,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
 #endif
 
     ! z direction
@@ -2389,116 +2158,36 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    call timer_end(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_end(113)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_3",113,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
 #ifdef MPI
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commz,ierror)
-      call gettod(et)
-      mpi_bari(20)=mpi_bari(20)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to lower, receive from upper
     call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
                    upper_rank+nprocz+my_z_rank,               &
                    grid_commz, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(1,20)=mpi_tran(1,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_z_rank+nprocz+lower_rank,               &
                    grid_commz, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(2,20)=mpi_tran(2,20)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
                    my_z_rank+2*nprocz+lower_rank,               &
                    grid_commz, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(3,20)=mpi_tran(3,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocz+my_z_rank,               &
                    grid_commz, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(4,20)=mpi_tran(4,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(5,20)=mpi_tran(5,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(6,20)=mpi_tran(6,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(7,20)=mpi_tran(7,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(8,20)=mpi_tran(8,20)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)
     buf_recv(1:k,2) = buf_send(1:k,2)
-#endif
-
-#ifdef PKTIMER
-    call timer_sta(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_sta(114)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_4",114,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
 #endif
 
     k = 0
@@ -2527,31 +2216,9 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    call timer_end(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_end(114)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_4",114,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
 #ifdef MPI
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commy,ierror)
-      call gettod(et)
-      mpi_bari(21)=mpi_bari(21)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to lower, receive from upper
     !
@@ -2559,21 +2226,9 @@ contains
                    upper_rank+nprocy+my_y_rank,               &
                    grid_commy, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(9,20)=mpi_tran(9,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_y_rank+nprocy+lower_rank,               &
                    grid_commy, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(10,20)=mpi_tran(10,20)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     !
@@ -2581,64 +2236,18 @@ contains
                    my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(11,20)=mpi_tran(11,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(12,20)=mpi_tran(12,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(13,20)=mpi_tran(13,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(14,20)=mpi_tran(14,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(15,20)=mpi_tran(15,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(16,20)=mpi_tran(16,20)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)
     buf_recv(1:k,2) = buf_send(1:k,2)
-#endif
-
-#ifdef PKTIMER
-    call timer_sta(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_sta(115)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_5",115,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
 #endif
 
     k = 0
@@ -2667,31 +2276,9 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    call timer_end(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_end(115)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_5",115,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
 #ifdef MPI
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commx,ierror)
-      call gettod(et)
-      mpi_bari(22)=mpi_bari(22)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to lower, receive from upper
     !
@@ -2699,21 +2286,9 @@ contains
                    upper_rank+nprocx+my_x_rank,               &
                    grid_commx, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(17,20)=mpi_tran(17,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_x_rank+nprocx+lower_rank,               &
                    grid_commx, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(18,20)=mpi_tran(18,20)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     !
@@ -2721,64 +2296,18 @@ contains
                    my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(19,20)=mpi_tran(19,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(20,20)=mpi_tran(20,20)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(21,20)=mpi_tran(21,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(22,20)=mpi_tran(22,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(23,20)=mpi_tran(23,20)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(24,20)=mpi_tran(24,20)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)
     buf_recv(1:k,2) = buf_send(1:k,2)
-#endif
-
-#ifdef PKTIMER
-    call timer_sta(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_sta(116)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_6",116,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
 #endif
 
     k = 0
@@ -2793,20 +2322,6 @@ contains
         k = k + n_bs
       end do
     end do
-
-#ifdef PKTIMER
-    call timer_end(21)
-#ifdef FJ_TIMER_DETAIL
-    call timer_end(116)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_6",116,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
 
     return
 
@@ -2825,20 +2340,12 @@ contains
 
   subroutine communicate_pme_post
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! local variable
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
 #ifdef MPI
     integer                  :: istatus(mpi_status_size)
-#endif
-
-#ifdef PKTIMER
-    real(dp)                 :: st,et
 #endif
 
     ! x direction
@@ -2858,35 +2365,15 @@ contains
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
 
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commx,ierror)
-      call gettod(et)
-      mpi_bari(23)=mpi_bari(23)+(et-st)
-      call gettod(st)
-#endif
-
     ! send to lower, receive from upper
     !
     call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
                    upper_rank+nprocx+my_x_rank,               &
                    grid_commx, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(1,21)=mpi_tran(1,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_x_rank+nprocx+lower_rank,               &
                    grid_commx, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(2,21)=mpi_tran(2,21)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     !
@@ -2894,46 +2381,14 @@ contains
                    my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(3,21)=mpi_tran(3,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(4,21)=mpi_tran(4,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(5,21)=mpi_tran(5,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(6,21)=mpi_tran(6,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(7,21)=mpi_tran(7,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(8,21)=mpi_tran(8,21)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)
@@ -2968,35 +2423,15 @@ contains
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
 
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commy,ierror)
-      call gettod(et)
-      mpi_bari(24)=mpi_bari(24)+(et-st)
-      call gettod(st)
-#endif
-
     ! send to lower, receive from upper
     !
     call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
                    upper_rank+nprocy+my_y_rank,               &
                    grid_commy, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(9,21)=mpi_tran(9,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_y_rank+nprocy+lower_rank,               &
                    grid_commy, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(10,21)=mpi_tran(10,21)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     !
@@ -3004,46 +2439,14 @@ contains
                    my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(11,21)=mpi_tran(11,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(12,21)=mpi_tran(12,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(13,21)=mpi_tran(13,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(14,21)=mpi_tran(14,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(15,21)=mpi_tran(15,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(16,21)=mpi_tran(16,21)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)
@@ -3078,35 +2481,14 @@ contains
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
 
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commz,ierror)
-      call gettod(et)
-      mpi_bari(25)=mpi_bari(25)+(et-st)
-      call gettod(st)
-#endif
-
-    ! send to lower, receive from upper
     !
     call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
                    upper_rank+nprocz+my_z_rank,               &
                    grid_commz, irequest1, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(17,21)=mpi_tran(17,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
                    my_z_rank+nprocz+lower_rank,               &
                    grid_commz, irequest2, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(18,21)=mpi_tran(18,21)+(et-st)
-      call gettod(st)
-#endif
 
     ! send to upper, receive from lower
     !
@@ -3114,46 +2496,14 @@ contains
                    my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(19,21)=mpi_tran(19,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
                    upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(20,21)=mpi_tran(20,21)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_wait(irequest1, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(21,21)=mpi_tran(21,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest2, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(22,21)=mpi_tran(22,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest3, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(23,21)=mpi_tran(23,21)+(et-st)
-      call gettod(st)
-#endif
     call mpi_wait(irequest4, istatus, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(24,21)=mpi_tran(24,21)+(et-st)
-      call gettod(st)
-#endif
 
 #else
     buf_recv(1:k,1) = buf_send(1:k,1)

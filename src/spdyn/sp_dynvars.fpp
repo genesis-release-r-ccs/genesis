@@ -225,7 +225,7 @@ contains
       end do
     end do
     ekin_sum = ekin_sum * 0.5_dp
-
+ 
     ! virial
     !
     virial_sum(1) = virial(1,1)
@@ -243,6 +243,7 @@ contains
                          dynvars%energy%cmap,               &
                          dynvars%energy%electrostatic,      &
                          dynvars%energy%van_der_waals,      &
+                         dynvars%energy%electric_field,     &
                          dynvars%energy%restraint_position, &
                          dynvars%energy%total,              &
                          virial_sum, virial_ext_sum, rmsg,  &
@@ -263,6 +264,7 @@ contains
                dynvars%energy%cmap               + &
                dynvars%energy%electrostatic      + &
                dynvars%energy%van_der_waals      + &
+               dynvars%energy%electric_field     + &
                dynvars%energy%restraint_distance + &
                dynvars%energy%restraint_position + &
                dynvars%energy%restraint_rmsd     + &
@@ -449,6 +451,12 @@ contains
     write(category(ifm),frmt) 'ELECT'
     values(ifm) = dynvars%energy%electrostatic
     ifm = ifm+1
+
+    if (enefunc%use_efield) then
+      write(category(ifm),frmt) 'ELECTRIC FIELD'
+      values(ifm) = dynvars%energy%electric_field
+      ifm = ifm+1
+    endif
 
     if (enefunc%num_restraintfuncs > 0) then
       if (enefunc%restraint_rmsd) then
@@ -930,15 +938,16 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine reduce_property(val1, val2, val3, val4, val5, val6, val7, val8,   &
-                             val9, val10, val11, val12, val13, val14)
+                             val9, val10, val11, val12, val13, val14, val15)
 
     ! formal arguments
     real(dp),               intent(inout) ::  val1, val2, val3, val4, val5
     real(dp),               intent(inout) ::  val6, val7, val8, val9, val10
-    real(dp),               intent(inout) ::  val11(3), val12(3), val13, val14
+    real(dp),               intent(inout) ::  val11, val12(3), val13(3)
+    real(dp),               intent(inout) ::  val14, val15
 
     ! local variables
-    real(dp)                :: before_reduce(18), after_reduce(18)
+    real(dp)                :: before_reduce(19), after_reduce(19)
 
     before_reduce(1)     = val1
     before_reduce(2)     = val2
@@ -950,16 +959,17 @@ contains
     before_reduce(8)     = val8
     before_reduce(9)     = val9
     before_reduce(10)    = val10
-    before_reduce(11:13) = val11(1:3)
-    before_reduce(14:16) = val12(1:3)
-    before_reduce(17)    = val13
+    before_reduce(11)    = val11
+    before_reduce(12:14) = val12(1:3)
+    before_reduce(15:17) = val13(1:3)
     before_reduce(18)    = val14
+    before_reduce(19)    = val15
 
 #ifdef MPI
-    call mpi_allreduce(before_reduce, after_reduce, 18, mpi_real8, &
+    call mpi_allreduce(before_reduce, after_reduce, 19, mpi_real8, &
                       mpi_sum, mpi_comm_country, ierror)
 #else
-    after_reduce(1:18) = before_reduce(1:18)
+    after_reduce(1:19) = before_reduce(1:19)
 #endif
 
     val1       = after_reduce(1)
@@ -972,10 +982,11 @@ contains
     val8       = after_reduce(8)
     val9       = after_reduce(9)
     val10      = after_reduce(10)
-    val11(1:3) = after_reduce(11:13)
-    val12(1:3) = after_reduce(14:16)
-    val13      = after_reduce(17)
+    val11      = after_reduce(11)
+    val12(1:3) = after_reduce(12:14)
+    val13(1:3) = after_reduce(15:17)
     val14      = after_reduce(18)
+    val15      = after_reduce(19)
 
     return
 

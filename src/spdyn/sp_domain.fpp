@@ -154,12 +154,11 @@ contains
 
     ! select kernel
     !
-    call select_kernel(ene_info, domain)
+    call select_kernel(ene_info, boundary, domain)
 
     ! assign the rank of each dimension from my_rank
     !
     call setup_processor_rank(boundary, domain, cell)
-
 
     ! decide cell capacity (max**) for memory allocation
     !
@@ -330,7 +329,7 @@ contains
 
     ! select kernel
     !
-    call select_kernel(ene_info, domain)
+    call select_kernel(ene_info, boundary, domain)
 
     ! assign the rank of each dimension from my_rank
     !
@@ -635,7 +634,7 @@ contains
     type(s_domain),   target, intent(inout) :: domain
 
     ! local variable
-    real(dp)                  :: calc_time
+    real(wip)                 :: calc_time
     integer                   :: i, j, ij, inbc
     integer                   :: ncel_local, nboundary, cell(3)
 
@@ -1866,7 +1865,7 @@ contains
     call alloc_constraints(constraints, ConstraintsRing, molecule%num_atoms)
 
     do i = 1, molecule%num_atoms
-      constraints%ring(i) = .false.
+      constraints%ring(i) = 0
       constraints%num_connect(1:3,i) = 0
     end do
 
@@ -1962,15 +1961,15 @@ contains
               do m = 1, constraints%num_connect(k,i)
                 i2 = constraints%connectivity(m,k,i)
                 if (i1 == i2 .and. ((j == k .and. l /= m) .or. (j /= k))) then
-                  constraints%ring(i) = .true.
+                  constraints%ring(i) = 1
                   exit
                 end if
               end do
-              if (constraints%ring(i)) exit
+              if (constraints%ring(i) == 1) exit
             end do
-            if (constraints%ring(i)) exit
+            if (constraints%ring(i) == 1) exit
           end do
-          if (constraints%ring(i)) exit
+          if (constraints%ring(i) == 1) exit
         end do
       end if
     end do
@@ -2220,7 +2219,7 @@ contains
                                  domain)
 
     ! formal arguments
-    type(s_molecule),    target, intent(in)    :: molecule
+    type(s_molecule),    target, intent(inout) :: molecule
     type(s_boundary),    target, intent(in)    :: boundary
     type(s_enefunc),     target, intent(in)    :: enefunc
     type(s_constraints), target, intent(inout) :: constraints
@@ -2228,9 +2227,9 @@ contains
 
     ! local variable
     real(wip)                    :: shift(3), bsize(3), bsize_orig(3), csize(3)
-    real(wip)                    :: move(3), origin(3)
+    real(wip)                    :: move(3), origin(3), coord_temp(3)
     integer                      :: ioffset
-    integer                      :: i, j, ic(1:3), icel, i1, j1, k1
+    integer                      :: i, j, ic(1:3), icel, i1, j1, k1, k
     integer                      :: dupl_x, dupl_y, dupl_z
     integer                      :: dupl(3), num_cell(3), num_cell_block(3)
     integer                      :: duplicate_cell_startx, duplicate_cell_endx
@@ -2394,7 +2393,8 @@ contains
 
                 solute_list(psol,icel_local) = patm
 
-                if (domain%nonbond_kernel == NBK_Fugaku)               &
+                if (domain%nonbond_kernel == NBK_Fugaku .or.           &
+                    domain%nonbond_kernel == NBK_Intel)                &
                   move(1:3) = move(1:3)                                &
                             + cell_pbc_move(1:3,icel_local)*bsize(1:3)
                 call molecule_to_domain(molecule, move, origin, i,     &
@@ -2434,6 +2434,7 @@ contains
             do j = 1, constraints%nh(isolute)
 
               i = constraints%H_Group(1,j,isolute)
+              coord_temp(1:3) = molecule%atom_coord(1:3,i)
               shift(1:3) = molecule%atom_coord(1:3,i) &
                          + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
 
@@ -2477,6 +2478,23 @@ contains
                 do ih1 = 1, isolute
 
                   i = constraints%H_Group(ih1+1,j,isolute)
+                  do k = 1, 3
+                    if (molecule%atom_coord(k,i) < &
+                           coord_temp(k) - 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,i) = &
+                             molecule%atom_coord(k,i) + bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,i) =           &
+                             molecule%atom_refcoord(k,i) + bsize(k)
+                    else if (molecule%atom_coord(k,i) > &
+                           coord_temp(k) + 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,i) = &
+                             molecule%atom_coord(k,i) - bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,i) =           &
+                             molecule%atom_refcoord(k,i) - bsize(k)
+                    end if
+                  end do
 
                   patm = patm + 1
                   psol = psol + 1
@@ -2510,7 +2528,8 @@ contains
                 solute_list(psol,icel_local) = patm
                 HGr_bond_list(1,phgl,isolute,icel_local) = patm
     
-                if (domain%nonbond_kernel == NBK_Fugaku)               &
+                if (domain%nonbond_kernel == NBK_Fugaku .or.           &
+                    domain%nonbond_kernel == NBK_Intel)                &
                   move(1:3) = move(1:3)                                &
                             + cell_pbc_move(1:3,icel_local)*bsize(1:3)
  
@@ -2523,6 +2542,23 @@ contains
                 do ih1 = 1, isolute
 
                   i = constraints%H_Group(ih1+1,j,isolute)
+                  do k = 1, 3
+                    if (molecule%atom_coord(k,i) < &
+                           coord_temp(k) - 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,i) = &
+                             molecule%atom_coord(k,i) + bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,i) =           &
+                             molecule%atom_refcoord(k,i) + bsize(k)
+                    else if (molecule%atom_coord(k,i) > &
+                           coord_temp(k) + 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,i) = &
+                             molecule%atom_coord(k,i) - bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,i) =           &
+                             molecule%atom_refcoord(k,i) - bsize(k)
+                    end if
+                  end do
 
                   patm = patm + 1
                   psol = psol + 1
@@ -2570,6 +2606,8 @@ contains
             ih2 = enefunc%table%water_list(3,iwater)
             if (tip4) id  = enefunc%table%water_list(4,iwater)
 
+            coord_temp(1:3) = molecule%atom_coord(1:3,i)
+
             !coordinate shifted against the origin
             !
             shift(1:3) = molecule%atom_coord(1:3,i) &
@@ -2612,6 +2650,23 @@ contains
               !
               patm = patm + 1
               water_list(2,pwat,icel_local) = patm
+              do k = 1, 3
+                if (molecule%atom_coord(k,ih1) < &
+                       coord_temp(k) - 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih1) = &
+                         molecule%atom_coord(k,ih1) + bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih1) =           &
+                         molecule%atom_refcoord(k,ih1) + bsize(k)
+                else if (molecule%atom_coord(k,ih1) > &
+                       coord_temp(k) + 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih1) = &
+                         molecule%atom_coord(k,ih1) - bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih1) =           &
+                         molecule%atom_refcoord(k,ih1) - bsize(k)
+                end if
+              end do
               call molecule_to_domain(molecule, move, origin, ih1, &
                                       domain, icel_local, patm,    &
                                       dupl, bsize_orig, ioffset)
@@ -2620,6 +2675,23 @@ contains
               !
               patm = patm + 1
               water_list(3,pwat,icel_local) = patm
+              do k = 1, 3
+                if (molecule%atom_coord(k,ih2) < &
+                       coord_temp(k) - 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih2) = &
+                         molecule%atom_coord(k,ih2) + bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih2) =           &
+                         molecule%atom_refcoord(k,ih2) + bsize(k)
+                else if (molecule%atom_coord(k,ih2) > &
+                       coord_temp(k) + 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih2) = &
+                         molecule%atom_coord(k,ih2) - bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih2) =           &
+                         molecule%atom_refcoord(k,ih2) - bsize(k)
+                end if
+              end do
               call molecule_to_domain(molecule, move, origin, ih2, &
                                       domain, icel_local, patm,    &
                                       dupl, bsize_orig, ioffset)
@@ -2629,6 +2701,23 @@ contains
               if (tip4) then
                 patm = patm + 1
                 water_list(4,pwat,icel_local) = patm
+                do k = 1, 3
+                  if (molecule%atom_coord(k,id) < &
+                         coord_temp(k) - 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,id) = &
+                           molecule%atom_coord(k,id) + bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,id) =           &
+                           molecule%atom_refcoord(k,id) + bsize(k)
+                  else if (molecule%atom_coord(k,id) > &
+                         coord_temp(k) + 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,id) = &
+                           molecule%atom_coord(k,id) - bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,id) =           &
+                           molecule%atom_refcoord(k,id) - bsize(k)
+                  end if
+                end do
                 call molecule_to_domain(molecule, move, origin, id, &
                                         domain, icel_local, patm,   &
                                         dupl, bsize_orig, ioffset)
@@ -2654,7 +2743,8 @@ contains
               patm = patm + 1
               water_list(1,pwat,icel_local) = patm
 
-              if (domain%nonbond_kernel == NBK_Fugaku)               &
+              if (domain%nonbond_kernel == NBK_Fugaku .or.           &
+                  domain%nonbond_kernel == NBK_Intel)                &
                 move(1:3) = move(1:3)                                &
                           + cell_pbc_move(1:3,icel_local)*bsize(1:3)
 
@@ -2666,6 +2756,23 @@ contains
               !
               patm = patm + 1
               water_list(2,pwat,icel_local) = patm
+              do k = 1, 3
+                if (molecule%atom_coord(k,ih1) < &
+                       coord_temp(k) - 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih1) = &
+                         molecule%atom_coord(k,ih1) + bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih1) =           &
+                         molecule%atom_refcoord(k,ih1) + bsize(k)
+                else if (molecule%atom_coord(k,ih1) > &
+                       coord_temp(k) + 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih1) = &
+                         molecule%atom_coord(k,ih1) - bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih1) =           &
+                         molecule%atom_refcoord(k,ih1) - bsize(k)
+                end if
+              end do
               call molecule_to_domain(molecule, move, origin, ih1, &
                                       domain, icel_local, patm,    &
                                       dupl, bsize_orig, ioffset)
@@ -2674,6 +2781,23 @@ contains
               !
               patm = patm + 1
               water_list(3,pwat,icel_local) = patm
+              do k = 1, 3
+                if (molecule%atom_coord(k,ih2) < &
+                       coord_temp(k) - 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih2) = &
+                         molecule%atom_coord(k,ih2) + bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih2) =           &
+                         molecule%atom_refcoord(k,ih2) + bsize(k)
+                else if (molecule%atom_coord(k,ih2) > &
+                       coord_temp(k) + 0.5_wp*bsize(k)) then
+                  molecule%atom_coord(k,ih2) = &
+                         molecule%atom_coord(k,ih2) - bsize(k)
+                  if (allocated(molecule%atom_refcoord)) &
+                    molecule%atom_refcoord(k,ih2) =           &
+                         molecule%atom_refcoord(k,ih2) - bsize(k)
+                end if
+              end do
               call molecule_to_domain(molecule, move, origin, ih2, &
                                       domain, icel_local, patm,    &
                                       dupl, bsize_orig, ioffset)
@@ -2683,6 +2807,23 @@ contains
               if (tip4) then
                 patm = patm + 1
                 water_list(4,pwat,icel_local) = patm
+                do k = 1, 3
+                  if (molecule%atom_coord(k,id) < &
+                         coord_temp(k) - 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,id) = &
+                           molecule%atom_coord(k,id) + bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,id) =           &
+                           molecule%atom_refcoord(k,id) + bsize(k)
+                  else if (molecule%atom_coord(k,id) > &
+                         coord_temp(k) + 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,id) = &
+                           molecule%atom_coord(k,id) - bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,id) =           &
+                           molecule%atom_refcoord(k,id) - bsize(k)
+                  end if
+                end do
                 call molecule_to_domain(molecule, move, origin, id, &
                                         domain, icel_local, patm,   &
                                         dupl, bsize_orig, ioffset)
@@ -2951,7 +3092,8 @@ contains
             end if
           end do
 
-          if (domain%nonbond_kernel == NBK_Fugaku) then
+          if (domain%nonbond_kernel == NBK_Fugaku .or. &
+              domain%nonbond_kernel == NBK_Intel) then
             do ix = 1, No_HGr(i)
               trans(1:3,ix,i) = bsize(1:3)*0.5_wip                           &
                               - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3)) &
@@ -2978,7 +3120,8 @@ contains
               list = HGr_bond_list(1,ix,j,i)
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,list,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or. &
+                  domain%nonbond_kernel == NBK_Intel)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do list = 1, j+1
                 k = k + 1
@@ -2991,7 +3134,8 @@ contains
             do ix = nsolute(i)+1, natom(i)-3, 4
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or. &
+                  domain%nonbond_kernel == NBK_Intel) &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 4
                 trans(1:3,ix-1+j,i) = move(1:3)
@@ -3001,7 +3145,8 @@ contains
             do ix = nsolute(i)+1, natom(i)-2, 3
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or. &
+                  domain%nonbond_kernel == NBK_Intel)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 3
                 trans(1:3,ix-1+j,i) = move(1:3)
@@ -3639,6 +3784,7 @@ contains
 
     do i = 1, ncel_local
       cell_pair(i,i) = i
+      cell_move(1:3,i,i) = 0
       ij = ij + 1
     end do
 
@@ -3835,6 +3981,7 @@ contains
       ij = ij + 1
       i = ii + ncel_local
       cell_pair(i,i) = i
+      cell_move(1:3,i,i) = 0
     end do
 
     do ii = 1, nboundary-1
@@ -4137,19 +4284,12 @@ contains
     integer(int2),    pointer :: cell_pairlist1(:,:)
     integer,          pointer :: id_l2g(:,:)
     integer(1),       pointer :: cell_move(:,:,:)
-    real(wp),         pointer :: trans1(:,:,:), trans2(:,:,:)
     real(wip),        pointer :: mass(:,:)
     real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: system_size(:)
 
     mass           => domain%mass
     coord          => domain%coord
-    trans1         => domain%trans_vec
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
-      trans2         => domain%translated
-    else
-      trans2         => domain%coord_pbc
-    end if
     cell_move      => domain%cell_move
     system_size    => domain%system_size
     natom          => domain%num_atom
@@ -4167,34 +4307,15 @@ contains
     id = 0
 #endif
 
-    if (boundary%type == BoundaryTypePBC) then
-      do i = id+1, ncell+nboundary, nthread
-        do ix = 1, natom(i)
-          trans2(ix,1,i) = coord(1,ix,i) + trans1(1,ix,i)
-          trans2(ix,2,i) = coord(2,ix,i) + trans1(2,ix,i)
-          trans2(ix,3,i) = coord(3,ix,i) + trans1(3,ix,i)
-        end do
-      end do
-    else
-      do i = id+1, ncell+nboundary, nthread
-        do ix = 1, natom(i)
-          trans2(ix,1,i) = coord(1,ix,i)
-          trans2(ix,2,i) = coord(2,ix,i)
-          trans2(ix,3,i) = coord(3,ix,i)
-        end do
-      end do
-    endif
-    !$omp barrier
-
     do i = id+1, ncell, nthread
       do ix = 1, natom(i)
-        dir(1) = trans2(ix,1,i)
-        dir(2) = trans2(ix,2,i)
-        dir(3) = trans2(ix,3,i)
+        dir(1) = coord(1,ix,i)
+        dir(2) = coord(2,ix,i)
+        dir(3) = coord(3,ix,i)
         do iy = ix + 1, natom(i)
-          dr(1) = dir(1) - trans2(iy,1,i)
-          dr(2) = dir(2) - trans2(iy,2,i)
-          dr(3) = dir(3) - trans2(iy,3,i)
+          dr(1) = dir(1) - coord(1,iy,i)
+          dr(2) = dir(2) - coord(2,iy,i)
+          dr(3) = dir(3) - coord(3,iy,i)
           rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
           if (rr < EPS) &
             call error_msg('Check_Atom_Coord> coordinates are too close')
@@ -4219,15 +4340,17 @@ contains
         i = cell_pairlist1(1,ij)
         j = cell_pairlist1(2,ij)
 
-        tr(1:3) = real(cell_move(1:3,j,i),wp)*system_size(1:3)
         do ix = 1, natom(i)
 
-          dir(1:3) = trans2(ix,1:3,i)
+          dir(1:3) = coord(1:3,ix,i)
 
           do iy = 1, natom(j)
-            dr(1) = dir(1) - trans2(iy,1,j)+ tr(1)
-            dr(2) = dir(2) - trans2(iy,2,j)+ tr(2)
-            dr(3) = dir(3) - trans2(iy,3,j)+ tr(3)
+            dr(1) = dir(1) - coord(1,iy,j)
+            dr(2) = dir(2) - coord(2,iy,j)
+            dr(3) = dir(3) - coord(3,iy,j)
+            dr(1) = dr(1) - system_size(1)*anint(dr(1)/system_size(1))
+            dr(2) = dr(2) - system_size(2)*anint(dr(2)/system_size(2))
+            dr(3) = dr(3) - system_size(3)*anint(dr(3)/system_size(3))
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
               call error_msg('Check_Atom_Coord> coordinates are too close')
@@ -4250,12 +4373,12 @@ contains
         j = cell_pairlist1(2,ij)
         do ix = 1, natom(i)
 
-          dir(1:3) = trans2(ix,1:3,i)
+          dir(1:3) = coord(1:3,ix,i)
 
           do iy = 1, natom(j)
-            dr(1) = dir(1) - trans2(iy,1,j)
-            dr(2) = dir(2) - trans2(iy,2,j)
-            dr(3) = dir(3) - trans2(iy,3,j)
+            dr(1) = dir(1) - coord(1,iy,j)
+            dr(2) = dir(2) - coord(2,iy,j)
+            dr(3) = dir(3) - coord(3,iy,j)
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
               call error_msg('Check_Atom_Coord> coordinates are too close')
@@ -4453,10 +4576,11 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine select_kernel(ene_info, domain)
+  subroutine select_kernel(ene_info, boundary, domain)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info
+    type(s_boundary),        intent(in)    :: boundary
     type(s_domain),          intent(inout) :: domain
 
     ! local variables
@@ -4476,7 +4600,7 @@ contains
 #elif defined(KCOMP)
 
       domain%pairlist_kernel = PLK_Generic
-      domain%nonbond_kernel  = NBK_KGeneric
+      domain%nonbond_kernel  = NBK_Fugakusmall
 
 #elif defined(USE_GPU)
 
@@ -4501,8 +4625,8 @@ contains
 
       if (has_avx512 .or. has_avx2) then
 
-        domain%pairlist_kernel = PLK_Knl
-        domain%nonbond_kernel  = NBK_IntelKnl
+        domain%pairlist_kernel = PLK_Intel
+        domain%nonbond_kernel  = NBK_Intel
 
       else
 
@@ -4520,15 +4644,10 @@ contains
       domain%pairlist_kernel = PLK_Generic
       domain%nonbond_kernel  = NBK_Generic
 
-    case (NBK_KGeneric)
+    case (NBK_Intel)
 
-      domain%pairlist_kernel = PLK_Generic
-      domain%nonbond_kernel  = NBK_KGeneric
-
-    case (NBK_IntelKnl)
-
-      domain%pairlist_kernel = PLK_Knl
-      domain%nonbond_kernel  = NBK_IntelKnl
+      domain%pairlist_kernel = PLK_Intel
+      domain%nonbond_kernel  = NBK_Intel
 
     case (NBK_Fugaku)
 
@@ -4547,6 +4666,29 @@ contains
     if (ene_info%electrostatic == ElectrostaticCutoff) then
       domain%pairlist_kernel = PLK_Generic
       domain%nonbond_kernel  = NBK_Generic
+    end if
+
+    if (boundary%num_domain(1) == 1 .or. &
+        boundary%num_domain(2) == 1 .or. &
+        boundary%num_domain(3) == 1) then
+      domain%pairlist_kernel = PLK_Generic
+      domain%nonbond_kernel  = NBK_Generic
+    end if
+
+    if (ene_info%nonbond_kernel == NBK_GPU) then
+
+      if (ene_info%electrostatic == ElectrostaticCUTOFF) &
+        call error_msg( &
+           'Read_Ctrl_Energy> Electrostatic cutoff is not available with GPU')
+
+      if (ene_info%nonb_limiter) &
+        call error_msg( &
+           'Read_Ctrl_Energy> nonb_limiter is not available with GPU')
+
+      if (ene_info%structure_check /= StructureCheckNone) &
+        call error_msg( &
+           'Read_Ctrl_Energy> structure_check is not available with GPU')
+
     end if
 
     domain%scale_pairlist_fugaku  = ene_info%scale_pairlist_fugaku

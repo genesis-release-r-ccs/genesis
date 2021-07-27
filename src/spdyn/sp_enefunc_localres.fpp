@@ -92,11 +92,14 @@ contains
     type(s_enefunc),  target, intent(inout) :: enefunc
 
     ! local variable
-    integer                   :: i, icel_local, i1, i2
+    integer                   :: i, icel_local, i1, i2, pbc_int 
     integer                   :: irest, icel1, icel2, found, oldbonds
+    real(wp)                  :: cwork(3,2), dij(3)
 
+    real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: const(:),ref(:)
     real(wp),         pointer :: force(:,:), dist(:,:)
+    real(wp),         pointer :: box_size(:)
     integer,          pointer :: ncell
     integer(int2),    pointer :: id_g2l(:,:)
     integer,          pointer :: num_funcs
@@ -104,7 +107,7 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: bond(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: bkind(:,:)
+    integer(1),       pointer :: bkind(:,:), bond_pbc(:,:)
 
 
     num_funcs   => localres%num_funcs
@@ -116,12 +119,15 @@ contains
     ncell       => domain%num_cell_local
     cell_pair   => domain%cell_pair
     id_g2l      => domain%id_g2l
+    coord       => domain%coord
+    box_size    => domain%system_size
 
     bond        => enefunc%num_bond
     list        => enefunc%bond_list
     force       => enefunc%bond_force_const
     dist        => enefunc%bond_dist_min
     bkind       => enefunc%bond_kind
+    bond_pbc    => enefunc%bond_pbc
 
 
     if (num_funcs > 0) then
@@ -142,6 +148,8 @@ contains
 
         icel1 = domain%id_g2l(1,i1)
         icel2 = domain%id_g2l(1,i2)
+        i1    = domain%id_g2l(2,i1)
+        i2    = domain%id_g2l(2,i2)
         irest = irest+1
 
         if (icel1 /= 0 .and. icel2 /= 0) then
@@ -153,6 +161,11 @@ contains
             force(bond(icel_local),icel_local)     = const(i)
             dist (bond(icel_local),icel_local)     = ref(i)
             bkind(bond(icel_local),icel_local)     = 1
+            cwork(1:3,1) = coord(1:3,i1,icel1)
+            cwork(1:3,2) = coord(1:3,i2,icel2)
+            dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+            call check_pbc(box_size, dij, pbc_int)
+            bond_pbc(bond(icel_local),icel_local)  = pbc_int
           end if
         end if
 
@@ -207,12 +220,15 @@ contains
 
     ! local variable
     integer                   :: i, icel_local
-    integer                   :: i1, i2, i3
-    integer                   :: irest, icel1, icel2, found, oldangle
+    integer                   :: i1, i2, i3, pbc_int
+    integer                   :: irest, icel1, icel2, icel3, found, oldangle
+    real(wp)                  :: cwork(3,3), dij(3)
 
+    real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: const(:),ref(:)
     real(wp),         pointer :: ubforce(:,:), ubrmin(:,:)
     real(wp),         pointer :: force(:,:), theta(:,:)
+    real(wp),         pointer :: box_size(:)
     integer,          pointer :: ncell
     integer(int2),    pointer :: id_g2l(:,:)
     integer,          pointer :: num_funcs
@@ -220,8 +236,7 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: angle(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: akind(:,:)
-
+    integer(1),       pointer :: akind(:,:), angl_pbc(:,:,:)
 
     num_funcs   => localres%num_funcs
     func        => localres%func
@@ -232,6 +247,8 @@ contains
     ncell       => domain%num_cell_local
     cell_pair   => domain%cell_pair
     id_g2l      => domain%id_g2l
+    coord       => domain%coord
+    box_size    => domain%system_size
 
     angle       => enefunc%num_angle
     list        => enefunc%angle_list
@@ -240,6 +257,7 @@ contains
     ubforce     => enefunc%urey_force_const
     ubrmin      => enefunc%urey_rmin
     akind       => enefunc%angle_kind
+    angl_pbc    => enefunc%angle_pbc
 
     if (num_funcs > 0) then
       enefunc%local_restraint = .true.
@@ -259,12 +277,16 @@ contains
         i3 = index_atoms(3,i)
 
         icel1 = domain%id_g2l(1,i1)
-        icel2 = domain%id_g2l(1,i3)
+        icel2 = domain%id_g2l(1,i2)
+        icel3 = domain%id_g2l(1,i3)
+        i1    = domain%id_g2l(2,i1)
+        i2    = domain%id_g2l(2,i2)
+        i3    = domain%id_g2l(2,i3)
         irest = irest+1
 
-        if (icel1 /= 0 .and. icel2 /= 0) then
+        if (icel1 /= 0 .and. icel3 /= 0) then
 
-          icel_local = cell_pair(icel1,icel2)
+          icel_local = cell_pair(icel1,icel3)
 
           if (icel_local > 0 .and. icel_local <= ncell) then
             angle  (icel_local) = angle(icel_local) + 1
@@ -274,6 +296,17 @@ contains
             ubforce(angle(icel_local),icel_local)     = 0.0_wp
             ubrmin (angle(icel_local),icel_local)     = 0.0_wp
             akind  (angle(icel_local),icel_local)     = 1
+            cwork(1:3,1) = coord(1:3,i1,icel1)
+            cwork(1:3,2) = coord(1:3,i2,icel2)
+            cwork(1:3,3) = coord(1:3,i3,icel3)
+            call check_pbc(box_size, dij, pbc_int)
+            angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+            dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+            call check_pbc(box_size, dij, pbc_int)
+            angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+            dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+            call check_pbc(box_size, dij, pbc_int)
+            angl_pbc(3,angle(icel_local),icel_local) = pbc_int
           end if
         end if
 
@@ -326,10 +359,14 @@ contains
     type(s_enefunc),  target, intent(inout) :: enefunc
 
     ! local variable
-    integer                   :: i, icel_local 
+    integer                   :: i, icel_local, pbc_int
     integer                   :: i1, i2, i3, i4
-    integer                   :: irest, icel1, icel2, found, olddihed
+    integer                   :: icel1, icel2, icel3, icel4
+    integer                   :: irest, found, olddihed
+    real(wp)                  :: cwork(3,4), dij(3)
 
+    real(wip),        pointer :: coord(:,:,:)
+    real(wp),         pointer :: box_size(:)
     real(wp),         pointer :: const(:),ref(:)
     real(wp),         pointer :: force(:,:), theta(:,:)
     integer,          pointer :: ncell
@@ -339,8 +376,7 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: dihed(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: dkind(:,:)
-
+    integer(1),       pointer :: dkind(:,:), dihe_pbc(:,:,:)
 
     num_funcs   => localres%num_funcs
     func        => localres%func
@@ -351,12 +387,15 @@ contains
     ncell       => domain%num_cell_local
     cell_pair   => domain%cell_pair
     id_g2l      => domain%id_g2l
+    coord       => domain%coord
+    box_size    => domain%system_size
 
     dihed       => enefunc%num_dihedral
     list        => enefunc%dihe_list
     force       => enefunc%dihe_force_const
     theta       => enefunc%dihe_phase
     dkind       => enefunc%dihe_kind
+    dihe_pbc    => enefunc%dihe_pbc
 
     if (num_funcs > 0) then
       enefunc%local_restraint = .true.
@@ -377,11 +416,17 @@ contains
         i4 = index_atoms(4,i)
 
         icel1 = domain%id_g2l(1,i1)
-        icel2 = domain%id_g2l(1,i4)
+        icel2 = domain%id_g2l(1,i2)
+        icel3 = domain%id_g2l(1,i3)
+        icel4 = domain%id_g2l(1,i4)
+        i1    = domain%id_g2l(2,i1)
+        i2    = domain%id_g2l(2,i2)
+        i3    = domain%id_g2l(2,i3)
+        i4    = domain%id_g2l(2,i4)
         irest = irest+1
 
-        if (icel1 /= 0 .and. icel2 /= 0) then
-          icel_local = cell_pair(icel1,icel2)
+        if (icel1 /= 0 .and. icel4 /= 0) then
+          icel_local = cell_pair(icel1,icel4)
 
           if (icel_local > 0 .and. icel_local <= ncell) then
             dihed(icel_local) = dihed(icel_local) + 1
@@ -389,6 +434,19 @@ contains
             force(dihed(icel_local),icel_local)     = const(i)
             theta(dihed(icel_local),icel_local)     = ref(i)*RAD
             dkind(dihed(icel_local),icel_local)     = 1
+            cwork(1:3,1) = coord(1:3,i1,icel1)
+            cwork(1:3,2) = coord(1:3,i2,icel2)
+            cwork(1:3,3) = coord(1:3,i3,icel3)
+            cwork(1:3,4) = coord(1:3,i4,icel4)
+            dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+            call check_pbc(box_size, dij, pbc_int)
+            dihe_pbc(1,dihed(icel_local),icel_local) = pbc_int
+            dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+            call check_pbc(box_size, dij, pbc_int)
+            dihe_pbc(2,dihed(icel_local),icel_local) = pbc_int
+            dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+            call check_pbc(box_size, dij, pbc_int)
+            dihe_pbc(3,dihed(icel_local),icel_local) = pbc_int
           end if
         end if
 
@@ -420,5 +478,49 @@ contains
     return
 
   end subroutine setup_enefunc_localres_dihed
+
+  subroutine check_pbc(box_size, dij, pbc_int)
+
+    real(wp),         intent(in)    :: box_size(:)
+    real(wp),         intent(inout) :: dij(:)
+    integer,          intent(inout) :: pbc_int
+
+    integer                  :: i, j, k
+
+    if (dij(1) > box_size(1)/2.0_dp) then
+      i = 0
+      dij(1) = dij(1) - box_size(1)
+    else if (dij(1) < -box_size(1)/2.0_dp) then
+      i = 2
+      dij(1) = dij(1) + box_size(1)
+    else
+      i = 1
+    end if
+
+    if (dij(2) > box_size(2)/2.0_dp) then
+      j = 0
+      dij(2) = dij(2) - box_size(2)
+    else if (dij(2) < -box_size(2)/2.0_dp) then
+      j = 2
+      dij(2) = dij(2) + box_size(2)
+    else
+      j = 1
+    end if
+
+    if (dij(3) > box_size(3)/2.0_dp) then
+      k = 0
+      dij(3) = dij(3) - box_size(3)
+    else if (dij(3) < -box_size(3)/2.0_dp) then
+      k = 2
+      dij(3) = dij(3) + box_size(3)
+    else
+      k = 1
+    end if
+
+    pbc_int = i + j*3 + k*9
+
+    return
+
+  end subroutine check_pbc
 
 end module sp_enefunc_localres_mod

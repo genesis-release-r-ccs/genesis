@@ -17,10 +17,11 @@ module sp_energy_nonbonds_mod
   use sp_energy_pme_mod
   use sp_energy_table_cubic_mod
   use sp_energy_table_linear_bondcorr_mod
-  use sp_energy_table_linear_nowater_mod
+  use sp_energy_nonbond_pme_table_mod
   use sp_energy_table_linear_mod
   use sp_energy_nonbond_pme_notable_mod
   use sp_energy_nonbond_ljpme_mod
+  use sp_energy_nonbond_generic_mod
   use sp_pairlist_str_mod
   use sp_boundary_str_mod
   use sp_enefunc_str_mod
@@ -158,87 +159,68 @@ contains
       call timer(TimerPmeReal, TimerOn)
 
       if (nonb_limiter) then
-        if (enefunc%vdw_no_switch) then
+
+        if (enefunc%vdw == VDWCutoff) then
           call compute_energy_nonbond_pme_notbl_check( &
-                                      domain, enefunc, pairlist, &
-                                      coord_pbc, force_pbc,      &
-                                      virial_cell, eelec, evdw)
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
+        else if (enefunc%vdw == VDWPME) then
+          call compute_energy_nonbond_tbl_ljpme_check( &
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
         else
           call compute_energy_nonbond_table_linear_check( &
-                                      domain, enefunc, pairlist, &
-                                      coord_pbc, force_pbc,      &
-                                      virial_cell, eelec, evdw)
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
         end if
+
       else
 
         if (nonb_ene) then
 
-#ifdef FJ_TIMER_2
-          call timer_sta(403)
-#endif
-         
           if (enefunc%vdw == VDWCutoff) then
             call compute_energy_nonbond_pme_notbl( &
-                                      domain, enefunc, pairlist, &
-                                      npt, atmcls_pbc,           &
-                                      coord_pbc, force_pbc,      &
-                                      virial_cell, virial,       &
-                                      eelec, evdw, ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc, force_pbc,      &
+                              virial_cell, virial, eelec, evdw,      &
+                              ene_virial)
           else if (enefunc%vdw == VDWPME) then
             call compute_energy_nonbond_table_ljpme( &
-                                      domain, enefunc, pairlist, &
-                                      npt, coord_pbc, force_pbc, &
-                                      virial_cell, virial,       &
-                                      eelec, evdw, ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc, force_pbc,      &
+                              virial_cell, virial, eelec, evdw,      &
+                              ene_virial)
 
           else 
             call compute_energy_nonbond_table_linear( &
-                                      domain, enefunc, pairlist,  &
-                                      npt, atmcls_pbc,            &
-                                      coord_pbc, force_pbc,       &
-                                      virial_cell, virial,        &
-                                      eelec, evdw, ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc, force_pbc,      &
+                              virial_cell, virial, eelec, evdw,      &
+                              ene_virial)
           end if
-
-#ifdef FJ_TIMER_2
-      call timer_end(403)
-#endif
 
         else
 
-#ifdef FJ_TIMER_2
-      call timer_sta(404)
-#endif
-         
           if (enefunc%vdw == VDWCutoff) then
             call compute_force_nonbond_pme_notbl( &
-                                      domain, enefunc, pairlist, &
-                                      npt, .false., atmcls_pbc,  &
-                                      coord_pbc,                 &
-                                      force, force_pbc,          &
-                                      virial_cell, virial,       &
-                                      ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
           else if (enefunc%vdw == VDWPME) then
             call compute_force_nonbond_table_ljpme( &
-                                      domain, enefunc, pairlist, &
-                                      npt, .false., coord_pbc,   &
-                                      force, force_pbc,          &
-                                      virial_cell, virial,       &
-                                      ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
           else
             call compute_force_nonbond_table_linear( &
-                                      domain, enefunc, pairlist, &
-                                      npt, .false., atmcls_pbc,  &
-                                      coord_pbc,                 &
-                                      force, force_pbc,          &
-                                      virial_cell, virial,       &
-                                      ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
           end if
 
-#ifdef FJ_TIMER_2
-      call timer_end(404)
-#endif
-         
         end if
       end if
 
@@ -254,10 +236,6 @@ contains
  
       call timer(TimerPmeRecip, TimerOn)
 
-#ifdef FJ_TIMER_2
-      call timer_sta(405)
-#endif
- 
       if (npt) then
         if (enefunc%vdw == VDWPME) then
           call pme_pre_lj(domain, boundary)
@@ -266,30 +244,14 @@ contains
         end if
       end if
 
-#ifdef FJ_TIMER_2
-      call timer_end(405)
-#endif
 
-#ifdef FJ_TIMER_2
-      call timer_sta(406)
-#endif
-!fj<
       call mpi_barrier(mpi_comm_city, ierror)
-!fj>
-#ifdef FJ_TIMER_2
-      call timer_end(406)
-      call timer_sta(407)
-#endif
 
       if (enefunc%vdw == VDWPME) then
         call pme_recip_lj(domain, enefunc, force_long, virial, eelec, evdw)
       else
         call pme_recip(domain, force_long, virial, eelec)
       end if
-
-#ifdef FJ_TIMER_2
-      call timer_end(407)
-#endif
 
       call timer(TimerPmeRecip, TimerOff)
 
@@ -356,47 +318,41 @@ contains
 
       if (enefunc%nonb_limiter) then
 
-        if (enefunc%vdw_no_switch) then
+        if (enefunc%vdw == VDWCutoff) then
           call compute_energy_nonbond_pme_notbl_check( &
-                                      domain, enefunc, pairlist, &
-                                      coord_pbc, force_pbc,      &
-                                      virial_cell, eelec, evdw)
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
+        else if (enefunc%vdw == VDWPME) then
+          call compute_energy_nonbond_tbl_ljpme_check( &
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
         else
           call compute_energy_nonbond_table_linear_check( &
-                                      domain, enefunc, pairlist, &
-                                      coord_pbc, force_pbc,      &
-                                      virial_cell, eelec, evdw)
+                              domain, enefunc, pairlist, coord_pbc,  &
+                              force_pbc, virial_cell, eelec, evdw)
         end if
-
-        call timer(TimerPmeReal, TimerOff)
 
       else
 
-#ifdef FJ_TIMER_2
-      call timer_sta(401)
-#endif
-
-        if (enefunc%vdw_no_switch) then
+        if (enefunc%vdw == VDWCutoff) then
           call compute_force_nonbond_pme_notbl( &
-                                        domain, enefunc, pairlist,   &
-                                        npt, .true., atmcls_pbc,     &
-                                        coord_pbc,                   &
-                                        force, force_pbc,            &
-                                        virial_cell, virial,         &
-                                        ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
+        else if (enefunc%vdw == VDWPME) then
+          call compute_force_nonbond_table_ljpme( &
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
         else
           call compute_force_nonbond_table_linear( &
-                                        domain, enefunc, pairlist,   &
-                                        npt, .true., atmcls_pbc,     &
-                                        coord_pbc,                   &
-                                        force, force_pbc,            &
-                                        virial_cell, virial,         &
-                                        ene_virial)
+                              domain, enefunc, pairlist, npt,        &
+                              .false., atmcls_pbc, coord_pbc,        &
+                              force, force_pbc, virial_cell, virial, &
+                              ene_virial)
         end if
-
-#ifdef FJ_TIMER_2
-      call timer_end(401)
-#endif
 
         if (domain%nonbond_kernel /= NBK_GPU) &
           call timer(TimerPmeReal, TimerOff)

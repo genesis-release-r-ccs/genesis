@@ -785,71 +785,31 @@ contains
       enefunc%gamd%gamd_stat = .false.
     end if
 
-#ifdef PKTIMER
-    call timer_sta(281)
-#endif
-
     call open_output(output)
-
-#ifdef PKTIMER
-    call timer_end(281)
-#endif
 
     select case (dynamics%integrator)
 
     case (IntegratorLEAP)
 
-#ifdef PKTIMER
-      call timer_sta(282)
-#endif
-
       call leapfrog_dynamics(output, domain, enefunc, dynvars, dynamics, &
                              pairlist, boundary, constraints, ensemble,  &
                              comm, remd)
 
-#ifdef PKTIMER
-      call timer_end(282)
-#endif
-
     case (IntegratorVVER)
-
-#ifdef PKTIMER
-      call timer_sta(283)
-#endif
 
       call vverlet_dynamics (output, domain, enefunc, dynvars, dynamics, &
                              pairlist, boundary, constraints, ensemble,  &
                              comm, remd)
 
-#ifdef PKTIMER
-      call timer_end(283)
-#endif
-
     case (IntegratorVRES)
-
-#ifdef PKTIMER
-      call timer_sta(284)
-#endif
 
       call vverlet_respa_dynamics (output, domain, enefunc, dynvars, dynamics, &
                              pairlist, boundary, constraints, ensemble, comm,  &
                              remd)
 
-#ifdef PKTIMER
-      call timer_end(284)
-#endif
-
     end select
 
-#ifdef PKTIMER
-    call timer_sta(285)
-#endif
-
     call close_output(output)
-
-#ifdef PKTIMER
-    call timer_end(285)
-#endif
 
     return
 

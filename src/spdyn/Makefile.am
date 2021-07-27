@@ -39,21 +39,20 @@ spdyn_SOURCES = \
 	sp_pairlist_generic.fpp \
 	sp_pairlist_fugaku.fpp \
 	sp_pairlist_gpu.fpp \
-	sp_pairlist_knl.fpp \
 	sp_pairlist.fpp \
 	sp_boundary.fpp \
 	sp_experiments.fpp \
+	sp_energy_efield.fpp \
 	sp_energy_bonds.fpp \
 	sp_energy_angles.fpp \
 	sp_energy_dihedrals.fpp \
 	sp_energy_nonbond_generic.fpp \
 	sp_energy_nonbond_fugaku.fpp \
-	sp_energy_nonbond_k_generic.fpp \
-	sp_energy_nonbond_intel_knl.fpp \
+	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
 	sp_energy_table_linear.fpp \
 	sp_energy_14_notable.fpp \
-	sp_energy_table_linear_nowater.fpp \
+	sp_energy_nonbond_pme_table.fpp \
 	sp_energy_nonbond_pme_notable.fpp \
 	sp_energy_nonbond_ljpme.fpp \
 	sp_energy_table_linear_bondcorr.fpp \
@@ -136,21 +135,20 @@ prst_setup_SOURCES = \
 	sp_pairlist_generic.fpp \
 	sp_pairlist_fugaku.fpp \
 	sp_pairlist_gpu.fpp \
-	sp_pairlist_knl.fpp \
 	sp_pairlist.fpp \
 	sp_boundary.fpp \
 	sp_experiments.fpp \
+	sp_energy_efield.fpp \
 	sp_energy_bonds.fpp \
 	sp_energy_angles.fpp \
 	sp_energy_dihedrals.fpp \
 	sp_energy_nonbond_generic.fpp \
 	sp_energy_nonbond_fugaku.fpp \
-	sp_energy_nonbond_k_generic.fpp \
-	sp_energy_nonbond_intel_knl.fpp \
+	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
 	sp_energy_table_linear.fpp \
 	sp_energy_14_notable.fpp \
-	sp_energy_table_linear_nowater.fpp \
+	sp_energy_nonbond_pme_table.fpp \
 	sp_energy_nonbond_pme_notable.fpp \
 	sp_energy_nonbond_ljpme.fpp \
 	sp_energy_table_linear_bondcorr.fpp \
@@ -263,7 +261,6 @@ else
 	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
 endif
 
-sp_energy_nonbond_k_generic.o : sp_energy_nonbond_k_generic.fpp
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP) $(PPFLAGS) $(DEFS) $*.f90

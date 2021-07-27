@@ -46,12 +46,9 @@ contains
 
   subroutine update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
   
-#ifdef PKTIMER
-    use Ctim
-#endif
     ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
-    type(s_domain),   target, intent(in)    :: domain  
+    type(s_domain),   target, intent(inout) :: domain  
     type(s_pairlist), target, intent(inout) :: pairlist
 
     ! local variables
@@ -60,6 +57,7 @@ contains
     real(wp)                  :: rtmp(1:3)
 
     integer                   :: i, j, ij, ix, iy
+    integer                   :: start_i, start_j, ixx, iyy, num_atom
     integer                   :: num_nb15
     integer                   :: id, omp_get_thread_num
 
@@ -67,7 +65,7 @@ contains
 
     real(wip),        pointer,contiguous :: coord(:,:,:)
     real(wp),         pointer,contiguous :: trans1(:,:,:), coord_pbc(:,:,:)
-    integer,          pointer,contiguous :: natom(:)
+    integer,          pointer,contiguous :: natom(:), start_atom(:)
     integer(int2),    pointer,contiguous :: cell_pairlist1(:,:)
     integer,          pointer            :: ncell, nboundary
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
@@ -85,6 +83,7 @@ contains
     ncell             => domain%num_cell_local
     nboundary         => domain%num_cell_boundary
     natom             => domain%num_atom
+    start_atom        => domain%start_atom
     coord             => domain%coord
     trans1            => domain%trans_vec
     coord_pbc         => domain%coord_pbc
@@ -101,23 +100,8 @@ contains
 
     pairdist2       =  pairlist%pairlistdist * pairlist%pairlistdist
 
-#ifdef PKTIMER
-    call gettod(sas)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PairList",13,0)
-#endif
-    call timer_sta(13)
-#endif
-
-    !$omp parallel default(none)                                       &
-    !$omp shared(nthread, ncell, nboundary, natom, coord_pbc, coord,   &
-    !$omp        trans1, num_nb15_calc, MaxAtom, exclusion_mask1,      &
-    !$omp        nb15_calc_list, maxcell_near, cell_pairlist1,         &
-    !$omp        exclusion_mask, pairdist2, maxcell)                   &
-    !$omp shared(MaxNb15_Fugaku)                                       &
-    !$omp shared(ncell_pairlist1, istcell_pairlist1, ncell_pairlist2,  &
-    !$omp       istcell_pairlist2 )                                    &
-    !$omp private(num_add_prefetch, k) &
+    !$omp parallel default(shared)                                     &
+    !$omp private(num_add_prefetch, k, start_i, start_j, ixx, iyy)     &
     !$omp private(id, i, j, ij, ix, iy, num_nb15, rtmp, dij, rij2_work)
 #ifdef OMP
     id = omp_get_thread_num()
@@ -126,14 +110,17 @@ contains
 #endif
 
     do i = id+1, ncell+nboundary, nthread
+      start_i = start_atom(i)
       do ix = 1, natom(i)
-        coord_pbc(ix,1,i) = coord(1,ix,i) + trans1(1,ix,i)
-        coord_pbc(ix,2,i) = coord(2,ix,i) + trans1(2,ix,i)
-        coord_pbc(ix,3,i) = coord(3,ix,i) + trans1(3,ix,i)
+        ixx = start_i + ix
+        coord_pbc(ixx,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        coord_pbc(ixx,2,1) = coord(2,ix,i) + trans1(2,ix,i)
+        coord_pbc(ixx,3,1) = coord(3,ix,i) + trans1(3,ix,i)
       end do
     end do
 
-    num_nb15_calc(1:MaxAtom, 1:ncell+nboundary)  = 0
+    k = domain%num_atom_domain
+    num_nb15_calc(1:k,1)  = 0
 
     !$omp barrier
 
@@ -141,6 +128,7 @@ contains
     !
     do i = id+1, ncell, nthread
 
+      start_i = start_atom(i)
 #ifdef DEBUG
       if (natom(i) > MaxAtom) &
         call error_msg( &
@@ -149,24 +137,26 @@ contains
       do ix = 1, natom(i)-1
 
         num_nb15 = 0
+        ixx = start_i + ix
 
         do iy = ix+1, natom(i)
 
           if (exclusion_mask1(iy,ix,i) == 1) then
 
             num_nb15 = num_nb15 + 1
+            iyy = start_i + iy
 #ifdef DEBUG
             if (num_nb15 > MaxNb15_Fugaku) &
               call error_msg(              &
                    'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
 #endif
-            nb15_calc_list(num_nb15,ix,i) = (i-1)*MaxAtom+iy
+            nb15_calc_list(num_nb15,ixx,1) = iyy
 
           end if
 
         end do
 
-        num_nb15_calc(ix,i) = num_nb15
+        num_nb15_calc(ixx,1) = num_nb15
 
       end do
     end do
@@ -178,11 +168,13 @@ contains
     do i = id+1, ncell+nboundary, nthread
 
       if(ncell_pairlist1(i) == 0) cycle
+      start_i = start_atom(i)
 
       do ij = istcell_pairlist1(i), istcell_pairlist1(i)+ncell_pairlist1(i)-1
 
 
         j = cell_pairlist1(2,ij)
+        start_j = start_atom(j)
 
 #ifdef DEBUG
         if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
@@ -192,16 +184,18 @@ contains
        
         do ix = 1, natom(i)
 
-          num_nb15 = num_nb15_calc(ix,i)
-          rtmp(1) = coord_pbc(ix,1,i)
-          rtmp(2) = coord_pbc(ix,2,i)
-          rtmp(3) = coord_pbc(ix,3,i)
+          ixx = start_i + ix
+          num_nb15 = num_nb15_calc(ixx,1)
+          rtmp(1) = coord_pbc(ixx,1,1)
+          rtmp(2) = coord_pbc(ixx,2,1)
+          rtmp(3) = coord_pbc(ixx,3,1)
 
           do iy = 1, natom(j)
 
-            dij(1) = rtmp(1) - coord_pbc(iy,1,j)
-            dij(2) = rtmp(2) - coord_pbc(iy,2,j)
-            dij(3) = rtmp(3) - coord_pbc(iy,3,j)
+            iyy = start_j + iy
+            dij(1) = rtmp(1) - coord_pbc(iyy,1,1)
+            dij(2) = rtmp(2) - coord_pbc(iyy,2,1)
+            dij(3) = rtmp(3) - coord_pbc(iyy,3,1)
             rij2_work(iy) = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
 
           end do
@@ -211,18 +205,19 @@ contains
 
             if (rij2_work(iy) < pairdist2 .and. &
                 exclusion_mask(iy,ix,ij) == 1) then
+              iyy = start_j + iy
               num_nb15 = num_nb15 + 1
 #ifdef DEBUG
               if (num_nb15 > MaxNb15_Fugaku) &
                 call error_msg( &
                      'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15_Fugaku')
 #endif
-              nb15_calc_list(num_nb15,ix,i) = (j-1)*MaxAtom+iy
+              nb15_calc_list(num_nb15,ixx,1) = iyy
             end if
 
           end do
 
-          num_nb15_calc(ix,i) = num_nb15
+          num_nb15_calc(ixx,1) = num_nb15
 
         end do
       end do
@@ -234,11 +229,12 @@ contains
     do i = id+1, ncell+nboundary, nthread
 
       if( ncell_pairlist2(i) == 0 ) cycle
+      start_i = start_atom(i)
 
       do ij = istcell_pairlist2(i), istcell_pairlist2(i)+ncell_pairlist2(i)-1
 
-
         j = cell_pairlist1(2,ij)
+        start_j = start_atom(j)
 
 #ifdef DEBUG
         if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
@@ -248,16 +244,18 @@ contains
 
         do ix = 1, natom(i)
 
-          num_nb15 = num_nb15_calc(ix,i)
-          rtmp(1) = coord_pbc(ix,1,i)
-          rtmp(2) = coord_pbc(ix,2,i)
-          rtmp(3) = coord_pbc(ix,3,i)
+          ixx = start_i + ix
+          num_nb15 = num_nb15_calc(ixx,1)
+          rtmp(1) = coord_pbc(ixx,1,1)
+          rtmp(2) = coord_pbc(ixx,2,1)
+          rtmp(3) = coord_pbc(ixx,3,1)
 
           do iy = 1, natom(j)
 
-            dij(1) = rtmp(1) - coord_pbc(iy,1,j)
-            dij(2) = rtmp(2) - coord_pbc(iy,2,j)
-            dij(3) = rtmp(3) - coord_pbc(iy,3,j)
+            iyy = start_j + iy
+            dij(1) = rtmp(1) - coord_pbc(iyy,1,1)
+            dij(2) = rtmp(2) - coord_pbc(iyy,2,1)
+            dij(3) = rtmp(3) - coord_pbc(iyy,3,1)
             rij2_work(iy) = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
 
           end do
@@ -266,18 +264,19 @@ contains
           do iy = 1, natom(j)
 
             if (rij2_work(iy) < pairdist2) then
+              iyy = start_j + iy
               num_nb15 = num_nb15 + 1
 #ifdef DEBUG
               if (num_nb15 > MaxNb15_Fugaku) &
                 call error_msg( &
                      'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
 #endif
-              nb15_calc_list(num_nb15,ix,i) = (j-1)*MaxAtom+iy
+              nb15_calc_list(num_nb15,ixx,1) = iyy
             end if
 
           end do
 
-          num_nb15_calc(ix,i) = num_nb15
+          num_nb15_calc(ixx,1) = num_nb15
 
         end do
       end do
@@ -287,36 +286,30 @@ contains
     !$omp barrier
 
     do i = id+1, ncell, nthread
+      start_i = start_atom(i)
       do ix = 1, natom(i)-1
 
+        ixx = start_i + ix
         ! prefetch size:64
         !
-        num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ix,i), &
-                                  num_nb15_calc(ix+1,i))
+        num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1), &
+                                  num_nb15_calc(ixx+1,1))
         do k = 1, num_add_prefetch
-          nb15_calc_list(num_nb15_calc(ix,i)+k,ix,i) = nb15_calc_list(k,ix+1,i)
+          nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) = nb15_calc_list(k,ixx+1,1)
         end do
       end do
       ix = natom(i)
-      num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ix,i))
-      if (num_nb15_calc(ix,i) > 0) then
+      ixx = start_i + ix
+      num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1))
+      if (num_nb15_calc(ixx,1) > 0) then
       do k = 1, num_add_prefetch
-        nb15_calc_list(num_nb15_calc(ix,i)+k,ix,i) &
-              = nb15_calc_list(num_nb15_calc(ix,i),ix,i)
+        nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) &
+              = nb15_calc_list(num_nb15_calc(ixx,1),ixx,1)
       end do
       end if
     end do
 
     !$omp end parallel
-
-#ifdef PKTIMER
-    call timer_end(13)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PairList",13,0)
-#endif
-    call gettod(eae)
-    Timc(5)=Timc(5)+(eae-sas)
-#endif
 
     return
 

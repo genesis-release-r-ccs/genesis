@@ -507,7 +507,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_dihed_gamd(domain, enefunc, npt, nonb_ene, &
-      coord, force, edihed, ecmap, eimprop)
+      coord, force, virial, edihed, ecmap, eimprop)
 
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
@@ -516,6 +516,7 @@ contains
     logical,                 intent(in)    :: nonb_ene
     real(wip),               intent(in)    :: coord(:,:,:)
     real(wp),                intent(inout) :: force(:,:,:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
     real(dp),                intent(inout) :: edihed(nthread)
     real(dp),                intent(inout) :: ecmap(nthread)
     real(dp),                intent(inout) :: eimprop(nthread)
@@ -540,9 +541,11 @@ contains
       !$omp parallel do
       do id = 1, nthread
         f_dihe_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+        v_dihe_omp(1,1,id) = virial(1,1,id)
+        v_dihe_omp(2,2,id) = virial(2,2,id)
+        v_dihe_omp(3,3,id) = virial(3,3,id)
       end do
       !$omp end parallel do
-      v_dihe_omp(1:3,1:3,1:nthread) = 0.0_dp
 
       !$omp parallel default(shared) private(id, i, ix) 
 #ifdef OMP
@@ -563,16 +566,16 @@ contains
     !
     if (enefunc%local_restraint) then
       call compute_energy_dihed_localres(domain, enefunc, coord, &
-        force, edihed)
+        force, virial, edihed)
     else
       call compute_energy_dihed(domain, enefunc, coord, &
-        force, edihed)
+        force, virial, edihed)
     end if
 
     if (enefunc%forcefield == ForcefieldCHARMM) then
       ! cmap energy
       ! 
-      call compute_energy_cmap(domain, enefunc, coord, force, ecmap)
+      call compute_energy_cmap(domain, enefunc, coord, force, virial, ecmap)
     end if
 
     if (enefunc%gamd%boost_dih .or. enefunc%gamd%boost_dual) then
@@ -589,25 +592,10 @@ contains
             - f_dihe_omp(1:3,ix,i,id+1)
         end do
       end do
+      v_dihe_omp(1,1,id+1) = virial(1,1,id+1) - v_dihe_omp(1,1,id+1)
+      v_dihe_omp(2,2,id+1) = virial(2,2,id+1) - v_dihe_omp(2,2,id+1)
+      v_dihe_omp(3,3,id+1) = virial(3,3,id+1) - v_dihe_omp(3,3,id+1)
       !$omp end parallel
-
-      if (nonb_ene .or. npt) then
-        !$omp parallel default(shared) private(id, i, ix, k) 
-#ifdef OMP
-        id = omp_get_thread_num()
-#else
-        id = 0
-#endif
-        do i = 1, ncell
-          do ix = 1, domain%num_atom(i)
-            do k = 1, 3
-              v_dihe_omp(k,k,id+1) = v_dihe_omp(k,k,id+1) &
-                + coord(k,ix,i)*f_dihe_omp(k,ix,i,id+1)
-            end do
-          end do
-        end do
-        !$omp end parallel
-      end if
 
     end if
 

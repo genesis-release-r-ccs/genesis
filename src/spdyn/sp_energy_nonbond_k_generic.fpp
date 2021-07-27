@@ -97,13 +97,6 @@ contains
     integer,          pointer :: nb15_calc_list1(:,:), nb15_calc_list(:,:)
     integer(int1),    pointer :: virial_check(:,:)
 
-#ifdef PKTIMER
-    call timer_sta(222)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("compute_energy_nonbond_table_linear",222,0)
-#endif
-#endif
-
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -315,13 +308,6 @@ contains
 
     !$omp end parallel
 
-#ifdef PKTIMER
-    call timer_end(222)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("compute_energy_nonbond_table_linear",222,0)
-#endif
-#endif
-
     return
 
   end subroutine compute_energy_nonbond_tbl_lnr_k_generic
@@ -342,10 +328,6 @@ contains
   subroutine compute_force_nonbond_tbl_lnr_k_generic( &
                                                  domain, enefunc, pairlist, &
                                                  coord_pbc, force, virial)
-
-#ifdef PKTIMER
-    use Ctim
-#endif
 
     ! formal arguments
     type(s_domain),   target, intent(in)    :: domain
@@ -415,18 +397,6 @@ contains
     ncell           =  domain%num_cell_local + domain%num_cell_boundary
     ncell_local     =  domain%num_cell_local
     cutoff2         =  cutoff * cutoff
-
-#ifdef FJ_TIMER_2
-      call timer_sta(412)
-#endif
-
-#ifdef PKTIMER
-    call gettod(sas)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Nonb15F_novirial",12,0)
-#endif
-    call timer_sta(12)
-#endif
 
     ! calculate energy and gradient
     !
@@ -597,19 +567,6 @@ contains
     end do
 
     !$omp end parallel
-
-#ifdef PKTIMER
-    call timer_end(12)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Nonb15F_novirial",12,0)
-#endif
-    call gettod(eae)
-    Timc(1)=Timc(1)+(eae-sas)
-#endif
-
-#ifdef FJ_TIMER_2
-      call timer_end(412)
-#endif
 
     return
 

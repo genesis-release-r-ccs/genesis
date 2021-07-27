@@ -996,10 +996,6 @@ contains
 
   subroutine pme_recip_opt_1dalltoall_4(domain, force, virial, eelec)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
     real(wip),               intent(inout) :: force(:,:,:)
@@ -1025,9 +1021,6 @@ contains
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
-#ifdef PKTIMER
-    real(dp)  :: sas,eae,st,et
-#endif
 
     complex(wp), allocatable :: work1(:), work2(:)
     real(wip),       pointer :: coord(:,:,:)
@@ -1054,25 +1047,6 @@ contains
     !$omp         start, end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd, &
     !$omp         iyyzz)
     !
-#ifdef PKTIMER
-    !$omp master
-    call gettod(sas)
-    call timer_sta(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(111)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_1",111,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
 #ifdef OMP
     id = omp_get_thread_num()
 #else
@@ -1216,47 +1190,11 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(111)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_1",111,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
     call communicate_pme_pre
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(112)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_PRE_2",112,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
 
     do iz = id+1, nlocalz, nthread
       izs = iz + 4
@@ -1270,46 +1208,12 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp master
-    call gettod(eae)
-    Timc(3)=Timc(3)+(eae-sas)
-    call gettod(sas)
-    call timer_end(21)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(112)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_PRE_2",112,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_PRE",21,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
 #ifdef MPI
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(grid_commx,ierror)
-      call gettod(et)
-      mpi_bari(8)=mpi_bari(8)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(10,2)=mpi_tran(10,2)+(et-st)
-#endif
-
 #else
     qdf_work(1:nlocalx*nlocaly*nlocalz,1) = qdf_real(1:nlocalx*nlocaly*nlocalz)
 #endif
@@ -1329,23 +1233,6 @@ contains
     !
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(130)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_pme_recip",130,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     iproc = my_z_rank + 1
     niy = nlocaly / nprocz
@@ -1436,23 +1323,6 @@ contains
     end do
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(130)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_pme_recip",130,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     call bfft3d_1d_alltoall(qdf_work, qdf_real, ftqdf, ftqdf, ftqdf_work,    &
                     ftqdf_work, ftqdf_work2, ftqdf_work, work1, work2,       &
@@ -1462,26 +1332,6 @@ contains
                     nizy, nizx)
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call gettod(eae)
-    Timc(2)=Timc(2)+(eae-sas)
-    call gettod(sas)
-    call timer_sta(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(121)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_POST_1",121,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
 
     ! X is saved on qdf
     !
@@ -1499,47 +1349,11 @@ contains
 
     !$omp barrier
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(121)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_POST_1",121,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
     call communicate_pme_post
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(22)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(122)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("Recip_POST_2",122,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PmeRecip_POST",22,0)
-#endif
-#endif
-#endif
 
     do icel = id+1, ncell_local, nthread
       do i = 1, natom(icel)
@@ -1603,22 +1417,6 @@ contains
 
     !$omp end parallel
 
-#ifdef PKTIMER
-    call timer_end(22)
-#ifdef FJ_TIMER_DETAIL
-    call timer_end(122)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("Recip_POST_2",122,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PmeRecip_POST",22,0)
-#endif
-#endif
-    call gettod(eae)
-    Timc(4)=Timc(4)+(eae-sas)
-#endif
- 
     return
 
   end subroutine pme_recip_opt_1dalltoall_4

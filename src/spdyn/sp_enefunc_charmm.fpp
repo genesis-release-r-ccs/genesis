@@ -51,6 +51,7 @@ module sp_enefunc_charmm_mod
   private :: setup_enefunc_cmap
   private :: setup_enefunc_nonb
   public  :: count_nonb_excl
+  public  :: check_pbc
 
 contains
 
@@ -198,34 +199,41 @@ contains
     integer                  :: dupl, ioffset
     integer                  :: i, j, icel_local
     integer                  :: icel1, icel2
-    integer                  :: nbond, nbond_p, i1, i2, i3, found, found1
+    integer                  :: nbond, nbond_p, found, found1
+    integer                  :: i1, i2, i3, ia, ib, pbc_int
     character(6)             :: ci1, ci2, ci3, ri1, ri2
+    real(wp)                 :: cwork(3,2), dij(3)
 
-    real(wp),        pointer :: force(:,:), dist(:,:)
+    real(wp),        pointer :: force(:,:), dist(:,:), coord(:,:)
+    real(wp),        pointer :: box_size(:)
     integer,         pointer :: nwater(:), bond(:), list(:,:,:)
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_bond_list(:,:), sollist(:)
     character(6),    pointer :: mol_cls_name(:)
+    integer(1),      pointer :: bond_pbc(:,:)
 
 
     mol_bond_list => molecule%bond_list
     mol_cls_name  => molecule%atom_cls_name
+    coord         => molecule%atom_coord
 
-    ncel      => domain%num_cell_local
-    cell_pair => domain%cell_pair
-    id_g2l    => domain%id_g2l
-    nwater    => domain%num_water
+    ncel          => domain%num_cell_local
+    cell_pair     => domain%cell_pair
+    id_g2l        => domain%id_g2l
+    nwater        => domain%num_water
+    box_size      => domain%system_size
 
-    bond      => enefunc%num_bond
-    list      => enefunc%bond_list
-    force     => enefunc%bond_force_const
-    dist      => enefunc%bond_dist_min
-    sollist   => enefunc%table%solute_list_inv
+    bond          => enefunc%num_bond
+    list          => enefunc%bond_list
+    force         => enefunc%bond_force_const
+    dist          => enefunc%bond_dist_min
+    sollist       => enefunc%table%solute_list_inv
+    bond_pbc      => enefunc%bond_pbc
 
-    nbond     = molecule%num_bonds
-    nbond_p   = par%num_bonds
+    nbond         = molecule%num_bonds
+    nbond_p       = par%num_bonds
 
     do dupl = 1, domain%num_duplicate
 
@@ -244,11 +252,11 @@ contains
             ri1(1:3) /= 'SOL' .and. ri2(1:3) /= 'TIP' .and. &
             ri2(1:3) /= 'WAT' .and. ri2(1:3) /= 'SOL') then
 
-          i1  = sollist(i1) + ioffset
-          i2  = sollist(i2) + ioffset
+          ia  = sollist(i1) + ioffset
+          ib  = sollist(i2) + ioffset
 
-          icel1 = id_g2l(1,i1)
-          icel2 = id_g2l(1,i2)
+          icel1 = id_g2l(1,ia)
+          icel2 = id_g2l(1,ib)
 
           ! Check if it is in my domain
           !
@@ -265,10 +273,15 @@ contains
                      ci2 == par%bond_atom_cls(1,j))) then
   
                   bond (icel_local) = bond(icel_local) + 1
-                  list (1,bond(icel_local),icel_local) = i1
-                  list (2,bond(icel_local),icel_local) = i2
+                  list (1,bond(icel_local),icel_local) = ia
+                  list (2,bond(icel_local),icel_local) = ib
                   force(bond(icel_local),icel_local)   = par%bond_force_const(j)
                   dist (bond(icel_local),icel_local)   = par%bond_dist_min(j)
+                  cwork(1:3,1) = coord(1:3,i1)
+                  cwork(1:3,2) = coord(1:3,i2)
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  bond_pbc(bond(icel_local),icel_local) = pbc_int
                   exit
   
                 end if
@@ -317,6 +330,42 @@ contains
  
       end do
     end do
+
+    ! bond/angel from water
+    !
+    if (enefunc%table%num_water > 0) then
+
+      i1 = enefunc%table%water_list(1,1)
+      i2 = enefunc%table%water_list(2,1)
+      i3 = enefunc%table%water_list(3,1)
+      ci1 = molecule%atom_cls_name(i1)
+      ci2 = molecule%atom_cls_name(i2)
+      ci3 = molecule%atom_cls_name(i3)
+      do j = 1, nbond_p
+        if ((ci1 == par%bond_atom_cls(1, j) .and.  &
+             ci2 == par%bond_atom_cls(2, j)) .or.  &
+            (ci1 == par%bond_atom_cls(2, j) .and.  &
+             ci2 == par%bond_atom_cls(1, j))) then
+          enefunc%table%OH_bond = par%bond_dist_min(j)
+          enefunc%table%OH_force = par%bond_force_const(j)
+          enefunc%table%water_bond_calc_OH = .true.
+          exit
+        end if
+      end do
+      do j = 1, nbond_p
+        if ((ci2 == par%bond_atom_cls(1, j) .and.  &
+             ci3 == par%bond_atom_cls(2, j)) .or.  &
+            (ci2 == par%bond_atom_cls(2, j) .and.  &
+             ci3 == par%bond_atom_cls(1, j))) then
+          enefunc%table%HH_bond = par%bond_dist_min(j)
+          enefunc%table%HH_force = par%bond_force_const(j)
+          if (enefunc%table%HH_force > EPS) &
+            enefunc%table%water_bond_calc_HH = .true.
+          exit
+        end if
+      end do
+      enefunc%table%water_bond_calc = .true.
+    end if
 
     found  = 0
     found1 = 0
@@ -372,15 +421,18 @@ contains
     ! local variable
     integer                      :: dupl, ioffset
     integer                      :: i, j, k, m, ih, icel_local, connect
-    integer                      :: i1, i2, ih1, ih2, icel1, icel2, icel
+    integer                      :: ih1, ih2, icel1, icel2, icel
+    integer                      :: i1, i2, ia, ib, pbc_int
     integer                      :: nbond, nbond_p, nbond_a, nbond_c
     integer                      :: wat_bonds, tmp_mole_no, mole_no, wat_found
     character(6)                 :: ci1, ci2
     character(6)                 :: ri1, ri2
     logical                      :: mi1, mi2
     logical                      :: cl1, cl2
+    real(wp)                     :: cwork(3,2), dij(3)
 
-    real(wp),            pointer :: force(:,:), dist(:,:)
+    real(wp),            pointer :: force(:,:), dist(:,:), coord(:,:)
+    real(wp),            pointer :: box_size(:)
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     integer,             pointer :: bond(:), list(:,:,:), num_water, ncel
     integer,             pointer :: id_l2g(:,:), id_l2g_sol(:,:), sollist(:)
@@ -390,7 +442,7 @@ contains
     integer,             pointer :: mol_bond_list(:,:), mol_no(:)
     character(6),        pointer :: mol_cls_name(:), mol_res_name(:)
     logical,             pointer :: mol_light_name(:), mol_light_mass(:)
-
+    integer(1),          pointer :: bond_pbc(:,:)
 
     mol_bond_list  => molecule%bond_list
     mol_no         => molecule%molecule_no
@@ -398,31 +450,34 @@ contains
     mol_res_name   => molecule%residue_name
     mol_light_name => molecule%light_atom_name
     mol_light_mass => molecule%light_atom_mass
+    coord          => molecule%atom_coord
 
-    ncel          => domain%num_cell_local
-    cell_pair     => domain%cell_pair
-    id_g2l        => domain%id_g2l
-    id_l2g        => domain%id_l2g
-    id_l2g_sol    => domain%id_l2g_solute
+    ncel           => domain%num_cell_local
+    cell_pair      => domain%cell_pair
+    id_g2l         => domain%id_g2l
+    id_l2g         => domain%id_l2g
+    id_l2g_sol     => domain%id_l2g_solute
+    box_size       => domain%system_size
 
-    HGr_local     => constraints%HGr_local
-    HGr_bond_list => constraints%HGr_bond_list
-    HGr_bond_dist => constraints%HGr_bond_dist
+    HGr_local      => constraints%HGr_local
+    HGr_bond_list  => constraints%HGr_bond_list
+    HGr_bond_dist  => constraints%HGr_bond_dist
 
-    bond          => enefunc%num_bond
-    list          => enefunc%bond_list
-    force         => enefunc%bond_force_const
-    dist          => enefunc%bond_dist_min
-    num_water     => enefunc%table%num_water
-    sollist       => enefunc%table%solute_list_inv
+    bond           => enefunc%num_bond
+    list           => enefunc%bond_list
+    force          => enefunc%bond_force_const
+    dist           => enefunc%bond_dist_min
+    num_water      => enefunc%table%num_water
+    sollist        => enefunc%table%solute_list_inv
+    bond_pbc       => enefunc%bond_pbc
 
-    nbond         = molecule%num_bonds
-    nbond_p       = par%num_bonds
+    nbond          = molecule%num_bonds
+    nbond_p        = par%num_bonds
 
-    connect       =  constraints%connect
+    connect        =  constraints%connect
 
-    nbond_a       = 0
-    nbond_c       = 0
+    nbond_a        = 0
+    nbond_c        = 0
 
     do dupl = 1, domain%num_duplicate
 
@@ -455,13 +510,13 @@ contains
             cl2 = (cl2 .or. mi2) 
           endif
   
-          i1  = sollist(i1) + ioffset
-          i2  = sollist(i2) + ioffset
+          ia  = sollist(i1) + ioffset
+          ib  = sollist(i2) + ioffset
   
           if (.not. (cl1 .or.  cl2)) then
   
-            icel1 = id_g2l(1,i1)
-            icel2 = id_g2l(1,i2)
+            icel1 = id_g2l(1,ia)
+            icel2 = id_g2l(1,ib)
   
             ! Check if it is in my domain
             !
@@ -479,10 +534,15 @@ contains
     
                     nbond_a = nbond_a + 1
                     bond (icel_local) = bond(icel_local) + 1
-                    list (1,bond(icel_local),icel_local) = i1
-                    list (2,bond(icel_local),icel_local) = i2
+                    list (1,bond(icel_local),icel_local) = ia
+                    list (2,bond(icel_local),icel_local) = ib
                     force(bond(icel_local),icel_local) = par%bond_force_const(j)
                     dist (bond(icel_local),icel_local) = par%bond_dist_min(j)
+                    cwork(1:3,1) = coord(1:3,i1)
+                    cwork(1:3,2) = coord(1:3,i2)
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    bond_pbc(bond(icel_local),icel_local) = pbc_int
                     exit
     
                   end if
@@ -633,10 +693,12 @@ contains
     integer                  :: i, j, icel_local
     integer                  :: icel1, icel2
     integer                  :: nangl, nangl_p, found
-    integer                  :: list(3)
+    integer                  :: list(3), lists(3), pbc_int
     character(6)             :: ci1, ci2, ci3, ri1, ri2, ri3
+    real(wp)                 :: cwork(3,3), dij(3)
 
-    real(wp),        pointer :: force(:,:), theta(:,:)
+    real(wp),        pointer :: force(:,:), theta(:,:), coord(:,:)
+    real(wp),        pointer :: box_size(:)
     real(wp),        pointer :: ubforce(:,:), ubrmin(:,:)
     integer,         pointer :: angle(:), alist(:,:,:)
     integer,         pointer :: ncel
@@ -645,15 +707,18 @@ contains
     integer,         pointer :: mol_angl_list(:,:)
     integer,         pointer :: sollist(:), nwater(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
+    integer(1),      pointer :: angl_pbc(:,:,:)
 
     mol_angl_list => molecule%angl_list
     mol_cls_name  => molecule%atom_cls_name
     mol_res_name  => molecule%residue_name
+    coord         => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
     nwater    => domain%num_water
+    box_size  => domain%system_size
 
     sollist   => enefunc%table%solute_list_inv
     angle     => enefunc%num_angle
@@ -662,6 +727,7 @@ contains
     theta     => enefunc%angle_theta_min
     ubforce   => enefunc%urey_force_const
     ubrmin    => enefunc%urey_rmin
+    angl_pbc  => enefunc%angle_pbc
 
     nangl     = molecule%num_angles
     nangl_p   = par%num_angles
@@ -684,10 +750,10 @@ contains
             ri1(1:3) /= 'SOL' .and. ri3(1:3) /= 'TIP' .and. &
             ri3(1:3) /= 'WAT' .and. ri3(1:3) /= 'SOL') then
 
-          list(1:3) = sollist(list(1:3)) + ioffset
+          lists(1:3) = sollist(list(1:3)) + ioffset
 
-          icel1 = id_g2l(1,list(1))
-          icel2 = id_g2l(1,list(3))
+          icel1 = id_g2l(1,lists(1))
+          icel2 = id_g2l(1,lists(3))
 
           if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -704,7 +770,7 @@ contains
                      ci3 == par%angl_atom_cls(1,j))) then
   
                   angle(icel_local) = angle(icel_local) + 1
-                  alist(1:3,angle(icel_local),icel_local) = list(1:3)
+                  alist(1:3,angle(icel_local),icel_local) = lists(1:3)
     
                   force(angle(icel_local),icel_local)   = &
                        par%angl_force_const(j)
@@ -714,6 +780,18 @@ contains
                        par%angl_ub_force_const(j)
                   ubrmin(angle(icel_local),icel_local)  = &
                      par%angl_ub_rmin(j)
+                  cwork(1:3,1) = coord(1:3,list(1))
+                  cwork(1:3,2) = coord(1:3,list(2))
+                  cwork(1:3,3) = coord(1:3,list(3))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(3,angle(icel_local),icel_local) = pbc_int
                   exit
   
                 end if
@@ -748,7 +826,32 @@ contains
         end if
 
       end do
+
     end do
+
+    ! angle from water
+    !
+    if (enefunc%table%num_water > 0) then
+
+      list(1:3) = enefunc%table%water_list(1:3,1)
+      ci1 = molecule%atom_cls_name(list(2))
+      ci2 = molecule%atom_cls_name(list(1))
+      ci3 = molecule%atom_cls_name(list(3))
+      do j = 1, nangl_p
+        if ((ci1 .eq. par%angl_atom_cls(1, j) .and.  &
+             ci2 .eq. par%angl_atom_cls(2, j) .and.  &
+             ci3 .eq. par%angl_atom_cls(3, j)) .or.  &
+            (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
+             ci2 .eq. par%angl_atom_cls(2, j) .and.  &
+             ci1 .eq. par%angl_atom_cls(1, j))) then
+          enefunc%table%water_angle_calc = .true.
+          enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
+          enefunc%table%HOH_force = par%angl_force_const(j)
+          exit
+        end if
+      end do
+
+    end if
 
     found = 0
     do i = 1, ncel
@@ -801,12 +904,14 @@ contains
     integer                  :: i, j, icel_local
     integer                  :: icel1, icel2
     integer                  :: nangl, nangl_p, found
-    integer                  :: list(3)
+    integer                  :: list(3), lists(3), pbc_int
     character(6)             :: ci1, ci2, ci3
     character(6)             :: ri1, ri2, ri3
     integer                  :: nangl_per_water
+    real(wp)                 :: cwork(3,3), dij(3)
 
-    real(wp),        pointer :: force(:,:), theta(:,:)
+    real(wp),        pointer :: force(:,:), theta(:,:), coord(:,:)
+    real(wp),        pointer :: box_size(:)
     real(wp),        pointer :: ubforce(:,:), ubrmin(:,:)
     integer,         pointer :: angle(:), alist(:,:,:), num_water
     integer,         pointer :: ncel
@@ -815,17 +920,19 @@ contains
     integer,         pointer :: mol_angl_list(:,:), mol_no(:)
     integer,         pointer :: nwater(:), sollist(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
-
+    integer(1),      pointer :: angl_pbc(:,:,:)
 
     mol_angl_list  => molecule%angl_list
     mol_no         => molecule%molecule_no
     mol_cls_name   => molecule%atom_cls_name
     mol_res_name   => molecule%residue_name
+    coord         => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
     nwater    => domain%num_water
+    box_size  => domain%system_size
 
     angle     => enefunc%num_angle
     alist     => enefunc%angle_list
@@ -835,6 +942,7 @@ contains
     ubrmin    => enefunc%urey_rmin
     num_water => enefunc%table%num_water
     sollist   => enefunc%table%solute_list_inv
+    angl_pbc  => enefunc%angle_pbc
 
     nangl     = molecule%num_angles
     nangl_p   = par%num_angles
@@ -883,10 +991,10 @@ contains
             ri2(1:4) /= constraints%water_model .and. &
             ri3(1:4) /= constraints%water_model) then
 
-          list(1:3) = sollist(list(1:3)) + ioffset
+          lists(1:3) = sollist(list(1:3)) + ioffset
 
-          icel1 = id_g2l(1,list(1))
-          icel2 = id_g2l(1,list(3))
+          icel1 = id_g2l(1,lists(1))
+          icel2 = id_g2l(1,lists(3))
 
           if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -903,7 +1011,7 @@ contains
                      ci3 == par%angl_atom_cls(1,j))) then
   
                   angle(icel_local) = angle(icel_local) + 1
-                  alist(1:3,angle(icel_local),icel_local) = list(1:3)
+                  alist(1:3,angle(icel_local),icel_local) = lists(1:3)
   
                   force(angle(icel_local),icel_local)   = &
                        par%angl_force_const(j)
@@ -913,6 +1021,18 @@ contains
                        par%angl_ub_force_const(j)
                   ubrmin(angle(icel_local),icel_local)  = &
                        par%angl_ub_rmin(j)
+                  cwork(1:3,1) = coord(1:3,list(1))
+                  cwork(1:3,2) = coord(1:3,list(2))
+                  cwork(1:3,3) = coord(1:3,list(3))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(3,angle(icel_local),icel_local) = pbc_int
                   exit
   
                 end if
@@ -981,10 +1101,12 @@ contains
     integer                   :: i, j, icel_local
     integer                   :: icel1, icel2
     integer                   :: found, nw_found
-    integer                   :: list(4)
+    integer                   :: list(4), lists(4), pbc_int
     character(6)              :: ci1, ci2, ci3, ci4
+    real(wp)                  :: cwork(3,4), dij(3)
 
-    real(wp),         pointer :: force(:,:), phase(:,:)
+    real(wp),         pointer :: force(:,:), phase(:,:), coord(:,:)
+    real(wp),         pointer :: box_size(:)
     integer,          pointer :: dihedral(:), dlist(:,:,:), period(:,:)
     integer,          pointer :: ncel, sollist(:)
     integer(int2),    pointer :: cell_pair(:,:)
@@ -993,14 +1115,16 @@ contains
     integer,          pointer :: notation
     integer,          pointer :: mol_dihe_list(:,:)
     character(6),     pointer :: mol_cls_name(:)
-
+    integer(1),       pointer :: dihe_pbc(:,:,:)
 
     mol_dihe_list  => molecule%dihe_list
     mol_cls_name   => molecule%atom_cls_name
+    coord          => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     dihedral  => enefunc%num_dihedral
     dlist     => enefunc%dihe_list
@@ -1009,6 +1133,7 @@ contains
     phase     => enefunc%dihe_phase
     notation  => enefunc%notation_14types
     sollist   => enefunc%table%solute_list_inv
+    dihe_pbc  => enefunc%dihe_pbc
     notation = 100
 
     ndihe     = molecule%num_dihedrals
@@ -1045,10 +1170,10 @@ contains
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
 
-        list(1:4) = sollist(list(1:4)) + ioffset
+        lists(1:4) = sollist(list(1:4)) + ioffset
 
-        icel1 = id_g2l(1,list(1))
-        icel2 = id_g2l(1,list(4))
+        icel1 = id_g2l(1,lists(1))
+        icel2 = id_g2l(1,lists(4))
 
         if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1070,7 +1195,7 @@ contains
   
                   nw_found = nw_found + 1
                   dihedral(icel_local) = dihedral(icel_local) + 1
-                  dlist(1:4,dihedral(icel_local),icel_local) = list(1:4)
+                  dlist(1:4,dihedral(icel_local),icel_local) = lists(1:4)
   
                   force (dihedral(icel_local),icel_local) = &
                        par%dihe_force_const(j)
@@ -1078,7 +1203,21 @@ contains
                        par%dihe_periodicity(j)
                   phase (dihedral(icel_local),icel_local) = &
                        par%dihe_phase(j) * RAD
-  
+ 
+                  cwork(1:3,1) = coord(1:3,list(1))
+                  cwork(1:3,2) = coord(1:3,list(2))
+                  cwork(1:3,3) = coord(1:3,list(3))
+                  cwork(1:3,4) = coord(1:3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(1,dihedral(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(2,dihedral(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(3,dihedral(icel_local),icel_local) = pbc_int
+ 
                   if (period(dihedral(icel_local),icel_local) >  &
                   enefunc%notation_14types) &
                   call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
@@ -1096,7 +1235,7 @@ contains
                        (ci3 == par%dihe_atom_cls(2,j)))) then
   
                     dihedral(icel_local) = dihedral(icel_local) + 1
-                    dlist(1:4,dihedral(icel_local),icel_local) = list(1:4)
+                    dlist(1:4,dihedral(icel_local),icel_local) = lists(1:4)
   
                     force (dihedral(icel_local),icel_local) = &
                          par%dihe_force_const(j)
@@ -1104,6 +1243,20 @@ contains
                          par%dihe_periodicity(j)
                     phase (dihedral(icel_local),icel_local) = &
                          par%dihe_phase(j) * RAD
+                    cwork(1:3,1) = coord(1:3,list(1))
+                    cwork(1:3,2) = coord(1:3,list(2))
+                    cwork(1:3,3) = coord(1:3,list(3))
+                    cwork(1:3,4) = coord(1:3,list(4))
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    dihe_pbc(1,dihedral(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    dihe_pbc(2,dihedral(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    dihe_pbc(3,dihedral(icel_local),icel_local) = pbc_int
+
                     if (period(dihedral(icel_local),icel_local) >  &
                     enefunc%notation_14types) &
                     call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
@@ -1171,10 +1324,12 @@ contains
     integer                   :: i, j, icel_local
     integer                   :: icel1, icel2
     integer                   :: found
-    integer                   :: list(4)
+    integer                   :: list(4), lists(4), pbc_int
     character(6)              :: ci1, ci2, ci3, ci4
+    real(wp)                  :: cwork(3,4), dij(3)
 
-    real(wp),         pointer :: force(:,:), phase(:,:)
+    real(wp),         pointer :: force(:,:), phase(:,:), coord(:,:)
+    real(wp),         pointer :: box_size(:)
     integer,          pointer :: improper(:), ilist(:,:,:)
     integer,          pointer :: ncel, sollist(:)
     integer(int2),    pointer :: cell_pair(:,:)
@@ -1183,20 +1338,23 @@ contains
     logical,      allocatable :: no_wild(:)
     integer,          pointer :: mol_impr_list(:,:)
     character(6),     pointer :: mol_cls_name(:)
-
+    integer(1),       pointer :: impr_pbc(:,:,:)
 
     mol_impr_list  => molecule%impr_list
     mol_cls_name   => molecule%atom_cls_name
+    coord          => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     improper  => enefunc%num_improper
     ilist     => enefunc%impr_list
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
     sollist   => enefunc%table%solute_list_inv
+    impr_pbc  => enefunc%impr_pbc
 
     nimpr     = molecule%num_impropers
     nimpr_p   = par%num_impropers
@@ -1262,10 +1420,10 @@ contains
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
 
-        list(1:4) = sollist(list(1:4)) + ioffset
+        lists(1:4) = sollist(list(1:4)) + ioffset
 
-        icel1 = id_g2l(1,list(1))
-        icel2 = id_g2l(1,list(4))
+        icel1 = id_g2l(1,lists(1))
+        icel2 = id_g2l(1,lists(4))
 
         if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1287,13 +1445,27 @@ contains
                      (ci4 == par%impr_atom_cls(1,j)))) then
   
                   improper(icel_local) = improper(icel_local) + 1
-                  ilist(1:4,improper(icel_local),icel_local) = list(1:4)
+                  ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
   
                   force(improper(icel_local),icel_local) = &
                        par%impr_force_const(j)
                   phase(improper(icel_local),icel_local) = &
                        par%impr_phase(j) * RAD
                   no_wild(i) = .true.
+                  cwork(1:3,1) = coord(1:3,list(1))
+                  cwork(1:3,2) = coord(1:3,list(2))
+                  cwork(1:3,3) = coord(1:3,list(3))
+                  cwork(1:3,4) = coord(1:3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(1,improper(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(2,improper(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(3,improper(icel_local),icel_local) = pbc_int
+
                   exit
   
                 end if
@@ -1313,13 +1485,27 @@ contains
                        (ci4 == par%impr_atom_cls(2,j)))) then
   
                     improper(icel_local) = improper(icel_local) + 1
-                    ilist(1:4,improper(icel_local),icel_local) = list(1:4)
+                    ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
   
                     force(improper(icel_local),icel_local) = &
                          par%impr_force_const(j)
                     phase(improper(icel_local),icel_local) = &
                          par%impr_phase(j) * RAD
                     no_wild(i) = .true.
+                    cwork(1:3,1) = coord(1:3,list(1))
+                    cwork(1:3,2) = coord(1:3,list(2))
+                    cwork(1:3,3) = coord(1:3,list(3))
+                    cwork(1:3,4) = coord(1:3,list(4))
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(1,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(2,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(3,improper(icel_local),icel_local) = pbc_int
+
                     exit
   
                   end if
@@ -1338,13 +1524,27 @@ contains
                        (ci4 == par%impr_atom_cls(3,j)))) then
   
                     improper(icel_local) = improper(icel_local) + 1
-                    ilist(1:4,improper(icel_local),icel_local) = list(1:4)
+                    ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
   
                     force(improper(icel_local),icel_local) = &
                            par%impr_force_const(j)
                     phase(improper(icel_local),icel_local) = &
                          par%impr_phase(j) * RAD
                     no_wild(i) = .true.
+                    cwork(1:3,1) = coord(1:3,list(1))
+                    cwork(1:3,2) = coord(1:3,list(2))
+                    cwork(1:3,3) = coord(1:3,list(3))
+                    cwork(1:3,4) = coord(1:3,list(4))
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(1,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(2,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(3,improper(icel_local),icel_local) = pbc_int
+
                     exit
   
                   end if
@@ -1363,13 +1563,27 @@ contains
                        (ci4 == par%impr_atom_cls(1,j)))) then
       
                     improper(icel_local) = improper(icel_local) + 1
-                    ilist(1:4,improper(icel_local),icel_local) = list(1:4)
+                    ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
   
                     force(improper(icel_local),icel_local) = &
                          par%impr_force_const(j)
                     phase(improper(icel_local),icel_local) = &
                          par%impr_phase(j) * RAD
                     no_wild(i) = .true.
+                    cwork(1:3,1) = coord(1:3,list(1))
+                    cwork(1:3,2) = coord(1:3,list(2))
+                    cwork(1:3,3) = coord(1:3,list(3))
+                    cwork(1:3,4) = coord(1:3,list(4))
+                    dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(1,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(2,improper(icel_local),icel_local) = pbc_int
+                    dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                    call check_pbc(box_size, dij, pbc_int)
+                    impr_pbc(3,improper(icel_local),icel_local) = pbc_int
+
                     exit
   
                   end if
@@ -1450,29 +1664,33 @@ contains
 
     ! local variables
     integer                  :: dupl, ioffset
-    integer                  :: i, j, k, l, ityp
+    integer                  :: i, j, k, l, ityp, pbc_int
     integer                  :: ncmap_p, found, ngrid0
-    integer                  :: list(8), icel1, icel2, icel_local
+    integer                  :: list(8), lists(8), icel1, icel2, icel_local
     integer                  :: flag_cmap_type, alloc_stat, dealloc_stat
     character(6)             :: ci1, ci2, ci3, ci4, ci5, ci6, ci7, ci8
     logical                  :: periodic
+    real(wp)                 :: cwork(3,8), dij(3)
 
     integer,         pointer :: ncel, sollist(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_cmap_list(:,:)
     character(6),    pointer :: mol_cls_name(:)
+    real(wp),        pointer :: coord(:,:), box_size(:)
 
     real(wp),    allocatable :: c_ij(:,:,:,:) ! cmap coeffs
 
-    mol_cmap_list   => molecule%cmap_list
-    mol_cls_name    => molecule%atom_cls_name
+    mol_cmap_list => molecule%cmap_list
+    mol_cls_name  => molecule%atom_cls_name
+    coord         => molecule%atom_coord
 
-    ncel            => domain%num_cell_local
-    cell_pair       => domain%cell_pair
-    id_g2l          => domain%id_g2l
+    ncel          => domain%num_cell_local
+    cell_pair     => domain%cell_pair
+    id_g2l        => domain%id_g2l
+    box_size      => domain%system_size
 
-    sollist         => enefunc%table%solute_list_inv
+    sollist       => enefunc%table%solute_list_inv
 
     ! If 'periodic' is .true.,
     !   then cubic spline with periodic (in dihedral-angle space) boundary
@@ -1533,9 +1751,10 @@ contains
       do i = 1, molecule%num_cmaps
 
         list(1:8) = mol_cmap_list(1:8,i) 
+        lists(1:8) = sollist(list(1:8))+ioffset
 
-        icel1 = id_g2l(1,sollist(list(1))+ioffset)
-        icel2 = id_g2l(1,sollist(list(8))+ioffset)
+        icel1 = id_g2l(1,lists(1))
+        icel2 = id_g2l(1,lists(8))
 
         if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -1568,10 +1787,37 @@ contains
                   ci8 == par%cmap_atom_cls(8, j)   ) then
   
                 enefunc%num_cmap(icel_local) = enefunc%num_cmap(icel_local) + 1
-                enefunc%cmap_list(1:8,enefunc%num_cmap(icel_local),icel_local) &
-                     = sollist(mol_cmap_list(1:8,i))+ioffset
-                enefunc%cmap_type(enefunc%num_cmap(icel_local),icel_local) = j
+                k = enefunc%num_cmap(icel_local)
+                enefunc%cmap_list(1:8,k,icel_local) = lists(1:8)
+                enefunc%cmap_type(k,icel_local) = j
                 flag_cmap_type = j
+                cwork(1:3,1) = coord(1:3,list(1))
+                cwork(1:3,2) = coord(1:3,list(2))
+                cwork(1:3,3) = coord(1:3,list(3))
+                cwork(1:3,4) = coord(1:3,list(4))
+                cwork(1:3,5) = coord(1:3,list(5))
+                cwork(1:3,6) = coord(1:3,list(6))
+                cwork(1:3,7) = coord(1:3,list(7))
+                cwork(1:3,8) = coord(1:3,list(8))
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(1,k,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(2,k,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(3,k,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,5) - cwork(1:3,6)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(4,k,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,6) - cwork(1:3,7)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(5,k,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,8) - cwork(1:3,7)
+                call check_pbc(box_size, dij, pbc_int)
+                enefunc%cmap_pbc(6,k,icel_local) = pbc_int
+
                 exit
   
               end if
@@ -1818,13 +2064,22 @@ contains
         domain%atom_cls_no(ix,i) = atmcls_map_g2l(domain%atom_cls_no(ix,i))
       end do
     end do
-    domain%water%atom_cls_no(1:3)  &
-      = atmcls_map_g2l(domain%water%atom_cls_no(1:3))
-    enefunc%table%atom_cls_no_O = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
-    enefunc%table%atom_cls_no_H = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
-    if (constraints%tip4) then
-      domain%water%atom_cls_no(4) = atmcls_map_g2l(domain%water%atom_cls_no(4))
-      enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
+
+    if (enefunc%table%num_water > 0) then
+
+      domain%water%atom_cls_no(1:3)  &
+                             = atmcls_map_g2l(domain%water%atom_cls_no(1:3))
+      enefunc%table%atom_cls_no_O    &
+                             = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
+      enefunc%table%atom_cls_no_H    &
+                             = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
+      if (constraints%tip4) then
+        domain%water%atom_cls_no(4)  &
+                             = atmcls_map_g2l(domain%water%atom_cls_no(4))
+        enefunc%table%atom_cls_no_D  &
+                             = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
+      end if
+
     end if
 
     deallocate(nonb_atom_cls,  &
@@ -1891,7 +2146,7 @@ contains
     integer                  :: fkind
     integer                  :: list1, list2
 
-    integer,         pointer :: natom(:), nwater(:)
+    integer,         pointer :: natom(:), nwater(:), start_atom(:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: water_list(:,:,:)
     integer,         pointer :: nbond(:), bond_list(:,:,:)
@@ -1912,6 +2167,7 @@ contains
 
     natom           => domain%num_atom
     nwater          => domain%num_water
+    start_atom      => domain%start_atom
     water_list      => domain%water_list
     id_g2l          => domain%id_g2l
     cell_pair       => domain%cell_pairlist1
@@ -1952,12 +2208,15 @@ contains
     num_nonb_excl(1:ncell_local)  = 0
     num_nb14_calc(1:ncell_local)  = 0
 
-#ifdef PKTIMER
-    call timer_sta(214)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("count_nonb_excl_omp_loop1",214,0)
-#endif
-#endif
+    domain%start_atom(1:ncell) = 0
+    ij = natom(1)
+    !ocl nosimd
+    !dir$ novector
+    do i = 2, ncell
+      domain%start_atom(i) = domain%start_atom(i-1) + natom(i-1)
+      ij = ij + natom(i)
+    end do
+    domain%num_atom_domain = ij
 
     ! exclude 1-2 interaction
     !
@@ -2004,10 +2263,16 @@ contains
             i2    = id_g2l(2,list2)
             num_excl = num_nonb_excl(i) + 1
             num_nonb_excl(i) = num_excl
-            nonb_excl_list(1,num_excl,i) = icel1
-            nonb_excl_list(2,num_excl,i) = icel2
-            nonb_excl_list(3,num_excl,i) = i1
-            nonb_excl_list(4,num_excl,i) = i2
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+              nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+            else
+              nonb_excl_list(1,num_excl,i) = icel1
+              nonb_excl_list(2,num_excl,i) = icel2
+              nonb_excl_list(3,num_excl,i) = i1
+              nonb_excl_list(4,num_excl,i) = i2
+            end if
 
             if (icel1 /= icel2) then
 
@@ -2049,10 +2314,16 @@ contains
                 i2 = HGr_bond_list(ih+1,j,ic,icel)
                 num_excl = num_nonb_excl(icel) + 1
                 num_nonb_excl(icel) = num_excl
-                nonb_excl_list(1,num_excl,icel) = icel
-                nonb_excl_list(2,num_excl,icel) = icel
-                nonb_excl_list(3,num_excl,icel) = i1
-                nonb_excl_list(4,num_excl,icel) = i2
+                if (domain%nonbond_kernel == NBK_Intel  .or. &
+                    domain%nonbond_kernel == NBK_Fugaku) then
+                  nonb_excl_list(1,num_excl,icel) = start_atom(icel) + i1
+                  nonb_excl_list(2,num_excl,icel) = start_atom(icel) + i2
+                else
+                  nonb_excl_list(1,num_excl,icel) = icel
+                  nonb_excl_list(2,num_excl,icel) = icel
+                  nonb_excl_list(3,num_excl,icel) = i1
+                  nonb_excl_list(4,num_excl,icel) = i2
+                end if
                 exclusion_mask1(i2,i1,icel) = 0
               end do
 
@@ -2085,10 +2356,16 @@ contains
               do i2 = i1+1, 4
                 num_excl = num_nonb_excl(icel) + 1
                 num_nonb_excl(icel) = num_excl
-                nonb_excl_list(1,num_excl,icel) = icel
-                nonb_excl_list(2,num_excl,icel) = icel
-                nonb_excl_list(3,num_excl,icel) = index(i1)
-                nonb_excl_list(4,num_excl,icel) = index(i2)
+                if (domain%nonbond_kernel == NBK_Intel  .or. &
+                    domain%nonbond_kernel == NBK_Fugaku) then
+                  nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(i1)
+                  nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(i2)
+                else
+                  nonb_excl_list(1,num_excl,icel) = icel
+                  nonb_excl_list(2,num_excl,icel) = icel
+                  nonb_excl_list(3,num_excl,icel) = index(i1)
+                  nonb_excl_list(4,num_excl,icel) = index(i2)
+                end if
                 exclusion_mask1(index(i2),index(i1),icel) = 0
               end do
             end do
@@ -2111,22 +2388,42 @@ contains
           
             num_excl = num_nonb_excl(icel) + 1
             num_nonb_excl(icel) = num_excl
-            nonb_excl_list(1,num_excl,icel) = icel
-            nonb_excl_list(2,num_excl,icel) = icel
-            nonb_excl_list(3,num_excl,icel) = index(1)
-            nonb_excl_list(4,num_excl,icel) = index(2)
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(1)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(2)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(1)
+              nonb_excl_list(4,num_excl,icel) = index(2)
+            end if
+
             num_excl = num_nonb_excl(icel) + 1
             num_nonb_excl(icel) = num_excl
-            nonb_excl_list(1,num_excl,icel) = icel
-            nonb_excl_list(2,num_excl,icel) = icel
-            nonb_excl_list(3,num_excl,icel) = index(1)
-            nonb_excl_list(4,num_excl,icel) = index(3)
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(1)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(3)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(1)
+              nonb_excl_list(4,num_excl,icel) = index(3)
+            end if
+
             num_excl = num_nonb_excl(icel) + 1
             num_nonb_excl(icel) = num_excl
-            nonb_excl_list(1,num_excl,icel) = icel
-            nonb_excl_list(2,num_excl,icel) = icel
-            nonb_excl_list(3,num_excl,icel) = index(2)
-            nonb_excl_list(4,num_excl,icel) = index(3)
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(2)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(3)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(2)
+              nonb_excl_list(4,num_excl,icel) = index(3)
+            end if
 
             exclusion_mask1(index(2),index(1),icel) = 0
             exclusion_mask1(index(3),index(1),icel) = 0
@@ -2164,10 +2461,16 @@ contains
                       abs(charge(i2,icel2)) > EPS) then
                     num_excl = num_nonb_excl(i) + 1
                     num_nonb_excl(i) = num_excl
-                    nonb_excl_list(1,num_excl,i) = icel1
-                    nonb_excl_list(2,num_excl,i) = icel2
-                    nonb_excl_list(3,num_excl,i) = i1
-                    nonb_excl_list(4,num_excl,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
                   end if
                   exclusion_mask(i2,i1,icel) = 0
                 end if
@@ -2179,10 +2482,16 @@ contains
                       abs(charge(i2,icel2)) > EPS) then
                     num_excl = num_nonb_excl(i) + 1
                     num_nonb_excl(i) = num_excl
-                    nonb_excl_list(1,num_excl,i) = icel1
-                    nonb_excl_list(2,num_excl,i) = icel2
-                    nonb_excl_list(3,num_excl,i) = i1
-                    nonb_excl_list(4,num_excl,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
                   end if
                   exclusion_mask(i1,i2,icel) = 0
                 end if
@@ -2198,10 +2507,16 @@ contains
                       abs(charge(i2,icel2)) > EPS) then
                     num_excl = num_nonb_excl(i) + 1
                     num_nonb_excl(i) = num_excl
-                    nonb_excl_list(1,num_excl,i) = icel1
-                    nonb_excl_list(2,num_excl,i) = icel2
-                    nonb_excl_list(3,num_excl,i) = i1
-                    nonb_excl_list(4,num_excl,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
                   end if
                   exclusion_mask1(i2,i1,i) = 0
                 end if
@@ -2213,10 +2528,16 @@ contains
                       abs(charge(i2,icel2)) > EPS) then
                     num_excl = num_nonb_excl(i) + 1
                     num_nonb_excl(i) = num_excl
-                    nonb_excl_list(1,num_excl,i) = icel1
-                    nonb_excl_list(2,num_excl,i) = icel2
-                    nonb_excl_list(3,num_excl,i) = i1
-                    nonb_excl_list(4,num_excl,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
                   end if
                   exclusion_mask1(i1,i2,i) = 0
                 end if
@@ -2232,13 +2553,6 @@ contains
     end if
 
     !$omp end parallel
-
-#ifdef PKTIMER
-    call timer_end(214)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("count_nonb_excl_omp_loop1",214,0)
-#endif
-#endif
 
     ! count 1-4 interaction
     !
@@ -2284,12 +2598,19 @@ contains
                   if (exclusion_mask(i2,i1,icel)==1) then
                     num_nb14 = num_nb14_calc(i) + 1
                     num_nb14_calc(i) = num_nb14
-                    nb14_calc_list(1,num_nb14,i) = icel1
-                    nb14_calc_list(2,num_nb14,i) = icel2
-                    nb14_calc_list(3,num_nb14,i) = i1
-                    nb14_calc_list(4,num_nb14,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                      nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                    else
+                      nb14_calc_list(1,num_nb14,i) = icel1
+                      nb14_calc_list(2,num_nb14,i) = icel2
+                      nb14_calc_list(3,num_nb14,i) = i1
+                      nb14_calc_list(4,num_nb14,i) = i2
+                    end if
                     sc_calc_list(num_nb14,i)     = &
-                      int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      int(enefunc%dihe_periodicity(ix,i) &
+                          / enefunc%notation_14types)
                     exclusion_mask(i2,i1,icel) = 0
                   end if
 
@@ -2298,12 +2619,19 @@ contains
                   if (exclusion_mask(i1,i2,icel)==1) then
                     num_nb14 = num_nb14_calc(i) + 1
                     num_nb14_calc(i) = num_nb14
-                    nb14_calc_list(1,num_nb14,i) = icel1
-                    nb14_calc_list(2,num_nb14,i) = icel2
-                    nb14_calc_list(3,num_nb14,i) = i1
-                    nb14_calc_list(4,num_nb14,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                      nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                    else
+                      nb14_calc_list(1,num_nb14,i) = icel1
+                      nb14_calc_list(2,num_nb14,i) = icel2
+                      nb14_calc_list(3,num_nb14,i) = i1
+                      nb14_calc_list(4,num_nb14,i) = i2
+                    end if
                     sc_calc_list(num_nb14,i)     = &
-                      int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      int(enefunc%dihe_periodicity(ix,i) &
+                          / enefunc%notation_14types)
                     exclusion_mask(i1,i2,icel) = 0
                   end if
 
@@ -2316,12 +2644,19 @@ contains
                   if (exclusion_mask1(i2,i1,i)==1) then
                     num_nb14 = num_nb14_calc(i) + 1
                     num_nb14_calc(i) = num_nb14
-                    nb14_calc_list(1,num_nb14,i) = icel1
-                    nb14_calc_list(2,num_nb14,i) = icel2
-                    nb14_calc_list(3,num_nb14,i) = i1
-                    nb14_calc_list(4,num_nb14,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                      nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                    else
+                      nb14_calc_list(1,num_nb14,i) = icel1
+                      nb14_calc_list(2,num_nb14,i) = icel2
+                      nb14_calc_list(3,num_nb14,i) = i1
+                      nb14_calc_list(4,num_nb14,i) = i2
+                    end if
                     sc_calc_list(num_nb14,i)     = &
-                      int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      int(enefunc%dihe_periodicity(ix,i) &
+                          / enefunc%notation_14types)
                     exclusion_mask1(i2,i1,i) = 0
                   end if
 
@@ -2330,12 +2665,19 @@ contains
                   if (exclusion_mask1(i1,i2,i)==1) then
                     num_nb14 = num_nb14_calc(i) + 1
                     num_nb14_calc(i) = num_nb14
-                    nb14_calc_list(1,num_nb14,i) = icel1
-                    nb14_calc_list(2,num_nb14,i) = icel2
-                    nb14_calc_list(3,num_nb14,i) = i1
-                    nb14_calc_list(4,num_nb14,i) = i2
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                      nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                    else
+                      nb14_calc_list(1,num_nb14,i) = icel1
+                      nb14_calc_list(2,num_nb14,i) = icel2
+                      nb14_calc_list(3,num_nb14,i) = i1
+                      nb14_calc_list(4,num_nb14,i) = i2
+                    end if
                     sc_calc_list(num_nb14,i)     = &
-                      int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      int(enefunc%dihe_periodicity(ix,i) &
+                          / enefunc%notation_14types)
                     exclusion_mask1(i1,i2,i) = 0
                   end if
 
@@ -2409,5 +2751,49 @@ contains
     return
 
   end subroutine count_nonb_excl
+
+  subroutine check_pbc(box_size, dij, pbc_int)
+
+    real(wp),         intent(in)    :: box_size(:)
+    real(wp),         intent(inout) :: dij(:)
+    integer,          intent(inout) :: pbc_int
+
+    integer                  :: i, j, k
+
+    if (dij(1) > box_size(1)/2.0_dp) then
+      i = 0
+      dij(1) = dij(1) - box_size(1)
+    else if (dij(1) < -box_size(1)/2.0_dp) then
+      i = 2
+      dij(1) = dij(1) + box_size(1)
+    else
+      i = 1
+    end if
+
+    if (dij(2) > box_size(2)/2.0_dp) then
+      j = 0
+      dij(2) = dij(2) - box_size(2)
+    else if (dij(2) < -box_size(2)/2.0_dp) then
+      j = 2
+      dij(2) = dij(2) + box_size(2)
+    else
+      j = 1
+    end if
+
+    if (dij(3) > box_size(3)/2.0_dp) then
+      k = 0
+      dij(3) = dij(3) - box_size(3)
+    else if (dij(3) < -box_size(3)/2.0_dp) then
+      k = 2
+      dij(3) = dij(3) + box_size(3)
+    else
+      k = 1
+    end if
+
+    pbc_int = i + j*3 + k*9
+
+    return
+
+  end subroutine check_pbc
 
 end module sp_enefunc_charmm_mod

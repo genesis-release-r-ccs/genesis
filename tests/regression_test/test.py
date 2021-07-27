@@ -39,9 +39,9 @@ def getdirs(path):
 
 ###### initialization
 
-#tolerance = 1.0e-8 # relative energy difference (diff/abs(e))
-#tolerance_fujitsu = 5.0e-6 # relative energy difference (diff/abs(e))
-#tolerance_gpu_respa = 5.0e-6 # relative energy difference (diff/abs(e))
+tolerance = 1.0e-8 # relative energy difference (diff/abs(e))
+tolerance_fujitsu = 5.0e-6 # relative energy difference (diff/abs(e))
+tolerance_gpu_respa = 5.0e-6 # relative energy difference (diff/abs(e))
 tolerance_single = 1.0e-4 # relative energy difference (diff/abs(e))
 tolerance = 1.0e-4 # relative energy difference (diff/abs(e))
 virial_ratio = 2.0e2

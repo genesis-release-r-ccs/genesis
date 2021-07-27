@@ -62,7 +62,7 @@ module sp_pairlist_str_mod
   ! parameters for allocatable variables
   integer,        public, parameter :: PairListGeneric     = 1
   integer,        public, parameter :: PairListGPU         = 2
-  integer,        public, parameter :: PairListKNL         = 3
+  integer,        public, parameter :: PairListIntelGeneric= 3
   integer,        public, parameter :: PairListFugaku      = 4
 
   ! variables for maximum numbers in one cell
@@ -162,14 +162,14 @@ contains
       end if
 
       if (.not. allocated(pairlist%num_nb15_calc1))           &
-        allocate(pairlist%num_nb15_calc  (MaxAtom, var_size), &
+        allocate(pairlist%num_nb15_calc  (MaxAtom*var_size,1),&
                  pairlist%nb15_calc_list_fugaku               &
-                      (MaxNb15_Fugaku, MaxAtom, var_size),    &
+                      (MaxNb15_Fugaku, MaxAtom*var_size,1),   &
                  stat = alloc_stat)
 
-      pairlist%num_nb15_calc  (1:MaxAtom, 1:var_size)   = 0
+      pairlist%num_nb15_calc  (1:MaxAtom*var_size,1)   = 0
 
-    case (PairListKNL)
+    case (PairListIntelGeneric)
 
       if (allocated(pairlist%nb15_cell)) then
         deallocate(pairlist%nb15_cell,       &
@@ -291,7 +291,7 @@ contains
                    stat = dealloc_stat)
       end if
 
-    case (PairListKNL)
+    case (PairListIntelGeneric)
 
       if (allocated(pairlist%nb15_cell)) then
         deallocate(pairlist%nb15_cell,  &
@@ -331,7 +331,7 @@ contains
 
 
     call dealloc_pairlist(pairlist, PairListGeneric)
-    call dealloc_pairlist(pairlist, PairListKNL)
+    call dealloc_pairlist(pairlist, PairListIntelGeneric)
     call dealloc_pairlist(pairlist, PairListGPU)
 
     return

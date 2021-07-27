@@ -49,7 +49,7 @@ contains
 
     ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
-    type(s_domain),   target, intent(in)    :: domain
+    type(s_domain),   target, intent(inout) :: domain
     type(s_pairlist), target, intent(inout) :: pairlist
 
 #ifdef USE_GPU
@@ -67,13 +67,14 @@ contains
     logical                   :: nb15_calc
     integer                   :: id, omp_get_thread_num
 
-    real(wip),        pointer :: coord(:,:,:)
+    real(wip),        pointer :: coord(:,:,:), charge(:,:)
     real(wp),         pointer :: system_size(:)
     real(wp),         pointer :: trans1(:,:,:), trans2(:,:,:)
     integer(1),       pointer :: cell_move(:,:,:)
-    integer,          pointer :: natom(:)
+    integer,          pointer :: natom(:), start_atom(:)
     integer(int2),    pointer :: cell_pairlist1(:,:)
     integer,          pointer :: ncell, nboundary
+    integer,          pointer :: atmcls(:,:), atmcls_pbc(:)
     real(wp)                  :: dij1, dij2, dij3
     real(wp)                  :: rtmp1, rtmp2, rtmp3
 
@@ -108,12 +109,16 @@ contains
     ncell               => domain%num_cell_local
     nboundary           => domain%num_cell_boundary
     natom               => domain%num_atom
+    start_atom          => domain%start_atom
     coord               => domain%coord
     trans1              => domain%trans_vec
     trans2              => domain%translated
     cell_move           => domain%cell_move
     system_size         => domain%system_size
     cell_pairlist1      => domain%cell_pairlist1
+    atmcls_pbc          => domain%atmcls_pbc
+    charge              => domain%charge
+    atmcls              => domain%atom_cls_no
     exclusion_mask      => enefunc%exclusion_mask
     exclusion_mask1     => enefunc%exclusion_mask1
 
@@ -137,6 +142,28 @@ contains
         max_natom = natom(i)
       end if
     end do
+    start_atom(1:ncell+nboundary) = 0
+    ij = natom(1)
+    do i = 2, ncell+nboundary
+      start_atom(i) = start_atom(i-1) + natom(i-1)
+      ij = ij + natom(i)
+    end do
+    domain%num_atom_domain = ij
+
+    !$omp parallel do default(shared) &
+    !$omp private(i, ix, k)
+    do i = 1, ncell+nboundary
+      k = start_atom(i)
+      do ix = 1, natom(i)
+        trans2(     k+ix,1,1) = coord(1,ix,i) + trans1(1,ix,i)
+        trans2(  ij+k+ix,1,1) = coord(2,ix,i) + trans1(2,ix,i)
+        trans2(2*ij+k+ix,1,1) = coord(3,ix,i) + trans1(3,ix,i)
+        trans2(3*ij+k+ix,1,1) = charge(ix,i) 
+        atmcls_pbc(k+ix)      = atmcls(ix,i)
+      end do
+    end do
+    !$omp end parallel do
+
 #ifdef DEBUG
     if (max_natom > MaxAtom) then
       call error_msg('Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
@@ -176,11 +203,11 @@ contains
     ncell_max = ret_shape(1)
 
     call gpu_launch_build_pairlist( &
-         trans2, coord, trans1, cell_move, natom, univ_cell_pairlist1, &
-         univ_ix_list, univ_iy_list, univ_ix_natom, univ_iy_natom,     &
-         MaxAtom, ncell_local, ncell_bound, ncell_max, univ_maxcell,   &
-         univ_maxcell1, pairdist2, cutoffdist2,                        &
-         system_size(1), system_size(2), system_size(3) )
+         trans2, atmcls_pbc, cell_move, natom, start_atom,                   &
+         univ_cell_pairlist1, univ_ix_list, univ_iy_list, univ_ix_natom,     &
+         univ_iy_natom, domain%num_atom_domain, MaxAtom, ncell_local,        &
+         ncell_bound, ncell_max, univ_maxcell, univ_maxcell1, pairdist2,     &
+         cutoffdist2, system_size(1), system_size(2), system_size(3))
 
     ! Initialization of mask on CPU
     !
@@ -297,7 +324,7 @@ contains
 
     ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
-    type(s_domain),   target, intent(in)    :: domain
+    type(s_domain),   target, intent(inout) :: domain
     type(s_pairlist), target, intent(inout) :: pairlist
 
 

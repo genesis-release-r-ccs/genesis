@@ -23,6 +23,7 @@ module sp_energy_mod
   use sp_energy_dihedrals_mod
   use sp_energy_angles_mod
   use sp_energy_bonds_mod
+  use sp_energy_efield_mod
   use sp_energy_gamd_mod
   use sp_boundary_str_mod
   use sp_pairlist_str_mod
@@ -72,7 +73,7 @@ module sp_energy_mod
     integer               :: pme_ngrid_y      = FakeDefault
     integer               :: pme_ngrid_z      = FakeDefault
     integer               :: pme_nspline      = 4
-    real(wp)              :: pme_max_spacing  = 1.4_wp
+    real(wp)              :: pme_max_spacing  = 1.2_wp
     integer               :: pme_scheme       = FFT_AutoSelect
     integer               :: nonbond_kernel   = NBK_AutoSelect
     logical               :: table            = .true.
@@ -86,6 +87,9 @@ module sp_energy_mod
     logical               :: use_knl_generic  = .false.
     real(wp)              :: scale_pairlist_fugaku  = 1.0_wp
     real(wp)              :: scale_pairlist_generic = 1.0_wp
+    real(wp)              :: efield_x = 0.0_wp
+    real(wp)              :: efield_y = 0.0_wp
+    real(wp)              :: efield_z = 0.0_wp
   end type s_ene_info
 
   ! varibles
@@ -164,6 +168,9 @@ contains
         end if
         write(MsgOut,'(A)') '# nonbond_kernel  = Generic # Nonbond kernel type &
                               &[autoselect, generic, kgeneric, intelknl]'
+        write(MsgOut,'(A)') '# efield_x     # external electric field in x direction (V/anstrom)'
+        write(MsgOut,'(A)') '# efield_y     # external electric field in y direction (V/anstrom)'
+        write(MsgOut,'(A)') '# efield_z     # external electric field in z direction (V/anstrom)'
         write(MsgOut,'(A)') ' '
 
       end select
@@ -272,6 +279,12 @@ contains
                                ene_info%scale_pairlist_fugaku)
     call read_ctrlfile_real   (handle, Section, 'scale_pairlist_generic', &
                                ene_info%scale_pairlist_generic)
+    call read_ctrlfile_real   (handle, Section, 'efield_x', &
+                               ene_info%efield_x)
+    call read_ctrlfile_real   (handle, Section, 'efield_y', &
+                               ene_info%efield_y)
+    call read_ctrlfile_real   (handle, Section, 'efield_z', &
+                               ene_info%efield_z)
     if (ene_info%contact_check) then
       ene_info%nonb_limiter=.true.
     endif
@@ -285,7 +298,6 @@ contains
                                ene_info%nonbond_kernel, NBK_Types)
 
     call end_ctrlfile_section(handle)
-
 
     ! check table
     !
@@ -317,24 +329,6 @@ contains
          'Read_Ctrl_Energy> "pme_nspline" should be even (in the current version)')
 
     end if
-
-#ifdef USE_GPU
-    if (ene_info%nonbond_kernel == NBK_AutoSelect) then
-
-      if (ene_info%electrostatic == ElectrostaticCUTOFF) &
-        call error_msg( &
-           'Read_Ctrl_Energy> Electrostatic cutoff is not available with GPU')
-
-      if (ene_info%nonb_limiter) &
-        call error_msg( &
-           'Read_Ctrl_Energy> nonb_limiter is not available with GPU')
-
-      if (ene_info%structure_check /= StructureCheckNone) &
-        call error_msg( &
-           'Read_Ctrl_Energy> structure_check is not available with GPU')
-
-    end if
-#endif
 
     call tolower(pme_alpha)
     if (trim(pme_alpha) == "auto") then
@@ -491,21 +485,12 @@ contains
 
     ! Decision of VDW types
     !
-
     if (ene_info%switchdist /= ene_info%cutoffdist) then
       ene_info%vdw = VDWSwitch
       if (ene_info%vdw_shift) ene_info%vdw = VDWShift
       if (ene_info%vdw_force_switch) ene_info%vdw = VDWFSW
     else
       ene_info%vdw = VDWCutoff
-      if (ene_info%vdw_force_switch .and. &
-          ene_info%electrostatic == ElectrostaticCutoff) then
-        ene_info%vdw = VDWFSW
-        if (main_rank) &
-          write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy>  WARNING: vdw_force_swith is used for shift '//&
-          'function for electrostatic energy in cutoff'
-      endif
     end if
     if (ene_info%dispersion_pme) ene_info%vdw = VDWPME   
     
@@ -698,40 +683,30 @@ contains
 
     call timer(TimerEnergy, TimerOn)
 
-
     select case (enefunc%forcefield)
 
     case (ForcefieldCHARMM)
 
-#ifdef FJ_TIMER_2
-      call timer_sta(351)
-#endif
-
       if (enefunc%gamd_use) then 
 
         call compute_energy_charmm( &
-                              domain, enefunc, pairlist, boundary, coord, &
-                              npt, reduce, .true., merge_force,           &
-                              nonb_limiter,                               &
-                              energy, atmcls_pbc,                         &
-                              coord_pbc, force, force_long,               &
-                              force_omp, force_pbc, virial_cell, virial,  &
-                              virial_long, virial_ext)
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, .true., merge_force,            &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
       else
 
         call compute_energy_charmm( &
-                              domain, enefunc, pairlist, boundary, coord, &
-                              npt, reduce, nonb_ene, merge_force,         &
-                              nonb_limiter,                               &
-                              energy, atmcls_pbc,                         &
-                              coord_pbc, force, force_long,               &
-                              force_omp, force_pbc, virial_cell, virial,  &
-                              virial_long, virial_ext)
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, nonb_ene, merge_force,          &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
-#ifdef FJ_TIMER_2
-      call timer_end(351)
-#endif
       end if
 
     case (ForcefieldAMBER)
@@ -739,37 +714,34 @@ contains
       if (enefunc%gamd_use) then 
 
         call compute_energy_amber( &
-                              domain, enefunc, pairlist, boundary, coord, &
-                              npt, reduce, .true., merge_force,           &
-                              nonb_limiter,                               &
-                              energy, atmcls_pbc,                         &
-                              coord_pbc, force, force_long,               &
-                              force_omp, force_pbc, virial_cell, virial,  &
-                              virial_long, virial_ext)
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, .true., merge_force,            &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
       else
 
         call compute_energy_amber( &
-                              domain, enefunc, pairlist, boundary, coord, &
-                              npt, reduce, nonb_ene, merge_force,         &
-                              nonb_limiter,                               &
-                              energy, atmcls_pbc,                         &
-                              coord_pbc, force, force_long,               &
-                              force_omp, force_pbc, virial_cell, virial,  &
-                              virial_long, virial_ext)
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, nonb_ene, merge_force,          &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
       end if
 
     case (ForcefieldGROAMBER)
 
       call compute_energy_gro_amber( &
-                              domain, enefunc, pairlist, boundary, coord, &
-                              npt, reduce, nonb_ene, merge_force,         &
-                              nonb_limiter,                               &
-                              energy, atmcls_pbc,                         &
-                              coord_pbc, force, force_long,               &
-                              force_omp, force_pbc, virial_cell, virial,  &
-                              virial_long, virial_ext)
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, nonb_ene, merge_force,          &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
 
     case (ForcefieldGROMARTINI)
@@ -864,29 +836,25 @@ contains
 
       call compute_energy_charmm_short( &
                               domain, enefunc, pairlist, boundary, coord, &
-                              npt, energy, atmcls_pbc,                    &
-                              coord_pbc, force, force_omp, force_pbc,     &
+                              npt, energy, atmcls_pbc, coord_pbc,         &
+                              force, force_omp, force_pbc,                &
                               virial_cell, virial, virial_ext)
 
     case (ForcefieldAMBER)
 
       call compute_energy_amber_short( &
                               domain, enefunc, pairlist, boundary, coord, &
-                              npt, energy, atmcls_pbc,                    &
-                              coord_pbc, force, force_omp, force_pbc,     &
+                              npt, energy, atmcls_pbc, coord_pbc,         &
+                              force, force_omp, force_pbc,                &
                               virial_cell, virial, virial_ext)
 
     case (ForcefieldGROAMBER)
 
       call compute_energy_gro_amber_short( &
                               domain, enefunc, pairlist, boundary, coord, &
-                              npt, energy, atmcls_pbc,                    &
-                              coord_pbc, force, force_omp, force_pbc,     &
+                              npt, energy, atmcls_pbc, coord_pbc,         &
+                              force, force_omp, force_pbc,                &
                               virial_cell, virial, virial_ext)
-
-    case (ForcefieldGROMARTINI)
-
-      !TODO
 
     end select
 
@@ -999,11 +967,11 @@ contains
   !! @param[in]    reduce        : flag for reduce energy and virial
   !! @param[in]    nonb_ene      : flag for calculate nonbonded energy
   !! @param[inout] energy        : energy information
-  !! @param[input] coord_pbc     : !TODO
+  !! @param[input] coord_pbc     : pbc coordinate
   !! @param[inout] force         : forces of target systems
   !! @param[inout] force_omp     : temprary forces of target systems
-  !! @param[inout] force_pbc     : !TODO
-  !! @param[inout] virial_cell   : !TODO
+  !! @param[inout] force_pbc     : pbc force
+  !! @param[inout] virial_cell   : virial correction from pbc
   !! @param[inout] virial        : virial term of target systems
   !! @param[inout] virial_ext    : extern virial term of target systems
   !
@@ -1011,10 +979,9 @@ contains
 
   subroutine compute_energy_charmm(domain, enefunc, pairlist, boundary, coord, &
                                    npt, reduce, nonb_ene, merge_force,         &
-                                   nonb_limiter,                               &
-                                   energy, atmcls_pbc,                         &
-                                   coord_pbc, force, force_long,               &
-                                   force_omp, force_pbc, virial_cell, virial,  &
+                                   nonb_limiter, energy, atmcls_pbc,           &
+                                   coord_pbc, force, force_long, force_omp,    &
+                                   force_pbc, virial_cell, virial,             &
                                    virial_long, virial_ext)
 
     ! formal arguments
@@ -1052,9 +1019,10 @@ contains
     real(dp)                 :: eimprop_omp(nthread)
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, k, ix, ic, jc
+    integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -1064,24 +1032,10 @@ contains
 
     ! initialization of energy and forces
     !
-#ifdef FJ_TIMER_2
-    call timer_sta(361)
-#endif
-
     call init_energy(energy)
 
-#ifdef FJ_TIMER_2
-    call timer_end(361)
-    call timer_sta(362)
-#endif
-#ifdef PKTIMER
-    call timer_sta(204)
-#endif
-
-    !$omp parallel private(i,ix,id)
-    !$omp do 
+    !$omp parallel do private(i,ix,id)
     do i = 1, ncell
-!ocl nosimd
       do ix = 1, natom
         force     (1,ix,i) = 0.0_wip
         force     (2,ix,i) = 0.0_wip
@@ -1091,7 +1045,7 @@ contains
         force_long(3,ix,i) = 0.0_wip
       end do
     end do
-    !$omp end parallel
+    !$omp end parallel do
 
     virial     (1,1)  = 0.0_dp 
     virial     (2,2)  = 0.0_dp 
@@ -1103,40 +1057,33 @@ contains
     virial_ext (2,2)  = 0.0_dp 
     virial_ext (3,3)  = 0.0_dp 
 
-#ifdef PKTIMER
-    call timer_end(204)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_end(362)
-#endif
-
     if (domain%nonbond_kernel /= NBK_GPU) then
 
-#ifdef PKTIMER
-    call timer_sta(205)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_sta(363)
-#endif
-
-      if (domain%nonbond_kernel == NBK_Fugaku) then
+      if (domain%nonbond_kernel == NBK_Fugaku .or. &
+          domain%nonbond_kernel == NBK_Intel) then
 
         !$omp parallel do private(k, id, i, ix)
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
           end do
-!ocl nosimd
-          do i = 1, MaxAtom*ncell
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else if (domain%nonbond_kernel == NBK_Intel) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
         !$omp end parallel do
   
@@ -1151,29 +1098,19 @@ contains
 
       end if
 
-#ifdef PKTIMER
-    call timer_end(205)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_end(363)
-#endif
-
     else
       !$omp parallel do
       do id = 1, nthread
         force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
       end do
       !$omp end parallel do
+      k = domain%num_atom_domain
       !$omp parallel do
-      do i = 1, ncell
-        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      do i = 1, 3*k
+        force_pbc(i,1,1,1) = 0.0_wp
       end do
       !$omp end parallel do
     end if
-
-#ifdef FJ_TIMER_2
-    call timer_sta(364)
-#endif
 
     virial_omp    (1:3,1:3,1:nthread) = 0.0_dp 
     virial_ext_omp(1:3,1:3,1:nthread) = 0.0_dp 
@@ -1187,10 +1124,7 @@ contains
     elec_omp      (1:nthread) = 0.0_dp 
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
-
-#ifdef FJ_TIMER_2
-    call timer_end(364)
-#endif
+    efield_omp    (1:nthread) = 0.0_dp
 
     ! setup for emfit
     !
@@ -1206,34 +1140,20 @@ contains
 
       if (enefunc%pme_use) then
 
-#ifdef FJ_TIMER_2
-        call timer_sta(365)
-#endif
+        call compute_energy_nonbond_pme( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
 
-        call compute_energy_nonbond_pme(domain, enefunc, pairlist, boundary,   &
-                                        npt, nonb_ene, nonb_limiter,           &
-                                        atmcls_pbc, coord_pbc,                 &
-                                        force_long, force_omp, force_pbc,      &
-                                        virial_cell, virial_omp,               &
-                                        elec_omp, evdw_omp)
-
-#ifdef FJ_TIMER_2
-        call timer_end(365)
-#endif
-
-!       if (.not.merge_force) then
-!         do id = 1, nthread
-!           do k = 1, 3
-!             virial_long(k,k) = virial_long(k,k) + virial_omp(k,k,id)
-!           end do
-!         end do
-!         virial_omp(1:3,1:3,1:nthread) = 0.0_dp 
-!       end if
 
       else
 
-        call compute_energy_nonbond_cutoff(domain, enefunc, pairlist, &
-                              nonb_ene, force_pbc, virial_omp, &
+        call compute_energy_nonbond_cutoff( &
+                              domain, enefunc, pairlist,             &
+                              nonb_ene, force_pbc, virial_omp,       &
                               elec_omp, evdw_omp)
       end if
 
@@ -1248,31 +1168,15 @@ contains
 
       ! bond energy
       !
-
-#ifdef FJ_TIMER_2
-      call timer_sta(366)
-#endif
-
-      call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
-
-#ifdef FJ_TIMER_2
-      call timer_end(366)
-#endif
+      call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
       ! angle energy
       !
-
-#ifdef FJ_TIMER_2
-      call timer_sta(367)
-#endif
-
-      call compute_energy_angle(domain, enefunc, coord, &
-                                force_omp, eangle_omp, eurey_omp)
-
-#ifdef FJ_TIMER_2
-      call timer_end(367)
-#endif
+      call compute_energy_angle( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
       ! dihedral and cmap energies
       !
@@ -1280,204 +1184,131 @@ contains
 
         if (enefunc%gamd%boost_dih .or. enefunc%gamd%boost_dual) then
 
-          call compute_energy_dihed_gamd(domain, enefunc, npt, nonb_ene, &
-            coord, force_omp, edihed_omp, ecmap_omp, eimprop_omp)
+          call compute_energy_dihed_gamd( &
+                              domain, enefunc, npt, nonb_ene, coord, &
+                              force_omp, virial_omp,                 &
+                              edihed_omp, ecmap_omp, eimprop_omp)
 
         else
 
           if (enefunc%local_restraint) then
-            call compute_energy_dihed_localres(domain, enefunc, coord, &
-                                  force_omp, edihed_omp)
+            call compute_energy_dihed_localres( &
+                              domain, enefunc, coord,                &
+                              force_omp, virial_omp, edihed_omp)
           else
-            call compute_energy_dihed(domain, enefunc, coord, &
-                                  force_omp, edihed_omp)
+            call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
           end if
       
-          call compute_energy_cmap(domain, enefunc, coord, &
-                                  force_omp, ecmap_omp)
+          call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
 
         end if
 
       else
 
         if (enefunc%local_restraint) then
-#ifdef FJ_TIMER_2
-      call timer_sta(368)
-#endif
-          call compute_energy_dihed_localres(domain, enefunc, coord, &
-                                force_omp, edihed_omp)
-#ifdef FJ_TIMER_2
-      call timer_end(368)
-#endif
+          call compute_energy_dihed_localres( &
+                              domain, enefunc, coord,                &
+                              force_omp, virial_omp, edihed_omp)
         else
-#ifdef FJ_TIMER_2
-      call timer_sta(369)
-#endif
-          call compute_energy_dihed(domain, enefunc, coord, &
-                                force_omp, edihed_omp)
-#ifdef FJ_TIMER_2
-      call timer_end(369)
-#endif
+          call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
         end if
     
-#ifdef FJ_TIMER_2
-        call timer_sta(371)
-#endif
-        call compute_energy_cmap(domain, enefunc, coord, &
-                                force_omp, ecmap_omp)
-#ifdef FJ_TIMER_2
-        call timer_end(371)
-#endif
+        call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
 
       end if
 
       ! improper energy
       !
-
-#ifdef FJ_TIMER_2
-      call timer_sta(370)
-#endif
-
-      call compute_energy_improp(domain, enefunc, coord, &
-                              force_omp, eimprop_omp)
-
-#ifdef FJ_TIMER_2
-      call timer_end(370)
-#endif
+      call compute_energy_improp( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
 
       ! 1-4 interaction 
       !
       if (enefunc%pme_use) then
 
-#ifdef FJ_TIMER_2
-        call timer_sta(374)
-#endif
+        call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
 
-!       if (nonb_ene) then
-          call compute_energy_nonbond14_table_linear(domain, enefunc, &
-                              force_omp, elec_omp, evdw_omp)
-!       else
-!         call compute_force_nonbond14_table_linear(domain, enefunc, &
-!                             force_omp, elec_omp, evdw_omp)
-!       end if
-#ifdef FJ_TIMER_2
-        call timer_end(374)
-#endif
-#ifdef FJ_TIMER_2
-        call timer_sta(375)
-#endif
-
-!       if (nonb_ene) then      
-          call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                                    elec_omp)
-!       else
-!         call pme_bond_corr_linear_force(domain, enefunc, force_omp,     &
-!                                   evdw_omp, elec_omp)
-!       end if
-
-#ifdef FJ_TIMER_2
-      call timer_end(375)
-#endif
+        call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
 
       end if
 
-
-      ! virial for bonding
+      ! external electric field
       !
-      if (nonb_ene .or. npt) then
-
-#ifdef FJ_TIMER_2
-      call timer_sta(376)
-#endif
-
-        !$omp parallel default(shared) private(id, i, ix, k)
-#ifdef OMP
-        id = omp_get_thread_num()
-#else
-        id = 0
-#endif
-        do i = 1, ncell
-          do ix = 1, domain%num_atom(i)
-            virial_omp(1,1,id+1) = virial_omp(1,1,id+1) &
-                                 + coord(1,ix,i)*force_omp(1,ix,i,id+1)
-            virial_omp(2,2,id+1) = virial_omp(2,2,id+1) &
-                                 + coord(2,ix,i)*force_omp(2,ix,i,id+1)
-            virial_omp(3,3,id+1) = virial_omp(3,3,id+1) &
-                                 + coord(3,ix,i)*force_omp(3,ix,i,id+1)
-          end do
-        end do
-        !$omp end parallel
-
-#ifdef FJ_TIMER_2
-      call timer_end(376)
-#endif
-
-      end if
+      if (enefunc%use_efield) &
+        call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
       ! restraint energy
       !
-
-#ifdef FJ_TIMER_2
-        call timer_sta(377)
-#endif
-
       if (enefunc%restraint) then
 
         if (enefunc%gamd_use) then
 
           if (enefunc%gamd%boost_pot .or. enefunc%gamd%boost_dual) then
 
-            call compute_energy_restraints_gamd(.true., .true., domain, &
-                            boundary, enefunc, coord, &
-                            force_omp, virial_omp, virial_ext_omp,           &
-                            eposi_omp, energy)
+            call compute_energy_restraints_gamd( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp, eposi_omp, energy)
 
           else
 
-            call compute_energy_restraints(.true., .true., domain, boundary, &
-                        enefunc, coord, &
-                        force_omp, virial_omp, virial_ext_omp,           &
-                        eposi_omp, energy%restraint_rmsd,                &
-                        energy%rmsd, energy%restraint_distance,          &
-                        energy%restraint_emfit, energy%emcorr)
+            call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
+                              energy%restraint_emfit, energy%emcorr)
 
           end if
 
         else
 
-          call compute_energy_restraints(.true., .true., domain, boundary, &
-                        enefunc, coord, &
-                        force_omp, virial_omp, virial_ext_omp,           &
-                        eposi_omp, energy%restraint_rmsd,                &
-                        energy%rmsd, energy%restraint_distance,          &
-                        energy%restraint_emfit, energy%emcorr)
+          call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
+                              energy%restraint_emfit, energy%emcorr)
 
         end if
 
       end if
 
-#ifdef FJ_TIMER_2
-        call timer_end(377)
-#endif
-
     end if
-
 
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(     &
-           pairlist, npt,      &
-           nonb_ene, coord_pbc, force_omp,      &
-           force_pbc, virial_cell, virial_omp,  &
-           elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, npt, nonb_ene, coord_pbc,    &
+                              force_omp, force_pbc, virial_cell,     &
+                              virial_omp, elec_omp, evdw_omp)
     end if
-
 
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
-        domain%nonbond_kernel /= NBK_Fugaku) then
+        domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel) then
 
       !$omp parallel default(shared) private(id, i, ix, ic, jc, trans, k)
 #ifdef OMP
@@ -1509,13 +1340,14 @@ contains
 
       else
 
-        do i = id+1, ncell, nthread
-          do k = 1, 3
-            do ix = 1, domain%num_atom(i)
-              virial_omp(k,k,id+1) = virial_omp(k,k,id+1) + &
-                   coord_pbc(ix,k,i)*force_pbc(ix,k,i,1)
-            end do
-          end do
+        k = domain%num_atom_domain
+        do i = id+1, domain%num_atom_domain, nthread
+          virial_omp(1,1,id+1) = virial_omp(1,1,id+1) &
+                               + coord_pbc(i,1,1)*force_pbc(i,1,1,1)
+          virial_omp(2,2,id+1) = virial_omp(2,2,id+1) &
+                               + coord_pbc(k+i,1,1)*force_pbc(k+i,1,1,1)
+          virial_omp(3,3,id+1) = virial_omp(3,3,id+1) &
+                               + coord_pbc(2*k+i,1,1)*force_pbc(2*k+i,1,1,1)
         end do
       end if
       !$omp end parallel
@@ -1524,14 +1356,9 @@ contains
 
     ! gather values
     !
-#ifdef PKTIMER
-    call timer_sta(206)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_sta(380)
-#endif
-
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
       !$omp parallel default(shared) private(id, i, ix, force_tmp, ic) 
 #ifdef OMP
@@ -1545,27 +1372,48 @@ contains
           force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
           if (merge_force) force_tmp(1:3) = force_tmp(1:3) + force_long(1:3,ix,i)
 
-          if (domain%nonbond_kernel /= NBK_GPU) then
-
-            do ic = 2, nthread
-              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-              force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
-            end do
-
-          else
-
-            do ic = 2, nthread
-              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-            end do
-
-          end if
+          do ic = 2, nthread
+            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+            force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
+          end do
 
           force(1:3,ix,i) = force_tmp(1:3)
         end do
       end do
       !$omp end parallel
 
-    else
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          if (merge_force) force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+          if (merge_force) force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+          if (merge_force) force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
 
       !$omp parallel default(shared) private(id, i, ix, k, ic, force_tmp) 
 #ifdef OMP
@@ -1574,7 +1422,7 @@ contains
       id = 0
 #endif
       do i = id+1, ncell, nthread
-        k = (i-1)*MaxAtom
+        k = domain%start_atom(i)
         do ix = 1, domain%num_atom(i)
           force_tmp(1) = force_omp(1,ix,i,1)
           force_tmp(2) = force_omp(2,ix,i,1)
@@ -1603,13 +1451,45 @@ contains
       end do
       !$omp end parallel 
 
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      !$omp parallel default(shared) private(id, i, ix, k, ic, force_tmp)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,1)
+          if (merge_force) then
+            force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+            force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+            force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          end if
+
+!ocl nosimd
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
     end if
-#ifdef PKTIMER
-    call timer_end(206)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_end(380)
-#endif
 
     do id = 1, nthread
 
@@ -1629,20 +1509,22 @@ contains
       energy%electrostatic      = energy%electrostatic      + elec_omp(id)
       energy%van_der_waals      = energy%van_der_waals      + evdw_omp(id)
       energy%restraint_position = energy%restraint_position + eposi_omp(id)
+      energy%electric_field     = energy%electric_field     + efield_omp(id)
 
     end do
 
 
     ! total energy
     !
-    energy%total = energy%bond          &
-                 + energy%angle         &
-                 + energy%urey_bradley  &
-                 + energy%dihedral      &
-                 + energy%cmap          &
-                 + energy%improper      &
-                 + energy%electrostatic &
-                 + energy%van_der_waals &
+    energy%total = energy%bond            &
+                 + energy%angle           &
+                 + energy%urey_bradley    &
+                 + energy%dihedral        &
+                 + energy%cmap            &
+                 + energy%improper        &
+                 + energy%electrostatic   &
+                 + energy%van_der_waals   &
+                 + energy%electric_field  &
                  + energy%restraint_position
 
     ! GaMD boost and statistics
@@ -1651,15 +1533,8 @@ contains
       call boost_gamd(domain, enefunc, energy, force, virial)
     end if
 
-#ifdef FJ_TIMER_2
-    call timer_sta(384)
-#endif
     if (reduce) &
       call reduce_ene(energy, virial)
-
-#ifdef FJ_TIMER_2
-    call timer_end(384)
-#endif
 
     return
 
@@ -1679,11 +1554,11 @@ contains
   !! @param[in]    reduce        : flag for reduce energy and virial
   !! @param[in]    nonb_ene      : flag for calculate nonbonded energy
   !! @param[inout] energy        : energy information
-  !! @param[input] coord_pbc     : !TODO
+  !! @param[input] coord_pbc     : pbc coordinate
   !! @param[inout] force         : forces of target systems
   !! @param[inout] force_omp     : temprary forces of target systems
-  !! @param[inout] force_pbc     : !TODO
-  !! @param[inout] virial_cell   : !TODO
+  !! @param[inout] force_pbc     : pbc force
+  !! @param[inout] virial_cell   : virial correction due to pbc
   !! @param[inout] virial        : virial term of target systems
   !! @param[inout] virial_ext    : extern virial term of target systems
   !
@@ -1691,8 +1566,7 @@ contains
 
   subroutine compute_energy_amber(domain, enefunc, pairlist, boundary, coord,  &
                                   npt, reduce, nonb_ene, merge_force,          &
-                                  nonb_limiter,                                &
-                                  energy, atmcls_pbc,                          &
+                                  nonb_limiter, energy, atmcls_pbc,            &
                                   coord_pbc, force, force_long,                &
                                   force_omp, force_pbc, virial_cell, virial,   &
                                   virial_long, virial_ext)
@@ -1732,9 +1606,10 @@ contains
     real(dp)                 :: eimprop_omp(nthread)
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic, jc, k
+    integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -1749,7 +1624,6 @@ contains
     !$omp parallel private(i,ix,id)
     !$omp do
     do i = 1, ncell
-!ocl nosimd
       do ix = 1, natom
         force     (1,ix,i) = 0.0_wip
         force     (2,ix,i) = 0.0_wip
@@ -1773,24 +1647,31 @@ contains
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
-      if (domain%nonbond_kernel == NBK_Fugaku) then
+      if (domain%nonbond_kernel == NBK_Fugaku .or. &
+          domain%nonbond_kernel == NBK_Intel) then
 
         !$omp parallel do private(k, id, i, ix)
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
-          end do
-!ocl nosimd
-          do i = 1, MaxAtom*ncell
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          end do 
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
         !$omp end parallel do
 
@@ -1812,8 +1693,8 @@ contains
       end do
       !$omp end parallel do
       !$omp parallel do
-      do i = 1, ncell
-        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      do i = 1, 3*domain%num_atom_domain
+        force_pbc(i,1,1,1) = 0.0_wp
       end do
       !$omp end parallel do
     end if
@@ -1830,6 +1711,7 @@ contains
     elec_omp      (1:nthread) = 0.0_dp 
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
+    efield_omp    (1:nthread) = 0.0_dp 
 
     ! setup for emfit
     !
@@ -1845,25 +1727,18 @@ contains
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond_pme(domain, enefunc, pairlist, boundary,   &
-                                        npt, nonb_ene, nonb_limiter,           &
-                                        atmcls_pbc, coord_pbc,                 &
-                                        force_long, force_omp, force_pbc,      &
-                                        virial_cell, virial_omp,               &
-                                        elec_omp, evdw_omp)
-        if (.not.merge_force) then
-          do id = 1, nthread
-            do k = 1, 3
-              virial_long(k,k) = virial_long(k,k) + virial_omp(k,k,id)
-            end do
-          end do
-          virial_omp(1:3,1:3,1:nthread) = 0.0_dp 
-        end if
-
+        call compute_energy_nonbond_pme( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
       else
 
-        call compute_energy_nonbond_cutoff(domain, enefunc, pairlist, &
-                              nonb_ene, force_pbc, virial_omp, &
+        call compute_energy_nonbond_cutoff( &
+                              domain, enefunc, pairlist,             &
+                              nonb_ene, force_pbc, virial_omp,       &
                               elec_omp, evdw_omp)
       end if
 
@@ -1877,30 +1752,36 @@ contains
 
       ! bond energy
       !
-      call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
+      call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
       ! angle energy
       !
-      call compute_energy_angle(domain, enefunc, coord, &
-                              force_omp, eangle_omp, eurey_omp)
+      call compute_energy_angle( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
       ! dihedral energy
       !
       if (enefunc%gamd_use) then
         if (enefunc%gamd%boost_dih .or. enefunc%gamd%boost_dual) then
 
-          call compute_energy_dihed_gamd(domain, enefunc, npt, nonb_ene, &
-            coord, force_omp, edihed_omp, ecmap_omp, eimprop_omp)
+          call compute_energy_dihed_gamd( &
+                              domain, enefunc, npt, nonb_ene,        &
+                              coord, force_omp, virial_omp,          &
+                              edihed_omp, ecmap_omp, eimprop_omp)
 
         else
 
           if (enefunc%local_restraint) then
-            call compute_energy_dihed_localres(domain, enefunc, coord, &
-                                  force_omp, edihed_omp)
+            call compute_energy_dihed_localres( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
           else
-            call compute_energy_dihed(domain, enefunc, coord, &
-                                  force_omp, edihed_omp)
+            call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
           end if
 
         end if
@@ -1908,53 +1789,43 @@ contains
       else
 
         if (enefunc%local_restraint) then
-          call compute_energy_dihed_localres(domain, enefunc, coord, &
-                                force_omp, edihed_omp)
+          call compute_energy_dihed_localres( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
         else
-          call compute_energy_dihed(domain, enefunc, coord, &
-                                force_omp, edihed_omp)
+          call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
         end if
 
       end if
 
       ! improper energy
       !
-      call compute_energy_improp_cos(domain, enefunc, coord, &
-                              force_omp, eimprop_omp)
+      call compute_energy_improp_cos( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
 
       ! 1-4 interaction with linear table
       !
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond14_notable(domain, enefunc, force_omp, &
-                                              elec_omp, evdw_omp)
+        call compute_energy_nonbond14_notable( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
 
-        call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                                  elec_omp)
-
-      end if
-
-      ! virial for bonding
-      !
-      if (nonb_ene .or. npt) then
-
-        !$omp parallel default(shared) private(id, i, ix, k)
-#ifdef OMP
-        id = omp_get_thread_num()
-#else
-        id = 0
-#endif
-        do i = 1, ncell
-          do ix = 1, domain%num_atom(i)
-            do k = 1, 3
-              virial_omp(k,k,id+1) = virial_omp(k,k,id+1) + &
-                                     coord(k,ix,i)*force_omp(k,ix,i,id+1)
-            end do
-          end do
-        end do
-        !$omp end parallel
+        call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
 
       end if
+
+      if (enefunc%use_efield) &
+        call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
       ! restraint energy
       !
@@ -1964,30 +1835,33 @@ contains
 
           if (enefunc%gamd%boost_pot .or. enefunc%gamd%boost_dual) then
 
-            call compute_energy_restraints_gamd(.true., .true., domain, &
-                         boundary, enefunc, coord, &
-                         force_omp, virial_omp, virial_ext_omp,           &
-                         eposi_omp, energy)
+            call compute_energy_restraints_gamd( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy)
 
           else
 
-            call compute_energy_restraints(.true., .true., domain, boundary, &
-                          enefunc, coord, &
-                          force_omp, virial_omp, virial_ext_omp,           &
-                          eposi_omp, energy%restraint_rmsd,                &
-                          energy%rmsd, energy%restraint_distance,          &
-                          energy%restraint_emfit, energy%emcorr)
+            call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
+                              energy%restraint_emfit, energy%emcorr)
 
           end if
 
         else
 
-          call compute_energy_restraints(.true., .true., domain, boundary, &
-                          enefunc, coord, &
-                          force_omp, virial_omp, virial_ext_omp,           &
-                          eposi_omp, energy%restraint_rmsd,                &
-                          energy%rmsd, energy%restraint_distance,          &
-                          energy%restraint_emfit, energy%emcorr)
+          call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
+                              energy%restraint_emfit, energy%emcorr)
 
         end if
       end if
@@ -1996,17 +1870,18 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(     &
-           pairlist, npt,      &
-           nonb_ene, coord_pbc, force_omp,      &
-           force_pbc, virial_cell, virial_omp,  &
-           elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, npt, nonb_ene, coord_pbc,    &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
     end if
 
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
-        domain%nonbond_kernel /= NBK_Fugaku) then
+        domain%nonbond_kernel /= NBK_Fugaku .and.       &
+        domain%nonbond_kernel /= NBK_Intel) then
 
       !$omp parallel default(shared) private(id, i, ix, ic, jc, trans, k)
 #ifdef OMP
@@ -2038,14 +1913,16 @@ contains
 
       else
 
-        do i = id+1, ncell, nthread
-          do k = 1, 3
-            do ix = 1, domain%num_atom(i)
-              virial_omp(k,k,id+1) = virial_omp(k,k,id+1) + &
-                   coord_pbc(ix,k,i)*force_pbc(ix,k,i,1)
-            end do
-          end do
+        k = domain%num_atom_domain
+        do i = id+1, domain%num_atom_domain, nthread
+          virial_omp(1,1,id+1) = virial_omp(1,1,id+1) &
+                               + coord_pbc(i,1,1)*force_pbc(i,1,1,1)
+          virial_omp(2,2,id+1) = virial_omp(2,2,id+1) &
+                               + coord_pbc(k+i,1,1)*force_pbc(k+i,1,1,1)
+          virial_omp(3,3,id+1) = virial_omp(3,3,id+1) &
+                               + coord_pbc(2*k+i,1,1)*force_pbc(2*k+i,1,1,1)
         end do
+
       end if
       !$omp end parallel
 
@@ -2053,7 +1930,9 @@ contains
 
     ! gather values
     !
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
       !$omp parallel default(shared) private(id, i, ix, force_tmp, ic) 
 #ifdef OMP
@@ -2066,28 +1945,53 @@ contains
           force_tmp(1:3) = force_omp(1:3,ix,i,1)
           force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
           if (merge_force) force_tmp(1:3) = force_tmp(1:3) + force_long(1:3,ix,i)
-
           if (domain%nonbond_kernel /= NBK_GPU) then
-
             do ic = 2, nthread
               force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
               force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
             end do
-
           else
-
             do ic = 2, nthread
               force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
             end do
-
           end if
-
           force(1:3,ix,i) = force_tmp(1:3)
         end do
       end do
       !$omp end parallel
 
-    else
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          if (merge_force) force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+          if (merge_force) force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+          if (merge_force) force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
 
       !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic) 
 #ifdef OMP
@@ -2096,7 +2000,7 @@ contains
       id = 0
 #endif
       do i = id+1, ncell, nthread
-        k = (i-1)*MaxAtom
+        k = domain%start_atom(i)
         do ix = 1, domain%num_atom(i)
           force_tmp(1) = force_omp(1,ix,i,1)
           force_tmp(2) = force_omp(2,ix,i,1)
@@ -2109,7 +2013,6 @@ contains
             force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
             force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
           end if
-
 !ocl nosimd
           do ic = 2, nthread
             force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
@@ -2119,7 +2022,41 @@ contains
             force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
             force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
           end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
 
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,1)
+          if (merge_force) then
+            force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+            force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+            force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          end if
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,ic)
+          end do
           force(1:3,ix,i) = force_tmp(1:3)
         end do
       end do
@@ -2187,23 +2124,23 @@ contains
   !! @param[in]    reduce      : flag for reduce energy and virial
   !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[input] coord_pbc   : pbc coordinate
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : pbc force
+  !! @param[inout] virial_cell : pbc correction for virial
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_gro_amber(domain, enefunc, pairlist, boundary,     &
-                                   coord, npt, reduce, nonb_ene, merge_force,  &
-                                   nonb_limiter,                               &
-                                   energy, atmcls_pbc, coord_pbc,              &
-                                   force, force_long,                          &
-                                   force_omp, force_pbc, virial_cell, virial,  &
-                                   virial_long, virial_ext)
+                                      coord, npt, reduce, nonb_ene,            &
+                                      merge_force, nonb_limiter,               &
+                                      energy, atmcls_pbc, coord_pbc,           &
+                                      force, force_long, force_omp, force_pbc, &
+                                      virial_cell, virial, virial_long,        &
+                                      virial_ext)
 
     ! formal arguments
     type(s_domain),          intent(in)    :: domain
@@ -2239,9 +2176,10 @@ contains
     real(dp)                 :: edihed_omp  (nthread)
     real(dp)                 :: erbdihed_omp(nthread)
     real(dp)                 :: eposi_omp   (nthread)
+    real(dp)                 :: efield_omp  (nthread)
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic, jc, k
+    integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -2256,7 +2194,6 @@ contains
     !$omp parallel private(i,ix,id)
     !$omp do
     do i = 1, ncell
-!ocl nosimd
       do ix = 1, natom
         force     (1,ix,i) = 0.0_wip
         force     (2,ix,i) = 0.0_wip
@@ -2281,24 +2218,31 @@ contains
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
-      if (domain%nonbond_kernel == NBK_Fugaku) then
+      if (domain%nonbond_kernel == NBK_Fugaku .or. &
+          domain%nonbond_kernel == NBK_Intel) then
 
         !$omp parallel do private(k, id, i, ix)
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
           end do
-!ocl nosimd
-          do i = 1, MaxAtom*ncell
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
         !$omp end parallel do
 
@@ -2320,8 +2264,8 @@ contains
       end do
       !$omp end parallel do
       !$omp parallel do
-      do i = 1, ncell
-        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      do i = 1, 3*domain%num_atom_domain
+        force_pbc(i,1,1,1) = 0.0_wp
       end do
       !$omp end parallel do
     end if
@@ -2336,6 +2280,7 @@ contains
     elec_omp      (1:nthread) = 0.0_dp
     evdw_omp      (1:nthread) = 0.0_dp
     eposi_omp     (1:nthread) = 0.0_dp
+    efield_omp    (1:nthread) = 0.0_dp
 
     ! setup for emfit
     !
@@ -2351,25 +2296,19 @@ contains
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond_pme(domain, enefunc, pairlist, boundary,   &
-                                        npt, nonb_ene, nonb_limiter,           &
-                                        atmcls_pbc, coord_pbc,                 &
-                                        force_long, force_omp, force_pbc,      &
-                                        virial_cell, virial_omp,               &
-                                        elec_omp, evdw_omp)
-        if (.not.merge_force) then
-          do id = 1, nthread
-            do k = 1, 3
-              virial_long(k,k) = virial_long(k,k) + virial_omp(k,k,id)
-            end do
-          end do
-          virial_omp(1:3,1:3,1:nthread) = 0.0_dp 
-        end if
+        call compute_energy_nonbond_pme( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
 
       else
 
-        call compute_energy_nonbond_cutoff(domain, enefunc, pairlist, &
-                              nonb_ene, force_pbc, virial_omp, &
+        call compute_energy_nonbond_cutoff( &
+                              domain, enefunc, pairlist,             &
+                              nonb_ene, force_pbc, virial_omp,       &
                               elec_omp, evdw_omp)
       end if
 
@@ -2383,87 +2322,83 @@ contains
 
       ! bond energy
       !
-      call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
+      call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
       ! angle energy
       !
-      call compute_energy_angle(domain, enefunc, coord, &
-                              force_omp, eangle_omp, eurey_omp)
+      call compute_energy_angle( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
       ! dihedral energy
       !
-      call compute_energy_dihed(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
+      call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
 
       ! Ryckaert-Bellemans dihedral energy
       !
-      call compute_energy_rb_dihed(domain, enefunc, coord, &
-                              force_omp, erbdihed_omp)
+      call compute_energy_rb_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, erbdihed_omp)
 
       if (enefunc%pme_use) then
 
         if (enefunc%vdw_no_switch) then
-          call compute_energy_nonbond14_notable(domain, enefunc, force_omp, &
-                                                elec_omp, evdw_omp)
+          call compute_energy_nonbond14_notable( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
         else
-          call compute_energy_nonbond14_table_linear(domain, enefunc, force_omp, &
-                                                     elec_omp, evdw_omp)
+          call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
         end if
 
-        call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                                  elec_omp)
+        call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
 
       end if
 
-      ! virial for bonding
+      ! external electric field
       !
-
-      if (nonb_ene .or. npt) then
-
-        !$omp parallel default(shared) private(id, i, ix, k)
-#ifdef OMP
-        id = omp_get_thread_num()
-#else
-        id = 0
-#endif
-        do i = 1, ncell
-          do ix = 1, domain%num_atom(i)
-            do k = 1, 3
-              virial_omp(k,k,id+1) = virial_omp(k,k,id+1) + &
-                                     coord(k,ix,i)*force_omp(k,ix,i,id+1)
-            end do
-          end do
-        end do
-        !$omp end parallel
-
-      end if
+      if (enefunc%use_efield) &
+        call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
       ! restraint energy
       !
       if (enefunc%restraint) &
-        call compute_energy_restraints(.true., .true., domain, boundary, &
-                              enefunc, coord,                            &
-                              force_omp, virial_omp, virial_ext_omp,     &
-                              eposi_omp, energy%restraint_rmsd,          &
-                              energy%rmsd, energy%restraint_distance,    &
+        call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
                               energy%restraint_emfit, energy%emcorr)
     end if
 
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(     &
-           pairlist, npt,      &
-           nonb_ene, coord_pbc, force_omp,      &
-           force_pbc, virial_cell, virial_omp,  &
-           elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, npt, nonb_ene, coord_pbc,    &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
     end if
 
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
-        domain%nonbond_kernel /= NBK_Fugaku) then
+        domain%nonbond_kernel /= NBK_Fugaku .and.       &
+        domain%nonbond_kernel /= NBK_Intel) then
 
       !$omp parallel default(shared) private(id, i, ix, ic, jc, trans, k)
 #ifdef OMP
@@ -2495,14 +2430,16 @@ contains
 
       else
 
-        do i = id+1, ncell, nthread
-          do k = 1, 3
-            do ix = 1, domain%num_atom(i)
-              virial_omp(k,k,id+1) = virial_omp(k,k,id+1) + &
-                   coord_pbc(ix,k,i)*force_pbc(ix,k,i,1)
-            end do
-          end do
+        k = domain%num_atom_domain
+        do i = id+1, domain%num_atom_domain, nthread
+          virial_omp(1,1,id+1) = virial_omp(1,1,id+1) &
+                               + coord_pbc(i,1,1)*force_pbc(i,1,1,1)
+          virial_omp(2,2,id+1) = virial_omp(2,2,id+1) &
+                               + coord_pbc(k+i,1,1)*force_pbc(k+i,1,1,1)
+          virial_omp(3,3,id+1) = virial_omp(3,3,id+1) &
+                               + coord_pbc(2*k+i,1,1)*force_pbc(2*k+i,1,1,1)
         end do
+
       end if
       !$omp end parallel
 
@@ -2510,7 +2447,9 @@ contains
 
     ! gather values
     !
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
       !$omp parallel default(shared) private(id, i, ix, force_tmp, ic) 
 #ifdef OMP
@@ -2544,7 +2483,38 @@ contains
       end do
       !$omp end parallel
 
-    else
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          if (merge_force) force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+          if (merge_force) force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+          if (merge_force) force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
 
       !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
 #ifdef OMP
@@ -2553,7 +2523,7 @@ contains
       id = 0
 #endif
       do i = id+1, ncell, nthread
-        k = (i-1)*MaxAtom
+        k = domain%start_atom(i)
         do ix = 1, domain%num_atom(i)
           force_tmp(1) = force_omp(1,ix,i,1)
           force_tmp(2) = force_omp(2,ix,i,1)
@@ -2582,6 +2552,43 @@ contains
       end do
       !$omp end parallel
 
+    else
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,1)
+          if (merge_force) then
+            force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+            force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+            force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+          end if
+
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
     end if
 
     do id = 1, nthread
@@ -2599,18 +2606,20 @@ contains
       energy%dihedral           = energy%dihedral           + edihed_omp(id)
       energy%electrostatic      = energy%electrostatic      + elec_omp(id)
       energy%van_der_waals      = energy%van_der_waals      + evdw_omp(id)
+      energy%electric_field     = energy%electric_field     + efield_omp(id)
       energy%restraint_position = energy%restraint_position + eposi_omp(id)
 
     end do
 
     ! total energy
     !
-    energy%total = energy%bond          &
-                 + energy%angle         &
-                 + energy%urey_bradley  &
-                 + energy%dihedral      &
-                 + energy%electrostatic &
-                 + energy%van_der_waals &
+    energy%total = energy%bond            &
+                 + energy%angle           &
+                 + energy%urey_bradley    &
+                 + energy%dihedral        &
+                 + energy%electrostatic   &
+                 + energy%van_der_waals   &
+                 + energy%electric_field  &
                  + energy%restraint_position
 
     if (reduce) &
@@ -2634,21 +2643,22 @@ contains
   !! @param[in]    reduce      : flag for reduce energy and virial
   !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[input] coord_pbc   : pbc coordinate
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : pbc force
+  !! @param[inout] virial_cell : pbc correction for virial
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_gro_martini(domain, enefunc, pairlist, boundary,   &
-                              coord, npt, reduce, nonb_ene, nonb_limiter,      &
-                              energy, atmcls_pbc, coord_pbc,                   &
-                              force, force_long, force_omp, force_pbc, &
-                              virial_cell, virial, virial_ext)
+                                        coord, npt, reduce, nonb_ene,          &
+                                        nonb_limiter, energy, atmcls_pbc,      &
+                                        coord_pbc, force, force_long,          &
+                                        force_omp, force_pbc,                  &
+                                        virial_cell, virial, virial_ext)
 
     ! formal arguments
     type(s_domain),          intent(in)    :: domain
@@ -2718,49 +2728,44 @@ contains
 
       ! bond energy
       !
-      call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
+      call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
       ! angle energy
       !
-      call compute_energy_angle_g96(domain, enefunc, coord, &
-                              force_omp, eangle_omp)
+      call compute_energy_angle_g96( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp)
 
       ! dihedral energy
       !
-      call compute_energy_dihed(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
+      call compute_energy_dihed(domain, enefunc, coord, force_omp,   &
+                              virial_omp, edihed_omp)
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond14_table_linear(domain, enefunc, force_omp, &
-                              elec_omp, evdw_omp)
+        call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
 
-        call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                                  elec_omp)
+        call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
 
       end if
-
-      ! virial for bonding
-      !
-      do id = 1, nthread
-        do i = 1, ncell
-          do ix = 1, domain%num_atom(i)
-            do k = 1, 3
-              virial(k,k) = virial(k,k) + coord(k,ix,i)*force_omp(k,ix,i,id)
-            end do
-          end do
-        end do
-      end do
 
       ! restraint energy
       !
       if (enefunc%restraint) &
-        call compute_energy_restraints(.true., .true., domain, boundary,    &
-                              enefunc, coord,                               &
-                              force_omp, virial_omp, virial_ext_omp,        &
-                              eposi_omp, energy%restraint_rmsd,             &
-                              energy%rmsd, energy%restraint_distance,       &
+        call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
                               energy%restraint_emfit, energy%emcorr)
     end if
 
@@ -2773,18 +2778,18 @@ contains
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond_pme(domain, enefunc, pairlist, boundary,   &
-                                        npt, nonb_ene, nonb_limiter,           &
-                                        atmcls_pbc,                            &
-                                        coord_pbc,                             &
-                                        force_long, force_omp, force_pbc,      &
-                                        virial_cell, virial_omp,               &
-                                        elec_omp, evdw_omp)
+        call compute_energy_nonbond_pme( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
       else
 
-        call compute_energy_nonbond_cutoff(domain, enefunc, pairlist,       &
-                                           nonb_ene, force_pbc, virial_omp, &
-                                           elec_omp, evdw_omp)
+        call compute_energy_nonbond_cutoff( &
+                              domain, enefunc, pairlist, nonb_ene,   &
+                              force_pbc, virial_omp, elec_omp, evdw_omp)
       end if
 
     case default
@@ -2846,21 +2851,21 @@ contains
   !! @param[in]    coord       : coordinates of target systems
   !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[input] coord_pbc   : pbc coordiante
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : pfb force
+  !! @param[inout] virial_cell : pbc correction for virial
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_charmm_short(domain, enefunc, pairlist, boundary, &
-                                   coord, npt, energy, atmcls_pbc,            &
-                                   coord_pbc,                                 &
-                                   force, force_omp, force_pbc,               &
-                                   virial_cell, virial, virial_ext)
+                                         coord, npt, energy,                  &
+                                         atmcls_pbc, coord_pbc,               &
+                                         force, force_omp, force_pbc,         &
+                                         virial_cell, virial, virial_ext)
 
     ! formal arguments
     type(s_domain),          intent(in)    :: domain
@@ -2891,8 +2896,9 @@ contains
     real(dp)                 :: eimprop_omp(nthread)
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, k, ki, ic
+    integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -2902,22 +2908,7 @@ contains
 
     ! initialization of energy and forces
     !
-#ifdef FJ_TIMER_2
-    call timer_sta(321)
-#endif
-
     call init_energy(energy)
-
-#ifdef FJ_TIMER_2
-    call timer_end(321)
-#endif
-
-#ifdef PKTIMER
-    call timer_sta(201)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_sta(322)
-#endif
 
     virial    (1,1)             = 0.0_dp
     virial    (2,2)             = 0.0_dp
@@ -2930,45 +2921,72 @@ contains
 
     !$omp do 
     do i = 1, ncell
-!ocl nosimd
       do ix = 1, natom
         force(1,ix,i) = 0.0_wip
         force(2,ix,i) = 0.0_wip
         force(3,ix,i) = 0.0_wip
       end do
     end do
+    !$omp end do
 
     if (domain%nonbond_kernel /= NBK_GPU) then
-      if (domain%nonbond_kernel /= NBK_Fugaku) then
-        !$omp master
-        force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-        force_pbc   (1:natom,1:3,1:ncell,1:nthread) = 0.0_wp
-        !$omp end master
+      if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+          domain%nonbond_kernel /= NBK_Intel) then
+        !$omp do
+        do id = 1, nthread
+          do i = 1, ncell
+            do ix = 1, domain%num_atom(i)
+              force_omp(1, ix, i, id) = 0.0_wp
+              force_omp(2, ix, i, id) = 0.0_wp
+              force_omp(3, ix, i, id) = 0.0_wp
+              force_pbc(ix, 1, i, id) = 0.0_wp
+              force_pbc(ix, 2, i, id) = 0.0_wp
+              force_pbc(ix, 3, i, id) = 0.0_wp 
+            end do
+          end do
+        end do
+        !$omp end do
       else
         !$omp do
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
           end do
-!ocl nosimd
-          do i = 1, ncell*MaxAtom
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else if (domain%nonbond_kernel == NBK_Intel) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
       end if
     else
-      !$omp master
-      force_omp   (1:3,1:natom,1:ncell,1:nthread) = 0.0_wp
-      force_pbc   (1:natom,1:3,1:ncell,1) = 0.0_wp
-      !$omp end master
+      !$omp do
+      do id = 1, nthread
+        force_omp(1:3,1:natom,1:ncell,id) = 0.0_wp
+      end do
+      !$omp end do
+
+      k = domain%num_atom_domain
+
+      !$omp do
+      do i = 1, 3*k
+        force_pbc(i,1,1,1) = 0.0_wp
+      end do
+      !$omp end do
     end if
+
     !$omp do
     do id = 1, nthread
       virial_omp    (1,1,id) = 0.0_dp
@@ -2986,19 +3004,14 @@ contains
       elec_omp      (id) = 0.0_dp
       evdw_omp      (id) = 0.0_dp
       eposi_omp     (id) = 0.0_dp
+      efield_omp    (id) = 0.0_dp
     end do
 
     !$omp end parallel
 
-    if (domain%nonbond_kernel /= NBK_Fugaku) &
-    virial_cell   (1:3,1:maxcell) = 0.0_dp
-
-#ifdef PKTIMER
-    call timer_end(201)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_end(322)
-#endif
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel)       &
+      virial_cell   (1:3,1:maxcell) = 0.0_dp
 
     ! nonbonded energy
     !
@@ -3008,20 +3021,11 @@ contains
 
       if (enefunc%pme_use) then
 
-#ifdef FJ_TIMER_2
-    call timer_sta(323)
-#endif
-
-        call compute_energy_nonbond_pme_short(domain, enefunc, pairlist, &
-                                              npt,                       &
-                                              atmcls_pbc,                &
-                                              coord_pbc,                 &
-                                              force_omp, force_pbc,      &
-                                              virial_cell, virial_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(323)
-#endif
+        call compute_energy_nonbond_pme_short( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp)
 
       else
 
@@ -3038,211 +3042,208 @@ contains
 
     ! bond energy
     !
-#ifdef FJ_TIMER_2
-    call timer_sta(324)
-#endif
-
-    call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(324)
-#endif
+    call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
     ! angle energy
     !
-#ifdef FJ_TIMER_2
-    call timer_sta(325)
-#endif
-
-    call compute_energy_angle(domain, enefunc, coord, &
-                              force_omp, eangle_omp, eurey_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(325)
-#endif
+    call compute_energy_angle( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
     ! dihedral energy
     !
     if (enefunc%local_restraint) then
-#ifdef FJ_TIMER_2
-    call timer_sta(326)
-#endif
 
-      call compute_energy_dihed_localres(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(326)
-#endif
+      call compute_energy_dihed_localres( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
 
     else
 
-#ifdef FJ_TIMER_2
-    call timer_sta(327)
-#endif
-
-      call compute_energy_dihed(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(327)
-#endif
+      call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
 
     end if
 
     ! improper energy
     !
-
-#ifdef FJ_TIMER_2
-    call timer_sta(328)
-#endif
-
-    call compute_energy_improp(domain, enefunc, coord, &
-                              force_omp, eimprop_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(328)
-#endif
+    call compute_energy_improp( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
 
     ! cmap energy
     !
-
-#ifdef FJ_TIMER_2
-    call timer_sta(329)
-#endif
-
-    call compute_energy_cmap(domain, enefunc, coord, &
-                              force_omp, ecmap_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(329)
-#endif
+    call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
 
     ! 1-4 interaction with linear table
     !
-#ifdef FJ_TIMER_2
-    call timer_sta(332)
-#endif
+    call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
 
-    call compute_energy_nonbond14_table_linear(domain, enefunc, force_omp,   &
-                             elec_omp, evdw_omp)
-#ifdef FJ_TIMER_2
-    call timer_end(332)
-    call timer_sta(333)
-#endif
+    call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
 
-    call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                              elec_omp)
-
-#ifdef FJ_TIMER_2
-    call timer_end(333)
-#endif
+    if (enefunc%use_efield) &
+      call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
     ! restraint energy
     !
-#ifdef FJ_TIMER_2
-        call timer_sta(334)
-#endif
-
     if (enefunc%restraint) &
-      call compute_energy_restraints(.true., .true., domain, boundary,   &
-                              enefunc, coord,                            &
-                              force_omp, virial_omp, virial_ext_omp,     &
-                              eposi_omp, energy%restraint_rmsd,          &
-                              energy%rmsd, energy%restraint_distance,    &
+      call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             & 
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
                               energy%restraint_emfit, energy%emcorr)
-
-#ifdef FJ_TIMER_2
-        call timer_end(334)
-#endif
 
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(             &
-           pairlist, .false.,                           &
-           .false., coord_pbc, force_omp, force_pbc,    &
-           virial_cell, virial_omp, elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, .false., .false.,            &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
     end if
-
-#ifdef PKTIMER
-    call timer_sta(202)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_sta(336)
-#endif
 
     ! gather values
     !
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
-    !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
 #ifdef OMP
-    id = omp_get_thread_num()
+      id = omp_get_thread_num()
 #else
-    id = 0
+      id = 0
 #endif
-    do i = id+1, ncell, nthread
-      do ix = 1, domain%num_atom(i)
-        force_tmp(1:3) = force_omp(1:3,ix,i,1)
-        force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
-        if (domain%nonbond_kernel /= NBK_GPU) then
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-            force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
-          end do
-        else
-          do ic = 2, nthread
-            force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
-          end do
-        end if
-        force(1:3,ix,i) = force_tmp(1:3)
-      end do
-    end do
-    !$omp end parallel
-
-    else
-
-    !$omp parallel default(shared) private(id, i, k, ix, ki, force_tmp, ic)
-#ifdef OMP
-    id = omp_get_thread_num()
-#else
-    id = 0
-#endif
-    do i = id+1, ncell, nthread
-      k = (i-1)*MaxAtom
-      do ix = 1, domain%num_atom(i)
-
-        ki = k + ix
-        force_tmp(1) = 0.0_wip
-        force_tmp(2) = 0.0_wip
-        force_tmp(3) = 0.0_wip
-!ocl nosimd
-        do ic = 1, nthread
-
-          force_tmp(1) = force_tmp(1) &
-                       + force_omp(1,ix,i,ic)+force_pbc(1,ki,1,ic)
-          force_tmp(2) = force_tmp(2) &
-                       + force_omp(2,ix,i,ic)+force_pbc(2,ki,1,ic)
-          force_tmp(3) = force_tmp(3) &
-                       + force_omp(3,ix,i,ic)+force_pbc(3,ki,1,ic)
+      do i = id+1, ncell, nthread
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1:3) = force_omp(1:3,ix,i,1)
+          force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,1)
+          if (domain%nonbond_kernel /= NBK_GPU) then
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+              force_tmp(1:3) = force_tmp(1:3) + force_pbc(ix,1:3,i,ic)
+            end do
+          else
+            do ic = 2, nthread
+              force_tmp(1:3) = force_tmp(1:3) + force_omp(1:3,ix,i,ic)
+            end do
+          end if
+          force(1:3,ix,i) = force_tmp(1:3)
         end do
-        force(1,ix,i) = force_tmp(1)
-        force(2,ix,i) = force_tmp(2)
-        force(3,ix,i) = force_tmp(3)
       end do
-    end do
-    !$omp end parallel 
+      !$omp end parallel
+   
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
+
+      !$omp parallel default(shared) private(id, i, k, ix, ki, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+
+          ki = k + ix
+          force_tmp(1) = 0.0_wip
+          force_tmp(2) = 0.0_wip
+          force_tmp(3) = 0.0_wip
+!ocl nosimd
+          do ic = 1, nthread
+  
+            force_tmp(1) = force_tmp(1) &
+                         + force_omp(1,ix,i,ic)+force_pbc(1,ki,1,ic)
+            force_tmp(2) = force_tmp(2) &
+                         + force_omp(2,ix,i,ic)+force_pbc(2,ki,1,ic)
+            force_tmp(3) = force_tmp(3) &
+                         + force_omp(3,ix,i,ic)+force_pbc(3,ki,1,ic)
+          end do
+          force(1,ix,i) = force_tmp(1)
+          force(2,ix,i) = force_tmp(2)
+          force(3,ix,i) = force_tmp(3)
+        end do
+      end do
+      !$omp end parallel 
+
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      !$omp parallel default(shared) private(id, i, k, ix, ki, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+
+          ki = k + ix
+          force_tmp(1) = 0.0_wip
+          force_tmp(2) = 0.0_wip
+          force_tmp(3) = 0.0_wip
+!ocl nosimd
+          do ic = 1, nthread
+
+            force_tmp(1) = force_tmp(1) &
+                         + force_omp(1,ix,i,ic)+force_pbc(ki,1,1,ic)
+            force_tmp(2) = force_tmp(2) &
+                         + force_omp(2,ix,i,ic)+force_pbc(ki,2,1,ic)
+            force_tmp(3) = force_tmp(3) &
+                         + force_omp(3,ix,i,ic)+force_pbc(ki,3,1,ic)
+          end do
+          force(1,ix,i) = force_tmp(1)
+          force(2,ix,i) = force_tmp(2)
+          force(3,ix,i) = force_tmp(3)
+        end do
+      end do
+      !$omp end parallel
 
     end if
-
-#ifdef PKTIMER
-    call timer_end(202)
-#endif
-#ifdef FJ_TIMER_2
-    call timer_end(336)
-#endif
 
     return
 
@@ -3260,20 +3261,20 @@ contains
   !! @param[in]    coord       : coordinates of target systems
   !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[input] coord_pbc   : pbc coordinate
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : pbc force
+  !! @param[inout] virial_cell : pbc correction for virial
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_amber_short(domain, enefunc, pairlist, boundary, &
-                              coord, npt, energy, atmcls_pbc, coord_pbc,     &
-                              force, force_omp, force_pbc, &
-                              virial_cell, virial, virial_ext)
+  subroutine compute_energy_amber_short(domain, enefunc, pairlist, boundary,   &
+                                        coord, npt, energy, atmcls_pbc,        &
+                                        coord_pbc, force, force_omp, force_pbc,&
+                                        virial_cell, virial, virial_ext)
 
     ! formal arguments
     type(s_domain),          intent(in)    :: domain
@@ -3304,8 +3305,9 @@ contains
     real(dp)                 :: eimprop_omp(nthread)
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic, k
+    integer                  :: ncell, natom, id, i, ix, ic, k, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -3323,27 +3325,34 @@ contains
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
-      if (domain%nonbond_kernel == NBK_Fugaku) then
+      if (domain%nonbond_kernel == NBK_Fugaku .or. &
+          domain%nonbond_kernel == NBK_Intel) then
 
         !$omp parallel do private(k, id, i, ix)
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
           end do
-!ocl nosimd
-          do i = 1, MaxAtom*ncell
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else if (domain%nonbond_kernel == NBK_Intel) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
         !$omp end parallel do
-
+          
       else
 
         !$omp parallel do
@@ -3362,8 +3371,8 @@ contains
       end do
       !$omp end parallel do
       !$omp parallel do
-      do i = 1, ncell
-        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      do i = 1, 3*domain%num_atom_domain
+        force_pbc(i,1,1,1) = 0.0_wp
       end do
       !$omp end parallel do
     end if
@@ -3380,6 +3389,7 @@ contains
     elec_omp      (1:nthread) = 0.0_dp 
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
+    efield_omp    (1:nthread) = 0.0_dp 
 
     ! nonbonded energy
     !
@@ -3389,12 +3399,11 @@ contains
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond_pme_short(domain, enefunc, pairlist, &
-                                              npt,                       &
-                                              atmcls_pbc,                &
-                                              coord_pbc,                 &
-                                              force_omp, force_pbc,      &
-                                              virial_cell, virial_omp)
+        call compute_energy_nonbond_pme_short( &
+                              domain, enefunc, pairlist, npt,        & 
+                              atmcls_pbc, coord_pbc,                 &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp)
 
       else
 
@@ -3411,59 +3420,77 @@ contains
 
     ! bond energy
     !
-    call compute_energy_bond(domain, enefunc, coord, &
-                              force_omp, ebond_omp)
+    call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
     ! angle energy
     !
-    call compute_energy_angle(domain, enefunc, coord, &
-                              force_omp, eangle_omp, eurey_omp)
+    call compute_energy_angle( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
     ! dihedral energy
     !
     if (enefunc%local_restraint) then
-      call compute_energy_dihed_localres(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
+      call compute_energy_dihed_localres( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
     else
-      call compute_energy_dihed(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
+      call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
     end if
 
     ! improper energy
     !
-    call compute_energy_improp_cos(domain, enefunc, coord, &
-                              force_omp, eimprop_omp)
+    call compute_energy_improp_cos( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
 
     ! 1-4 interaction with linear table
     !
-    call compute_energy_nonbond14_notable(domain, enefunc, force_omp, &
-                                          elec_omp, evdw_omp)
+    call compute_energy_nonbond14_notable( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
 
-    call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                              elec_omp)
+    call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
+
+    if (enefunc%use_efield) &
+      call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
     ! restraint energy
     !
     if (enefunc%restraint) &
-      call compute_energy_restraints(.true., .true., domain, boundary,   &
-                              enefunc, coord,                            &
-                              force_omp, virial_omp, virial_ext_omp,     &
-                              eposi_omp, energy%restraint_rmsd,          &
-                              energy%rmsd, energy%restraint_distance,    &
+      call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
                               energy%restraint_emfit, energy%emcorr)
 
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(             &
-           pairlist, .false.,                           &
-           .false., coord_pbc, force_omp, force_pbc,    &
-           virial_cell, virial_omp, elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, .false., .false.,            &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
     end if
 
     ! gather values
     !
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
       !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
 #ifdef OMP
@@ -3496,7 +3523,35 @@ contains
       end do
       !$omp end parallel
 
-    else
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
 
       !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
 #ifdef OMP
@@ -3505,7 +3560,7 @@ contains
       id = 0
 #endif
       do i = id+1, ncell, nthread
-        k = (i-1)*MaxAtom
+        k = domain%start_atom(i)
         do ix = 1, domain%num_atom(i)
           force_tmp(1) = force_omp(1,ix,i,1)
           force_tmp(2) = force_omp(2,ix,i,1)
@@ -3522,6 +3577,39 @@ contains
             force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,ic)
             force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
             force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,1)
+
+!ocl nosimd
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,ic)
           end do
 
           force(1:3,ix,i) = force_tmp(1:3)
@@ -3547,21 +3635,21 @@ contains
   !! @param[in]    coord       : coordinates of target systems
   !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[input] coord_pbc   : pbc coordinate
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : pbc force
+  !! @param[inout] virial_cell : pbc correction for virial
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_gro_amber_short(domain, enefunc, pairlist,    &
-                            boundary, coord, npt, energy,                 &
-                            atmcls_pbc, coord_pbc,                        &
-                            force, force_omp, force_pbc,                  &
-                            virial_cell, virial, virial_ext)
+  subroutine compute_energy_gro_amber_short(domain, enefunc, pairlist,         &
+                                            boundary, coord, npt, energy,      &
+                                            atmcls_pbc, coord_pbc,             &
+                                            force, force_omp, force_pbc,       &
+                                            virial_cell, virial, virial_ext)
 
     ! formal arguments
     type(s_domain),          intent(in)    :: domain
@@ -3591,8 +3679,9 @@ contains
     real(dp)                 :: edihed_omp  (nthread)
     real(dp)                 :: erbdihed_omp(nthread)
     real(dp)                 :: eposi_omp   (nthread)
+    real(dp)                 :: efield_omp  (nthread)
     real(wip)                :: force_tmp(1:3)
-    integer                  :: ncell, natom, id, i, ix, ic, k
+    integer                  :: ncell, natom, id, i, ix, ic, k, start_i
     integer                  :: omp_get_thread_num
 
     ! number of cells and atoms
@@ -3610,24 +3699,31 @@ contains
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
-      if (domain%nonbond_kernel == NBK_Fugaku) then
+      if (domain%nonbond_kernel == NBK_Fugaku .or. &
+          domain%nonbond_kernel == NBK_Intel) then
 
         !$omp parallel do private(k, id, i, ix)
         do id = 1, nthread
           do i = 1, ncell
-!ocl nosimd
             do ix = 1, natom
               force_omp(1,ix,i,id) = 0.0_wp
               force_omp(2,ix,i,id) = 0.0_wp
               force_omp(3,ix,i,id) = 0.0_wp
             end do
           end do
-!ocl nosimd
-          do i = 1, MaxAtom*ncell
-            force_pbc(1,i,1,id) = 0.0_wp
-            force_pbc(2,i,1,id) = 0.0_wp
-            force_pbc(3,i,1,id) = 0.0_wp
-          end do
+          if (domain%nonbond_kernel == NBK_Fugaku) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(1,i,1,id) = 0.0_wp
+              force_pbc(2,i,1,id) = 0.0_wp
+              force_pbc(3,i,1,id) = 0.0_wp
+            end do
+          else if (domain%nonbond_kernel == NBK_Intel) then
+            do i = 1, domain%num_atom_domain
+              force_pbc(i,1,1,id) = 0.0_wp
+              force_pbc(i,2,1,id) = 0.0_wp
+              force_pbc(i,3,1,id) = 0.0_wp
+            end do
+          end if
         end do
         !$omp end parallel do
 
@@ -3649,8 +3745,8 @@ contains
       end do
       !$omp end parallel do
       !$omp parallel do
-      do i = 1, ncell
-        force_pbc(1:natom,1:3,i,1) = 0.0_wp
+      do i = 1, 3*domain%num_atom_domain
+        force_pbc(i,1,1,1) = 0.0_wp
       end do
       !$omp end parallel do
     end if
@@ -3666,6 +3762,7 @@ contains
     elec_omp      (1:nthread) = 0.0_dp 
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
+    efield_omp    (1:nthread) = 0.0_dp 
 
     ! nonbonded energy
     !
@@ -3675,12 +3772,11 @@ contains
 
       if (enefunc%pme_use) then
 
-        call compute_energy_nonbond_pme_short(domain, enefunc, pairlist, &
-                                              npt,                       &
-                                              atmcls_pbc,                &
-                                              coord_pbc,                 &
-                                              force_omp, force_pbc,      &
-                                              virial_cell, virial_omp)
+        call compute_energy_nonbond_pme_short( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp)
 
       else
 
@@ -3697,59 +3793,78 @@ contains
 
     ! bond energy
     !
-    call compute_energy_bond(domain, enefunc, coord, &
-                             force_omp, ebond_omp)
+    call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
 
     ! angle energy
     !
-    call compute_energy_angle(domain, enefunc, coord, &
-                              force_omp, eangle_omp, eurey_omp)
+    call compute_energy_angle( & 
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
 
     ! dihedral energy
     !
-    call compute_energy_dihed(domain, enefunc, coord, &
-                              force_omp, edihed_omp)
+    call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
 
     ! Ryckaert-Bellemans dihedral energy
     !
-    call compute_energy_rb_dihed(domain, enefunc, coord, &
-                                 force_omp, erbdihed_omp)
+    call compute_energy_rb_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, erbdihed_omp)
 
     ! 1-4 interaction with linear table
     !
     if (enefunc%vdw_no_switch) then
-      call compute_energy_nonbond14_notable(domain, enefunc, force_omp, &
-                                            elec_omp, evdw_omp)
+      call compute_energy_nonbond14_notable( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
     else
-      call compute_energy_nonbond14_table_linear(domain, enefunc, force_omp, &
-                                                 elec_omp, evdw_omp)
+      call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
     end if
 
-    call pme_bond_corr_linear(domain, enefunc, force_omp, evdw_omp, &
-                              elec_omp)
+    call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
+
+    if (enefunc%use_efield) &
+      call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
 
     ! restraint energy
     !
     if (enefunc%restraint) &
-      call compute_energy_restraints(.true., .true., domain, boundary,   &
-                              enefunc, coord,                            &
-                              force_omp, virial_omp, virial_ext_omp,     &
-                              eposi_omp, energy%restraint_rmsd,          &
-                              energy%rmsd, energy%restraint_distance,    &
+      call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd, energy%restraint_distance,&
                               energy%restraint_emfit, energy%emcorr)
 
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-      call compute_energy_nonbond_pme_wait(             &
-           pairlist, .false.,                           &
-           .false., coord_pbc, force_omp, force_pbc,    &
-           virial_cell, virial_omp, elec_omp, evdw_omp)
+      call compute_energy_nonbond_pme_wait( &
+                              pairlist, .false., .false., coord_pbc, &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
     end if
 
     ! gather values
     !
-    if (domain%nonbond_kernel /= NBK_Fugaku) then
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
 
       !$omp parallel default(shared) private(id, i, ix, force_tmp, ic)
 #ifdef OMP
@@ -3782,7 +3897,35 @@ contains
       end do
       !$omp end parallel
 
-    else
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      !$omp parallel default(shared) private(id, i, ix, force_tmp, ic, k, start_i)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      k = domain%num_atom_domain
+      do i = id+1, ncell, nthread
+        start_i = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(    start_i+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(  k+start_i+ix,1,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(2*k+start_i+ix,1,1,1)
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          end do
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
 
       !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
 #ifdef OMP
@@ -3791,7 +3934,7 @@ contains
       id = 0
 #endif
       do i = id+1, ncell, nthread
-        k = (i-1)*MaxAtom
+        k = domain%start_atom(i)
         do ix = 1, domain%num_atom(i)
           force_tmp(1) = force_omp(1,ix,i,1)
           force_tmp(2) = force_omp(2,ix,i,1)
@@ -3808,6 +3951,39 @@ contains
             force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,ic)
             force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
             force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
+          end do
+
+          force(1:3,ix,i) = force_tmp(1:3)
+        end do
+      end do
+      !$omp end parallel
+
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      !$omp parallel default(shared) private(id, i, ix, k, force_tmp, ic)
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      do i = id+1, ncell, nthread
+        k = domain%start_atom(i)
+        do ix = 1, domain%num_atom(i)
+          force_tmp(1) = force_omp(1,ix,i,1)
+          force_tmp(2) = force_omp(2,ix,i,1)
+          force_tmp(3) = force_omp(3,ix,i,1)
+          force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,1)
+          force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,1)
+          force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,1)
+
+!ocl nosimd
+          do ic = 2, nthread
+            force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+            force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+            force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+            force_tmp(1) = force_tmp(1) + force_pbc(k+ix,1,1,ic)
+            force_tmp(2) = force_tmp(2) + force_pbc(k+ix,2,1,ic)
+            force_tmp(3) = force_tmp(3) + force_pbc(k+ix,3,1,ic)
           end do
 
           force(1:3,ix,i) = force_tmp(1:3)
@@ -3930,8 +4106,9 @@ contains
     ! GPU is used and overlapping is enabled
     !
     if (nonb_ene) then
-      call gpu_wait_compute_energy_nonbond_table_linear_univ(   &
-           coord_pbc, force_pbc(:,:,:,1), ene_virial)
+      call gpu_wait_compute_energy_nonbond_table_linear_univ( &
+                              coord_pbc, force_pbc(:,:,:,1),         &
+                              ene_virial)
       eelec(1) = eelec(1) + ene_virial(1)
       evdw (1) = evdw(1)  + ene_virial(2)
       virial(1,1,1) = virial(1,1,1) + ene_virial(3)
@@ -3939,7 +4116,8 @@ contains
       virial(3,3,1) = virial(3,3,1) + ene_virial(5)
     else
       call gpu_wait_compute_force_nonbond_table_linear_univ( &
-           coord_pbc, force_pbc(:,:,:,1), ene_virial, npt)
+                              coord_pbc, force_pbc(:,:,:,1),         &
+                              ene_virial, npt)
       virial(1,1,1) = virial(1,1,1) + ene_virial(1)
       virial(2,2,1) = virial(2,2,1) + ene_virial(2)
       virial(3,3,1) = virial(3,3,1) + ene_virial(3)
@@ -4044,6 +4222,11 @@ contains
     values(ifm) = energy%electrostatic
     ifm = ifm+1
 
+    if (enefunc%use_efield) then
+      write(category(ifm),frmt) 'ELECTRIC FIELD'
+      values(ifm) = energy%electric_field
+      ifm = ifm+1
+    end if
 
     if (enefunc%num_restraintfuncs > 0) then
       if (enefunc%restraint_rmsd) then
@@ -4412,7 +4595,7 @@ contains
 #ifdef MPI
 
     ! local variables
-    real(dp)                 :: before_reduce(19), after_reduce(19)
+    real(dp)                 :: before_reduce(20), after_reduce(20)
     integer                  :: i, j, n
 
 
@@ -4434,10 +4617,11 @@ contains
     before_reduce(15) = energy%cmap
     before_reduce(16) = energy%electrostatic
     before_reduce(17) = energy%van_der_waals
-    before_reduce(18) = energy%restraint_position
-    before_reduce(19) = energy%total
+    before_reduce(18) = energy%electric_field
+    before_reduce(19) = energy%restraint_position
+    before_reduce(20) = energy%total
 
-    call mpi_allreduce(before_reduce, after_reduce, 19, mpi_real8,  &
+    call mpi_allreduce(before_reduce, after_reduce, 20, mpi_real8,  &
                        mpi_sum, mpi_comm_country, ierror)
 
     n = 0
@@ -4456,8 +4640,9 @@ contains
     energy%cmap               = after_reduce(15)
     energy%electrostatic      = after_reduce(16)
     energy%van_der_waals      = after_reduce(17)
-    energy%restraint_position = after_reduce(18)
-    energy%total              = after_reduce(19)
+    energy%electric_field     = after_reduce(18)
+    energy%restraint_position = after_reduce(19)
+    energy%total              = after_reduce(20)
 
 #endif
 

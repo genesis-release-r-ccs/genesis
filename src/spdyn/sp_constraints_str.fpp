@@ -41,7 +41,7 @@ module sp_constraints_str_mod
 
     ! Ring
     !
-    logical,          allocatable :: ring(:)
+    integer,          allocatable :: ring(:)
     integer,          allocatable :: num_connect(:,:)
     integer,          allocatable :: connectivity(:,:,:)
 

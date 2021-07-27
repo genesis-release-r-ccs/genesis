@@ -558,10 +558,6 @@ contains
 
   subroutine communicate_force(domain, comm, force)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
     type(s_comm),    target, intent(inout) :: comm
@@ -585,10 +581,6 @@ contains
     integer,         pointer :: if_lower_recv(:,:), if_upper_recv(:,:)
     integer,         pointer :: upper_send(:), upper_recv(:)
     integer,         pointer :: lower_send(:), lower_recv(:)
-
-#ifdef PKTIMER
-    real(8)                 :: st,et
-#endif
 
     iproc_upper   => domain%iproc_upper
     iproc_lower   => domain%iproc_lower
@@ -645,24 +637,11 @@ contains
 #ifdef MPI
       ! send the data (lower)
       !
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_city,ierror)
-      call gettod(et)
-      mpi_bari(10)=mpi_bari(10)+(et-st)
-      call gettod(st)
-#endif
-
       num_req = 1
       call mpi_irecv(buf_recv(1,1), 3*upper_recv(ii), mpi_wip_real, &
                      iproc_upper(ii),                               &
                      iproc_upper(ii),  &
                      mpi_comm_city, ireq(num_req), ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,4)=mpi_tran(ii,4)+(et-st)
-      call gettod(st)
-#endif
 
       num_req = num_req + 1
       call mpi_isend(buf_send(1,1), 3*lower_send(ii), mpi_wip_real, &
@@ -670,32 +649,13 @@ contains
                      my_city_rank,  &
                      mpi_comm_city, ireq(num_req), ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,3)=mpi_tran(ii,3)+(et-st)
-#endif
-
       ! send the data (upper)
       !
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_city,ierror)
-      call gettod(et)
-      mpi_bari(10)=mpi_bari(10)+(et-st)
-      call gettod(st)
-#endif
-
       num_req = num_req + 1
       call mpi_irecv(buf_recv(1,2), 3*lower_recv(ii), mpi_wip_real, &
                      iproc_lower(ii),                               &
                      my_city_rank+nproc_city,  &
                      mpi_comm_city, ireq(num_req), ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii+3,4)=mpi_tran(ii+3,4)+(et-st)
-      call gettod(st)
-#endif
 
       num_req = num_req + 1
       call mpi_isend(buf_send(1,2), 3*upper_send(ii), mpi_wip_real, &
@@ -703,20 +663,7 @@ contains
                      iproc_upper(ii)+nproc_city,  &
                      mpi_comm_city, ireq(num_req), ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii+3,3)=mpi_tran(ii+3,3)+(et-st)
-#endif
-
-#ifdef PKTIMER
-      call gettod(st)
-#endif
       call mpi_waitall(num_req, ireq, istat, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,6)=mpi_tran(ii,6)+(et-st)
-#endif
-
 !     call mpi_wait(irequest,  istatus, ierror)
 !     call mpi_wait(irequest1, istatus, ierror)
 !     call mpi_wait(irequest2, istatus, ierror)
@@ -773,10 +720,6 @@ contains
 
   subroutine communicate_coor(domain, comm)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! formal arguments
     type(s_domain),  target, intent(inout) :: domain
     type(s_comm),    target, intent(inout) :: comm
@@ -800,10 +743,6 @@ contains
     integer,         pointer :: upper_send(:), upper_recv(:)
     integer,         pointer :: lower_send(:), lower_recv(:)
     integer,         pointer :: iproc_upper(:), iproc_lower(:)
-
-#ifdef PKTIMER
-    real(dp)                :: st,et
-#endif
 
     coord         => domain%coord
     iproc_upper   => domain%iproc_upper
@@ -861,25 +800,11 @@ contains
 #ifdef MPI
       ! send the data(lower)
       !
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_city,ierror)
-      call gettod(et)
-      mpi_bari(11)=mpi_bari(11)+(et-st)
-      call gettod(st)
-#endif
-
       num_req = 1
       call mpi_irecv(buf_recv(1,1), 3*upper_recv(ii), mpi_wip_real, &
                      iproc_upper(ii),                               &
                      iproc_upper(ii),  &
                      mpi_comm_city, ireq(num_req), ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,8)=mpi_tran(ii,8)+(et-st)
-      call gettod(st)
-#endif
 
       num_req = num_req + 1
       call mpi_isend(buf_send(1,1), 3*lower_send(ii), mpi_wip_real, &
@@ -887,54 +812,21 @@ contains
                      my_city_rank,  &
                      mpi_comm_city, ireq(num_req), ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,7)=mpi_tran(ii,7)+(et-st)
-#endif
-
-
       ! send the data(upper)
       !
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_city,ierror)
-      call gettod(et)
-      mpi_bari(11)=mpi_bari(11)+(et-st)
-      call gettod(st)
-#endif
-
       num_req = num_req + 1
       call mpi_irecv(buf_recv(1,2), 3*lower_recv(ii), mpi_wip_real, &
                      iproc_lower(ii),                               &
                      my_city_rank+nproc_city,  &
                      mpi_comm_city, ireq(num_req), ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii+3,8)=mpi_tran(ii+3,8)+(et-st)
-      call gettod(st)
-#endif
-
       num_req = num_req + 1
       call mpi_isend(buf_send(1,2), 3*upper_send(ii), mpi_wip_real, &
                      iproc_upper(ii),                               &
                      iproc_upper(ii)+nproc_city,  &
                      mpi_comm_city, ireq(num_req), ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii+3,7)=mpi_tran(ii+3,7)+(et-st)
-#endif
-
-#ifdef PKTIMER
-      call gettod(st)
-#endif
+      
       call mpi_waitall(num_req, ireq, istat, ierror)
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(ii,10)=mpi_tran(ii,10)+(et-st)
-#endif
-
 !     call mpi_wait(irequest,  istatus, ierror)
 !     call mpi_wait(irequest1, istatus, ierror)
 !     call mpi_wait(irequest2, istatus, ierror)
@@ -2145,43 +2037,43 @@ contains
         int_send(8*i  ,1) = fitting_add(ic)
 
         do ix = 1, bond_add(ic)
-          int_send(k+1:k+3,1) = buf_bond_integer(1:3,ix,ic)
-          k = k + 3
+          int_send(k+1:k+4,1) = buf_bond_integer(1:4,ix,ic)
+          k = k + 4
           buf_send(j+1:j+2,1) = buf_bond_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, angle_add(ic)
-          int_send(k+1:k+4,1) = buf_angle_integer(1:4,ix,ic)
-          k = k + 4
+          int_send(k+1:k+7,1) = buf_angle_integer(1:7,ix,ic)
+          k = k + 7
           buf_send(j+1:j+4,1) = buf_angle_real(1:4,ix,ic)
           j = j + 4
         end do
 
         do ix = 1, dihed_add(ic)
-          int_send(k+1:k+6,1) = buf_dihed_integer(1:6,ix,ic)
-          k = k + 6
+          int_send(k+1:k+9,1) = buf_dihed_integer(1:9,ix,ic)
+          k = k + 9
           buf_send(j+1:j+2,1) = buf_dihed_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, rb_dihed_add(ic)
-          int_send(k+1:k+4,1) = buf_rb_dihed_integer(1:4,ix,ic)
-          k = k + 4
+          int_send(k+1:k+7,1) = buf_rb_dihed_integer(1:7,ix,ic)
+          k = k + 7
           buf_send(j+1:j+6,1) = buf_rb_dihed_real(1:6,ix,ic)
           j = j + 6
         end do
 
         do ix = 1, impr_add(ic)
-          int_send(k+1:k+5,1) = buf_impr_integer(1:5,ix,ic)
-          k = k + 5
+          int_send(k+1:k+8,1) = buf_impr_integer(1:8,ix,ic)
+          k = k + 8
           buf_send(j+1:j+2,1) = buf_impr_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, cmap_add(ic)
-          int_send(k+1:k+9,1) = buf_cmap_integer(1:9,ix,ic)
-          k = k + 9
+          int_send(k+1:k+15,1) = buf_cmap_integer(1:15,ix,ic)
+          k = k + 15
         end do
 
         do ix = 1, restraint_add(ic)
@@ -2221,43 +2113,43 @@ contains
         int_send(8*i  ,2) = fitting_add(ic)
 
         do ix = 1, bond_add(ic)
-          int_send(k+1:k+3,2) = buf_bond_integer(1:3,ix,ic)
-          k = k + 3
+          int_send(k+1:k+4,2) = buf_bond_integer(1:4,ix,ic)
+          k = k + 4
           buf_send(j+1:j+2,2) = buf_bond_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, angle_add(ic)
-          int_send(k+1:k+4,2) = buf_angle_integer(1:4,ix,ic)
-          k = k + 4
+          int_send(k+1:k+7,2) = buf_angle_integer(1:7,ix,ic)
+          k = k + 7
           buf_send(j+1:j+4,2) = buf_angle_real(1:4,ix,ic)
           j = j + 4
         end do
 
         do ix = 1, dihed_add(ic)
-          int_send(k+1:k+6,2) = buf_dihed_integer(1:6,ix,ic)
-          k = k + 6
+          int_send(k+1:k+9,2) = buf_dihed_integer(1:9,ix,ic)
+          k = k + 9
           buf_send(j+1:j+2,2) = buf_dihed_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, rb_dihed_add(ic)
-          int_send(k+1:k+4,2) = buf_rb_dihed_integer(1:4,ix,ic)
-          k = k + 4
+          int_send(k+1:k+7,2) = buf_rb_dihed_integer(1:7,ix,ic)
+          k = k + 7
           buf_send(j+1:j+6,2) = buf_rb_dihed_real(1:6,ix,ic)
           j = j + 6
         end do
 
         do ix = 1, impr_add(ic)
-          int_send(k+1:k+5,2) = buf_impr_integer(1:5,ix,ic)
-          k = k + 5
+          int_send(k+1:k+8,2) = buf_impr_integer(1:8,ix,ic)
+          k = k + 8
           buf_send(j+1:j+2,2) = buf_impr_real(1:2,ix,ic)
           j = j + 2
         end do
 
         do ix = 1, cmap_add(ic)
-          int_send(k+1:k+9,2) = buf_cmap_integer(1:9,ix,ic)
-          k = k + 9
+          int_send(k+1:k+15,2) = buf_cmap_integer(1:15,ix,ic)
+          k = k + 15
         end do
 
         do ix = 1, restraint_add(ic)
@@ -2367,8 +2259,8 @@ contains
 
           nadd = int_recv(8*i-7,1)
           do ix = bond_add(ic)+1, bond_add(ic)+nadd
-             buf_bond_integer(1:3,ix,ic) = int_recv(k+1:k+3,1)
-             k = k + 3
+             buf_bond_integer(1:4,ix,ic) = int_recv(k+1:k+4,1)
+             k = k + 4
              buf_bond_real(1:2,ix,ic) = buf_recv(j+1:j+2,1)
              j = j + 2
           end do
@@ -2376,8 +2268,8 @@ contains
 
           nadd = int_recv(8*i-6,1)
           do ix = angle_add(ic)+1, angle_add(ic)+nadd
-             buf_angle_integer(1:4,ix,ic) = int_recv(k+1:k+4,1)
-             k = k + 4
+             buf_angle_integer(1:7,ix,ic) = int_recv(k+1:k+7,1)
+             k = k + 7
              buf_angle_real(1:4,ix,ic) = buf_recv(j+1:j+4,1)
              j = j + 4
           end do
@@ -2385,8 +2277,8 @@ contains
 
           nadd = int_recv(8*i-5,1)
           do ix = dihed_add(ic)+1, dihed_add(ic)+nadd
-             buf_dihed_integer(1:6,ix,ic) = int_recv(k+1:k+6,1)
-             k = k + 6
+             buf_dihed_integer(1:9,ix,ic) = int_recv(k+1:k+9,1)
+             k = k + 9
              buf_dihed_real(1:2,ix,ic) = buf_recv(j+1:j+2,1)
              j = j + 2
           end do
@@ -2394,8 +2286,8 @@ contains
 
           nadd = int_recv(8*i-4,1)
           do ix = rb_dihed_add(ic)+1, rb_dihed_add(ic)+nadd
-             buf_rb_dihed_integer(1:4,ix,ic) = int_recv(k+1:k+4,1)
-             k = k + 4
+             buf_rb_dihed_integer(1:7,ix,ic) = int_recv(k+1:k+7,1)
+             k = k + 7
              buf_rb_dihed_real(1:6,ix,ic) = buf_recv(j+1:j+6,1)
              j = j + 6
           end do
@@ -2403,8 +2295,8 @@ contains
 
           nadd = int_recv(8*i-3,1)
           do ix = impr_add(ic)+1, impr_add(ic)+nadd
-             buf_impr_integer(1:5,ix,ic) = int_recv(k+1:k+5,1)
-             k = k + 5
+             buf_impr_integer(1:8,ix,ic) = int_recv(k+1:k+8,1)
+             k = k + 8
              buf_impr_real(1:2,ix,ic) = buf_recv(j+1:j+2,1)
              j = j + 2
           end do
@@ -2412,8 +2304,8 @@ contains
 
           nadd = int_recv(8*i-2,1)
           do ix = cmap_add(ic)+1, cmap_add(ic)+nadd
-             buf_cmap_integer(1:9,ix,ic) = int_recv(k+1:k+9,1)
-             k = k + 9
+             buf_cmap_integer(1:15,ix,ic) = int_recv(k+1:k+15,1)
+             k = k + 15
           end do
           cmap_add(ic) = cmap_add(ic) + nadd
 
@@ -2449,8 +2341,8 @@ contains
 
           nadd = int_recv(8*i-7,2)
           do ix = bond_add(ic)+1, bond_add(ic)+nadd
-             buf_bond_integer(1:3,ix,ic) = int_recv(k+1:k+3,2)
-             k = k + 3
+             buf_bond_integer(1:4,ix,ic) = int_recv(k+1:k+4,2)
+             k = k + 4
              buf_bond_real(1:2,ix,ic) = buf_recv(j+1:j+2,2)
              j = j + 2
           end do
@@ -2458,8 +2350,8 @@ contains
 
           nadd = int_recv(8*i-6,2)
           do ix = angle_add(ic)+1, angle_add(ic)+nadd
-             buf_angle_integer(1:4,ix,ic) = int_recv(k+1:k+4,2)
-             k = k + 4
+             buf_angle_integer(1:7,ix,ic) = int_recv(k+1:k+7,2)
+             k = k + 7
              buf_angle_real(1:4,ix,ic) = buf_recv(j+1:j+4,2)
              j = j + 4
           end do
@@ -2467,8 +2359,8 @@ contains
 
           nadd = int_recv(8*i-5,2)
           do ix = dihed_add(ic)+1, dihed_add(ic)+nadd
-             buf_dihed_integer(1:6,ix,ic) = int_recv(k+1:k+6,2)
-             k = k + 6
+             buf_dihed_integer(1:9,ix,ic) = int_recv(k+1:k+9,2)
+             k = k + 9
              buf_dihed_real(1:2,ix,ic) = buf_recv(j+1:j+2,2)
              j = j + 2
           end do
@@ -2476,8 +2368,8 @@ contains
 
           nadd = int_recv(8*i-4,2)
           do ix = rb_dihed_add(ic)+1, rb_dihed_add(ic)+nadd
-             buf_rb_dihed_integer(1:4,ix,ic) = int_recv(k+1:k+4,2)
-             k = k + 4
+             buf_rb_dihed_integer(1:7,ix,ic) = int_recv(k+1:k+7,2)
+             k = k + 7
              buf_rb_dihed_real(1:6,ix,ic) = buf_recv(j+1:j+6,2)
              j = j + 6
           end do
@@ -2485,8 +2377,8 @@ contains
 
           nadd = int_recv(8*i-3,2)
           do ix = impr_add(ic)+1, impr_add(ic)+nadd
-             buf_impr_integer(1:5,ix,ic) = int_recv(k+1:k+5,2)
-             k = k + 5
+             buf_impr_integer(1:8,ix,ic) = int_recv(k+1:k+8,2)
+             k = k + 8
              buf_impr_real(1:2,ix,ic) = buf_recv(j+1:j+2,2)
              j = j + 2
           end do
@@ -2494,8 +2386,8 @@ contains
 
           nadd = int_recv(8*i-2,2)
           do ix = cmap_add(ic)+1, cmap_add(ic)+nadd
-             buf_cmap_integer(1:9,ix,ic) = int_recv(k+1:k+9,2)
-             k = k + 9
+             buf_cmap_integer(1:15,ix,ic) = int_recv(k+1:k+15,2)
+             k = k + 15
           end do
           cmap_add(ic) = cmap_add(ic) + nadd
 
@@ -2921,7 +2813,8 @@ contains
         move(1) = bsize_x*0.5_wip-bsize_x*anint(x_shift/bsize_x)
         move(2) = bsize_y*0.5_wip-bsize_y*anint(y_shift/bsize_y)
         move(3) = bsize_z*0.5_wip-bsize_z*anint(z_shift/bsize_z)
-        if (domain%nonbond_kernel == NBK_Fugaku) then
+        if (domain%nonbond_kernel == NBK_Fugaku .or. &
+            domain%nonbond_kernel == NBK_Intel) then
           move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
           move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
           move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -2949,7 +2842,8 @@ contains
           move(1) = bsize_x*0.5_wip - bsize_x*anint(x_shift/bsize_x)
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
-          if (domain%nonbond_kernel == NBK_Fugaku) then
+          if (domain%nonbond_kernel == NBK_Fugaku .or. &
+              domain%nonbond_kernel == NBK_Intel) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -2988,7 +2882,8 @@ contains
           move(1) = bsize_x*0.5_wip - bsize_x*anint(x_shift/bsize_x)
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
-          if (domain%nonbond_kernel == NBK_Fugaku) then
+          if (domain%nonbond_kernel == NBK_Fugaku .or. &
+              domain%nonbond_kernel == NBK_Intel) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -3013,7 +2908,8 @@ contains
           move(1) = bsize_x*0.5_wip - bsize_x*anint(x_shift/bsize_x)
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
-          if (domain%nonbond_kernel == NBK_Fugaku) then
+          if (domain%nonbond_kernel == NBK_Fugaku .or. &
+              domain%nonbond_kernel == NBK_Intel) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z

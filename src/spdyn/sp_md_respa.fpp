@@ -163,10 +163,6 @@ contains
     !
     if (.not. dynamics%restart) then
 
-#ifdef PKTIMER
-      call timer_sta(291)
-#endif
-
       call initial_velocity(temperature,            &
                             domain%num_atom,        &
                             domain%num_deg_freedom, &
@@ -176,11 +172,6 @@ contains
                             iseed,                  &
                             domain%velocity)
 
-#ifdef PKTIMER
-      call timer_end(291)
-      call timer_sta(292)
-#endif
-
       call stop_trans_rotation(domain%num_cell_local,         &
                                domain%num_atom,               &
                                dynamics%stop_com_translation, &
@@ -189,18 +180,9 @@ contains
                                domain%coord,                  &
                                domain%velocity)
 
-#ifdef PKTIMER
-      call timer_end(292)
-      call timer_sta(293)
-#endif
-
       call initial_vverlet(npt, output, enefunc, dynamics,       &
                            pairlist, boundary, ensemble, constraints, &
                            domain, dynvars, comm)
-
-#ifdef PKTIMER
-      call timer_end(293)
-#endif
 
     else
 
@@ -236,19 +218,6 @@ contains
     Timt=0.0d0
     Timb=0.0d0
     mpi_tot_tran=0.d0
-#ifdef PKTIMER
-    if (main_rank) &
-    write(6,*) '*** MainLoop in vverlet_respa_dynamics start *****'
-    call timer_bar(4)
-    call timer_sta(5)
-#ifdef FJ_PROF_FIPP
-    call fipp_start
-#endif
-#ifdef FJ_PROF_FAPP
-    !call start_collection("MainLoop")
-    call fapp_start("MainLoop",5,0)
-#endif
-#endif
 
     ! Main loop
     !
@@ -284,16 +253,8 @@ contains
 
         ! VV1
         !
-#ifdef FJ_TIMER_2
-        call timer_sta(301)
-#endif
-
         call integrate_vv1(dynamics, istep, istart, j, dt_long, dt_short,  &
                            ensemble, domain, constraints, boundary, dynvars)
-
-#ifdef FJ_TIMER_2
-        call timer_end(301)
-#endif
 
         call timer(TimerIntegrator, TimerOff)
 
@@ -322,17 +283,9 @@ contains
         if (dynamics%nbupdate_period > 0 .and. &
             j .eq. multistep .and. i > istart) then
 
-#ifdef FJ_TIMER_2
-        call timer_sta(302)
-#endif
-
           call domain_interaction_update(istep, dynamics%nbupdate_period,     &
                                          domain, enefunc, pairlist, boundary, &
                                          constraints, comm)
-
-#ifdef FJ_TIMER_2
-        call timer_end(302)
-#endif
 
         end if
 
@@ -348,15 +301,7 @@ contains
         call timer(TimerIntegrator, TimerOn)
         call timer(TimerComm1, TimerOn)
 
-#ifdef FJ_TIMER_2
-        call timer_sta(303)
-#endif
-
         call communicate_coor(domain, comm)
-
-#ifdef FJ_TIMER_2
-        call timer_end(303)
-#endif
 
         call timer(TimerComm1, TimerOff)
         call timer(TimerIntegrator, TimerOff)
@@ -366,10 +311,6 @@ contains
           pairlist%univ_update = 0
           enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
           npt1 = npt .and. mod(istep-1,dynamics%baro_period)==0
-
-#ifdef FJ_TIMER_2
-        call timer_sta(304)
-#endif
 
           call compute_energy_short(domain, enefunc, pairlist, boundary, coord,&
                                     npt1,                                      &
@@ -382,22 +323,11 @@ contains
                                     virial_cell,                               &
                                     virial, virial_extern)
 
-#ifdef FJ_TIMER_2
-        call timer_end(304)
-#endif
 
           call timer(TimerIntegrator, TimerOn)
           call timer(TimerComm2, TimerOn)
 
-#ifdef FJ_TIMER_2
-        call timer_sta(305)
-#endif
-
           call communicate_force(domain, comm, force_short)
-
-#ifdef FJ_TIMER_2
-        call timer_end(305)
-#endif
 
           if (constraints%tip4) &
             call water_force_redistribution(constraints, domain, force_short, &
@@ -415,10 +345,6 @@ contains
           enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
           npt1 = npt .and. mod(istep,dynamics%baro_period)==0
 
-#ifdef FJ_TIMER_2
-        call timer_sta(306)
-#endif
-
           call compute_energy(domain, enefunc, pairlist, boundary, coord,      &
                               npt1,.false.,                                    &
                               mod(istep,dynamics%eneout_period)==0,            &
@@ -434,23 +360,11 @@ contains
                               virial_cell,                                     &
                               virial, virial_long, virial_extern)
 
-#ifdef FJ_TIMER_2
-        call timer_end(306)
-#endif
-
           call timer(TimerIntegrator, TimerOn)
           call timer(TimerComm2, TimerOn)
 
-#ifdef FJ_TIMER_2
-        call timer_sta(307)
-#endif
-
           call communicate_force(domain, comm, force_long)
           call communicate_force(domain, comm, force_short)
-
-#ifdef FJ_TIMER_2
-        call timer_end(307)
-#endif
 
           if (constraints%tip4) then
             call water_force_redistribution(constraints, domain, &
@@ -465,87 +379,10 @@ contains
 
         ! VV2
         !
-
-#ifdef FJ_TIMER_2
-        call timer_sta(308)
-#endif
-
         call integrate_vv2(dynamics, istep, j, dt_long, dt_short, ensemble,    &
                            domain, constraints, boundary, dynvars)
 
-#ifdef FJ_TIMER_2
-        call timer_end(308)
-#endif
-
       end do
-
-      ! FFT allgather
-      do ii=1,2
-        Timt(1)=Timt(1)+mpi_tran(ii,1)
-      enddo
-      ! FFT alltoall
-      do ii=1,10
-        Timt(2)=Timt(2)+mpi_tran(ii,2)
-        mpi_tot_tran(ii,2)=mpi_tot_tran(ii,2)+mpi_tran(ii,2)
-      enddo
-      !! coor
-      ! force
-      do ii=1,6
-        Timt(3)=Timt(3)+mpi_tran(ii,3)+mpi_tran(ii,4)+mpi_tran(ii,5)+mpi_tran(ii,6)
-      enddo
-      !! force
-      ! coor
-      do ii=1,6
-        Timt(4)=Timt(4)+mpi_tran(ii,7)+mpi_tran(ii,8)+mpi_tran(ii,9)+mpi_tran(ii,10)
-      enddo
-      ! thermo-barostat/bcast
-      do ii=1,4
-        Timt(5) = Timt(5)+mpi_tran(ii,11)
-      end do
-      ! thermo-barostat/allreduce
-      do ii=1,3
-        Timt(6) = Timt(6)+mpi_tran(ii,12)
-      end do
-      ! send-recev pre&post
-      do ii=1,24
-        Timt(7) = Timt(7)+mpi_tran(ii,20)
-        Timt(8) = Timt(8)+mpi_tran(ii,21)
-      end do
-      ! barrier FFT
-      do ii=1,9
-        Timb(1)=Timb(1)+mpi_bari(ii)
-      enddo
-      !! barrier coor
-      ! barrier force
-      Timb(2)=Timb(2)+mpi_bari(10)
-      !! barrier force
-      ! barrier coor
-      Timb(3)=Timb(3)+mpi_bari(11)
-      ! barrier thermo-barostat
-      do ii=12,19
-        Timb(4)=Timb(4)+mpi_bari(ii)
-      enddo
-      ! barrier prepost
-      do ii=20,25
-        Timb(5)=Timb(5)+mpi_bari(ii)
-      enddo
-
-      call timer_set(41,Timt(4))   ! communicate_coor
-      call timer_set(42,Timt(3))   ! communicate_force
-      call timer_set(43,Timt(1))
-      call timer_set(44,Timt(2))
-      call timer_set(45,Timt(5))
-      call timer_set(46,Timt(6))
-      call timer_set(47,Timt(7))
-      call timer_set(48,Timt(8))
-
-      call timer_set(51,Timb(1))
-      ! call timer_set(52,Timb(2))
-      ! call timer_set(53,Timb(3))
-      call timer_set(52,Timb(3))  ! barrier in coor
-      call timer_set(53,Timb(2))  ! barrier in force
-      call timer_set(54,Timb(4))
-      call timer_set(55,Timb(5))
 
     end do
 
@@ -574,17 +411,6 @@ contains
     call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, &
                          dynvars)
     call output_dynvars (output, enefunc, dynvars, ensemble)
-
-#ifdef PKTIMER
-    call timer_end(5)
-#ifdef FJ_PROF_FIPP
-    call fipp_stop
-#endif
-#ifdef FJ_PROF_FAPP
-    !call stop_collection("MainLoop")
-    call fapp_stop("MainLoop",5,0)
-#endif
-#endif
 
     return
 
@@ -2709,10 +2535,6 @@ contains
                                 ensemble, domain, constraints,      &
                                 boundary, dynvars)
 
-#ifdef PKTIMER
-  use Ctim
-#endif
-
     ! formal arguments
     type(s_dynamics),         intent(in)    :: dynamics
     integer,                  intent(in)    :: istep
@@ -2760,10 +2582,6 @@ contains
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
     real(wip),       pointer :: bmoment(:)
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
-#ifdef PKTIMER
-    real(dp)                 :: st,et
-#endif
-
 
     dt          =  dt_short
     inv_dt      =  1.0_wip/dt
@@ -2815,13 +2633,6 @@ contains
     boundary%box_size_z_ref = boundary%box_size_z
     volume = boundary%box_size_x * boundary%box_size_y * boundary%box_size_z
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
-
     ! time step
     !
     half_dt       = 0.5_wip * dt
@@ -2851,26 +2662,12 @@ contains
     bmoment_ref(1:3) = bmoment(1:3)
     call copy_coord_vel(ncell, natom, coord, vel, coord_ref, vel_ref)
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     ! From here, last part of VV2
     !
 
     ! scale factor from barostat momentum
     !
     if (calc_elec_long .and. istep > 1) then
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
       gr = bmoment(1)+bmoment(2)+bmoment(3)
       gr = gr/degree
@@ -2880,23 +2677,9 @@ contains
       call update_vel_group_3d(constraints, ncell, nwater, water_list, &
                                vel_scale, mass, vel)
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     end if
 
     if (calc_thermostat) then
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
       do j = 1, ncell
         do jx = 1, natom(j)
@@ -2909,13 +2692,6 @@ contains
           vel_half(3,jx,j) = factor*force(3,jx,j)
         end do
       end do
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
 
       call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
                              vel_half, kin_half, ekin_half)
@@ -2954,13 +2730,6 @@ contains
     !
     if (calc_barostat) then
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
-
       virial(1:3,1:3) = virial(1:3,1:3) + virial_long(1:3,1:3)
       if (ensemble%group_tp) then
         viri_group(1:3,1:3) = 0.0_dp
@@ -2978,38 +2747,10 @@ contains
         virial_sum(3) = virial(3,3)
       end if
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
 #ifdef MPI
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_country,ierror)
-      call gettod(et)
-      mpi_bari(14)=mpi_bari(14)+(et-st)
-      call gettod(st)
-#endif
-
       call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(3,12)=mpi_tran(3,12)+(et-st)
-#endif
-
-#endif
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
 #endif
 
       press(1:3) = (kin(1:3) + virial_sum(1:3))/volume
@@ -3021,13 +2762,6 @@ contains
       call update_barostat_mtk(ensemble, press(1), press(2), press(3), &
                                pressxyz, pressxy, press0, volume,      &
                                d_ndegf, pmass, dt_baro, ekin, bmoment)
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
 
     end if
 
@@ -3050,13 +2784,6 @@ contains
                            ensemble, dynvars, scale_vel)
       end if
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
-
       call update_vel_group(constraints, ncell, nwater, water_list, &
                             scale_vel, mass, vel)
       bmoment(1:3) = bmoment(1:3) * scale_vel
@@ -3065,25 +2792,11 @@ contains
       ekin = 0.5_dp * (kin_full(1)+kin_full(2)+kin_full(3)) + 2.0_dp*ekin_half/3.0_dp
       ekin = ekin + 0.5_dp*pmass*dot_product(bmoment(1:3),bmoment(1:3))
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     end if
  
     ! VV1 (long range force)
     !
     if (calc_elec_long) then
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
       ! scale factor from barostat momentum
       !
@@ -3112,24 +2825,10 @@ contains
       end do
       !$omp end parallel 
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     end if
 
     ! VV1
     !
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
-
     !$omp parallel private(j, jx, factor, id) 
 #ifdef OMP
       id = omp_get_thread_num()
@@ -3150,13 +2849,6 @@ contains
                                  water_list, mass, inv_mass, force_short, &
                                  coord_ref, vel, size_scale, dt, coord)
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     ! constraints
     !
     if (constraints%rigid_bond) then
@@ -3167,13 +2859,6 @@ contains
 
     ! update barostat momentum
     !
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
-
     dynvars%barostat_momentum(1:3) = bmoment(1:3)
 
     ! compute box size
@@ -3183,22 +2868,8 @@ contains
     boundary%box_size_y = scale_b(2) * boundary%box_size_y_ref
     boundary%box_size_z = scale_b(3) * boundary%box_size_z_ref
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     call bcast_boxsize(boundary%box_size_x, boundary%box_size_y, &
                        boundary%box_size_z)
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
     boundary%cell_size_x = boundary%box_size_x / real(boundary%num_cells_x,wip)
     boundary%cell_size_y = boundary%box_size_y / real(boundary%num_cells_y,wip)
@@ -3225,13 +2896,6 @@ contains
     domain%system_size(2) = boundary%box_size_y
     domain%system_size(3) = boundary%box_size_z
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
     return
 
   end subroutine mtk_barostat_vv1
@@ -3257,10 +2921,6 @@ contains
   subroutine mtk_barostat_vv2(dynamics, istep, dt_long, dt_short,    &
                               ensemble, domain, constraints,         &
                               boundary, dynvars)
-
-#ifdef PKTIMER
-  use Ctim
-#endif
 
     ! formal arguments
     type(s_dynamics),         intent(in)    :: dynamics
@@ -3297,10 +2957,6 @@ contains
     real(dp) ,       pointer :: virial(:,:), viri_const(:,:), virial_long(:,:)
     real(wip),       pointer :: bmoment(:)
     integer,         pointer :: natom(:)
-
-#ifdef PKTIMER
-  real(8)  :: st,et
-#endif
 
     dt          =  dt_short
     inv_dt      =  1.0_wip/dt
@@ -3347,13 +3003,6 @@ contains
     !
     if (mod(istep, dynamics%elec_long_period) == 0) then
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v2",32,0)
-#endif
-  call timer_sta(32)
-#endif
-
       cm(1:8) = 0.0_dp
       !$omp parallel private(j,jx,id) reduction(+:cm)
 #ifdef OMP
@@ -3375,35 +3024,9 @@ contains
       end do
       !$omp end parallel 
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v2",32,0)
-#endif
-  call timer_end(32)
-#endif
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_country,ierror)
-      call gettod(et)
-      mpi_bari(15)=mpi_bari(15)+(et-st)
-      call gettod(st)
-#endif
-
       call mpi_allreduce(mpi_in_place, cm, 8, mpi_real8, mpi_sum, &
                          mpi_comm_city, ierror)
 
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(2,12)=mpi_tran(2,12)+(et-st)
-#endif
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v2",32,0)
-#endif
-  call timer_sta(32)
-#endif
 
       !$omp parallel private(j,jx,id)
 #ifdef OMP
@@ -3423,21 +3046,7 @@ contains
       end do
       !$omp end parallel 
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v2",32,0)
-#endif
-  call timer_end(32)
-#endif
-
     end if
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v2",32,0)
-#endif
-  call timer_sta(32)
-#endif
 
     ! VV2 (long range force)
     !
@@ -3477,23 +3086,9 @@ contains
     end do
     !$omp end parallel
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v2",32,0)
-#endif
-  call timer_end(32)
-#endif
-
     ! RATTLE VV2
     !
     if (constraints%rigid_bond) then
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v2",32,0)
-#endif
-  call timer_sta(32)
-#endif
 
       !$omp parallel private(j,jx,id)
 #ifdef OMP
@@ -3513,23 +3108,9 @@ contains
       end do
       !$omp end parallel
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v2",32,0)
-#endif
-  call timer_end(32)
-#endif
-
       call compute_constraints(ConstraintModeVVER2, .false., dt, coord_ref, &
                                domain, constraints, coord, coord_deri,      &
                                viri_const)
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v2",32,0)
-#endif
-  call timer_sta(32)
-#endif
 
       !$omp parallel private(j,jx,vel_change,id)
 #ifdef OMP
@@ -3548,13 +3129,6 @@ contains
         end do
       end do
       !$omp end parallel
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v2",32,0)
-#endif
-  call timer_end(32)
-#endif
 
     end if
 
@@ -3900,10 +3474,6 @@ contains
 
   subroutine vel_scale_bussi(degree, dt, tau_t, temp0, ekin, rr, scale_vel)
 
-#ifdef PKTIMER
-  use Ctim
-#endif
-
     ! formal arguments
     integer,                 intent(in)    :: degree
     real(wip),               intent(in)    :: dt, tau_t
@@ -3913,16 +3483,6 @@ contains
     real(wip),               intent(inout) :: scale_vel
 
     real(wip)                :: tempf, tempt, factor
-#ifdef PKTIMER
-  real(8)  :: st,et
-#endif
-
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_start("bussi_v1",31,0)
-#endif
-  call timer_sta(31)
-#endif
 
     factor = exp(-dt/tau_t)
     tempf = 2.0_wip * real(ekin,wip)/(real(degree,wip)*KBOLTZ)
@@ -3933,30 +3493,8 @@ contains
             *(1.0_wip-factor)*factor)*rr
     scale_vel = sqrt(tempt/tempf)
 
-#ifdef PKTIMER
-#ifdef FJ_PROF_FAPP
-  call fapp_stop ("bussi_v1",31,0)
-#endif
-  call timer_end(31)
-#endif
-
 #ifdef MPI
-
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_country,ierror)
-      call gettod(et)
-      mpi_bari(13)=mpi_bari(13)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_bcast(scale_vel, 1, mpi_wip_real, 0, mpi_comm_country, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(1,11)=mpi_tran(1,11)+(et-st)
-#endif
-
 #endif
 
     return
@@ -4151,10 +3689,6 @@ contains
 
   subroutine bcast_boxsize(val1, val2, val3)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
     ! formal arguments
     real(wip),               intent(inout) :: val1, val2, val3
 
@@ -4162,28 +3696,12 @@ contains
 
     ! local variables
     real(wip)                :: list(3)
-#ifdef PKTIMER
-  real(8)  :: st,et
-#endif
 
     list(1) = val1
     list(2) = val2
     list(3) = val3
 
-#ifdef PKTIMER
-      call gettod(st)
-      call mpi_barrier(mpi_comm_country,ierror)
-      call gettod(et)
-      mpi_bari(16)=mpi_bari(16)+(et-st)
-      call gettod(st)
-#endif
-
     call mpi_bcast(list, 3, mpi_wip_real, 0, mpi_comm_country, ierror)
-
-#ifdef PKTIMER
-      call gettod(et)
-      mpi_tran(2,11)=mpi_tran(2,11)+(et-st)
-#endif
 
     val1 = list(1)
     val2 = list(2)

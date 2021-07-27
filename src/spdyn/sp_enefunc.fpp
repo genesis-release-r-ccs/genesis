@@ -122,6 +122,14 @@ contains
     enefunc%minimum_contact   = ene_info%minimum_contact
     enefunc%err_minimum_contact = ene_info%err_minimum_contact
 
+    enefunc%efield(1)         = ene_info%efield_x * 23.06_wp
+    enefunc%efield(2)         = ene_info%efield_y * 23.06_wp
+    enefunc%efield(3)         = ene_info%efield_z * 23.06_wp
+
+    if (abs(enefunc%efield(1)) > EPS .or. abs(enefunc%efield(2)) > EPS .or. &
+        abs(enefunc%efield(3)) > EPS) then
+      enefunc%use_efield = .true.
+    end if
 
     if (ene_info%structure_check == StructureCheckDomain) then
       enefunc%pairlist_check = .true.
@@ -1482,6 +1490,7 @@ contains
     integer                  :: i, j, ix, icel1, icel2, i1, i2
     integer                  :: icel3, i3,icel4, i4
     integer                  :: id, my_id, omp_get_thread_num
+    integer                  :: pbc_int, k1, k2, k3, kk1, kk2, kk3
     real(wp), parameter      :: maxdistance = 0.5_wp
     real(wp)                 :: maxcell_size 
 
@@ -1494,6 +1503,7 @@ contains
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
     real(wip),       pointer :: coord(:,:,:)
+    integer(1),      pointer :: bond_pbc(:,:), angl_pbc(:,:,:), dihe_pbc(:,:,:)
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1506,12 +1516,15 @@ contains
     nbond       => enefunc%num_bond
     bondlist    => enefunc%bond_list
     r0          => enefunc%bond_dist_min
+    bond_pbc    => enefunc%bond_pbc
 
     nangle      => enefunc%num_angle
     anglelist   => enefunc%angle_list
+    angl_pbc    => enefunc%angle_pbc
 
     ndihe       => enefunc%num_dihedral
     dihelist    => enefunc%dihe_list
+    dihe_pbc    => enefunc%dihe_pbc
 
     nrbdihe     => enefunc%num_rb_dihedral
     rb_dihelist => enefunc%rb_dihe_list
@@ -1521,7 +1534,8 @@ contains
 
     !$omp parallel default(shared)                                     &
     !$omp private(id, i, j, ix, icel1, i1, icel2, i2, d12, r12, r_dif, &
-    !$omp         my_id, icel3, i3, icel4, i4)
+    !$omp         my_id, icel3, i3, icel4, i4, pbc_int, k1, k2, k3,    &
+    !$omp         kk1, kk2, kk3)
     !
 #ifdef OMP
     id  = omp_get_thread_num()
@@ -1539,7 +1553,23 @@ contains
         icel2 = id_g2l(1,bondlist(2,ix,i))
         i2    = id_g2l(2,bondlist(2,ix,i))
 
-        d12(1:3) = coord(1:3,i1,icel1) - coord(1:3,i2,icel2)
+        pbc_int = bond_pbc(ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        k1 = k1 - 1
+        k2 = k2 - 1
+        k3 = k3 - 1
+
+        ! bond energy: E=K[b-b0]^2
+        !
+        d12(1) = coord(1,i1,icel1) - coord(1,i2,icel2) &
+               + domain%system_size(1)*real(k1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i2,icel2) &
+               + domain%system_size(2)*real(k2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i2,icel2) &
+               + domain%system_size(3)*real(k3,wp)
         r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
         r_dif = r12 - r0(ix,i)
         if (r_dif > maxdistance) &
@@ -1564,7 +1594,20 @@ contains
         icel3 = id_g2l(1,anglelist(3,ix,i))
         i3    = id_g2l(2,anglelist(3,ix,i))
 
-        d12(1:3) = coord(1:3,i1,icel1) - coord(1:3,i3,icel3)
+        pbc_int = angl_pbc(3,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        k1 = k1 - 1
+        k2 = k2 - 1
+        k3 = k3 - 1
+        d12(1) = coord(1,i1,icel1) - coord(1,i3,icel3) &
+               + domain%system_size(1)*real(k1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i3,icel3) &
+               + domain%system_size(2)*real(k2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i3,icel3) &
+               + domain%system_size(3)*real(k3,wp)
         r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
 
         if (r12 > maxcell_size) then
@@ -1583,7 +1626,40 @@ contains
         icel4 = id_g2l(1,dihelist(4,ix,i))
         i4    = id_g2l(2,dihelist(4,ix,i))
 
-        d12(1:3) = coord(1:3,i1,icel1) - coord(1:3,i4,icel4)
+        pbc_int = dihe_pbc(1,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = k1 - 1
+        kk2 = k2 - 1
+        kk3 = k3 - 1
+
+        pbc_int = dihe_pbc(2,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = kk1 + k1 - 1
+        kk2 = kk2 + k2 - 1
+        kk3 = kk3 + k3 - 1
+
+        pbc_int = dihe_pbc(3,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = kk1 - k1 + 1
+        kk2 = kk2 - k2 + 1
+        kk3 = kk3 - k3 + 1
+
+        d12(1) = coord(1,i1,icel1) - coord(1,i4,icel4) &
+               + domain%system_size(1)*real(kk1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i4,icel4) &
+               + domain%system_size(2)*real(kk2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i4,icel4) &
+               + domain%system_size(3)*real(kk3,wp)
+
         r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
 
         if (r12 > maxcell_size) then

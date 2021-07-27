@@ -15,9 +15,8 @@
 module sp_energy_nonbond_pme_notable_mod
 
   use sp_energy_nonbond_gpu_mod
-  use sp_energy_nonbond_intel_knl_mod
-  use sp_energy_nonbond_k_generic_mod
   use sp_energy_nonbond_fugaku_mod
+  use sp_energy_nonbond_intel_mod
   use sp_energy_nonbond_generic_mod
   use sp_pairlist_str_mod
   use sp_enefunc_str_mod
@@ -86,12 +85,6 @@ contains
                                      coord_pbc, force_pbc, virial_cell,  &
                                      eelec, evdw)
 
-    case (NBK_KGeneric)
-      call compute_energy_nonbond_notbl_k_generic( &
-                                     domain, enefunc, pairlist,          &
-                                     coord_pbc, force_pbc, virial_cell,  &
-                                     eelec, evdw)
-
     case (NBK_Fugaku)      
       call compute_energy_nonbond_notbl_fugaku( &
                                      domain, enefunc, pairlist,          &
@@ -99,10 +92,11 @@ contains
                                      coord_pbc, force_pbc, virial,       &
                                      eelec, evdw)
 
-    case (NBK_IntelKnl)
-      call compute_energy_nonbond_notbl_intel_knl( &
+    case (NBK_Intel)
+      call compute_energy_nonbond_notbl_intel( &
                                      domain, enefunc, pairlist,          &
-                                     coord_pbc, force_pbc, virial_cell,  &
+                                     atmcls_pbc,                         &
+                                     coord_pbc, force_pbc, virial,       &
                                      eelec, evdw)
 
     case (NBK_GPU)
@@ -210,23 +204,17 @@ contains
                                      domain, enefunc, pairlist, &
                                      coord_pbc, force_pbc, virial_cell)
 
-    case (NBK_KGeneric)
-      call compute_force_nonbond_notbl_k_generic( &
-                                     domain, enefunc, pairlist, &
-                                     coord_pbc, force_pbc, virial_cell)
-
     case (NBK_Fugaku)
       call compute_force_nonbond_notbl_fugaku( &
                                      domain, enefunc, pairlist, &
                                      npt, atmcls_pbc,           &
                                      coord_pbc, force_pbc, virial)
 
-
-    case (NBK_IntelKnl)
-      call compute_force_nonbond_notbl_intel_knl( &
+    case (NBK_Intel)
+      call compute_force_nonbond_notbl_intel( &
                                      domain, enefunc, pairlist, &
-                                     coord_pbc, force_pbc, virial_cell)
-
+                                     npt, atmcls_pbc,           &
+                                     coord_pbc, force_pbc, virial)
 
     case (NBK_GPU)
       call compute_force_nonbond_notbl_gpu( &

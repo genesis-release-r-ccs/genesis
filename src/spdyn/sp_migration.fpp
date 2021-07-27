@@ -1004,7 +1004,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nbond(:), bondlist(:,:,:)
-    integer(1),      pointer :: bondkind(:,:)
+    integer(1),      pointer :: bondkind(:,:), bond_pbc(:,:)
     integer,         pointer :: bond_exit(:), index(:,:)
     integer,         pointer :: bond_add(:), buf_int(:,:,:)
 
@@ -1017,6 +1017,7 @@ contains
     nbond       => enefunc%num_bond
     bondlist    => enefunc%bond_list
     bondkind    => enefunc%bond_kind
+    bond_pbc    => enefunc%bond_pbc
     fc          => enefunc%bond_force_const
     r0          => enefunc%bond_dist_min
     bond_exit   => enefunc%bond_exit
@@ -1049,6 +1050,7 @@ contains
           buf_int (1,bond_add(icel_local),icel_local) = bondlist(1,ix,i)
           buf_int (2,bond_add(icel_local),icel_local) = bondlist(2,ix,i)
           buf_int (3,bond_add(icel_local),icel_local) = bondkind(ix,i)
+          buf_int (4,bond_add(icel_local),icel_local) = bond_pbc(ix,i)
 
         end if
 
@@ -1086,7 +1088,7 @@ contains
     integer,         pointer :: bond_add(:), bond_exit(:), bond_exit_index(:,:)
     integer,         pointer :: buf_int(:,:,:), nbond(:)
     integer,         pointer :: bondlist(:,:,:)
-    integer(1),      pointer :: bondkind(:,:)
+    integer(1),      pointer :: bondkind(:,:), bond_pbc(:,:)
 
 
     ncel_local      => domain%num_cell_local
@@ -1104,6 +1106,7 @@ contains
     bonddist        => enefunc%bond_dist_min
     nbond           => enefunc%num_bond
     bondkind        => enefunc%bond_kind
+    bond_pbc        => enefunc%bond_pbc
 
     found = 0
     do i = 1, ncel_local
@@ -1125,6 +1128,7 @@ contains
           bondlist (1,bond_exit_index(k,i),i) = buf_int (1,k,i)
           bondlist (2,bond_exit_index(k,i),i) = buf_int (2,k,i)
           bondkind(bond_exit_index(k,i),i)    = buf_int (3,k,i)
+          bond_pbc(bond_exit_index(k,i),i)    = buf_int (4,k,i)
           bonddist (bond_exit_index(k,i),i)   = buf_real(1,k,i)
           bondforce(bond_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -1134,6 +1138,7 @@ contains
           bondlist (1,ix,i) = buf_int(1,k,i)
           bondlist (2,ix,i) = buf_int(2,k,i)
           bondkind (ix,i)   = buf_int(3,k,i)
+          bond_pbc (ix,i)   = buf_int(4,k,i)
           bonddist (ix,i)   = buf_real(1,k,i)
           bondforce(ix,i)   = buf_real(2,k,i)
         end do
@@ -1146,6 +1151,7 @@ contains
           bondlist (1,bond_exit_index(k,i),i) = buf_int (1,k,i)
           bondlist (2,bond_exit_index(k,i),i) = buf_int (2,k,i)
           bondkind(bond_exit_index(k,i),i)    = buf_int (3,k,i)
+          bond_pbc(bond_exit_index(k,i),i)    = buf_int (4,k,i)
           bonddist (bond_exit_index(k,i),i)   = buf_real(1,k,i)
           bondforce(bond_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -1170,6 +1176,7 @@ contains
             bondlist (1,kx,i) = bondlist(1,ix,i)
             bondlist (2,kx,i) = bondlist(2,ix,i)
             bondkind (kx,i)   = bondkind(ix,i)
+            bond_pbc (kx,i)   = bond_pbc(ix,i)
             bonddist (kx,i)   = bonddist(ix,i)
             bondforce(kx,i)   = bondforce(ix,i)
             j = j + 1
@@ -1217,7 +1224,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nangle(:), anglelist(:,:,:)
-    integer(1),      pointer :: anglekind(:,:)
+    integer(1),      pointer :: anglekind(:,:), angl_pbc(:,:,:)
     integer,         pointer :: angle_add(:), angle_exit(:)
     integer,         pointer :: angle_exit_index(:,:), buf_int(:,:,:)
 
@@ -1233,6 +1240,7 @@ contains
     nangle           => enefunc%num_angle
     anglelist        => enefunc%angle_list
     anglekind        => enefunc%angle_kind
+    angl_pbc         => enefunc%angle_pbc
     fc               => enefunc%angle_force_const
     theta0           => enefunc%angle_theta_min
     fc_ub            => enefunc%urey_force_const
@@ -1271,6 +1279,9 @@ contains
           buf_int (2,angle_add(icel_local),icel_local) = anglelist(2,ix,i)
           buf_int (3,angle_add(icel_local),icel_local) = anglelist(3,ix,i)
           buf_int (4,angle_add(icel_local),icel_local) = anglekind(ix,i)
+          buf_int (5,angle_add(icel_local),icel_local) = angl_pbc(1,ix,i)
+          buf_int (6,angle_add(icel_local),icel_local) = angl_pbc(2,ix,i)
+          buf_int (7,angle_add(icel_local),icel_local) = angl_pbc(3,ix,i)
 
         end if
 
@@ -1309,7 +1320,7 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: angle_add(:), angle_exit(:)
     integer,         pointer :: angle_exit_index(:,:)
-    integer(1),      pointer :: anglekind(:,:)
+    integer(1),      pointer :: anglekind(:,:), angl_pbc(:,:,:)
     integer,         pointer :: buf_int(:,:,:), nangle(:), anglelist(:,:,:)
 
 
@@ -1326,6 +1337,7 @@ contains
     buf_real         => enefunc%buf_angle_real
     anglelist        => enefunc%angle_list
     anglekind        => enefunc%angle_kind
+    angl_pbc         => enefunc%angle_pbc 
     angleforce       => enefunc%angle_force_const
     angletheta       => enefunc%angle_theta_min
     ubforce          => enefunc%urey_force_const
@@ -1350,6 +1362,9 @@ contains
           anglelist (2,angle_exit_index(k,i),i) = buf_int (2,k,i)
           anglelist (3,angle_exit_index(k,i),i) = buf_int (3,k,i)
           anglekind (angle_exit_index(k,i),i)   = buf_int (4,k,i)
+          angl_pbc  (1,angle_exit_index(k,i),i) = buf_int (5,k,i)
+          angl_pbc  (2,angle_exit_index(k,i),i) = buf_int (6,k,i)
+          angl_pbc  (3,angle_exit_index(k,i),i) = buf_int (7,k,i)
           angletheta(angle_exit_index(k,i),i)   = buf_real(1,k,i)
           angleforce(angle_exit_index(k,i),i)   = buf_real(2,k,i)
           ubrmin    (angle_exit_index(k,i),i)   = buf_real(3,k,i)
@@ -1362,6 +1377,9 @@ contains
           anglelist (2,ix,i) = buf_int(2,k,i)
           anglelist (3,ix,i) = buf_int(3,k,i)
           anglekind (ix,i)   = buf_int(4,k,i)
+          angl_pbc  (1,ix,i) = buf_int(5,k,i)
+          angl_pbc  (2,ix,i) = buf_int(6,k,i)
+          angl_pbc  (3,ix,i) = buf_int(7,k,i)
           angletheta(ix,i)   = buf_real(1,k,i)
           angleforce(ix,i)   = buf_real(2,k,i)
           ubrmin    (ix,i)   = buf_real(3,k,i)
@@ -1375,6 +1393,9 @@ contains
           anglelist (2,angle_exit_index(k,i),i) = buf_int (2,k,i)
           anglelist (3,angle_exit_index(k,i),i) = buf_int (3,k,i)
           anglekind (angle_exit_index(k,i),i)   = buf_int (4,k,i)
+          angl_pbc  (1,angle_exit_index(k,i),i) = buf_int (5,k,i)
+          angl_pbc  (2,angle_exit_index(k,i),i) = buf_int (6,k,i)
+          angl_pbc  (3,angle_exit_index(k,i),i) = buf_int (7,k,i)
           angletheta(angle_exit_index(k,i),i)   = buf_real(1,k,i)
           angleforce(angle_exit_index(k,i),i)   = buf_real(2,k,i)
           ubrmin    (angle_exit_index(k,i),i)   = buf_real(3,k,i)
@@ -1403,6 +1424,9 @@ contains
             anglelist (2,kx,i) = anglelist(2,ix,i)
             anglelist (3,kx,i) = anglelist(3,ix,i)
             anglekind (kx,i)   = anglekind(ix,i)
+            angl_pbc  (1,kx,i) = angl_pbc (1,ix,i)
+            angl_pbc  (2,kx,i) = angl_pbc (2,ix,i)
+            angl_pbc  (3,kx,i) = angl_pbc (3,ix,i)
             angletheta(kx,i)   = angletheta(ix,i)
             angleforce(kx,i)   = angleforce(ix,i)
             ubrmin    (kx,i)   = ubrmin(ix,i)
@@ -1456,7 +1480,7 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:)
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
-    integer(1),      pointer :: dihekind(:,:)
+    integer(1),      pointer :: dihekind(:,:), dihe_pbc(:,:,:)
     integer,         pointer :: nperiod(:,:), buf_int(:,:,:)
 
 
@@ -1471,6 +1495,7 @@ contains
     ndihe            => enefunc%num_dihedral
     dihelist         => enefunc%dihe_list
     dihekind         => enefunc%dihe_kind
+    dihe_pbc         => enefunc%dihe_pbc 
     dihed_add        => enefunc%dihed_add
     dihed_exit       => enefunc%dihed_exit
     dihed_exit_index => enefunc%dihed_exit_index
@@ -1511,6 +1536,9 @@ contains
           buf_int (4,dihed_add(icel_local),icel_local) = dihelist(4,ix,i)
           buf_int (5,dihed_add(icel_local),icel_local) = nperiod(ix,i)
           buf_int (6,dihed_add(icel_local),icel_local) = dihekind(ix,i)
+          buf_int (7,dihed_add(icel_local),icel_local) = dihe_pbc(1,ix,i)
+          buf_int (8,dihed_add(icel_local),icel_local) = dihe_pbc(2,ix,i)
+          buf_int (9,dihed_add(icel_local),icel_local) = dihe_pbc(3,ix,i)
 
         end if
 
@@ -1549,7 +1577,7 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:), buf_int(:,:,:)
     integer,         pointer :: ndihedral(:), dihelist(:,:,:), diheperio(:,:)
-    integer(1),      pointer :: dihekind(:,:)
+    integer(1),      pointer :: dihekind(:,:), dihe_pbc(:,:,:)
 
 
     ncel_local       => domain%num_cell_local
@@ -1560,6 +1588,7 @@ contains
     ndihedral        => enefunc%num_dihedral
     dihelist         => enefunc%dihe_list
     dihekind         => enefunc%dihe_kind
+    dihe_pbc         => enefunc%dihe_pbc 
     diheforce        => enefunc%dihe_force_const
     diheperio        => enefunc%dihe_periodicity
     dihephase        => enefunc%dihe_phase
@@ -1592,6 +1621,9 @@ contains
           dihelist (4,dihed_exit_index(k,i),i) = buf_int (4,k,i)
           diheperio(dihed_exit_index(k,i),i)   = buf_int (5,k,i)
           dihekind (dihed_exit_index(k,i),i)   = buf_int (6,k,i)
+          dihe_pbc (1,dihed_exit_index(k,i),i) = buf_int (7,k,i)
+          dihe_pbc (2,dihed_exit_index(k,i),i) = buf_int (8,k,i)
+          dihe_pbc (3,dihed_exit_index(k,i),i) = buf_int (9,k,i)
           dihephase(dihed_exit_index(k,i),i)   = buf_real(1,k,i)
           diheforce(dihed_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -1604,6 +1636,9 @@ contains
           dihelist (4,ix,i) = buf_int (4,k,i)
           diheperio(ix,i)   = buf_int (5,k,i)
           dihekind (ix,i)   = buf_int (6,k,i)
+          dihe_pbc (1,ix,i) = buf_int (7,k,i)
+          dihe_pbc (2,ix,i) = buf_int (8,k,i)
+          dihe_pbc (3,ix,i) = buf_int (9,k,i)
           dihephase(ix,i)   = buf_real(1,k,i)
           diheforce(ix,i)   = buf_real(2,k,i)
         end do
@@ -1618,6 +1653,9 @@ contains
           dihelist (4,dihed_exit_index(k,i),i) = buf_int (4,k,i)
           diheperio(dihed_exit_index(k,i),i)   = buf_int (5,k,i)
           dihekind (dihed_exit_index(k,i),i)   = buf_int (6,k,i)
+          dihe_pbc (1,dihed_exit_index(k,i),i) = buf_int (7,k,i)
+          dihe_pbc (2,dihed_exit_index(k,i),i) = buf_int (8,k,i)
+          dihe_pbc (3,dihed_exit_index(k,i),i) = buf_int (9,k,i)
           dihephase(dihed_exit_index(k,i),i)   = buf_real(1,k,i)
           diheforce(dihed_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -1645,6 +1683,9 @@ contains
             dihelist (4,kx,i) = dihelist (4,ix,i)
             diheperio(kx,i)   = diheperio(ix,i)
             dihekind (kx,i)   = dihekind (ix,i)
+            dihe_pbc (1,kx,i) = dihe_pbc (1,ix,i)
+            dihe_pbc (2,kx,i) = dihe_pbc (2,ix,i)
+            dihe_pbc (3,kx,i) = dihe_pbc (3,ix,i)
             dihephase(kx,i)   = dihephase(ix,i)
             diheforce(kx,i)   = diheforce(ix,i)
             j = j + 1
@@ -1694,6 +1735,7 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:)
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
+    integer(1),      pointer :: dihe_pbc(:,:,:)
     integer,         pointer :: buf_int(:,:,:)
 
 
@@ -1711,6 +1753,7 @@ contains
     dihed_add        => enefunc%rb_dihed_add
     dihed_exit       => enefunc%rb_dihed_exit
     dihed_exit_index => enefunc%rb_dihed_exit_index
+    dihe_pbc         => enefunc%rb_dihe_pbc
     buf_int          => enefunc%buf_rb_dihed_integer
     buf_real         => enefunc%buf_rb_dihed_real
 
@@ -1747,6 +1790,9 @@ contains
           buf_int (2,dihed_add(icel_local),icel_local) = dihelist(2,ix,i)
           buf_int (3,dihed_add(icel_local),icel_local) = dihelist(3,ix,i)
           buf_int (4,dihed_add(icel_local),icel_local) = dihelist(4,ix,i)
+          buf_int (5,dihed_add(icel_local),icel_local) = dihe_pbc(1,ix,i)
+          buf_int (6,dihed_add(icel_local),icel_local) = dihe_pbc(2,ix,i)
+          buf_int (7,dihed_add(icel_local),icel_local) = dihe_pbc(3,ix,i)
 
         end if
 
@@ -1785,7 +1831,7 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:), buf_int(:,:,:)
     integer,         pointer :: ndihedral(:), dihelist(:,:,:)
-
+    integer(1),      pointer :: dihe_pbc(:,:,:)
 
     ncel_local       => domain%num_cell_local
     nboundary        => domain%num_cell_boundary
@@ -1798,6 +1844,7 @@ contains
     dihed_add        => enefunc%rb_dihed_add
     dihed_exit       => enefunc%rb_dihed_exit
     dihed_exit_index => enefunc%rb_dihed_exit_index
+    dihe_pbc         => enefunc%rb_dihe_pbc
     buf_int          => enefunc%buf_rb_dihed_integer
     buf_real         => enefunc%buf_rb_dihed_real
 
@@ -1822,6 +1869,9 @@ contains
           dihelist (2,dihed_exit_index(k,i),i) = buf_int (2,k,i)
           dihelist (3,dihed_exit_index(k,i),i) = buf_int (3,k,i)
           dihelist (4,dihed_exit_index(k,i),i) = buf_int (4,k,i)
+          dihe_pbc (1,dihed_exit_index(k,i),i) = buf_int (5,k,i)
+          dihe_pbc (2,dihed_exit_index(k,i),i) = buf_int (6,k,i)
+          dihe_pbc (3,dihed_exit_index(k,i),i) = buf_int (7,k,i)
           dihec    (1,dihed_exit_index(k,i),i) = buf_real(1,k,i)
           dihec    (2,dihed_exit_index(k,i),i) = buf_real(2,k,i)
           dihec    (3,dihed_exit_index(k,i),i) = buf_real(3,k,i)
@@ -1836,6 +1886,9 @@ contains
           dihelist (2,ix,i) = buf_int (2,k,i)
           dihelist (3,ix,i) = buf_int (3,k,i)
           dihelist (4,ix,i) = buf_int (4,k,i)
+          dihe_pbc (1,ix,i) = buf_int (5,k,i)
+          dihe_pbc (2,ix,i) = buf_int (6,k,i)
+          dihe_pbc (3,ix,i) = buf_int (7,k,i)
           dihec    (1,ix,i) = buf_real(1,k,i)
           dihec    (2,ix,i) = buf_real(2,k,i)
           dihec    (3,ix,i) = buf_real(3,k,i)
@@ -1852,6 +1905,9 @@ contains
           dihelist (2,dihed_exit_index(k,i),i) = buf_int (2,k,i)
           dihelist (3,dihed_exit_index(k,i),i) = buf_int (3,k,i)
           dihelist (4,dihed_exit_index(k,i),i) = buf_int (4,k,i)
+          dihe_pbc (1,dihed_exit_index(k,i),i) = buf_int (5,k,i)
+          dihe_pbc (2,dihed_exit_index(k,i),i) = buf_int (6,k,i)
+          dihe_pbc (3,dihed_exit_index(k,i),i) = buf_int (7,k,i)
           dihec    (1,dihed_exit_index(k,i),i) = buf_real(1,k,i)
           dihec    (2,dihed_exit_index(k,i),i) = buf_real(2,k,i)
           dihec    (3,dihed_exit_index(k,i),i) = buf_real(3,k,i)
@@ -1881,6 +1937,9 @@ contains
             dihelist (2,kx,i) = dihelist (2,ix,i)
             dihelist (3,kx,i) = dihelist (3,ix,i)
             dihelist (4,kx,i) = dihelist (4,ix,i)
+            dihe_pbc (1,kx,i) = dihe_pbc (1,ix,i)
+            dihe_pbc (2,kx,i) = dihe_pbc (2,ix,i)
+            dihe_pbc (3,kx,i) = dihe_pbc (3,ix,i)
             dihec    (1,kx,i) = dihec    (1,ix,i)
             dihec    (2,kx,i) = dihec    (2,ix,i)
             dihec    (3,kx,i) = dihec    (3,ix,i)
@@ -1935,7 +1994,7 @@ contains
     integer,         pointer :: impr_add(:), impr_exit(:), impr_exit_index(:,:)
     integer,         pointer :: nperiod(:,:)
     integer,         pointer :: buf_int(:,:,:), nimproper(:), imprlist(:,:,:)
-
+    integer(1),      pointer :: impr_pbc(:,:,:)
 
     ncel_local      => domain%num_cell_local
     nboundary       => domain%num_cell_boundary
@@ -1955,6 +2014,7 @@ contains
     nperiod         => enefunc%impr_periodicity
     buf_int         => enefunc%buf_impr_integer
     buf_real        => enefunc%buf_impr_real
+    impr_pbc        => enefunc%impr_pbc
 
     impr_exit(1:ncel_local) = 0
     impr_add (1:ncel_local+nboundary) = 0
@@ -1985,6 +2045,9 @@ contains
           buf_int (3,impr_add(icel_local),icel_local) = imprlist(3,ix,i)
           buf_int (4,impr_add(icel_local),icel_local) = imprlist(4,ix,i)
           buf_int (5,impr_add(icel_local),icel_local) = nperiod(ix,i)
+          buf_int (6,impr_add(icel_local),icel_local) = impr_pbc(1,ix,i)
+          buf_int (7,impr_add(icel_local),icel_local) = impr_pbc(2,ix,i)
+          buf_int (8,impr_add(icel_local),icel_local) = impr_pbc(3,ix,i)
 
         end if
 
@@ -2024,6 +2087,7 @@ contains
     integer,         pointer :: impr_add(:), impr_exit(:), impr_exit_index(:,:)
     integer,         pointer :: impr_nperiod(:,:)
     integer,         pointer :: buf_int(:,:,:), nimproper(:), imprlist(:,:,:)
+    integer(1),      pointer :: impr_pbc(:,:,:)
 
 
     ncel_local       => domain%num_cell_local
@@ -2041,6 +2105,7 @@ contains
     impr_nperiod     => enefunc%impr_periodicity
     buf_int          => enefunc%buf_impr_integer
     buf_real         => enefunc%buf_impr_real
+    impr_pbc         => enefunc%impr_pbc
 
     do i = 1, ncel_local
 #ifdef DEBUG
@@ -2061,6 +2126,9 @@ contains
           imprlist(3,impr_exit_index(k,i),i)   = buf_int (3,k,i)
           imprlist(4,impr_exit_index(k,i),i)   = buf_int (4,k,i)
           impr_nperiod(impr_exit_index(k,i),i) = buf_int (5,k,i)
+          impr_pbc(1,impr_exit_index(k,i),i)   = buf_int (6,k,i)
+          impr_pbc(2,impr_exit_index(k,i),i)   = buf_int (7,k,i)
+          impr_pbc(3,impr_exit_index(k,i),i)   = buf_int (8,k,i)
           impr_phase(impr_exit_index(k,i),i)   = buf_real(1,k,i)
           impr_force(impr_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -2072,6 +2140,9 @@ contains
           imprlist(3,ix,i)   = buf_int (3,k,i)
           imprlist(4,ix,i)   = buf_int (4,k,i)
           impr_nperiod(ix,i) = buf_int (5,k,i)
+          impr_pbc(1,ix,i)   = buf_int (6,k,i)
+          impr_pbc(2,ix,i)   = buf_int (7,k,i)
+          impr_pbc(3,ix,i)   = buf_int (8,k,i)
           impr_phase(ix,i)   = buf_real(1,k,i)
           impr_force(ix,i)   = buf_real(2,k,i)
         end do
@@ -2085,6 +2156,9 @@ contains
           imprlist(3,impr_exit_index(k,i),i)   = buf_int (3,k,i)
           imprlist(4,impr_exit_index(k,i),i)   = buf_int (4,k,i)
           impr_nperiod(impr_exit_index(k,i),i) = buf_int (5,k,i)
+          impr_pbc(1,impr_exit_index(k,i),i)   = buf_int (6,k,i)
+          impr_pbc(2,impr_exit_index(k,i),i)   = buf_int (7,k,i)
+          impr_pbc(3,impr_exit_index(k,i),i)   = buf_int (8,k,i)
           impr_phase(impr_exit_index(k,i),i)   = buf_real(1,k,i)
           impr_force(impr_exit_index(k,i),i)   = buf_real(2,k,i)
         end do
@@ -2111,6 +2185,9 @@ contains
             imprlist(3,kx,i)   = imprlist(3,ix,i)
             imprlist(4,kx,i)   = imprlist(4,ix,i)
             impr_nperiod(kx,i) = impr_nperiod(ix,i)
+            impr_pbc(1,kx,i)   = impr_pbc(1,ix,i)
+            impr_pbc(2,kx,i)   = impr_pbc(2,ix,i)
+            impr_pbc(3,kx,i)   = impr_pbc(3,ix,i)
             impr_phase(kx,i)   = impr_phase(ix,i)
             impr_force(kx,i)   = impr_force(ix,i)
             j = j + 1
@@ -2157,6 +2234,7 @@ contains
     integer,         pointer :: cmap_exit(:), cmap_add(:), cmap_exit_index(:,:)
     integer,         pointer :: ncmap(:), cmaplist(:,:,:), cmaptype(:,:)
     integer,         pointer :: buf_int(:,:,:)
+    integer(1),      pointer :: cmap_pbc(:,:,:)
 
 
     ncel_local      => domain%num_cell_local
@@ -2172,6 +2250,7 @@ contains
     cmaptype        => enefunc%cmap_type
     cmap_add        => enefunc%cmap_add
     cmap_exit       => enefunc%cmap_exit
+    cmap_pbc        => enefunc%cmap_pbc
     cmap_exit_index => enefunc%cmap_exit_index
     buf_int         => enefunc%buf_cmap_integer
 
@@ -2194,6 +2273,12 @@ contains
             buf_int(k,cmap_add(icel_local),icel_local) =cmaplist(k,ix,i)
           end do
           buf_int(9,cmap_add(icel_local),icel_local) = cmaptype(ix,i)
+          buf_int(10,cmap_add(icel_local),icel_local) = cmap_pbc(1,ix,i)
+          buf_int(11,cmap_add(icel_local),icel_local) = cmap_pbc(2,ix,i)
+          buf_int(12,cmap_add(icel_local),icel_local) = cmap_pbc(3,ix,i)
+          buf_int(13,cmap_add(icel_local),icel_local) = cmap_pbc(4,ix,i)
+          buf_int(14,cmap_add(icel_local),icel_local) = cmap_pbc(5,ix,i)
+          buf_int(15,cmap_add(icel_local),icel_local) = cmap_pbc(6,ix,i)
 
         end if
 
@@ -2230,7 +2315,7 @@ contains
     integer,         pointer :: cmap_add(:), cmap_exit(:), cmap_exit_index(:,:)
     integer,         pointer :: buf_int(:,:,:), ncmap(:), cmap_list(:,:,:)
     integer,         pointer :: cmap_type(:,:)
-
+    integer(1),      pointer :: cmap_pbc(:,:,:)
 
     ncel_local      => domain%num_cell_local
     nboundary       => domain%num_cell_boundary
@@ -2243,6 +2328,7 @@ contains
     cmap_add        => enefunc%cmap_add
     cmap_exit       => enefunc%cmap_exit
     cmap_exit_index => enefunc%cmap_exit_index
+    cmap_pbc        => enefunc%cmap_pbc
     buf_int         => enefunc%buf_cmap_integer
 
 
@@ -2265,6 +2351,12 @@ contains
             cmap_list(ia,cmap_exit_index(k,i),i) = buf_int(ia,k,i)
           end do
           cmap_type(cmap_exit_index(k,i),i) = buf_int(9,k,i)
+          cmap_pbc (1,cmap_exit_index(k,i),i) = buf_int(10,k,i)
+          cmap_pbc (2,cmap_exit_index(k,i),i) = buf_int(11,k,i)
+          cmap_pbc (3,cmap_exit_index(k,i),i) = buf_int(12,k,i)
+          cmap_pbc (4,cmap_exit_index(k,i),i) = buf_int(13,k,i)
+          cmap_pbc (5,cmap_exit_index(k,i),i) = buf_int(14,k,i)
+          cmap_pbc (6,cmap_exit_index(k,i),i) = buf_int(15,k,i)
         end do
 
         do k = cmap_exit(i)+1, cmap_add(i)
@@ -2274,6 +2366,12 @@ contains
             cmap_list(ia,ix,i) = buf_int(ia,k,i)
           end do
           cmap_type(ix,i) = buf_int(9,k,i)
+          cmap_pbc (1,ix,i) = buf_int(10,k,i)
+          cmap_pbc (2,ix,i) = buf_int(11,k,i)
+          cmap_pbc (3,ix,i) = buf_int(12,k,i)
+          cmap_pbc (4,ix,i) = buf_int(13,k,i)
+          cmap_pbc (5,ix,i) = buf_int(14,k,i)
+          cmap_pbc (6,ix,i) = buf_int(15,k,i)
 
         end do
 
@@ -2286,6 +2384,12 @@ contains
             cmap_list(ia,cmap_exit_index(k,i),i) = buf_int(ia,k,i)
           end do
           cmap_type(cmap_exit_index(k,i),i)   = buf_int(9,k,i)
+          cmap_pbc (1,cmap_exit_index(k,i),i) = buf_int(10,k,i)
+          cmap_pbc (2,cmap_exit_index(k,i),i) = buf_int(11,k,i)
+          cmap_pbc (3,cmap_exit_index(k,i),i) = buf_int(12,k,i)
+          cmap_pbc (4,cmap_exit_index(k,i),i) = buf_int(13,k,i)
+          cmap_pbc (5,cmap_exit_index(k,i),i) = buf_int(14,k,i)
+          cmap_pbc (6,cmap_exit_index(k,i),i) = buf_int(15,k,i)
         end do
 
         j  = 0
@@ -2311,6 +2415,12 @@ contains
             end do
 
             cmap_type(kx,i) = cmap_type(ix,i)
+            cmap_pbc (1,kx,i) = cmap_pbc(1,ix,i)
+            cmap_pbc (2,kx,i) = cmap_pbc(2,ix,i)
+            cmap_pbc (3,kx,i) = cmap_pbc(3,ix,i)
+            cmap_pbc (4,kx,i) = cmap_pbc(4,ix,i)
+            cmap_pbc (5,kx,i) = cmap_pbc(5,ix,i)
+            cmap_pbc (6,kx,i) = cmap_pbc(6,ix,i)
             j = j + 1
             k = k + 1
 

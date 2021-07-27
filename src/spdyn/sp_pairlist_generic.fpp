@@ -47,9 +47,6 @@ contains
 
   subroutine update_pairlist_pbc_generic(enefunc, domain, pairlist)
   
-#ifdef PKTIMER
-    use Ctim
-#endif
     ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
     type(s_domain),   target, intent(in)    :: domain  
@@ -112,14 +109,6 @@ contains
 
     pairdist2       =  pairlist%pairlistdist * pairlist%pairlistdist
     num_nb15_total  =  0
-
-#ifdef PKTIMER
-    call gettod(sas)
-#ifdef FJ_PROF_FAPP
-    call fapp_start("PairList",13,0)
-#endif
-    call timer_sta(13)
-#endif
 
     !$omp parallel                                                             &
     !$omp private(id, i, ix, ini_excl, num_excl, ini_nb14, num_nb14, num_nb15, &
@@ -330,14 +319,6 @@ contains
 !    call mpi_reduce(num_nb15_total, num_nb15_total1, 1, mpi_integer, mpi_sum, &
 !         0, mpi_comm_country, ierror)
 !#endif
-#ifdef PKTIMER
-    call timer_end(13)
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("PairList",13,0)
-#endif
-    call gettod(eae)
-    Timc(5)=Timc(5)+(eae-sas)
-#endif
 
     return
 
