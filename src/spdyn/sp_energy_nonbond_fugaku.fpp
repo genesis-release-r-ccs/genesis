@@ -895,14 +895,13 @@ contains
     real(wp)                  :: R, lj12, lj6
     real(wp)                  :: term_lj12, term_lj6, term_elec
     real(wp)                  :: cutoff2, grad_coef
-    real(wp)                  :: work(1:3)
-    real(wp)                  :: rtmp(1:3), qtmp, jqtmp
+    real(wp)                  :: work(3)
+    real(wp)                  :: rtmp(3), qtmp, jqtmp
     real(wp)                  :: force_local(3), viri(3), within_cutoff
     integer                   :: i, ix, iy, j, k, ki, ij, L, L1, ixx
     integer                   :: id, omp_get_thread_num
-    integer                   :: iatmcls,jatmcls
+    integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
-    
 
     real(wip),        pointer,contiguous :: coord(:,:,:)
     real(wp),         pointer,contiguous :: charge(:,:)
@@ -950,7 +949,7 @@ contains
 #endif
 
     do i = id+1, ncell, nthread
-      ki = (i-1)*MaxAtom
+      ki = start_atom(i)
       do ix = 1, natom(i)
         ixx = ki + ix
         coord_pbc(1,ixx,1) = coord(1,ix,i) + trans1(1,ix,i)
@@ -1019,10 +1018,10 @@ contains
         L      = int(rij2)
         R      = rij2 - L
 
-        term_lj6  = rij2_inv * rij2_inv * rij2_inv
+        term_lj6  = rij2_inv * rij2_inv * rij2_inv * within_cutoff
         term_lj12 = term_lj6 * term_lj6
-        work(1)  = -12.0_wp * term_lj12 * rij2_inv * within_cutoff
-        work(2)  = - 6.0_wp * term_lj6  * rij2_inv * within_cutoff
+        work(1)  = -12.0_wp * term_lj12 * rij2_inv
+        work(2)  = - 6.0_wp * term_lj6  * rij2_inv 
         work(3)  = table_grad(L)
         work(3)  = work(3) + R*(table_grad(L+1)-work(3))
         work(3)  = work(3) * within_cutoff

@@ -908,7 +908,7 @@ contains
 #endif
 
     do i = id+1, ncell, nthread
-      ki = (i-1)*MaxAtom
+      ki = start_atom(i)
       do ix = 1, natom(i)
         ixx = ki + ix
         coord_pbc(ixx,1,1) = coord(1,ix,i) + trans1(1,ix,i)
