@@ -584,17 +584,18 @@ if test x"${with_cuda}" != x"no"; then
        AC_MSG_ERROR([CUDA is not allowed])
 	fi
 # CUDA VERSION and compile option
-	if test ${NVCC_VER} -lt 080000; then
-    	AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
-	fi
+        if test ${NVCC_VER} -lt 080000; then
+        AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
+        fi
     GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
-  	if test ${NVCC_VER} -gt 065000; then
+        if test ${NVCC_VER} -gt 065000; then
        GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
-	fi
-	if test ${NVCC_VER} -gt 080000; then
+        fi
+        if test ${NVCC_VER} -gt 080000; then
        GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
        GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"' #GTX1080
-	fi
+       GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
+        fi
 
 # NVCCFLAG
     NVCCFLAG="-c -g -O3 ${GENCODEFLAG} --ftz=false --prec-div=true --prec-sqrt=true --fmad=true"

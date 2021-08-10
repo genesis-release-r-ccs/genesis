@@ -64,12 +64,13 @@ typedef unsigned char  uchar;
 #define TMP_univ_iy_natom(Z)       tmp_univ_iy_natom       [(Z)-1]
 
 /* */
-#if (CUDA_VERSION < 8000)
+//#if (CUDA_VERSION < 8000)
 
 #define WARP_RSUM_12(X)    { X+=__shfl_xor(X,1,32); X+=__shfl_xor(X,2,32); }
 #define WARP_RSUM_345(X)   { X+=__shfl_xor(X,4,32); X+=__shfl_xor(X,8,32); X+=__shfl_xor(X,16,32); }
 #define WARP_RSUM_12345(X) { X+=__shfl_xor(X,1,32); X+=__shfl_xor(X,2,32); X+=__shfl_xor(X,4,32); X+=__shfl_xor(X,8,32); X+=__shfl_xor(X,16,32); }
 
+/*
 #else
 
 #define WARP_RSUM_12(X)    { X+=__shfl_xor_sync(0xffffffff,X,1,32); X+=__shfl_xor_sync(0xffffffff,X,2,32); }
@@ -77,6 +78,7 @@ typedef unsigned char  uchar;
 #define WARP_RSUM_12345(X) { X+=__shfl_xor_sync(0xffffffff,X,1,32); X+=__shfl_xor_sync(0xffffffff,X,2,32); X+=__shfl_xor_sync(0xffffffff,X,4,32); X+=__shfl_xor_sync(0xffffffff,X,8,32); X+=__shfl_xor_sync(0xffffffff,X,16,32); }
 
 #endif
+*/
 
 static REAL    *dev_coord_pbc = NULL;
 static int     *dev_atmcls_pbc = NULL;
@@ -2860,11 +2862,11 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ_energy_sum(
     int mask;
     width = num_thread_x;
     for ( mask = 1 ; mask < width ; mask *=2 ) {
-       energy_elec += __shfl_xor_sync(0xffffffff,energy_elec, mask, width);
-       energy_evdw += __shfl_xor_sync(0xffffffff,energy_evdw, mask, width);
-       virial(1)   += __shfl_xor_sync(0xffffffff,virial(1),   mask, width);
-       virial(2)   += __shfl_xor_sync(0xffffffff,virial(2),   mask, width);
-       virial(3)   += __shfl_xor_sync(0xffffffff,virial(3),   mask, width);
+       energy_elec += __shfl_xor(energy_elec, mask, width);
+       energy_evdw += __shfl_xor(energy_evdw, mask, width);
+       virial(1)   += __shfl_xor(virial(1),   mask, width);
+       virial(2)   += __shfl_xor(virial(2),   mask, width);
+       virial(3)   += __shfl_xor(virial(3),   mask, width);
     }
 
     if ( id_thread_x == 0 ) {
@@ -2886,11 +2888,11 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ_energy_sum(
 
        width = num_thread_y;
        for ( mask = 1 ; mask < width ; mask *= 2) {
-           energy_elec += __shfl_xor_sync(0xffffffff, energy_elec, mask, width);
-           energy_evdw += __shfl_xor_sync(0xffffffff, energy_evdw, mask, width);
-           virial(1)   += __shfl_xor_sync(0xffffffff, virial(1),   mask, width);
-           virial(2)   += __shfl_xor_sync(0xffffffff, virial(2),   mask, width);
-           virial(3)   += __shfl_xor_sync(0xffffffff, virial(3),   mask, width);
+           energy_elec += __shfl_xor(energy_elec, mask, width);
+           energy_evdw += __shfl_xor(energy_evdw, mask, width);
+           virial(1)   += __shfl_xor(virial(1),   mask, width);
+           virial(2)   += __shfl_xor(virial(2),   mask, width);
+           virial(3)   += __shfl_xor(virial(3),   mask, width);
        }
 
        if (id_thread_x == 0 ) {
@@ -4031,9 +4033,9 @@ __global__ void kern_compute_force_nonbond_table_linear_univ_sum(
     int mask;
     width = num_thread_x;
     for ( mask = 1 ; mask < width ; mask *=2 ) {
-       virial(1)   += __shfl_xor_sync(0xffffffff, virial(1),   mask, width);
-       virial(2)   += __shfl_xor_sync(0xffffffff, virial(2),   mask, width);
-       virial(3)   += __shfl_xor_sync(0xffffffff, virial(3),   mask, width);
+       virial(1)   += __shfl_xor(virial(1),   mask, width);
+       virial(2)   += __shfl_xor(virial(2),   mask, width);
+       virial(3)   += __shfl_xor(virial(3),   mask, width);
     }
 
     if ( id_thread_x == 0 ) {
@@ -4051,9 +4053,9 @@ __global__ void kern_compute_force_nonbond_table_linear_univ_sum(
 
        width = num_thread_y;
        for ( mask = 1 ; mask < width ; mask *= 2) {
-           virial(1)   += __shfl_xor_sync(0xffffffff, virial(1),   mask, width);
-           virial(2)   += __shfl_xor_sync(0xffffffff, virial(2),   mask, width);
-           virial(3)   += __shfl_xor_sync(0xffffffff, virial(3),   mask, width);
+           virial(1)   += __shfl_xor(virial(1),   mask, width);
+           virial(2)   += __shfl_xor(virial(2),   mask, width);
+           virial(3)   += __shfl_xor(virial(3),   mask, width);
        }
 
        if (id_thread_x == 0 ) {
