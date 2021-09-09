@@ -67,7 +67,8 @@ contains
     logical                   :: nb15_calc
     integer                   :: id, omp_get_thread_num
 
-    real(wip),        pointer :: coord(:,:,:), charge(:,:)
+    real(wip),        pointer :: coord(:,:,:)
+    real(wp),         pointer :: charge(:,:)
     real(wp),         pointer :: system_size(:)
     real(wp),         pointer :: trans1(:,:,:), trans2(:,:,:)
     integer(1),       pointer :: cell_move(:,:,:)

@@ -1126,9 +1126,9 @@ contains
 
       end do
 
-      virial(1,1,id+1) = virial(1,1,id+1) + viri(1)
-      virial(2,2,id+1) = virial(2,2,id+1) + viri(2)
-      virial(3,3,id+1) = virial(3,3,id+1) + viri(3)
+      virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
+      virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       ecmap(id+1) = ecmap(id+1) + ecmap_temp
 
     end do
