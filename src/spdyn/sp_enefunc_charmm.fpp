@@ -559,8 +559,8 @@ contains
     
           else
   
-            icel1 = id_g2l(1,i1)
-            icel2 = id_g2l(1,i2)
+            icel1 = id_g2l(1,ia)
+            icel2 = id_g2l(1,ib)
   
             if (icel1 /= 0 .and. icel2 /= 0) then
   
@@ -574,8 +574,8 @@ contains
                     do ih = 1, j
                       ih2 = id_l2g_sol(HGr_bond_list(ih+1,k,j,icel),icel)
     
-                      if (ih1 == i1 .and. ih2 == i2 .or. &
-                          ih2 == i1 .and. ih1 == i2) then
+                      if (ih1 == ia .and. ih2 == ib .or. &
+                          ih2 == ia .and. ih1 == ib) then
                       
                         do m = 1, nbond_p
                           if ((ci1 == par%bond_atom_cls(1, m) .and.  &
