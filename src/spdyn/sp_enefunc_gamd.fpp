@@ -215,9 +215,19 @@ contains
     real(dp),                    intent(in) :: sigma0
 
     E_th = E_max
-    k0   = (sigma0/E_dev) * (E_max-E_min) / (E_ave-E_min)
+    if (abs(E_max-E_ave) > EPS) then
+      k0   = (sigma0/E_dev) * (E_max-E_min) / (E_max-E_ave)
+    else 
+      k0   = (sigma0/E_dev) * (E_max-E_min) / EPS
+    end if
     k0   = min(1.0, k0)
-    k = k0 / (E_max-E_min)
+    if (abs(E_max-E_min) > EPS) then
+      k = k0 / (E_max-E_min)
+    else
+      k = k0 / EPS
+    end if
+
+    return
 
   end subroutine setup_enefunc_gamd_lower
 
