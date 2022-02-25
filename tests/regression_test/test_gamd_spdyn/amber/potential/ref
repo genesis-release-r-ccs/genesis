@@ -1,0 +1,275 @@
+****************************************************
+*                                                  *
+*                  GENESIS SPDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*           Spatial Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.0.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = oshima@goby
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  option       = 
+ -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 19.0.5.281 20190815
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp
+  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -qopenmp  -L/home/oshima/Soft/lapack-3.8.0 -lmkl_intel_lp64 -
+ lmkl_sequential -lmkl_core -lmkl_lapack95_lp64 
+
+Runtime_Information> Machine and Library Information
+  date       = 2022/02/25 01:13:54
+  cpu model    = Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz
+  exec. host   = oshima@goby14
+  LD library   = 
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
+ linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_librar
+ ies_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compile
+ rs_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel
+ /compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+
+[STEP1] Read Control Parameters
+ 
+   WARNING : re-defined: nbupdate_period  previous was overwote.
+Read_Ctrl_Input> Input Files
+  prmtopfile = ../1_setup/ionize.prmtop
+  ambcrdfile = ../1_setup/ionize.inpcrd
+  selfile = 
+  rstfile = ../3_init/run.rst
+ 
+Read_Ctrl_Output> Output Files
+  gamdfile   = out.gamd
+ 
+Read_Ctrl_Gamd> Gamd information
+  boost_type       = POTENTIAL
+  sigma0_pot       =   6.00000
+  pot_max          = -21034.0864000000
+  pot_min          = -21414.9372000000
+  pot_ave          = -21206.9038000000
+  pot_dev          =     52.7554000000
+  thresh_type      = LOWER
+  update_period    =        10
+  boost            = YES
+
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =           AMBER
+  switchdist      =           8.000
+  cutoffdist      =           8.000
+  pairlistdist    =          10.000
+  dielec_const    =           1.000
+  VDW type        =          CUTOFF
+  electrostatic   =             PME
+  pme_ngrid(x,y,z)=    36   36   36
+  pme_nspline     =               4
+  pme_alpha       =         0.34864
+  pme_scheme      =      AUTOSELECT
+  nonbond_kernel  =      AUTOSELECT
+  table_order     =               1
+  table_density   =          20.000
+  output_style    =         GENESIS
+  dispersion_corr =          epress
+  nonb_limiter    =              no
+  contact_check   =              no
+ 
+Read_Ctrl_Dynamics> Parameters of MD simulation
+  integrator      =       VVER  nsteps          =         20
+  timestep        =     0.0040  initial_time    =     0.0000
+  eneout_period   =          5  rstout_period   =          0
+  crdout_period   =          0  velout_period   =          0
+  nbupdate_period =          5  stoptr_period   =         10
+  iseed           =         11
+  hydrogen_mr     =        yes
+  hmr_target      =     SOLUTE
+  hmr_ratio       =      2.500
+  hmr_ratio_xh1   =      2.000
+  annealing       =         no
+  verbose         =         no
+  target_md       =         no
+  steered_md      =         no
+ 
+Read_Ctrl_Constraints> Parameters for Constraints
+  rigid_bond      =        yes
+  shake_iteration =        500  shake_tolerance =  0.100E-09
+  fast_water      =        yes  water_model     =        WAT
+  hydrogen_type   =       name
+ 
+Read_Ctrl_Ensemble> Parameters for Ensemble
+  ensemble        =        NVT
+  temperature     =    300.000
+  tpcontrol       =      BUSSI
+  group_tp        =        yes
+  tau_t           =      5.000
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =        PBC
+  box_size(x,y,z) =      0.000     0.000     0.000
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          4
+  total number of CPU cores =         32
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Prmtop> Summary of PRMTOP file
+  NATOM           =       6721  NTYPES          =          9
+  NBONH           =       6711  MBONA           =          9
+  NTHETH          =         25  MTHETA          =         11
+  NPHIH           =         43  MPHIA           =         24
+  NPARM           =          0  NNB             =       9031
+  NRES            =       2236  NBONA           =          9
+  NTHETA          =         11  NPHIA           =         24
+  NUMBND          =         13  NUMANG          =         21
+  NPTRA           =         20  NATYP           =         10
+  NPHB            =          1
+ 
+Read_Rst_Binary> Summary of RST file
+  num_atoms       =       6721  iseed           =     379362
+  boxsize (x,y,z) =     40.741    40.741    40.741
+Define_Molecule> Summary of molecules
+  num_atoms       =       6721  num_bonds       =       6720
+  num_angles      =         36  num_dihedrals   =         63
+  num_impropers   =          4  num_cmap_terms  =          0
+  num_residues    =       2236  num_molecules   =       2234
+  num_segments    =          1  num_deg_freedom =      20163
+  total_charge    =     -0.000
+ 
+Setup_Restart_Pre> Coordinates and velocities were replaced
+
+Setup_Boundary_Cell> Set Variables for Boundary Condition
+  domains (x,y,z) =          2         2         2
+  ncells (x,y,z)  =          6         6         6
+ 
+Select_kernel> 
+  Pairlist        = INTEL       
+  Nonbond         = INTEL       
+
+Define_Enefunc_Amber> Number of Interactions in Each Term
+  bond_ene        =          9  angle_ene       =         36
+  torsion_ene     =         63  improper_ene    =          4
+ restraint_groups =          0 restraint_funcs  =          0
+ 
+Setup_Fitting_Spdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Select_FFT_Scheme> Checking performance of long range interaction operation...
+
+  OPT_1DALLTOALL   :       62.740 (ms)
+  NOOPT-1DALLTOALL :       50.579 (ms)
+
+  WARNING: PME grid number is different from the input
+  pme_ngrid(x,y,z)=         40        36        36
+
+
+  WARNING: PME grid number is different from the input
+  pme_ngrid(x,y,z)=         40        36        36
+
+  NOOPT-2DALLTOALL :       43.796 (ms)
+
+Select_FFT_Scheme> selected scheme is NOOPT_2DALLTOALL
+Setup_Dynamics> Subtract 3 translational degrees of freedom
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      20160 (After removing translation)
+ 
+Random_Init> Initialize the random number
+  seed            = 11
+
+Setup_Fast_Water> Setup constraints for SETTLE
+  r0(O-H)         =     0.9572  mass(O)         =    16.0000
+  r0(H-H)         =     1.5136  mass(H)         =     1.0080
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      13461 (After setup of SETTLE)
+ 
+Setup_Rigid_Bond> Setup constrains for SHAKE and RATTLE
+  num_rigid_bonds =         12
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      13449 (After setup of SHAKE/RATTLE)
+ 
+Setup_Gamd> Gamd initial parameters
+      ene_pot_th  =   -21034.08640
+      k_pot       =        0.00066
+
+Random_Init> Initialize the random number
+  seed            = 11
+
+Setup_Restart_Post> Parameters were replaced
+
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =         6726 (Group temperature/pressure case)
+
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT  POTENTIAL_GAMD
+ --------------- --------------- --------------- --------------- ---------------
+               0          3.1490         10.2090         11.4320          0.6744       3365.6533       -181.4002     -24602.8036         10.3789
+
+[STEP5] Perform Molecular Dynamics Simulation
+ 
+INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT     TEMPERATURE          VOLUME  POTENTIAL_GAMD
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          5          0.0200     -17442.4219     -21355.3953       3906.5324         12.7159          2.8371          9.5885         10.6402          0.5065       3345.5830       -181.4002     -24543.1504        297.6007      67624.3257          6.4410
+
+INFO:         10          0.0400     -17439.4111     -21298.6044       3856.9201         13.2697          4.3426          6.8893         10.1794          1.6822       3406.7143       -181.4002     -24547.0120        289.1937      67624.3257          2.2733
+
+INFO:         15          0.0600     -17436.7612     -21251.8621       3814.2227         13.3388          4.5185         11.1472          9.6030          0.1554       3413.1372       -181.4002     -24509.0234        286.8606      67624.3257          0.8782
+
+INFO:         20          0.0800     -17430.2004     -21263.4636       3831.7356         13.0887          3.0323          8.7268          9.9041          0.1684       3390.1696       -181.4002     -24494.0646        290.3786      67624.3257          1.5277
+
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       0.402
+    setup         =       0.358
+    dynamics      =       0.044
+      energy      =       0.033
+      integrator  =       0.004
+      pairlist    =       0.005 (       0.005,       0.006)
+  energy           
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.000 (       0.000,       0.000)
+    dihedral      =       0.000 (       0.000,       0.000)
+    nonbond       =       0.029 (       0.028,       0.029)
+      pme real    =       0.018 (       0.017,       0.019)
+      pme recip   =       0.011 (       0.010,       0.012)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.001 (       0.001,       0.001)
+    update        =       0.002 (       0.002,       0.003)
+    comm_coord    =       0.001 (       0.001,       0.001)
+    comm_force    =       0.001 (       0.001,       0.001)
+    comm_migrate  =       0.001 (       0.000,       0.001)
+

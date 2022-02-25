@@ -1,0 +1,68 @@
+[INPUT]
+prmtopfile = prmtop
+ambcrdfile = inpcrd
+rstfile    = rst
+ 
+[OUTPUT]
+gamdfile = out.gamd
+
+[GAMD]
+gamd          = yes
+boost         = yes
+boost_type    = DIHEDRAL
+thresh_type   = LOWER
+sigma0_dih    = 6.0
+update_period = 10
+dih_max       = 17.2535
+dih_min       = 8.7068
+dih_ave       = 11.0852
+dih_dev       = 1.0166
+
+[ENERGY]
+forcefield       = AMBER
+electrostatic    = PME       # [CUTOFF,PME]
+switchdist       = 8.0      # switch distance
+cutoffdist       = 8.0      # cutoff distance
+pairlistdist     = 10.0      # pair-list distance
+pme_nspline      = 4
+pme_alpha        = 0.34864
+pme_alpha_tol    = 0.100E-04
+pme_ngrid_x      = 36
+pme_ngrid_y      = 36
+pme_ngrid_z      = 36
+table_density    = 20.000
+dispersion_corr  = epress
+
+[DYNAMICS]
+integrator        = VVER
+nsteps            = 20
+timestep          = 0.004
+eneout_period     = 5
+stoptr_period     = 10
+nbupdate_period   = 5
+nbupdate_period   = 5
+thermostat_period = 5
+barostat_period   = 5
+hydrogen_mr       = yes
+hmr_target        = Solute
+hmr_ratio         = 2.5
+hmr_ratio_xh1     = 2.0
+iseed             = 11
+
+[CONSTRAINTS]
+rigid_bond  = YES
+water_model = WAT
+ 
+[ENSEMBLE]
+ensemble      = NVT
+tpcontrol     = BUSSI
+temperature   = 300.0
+pressure      = 1.0
+group_tp      = yes
+   
+[BOUNDARY]
+type       = PBC
+ 
+[SELECTION]
+
+[RESTRAINTS]

@@ -1,0 +1,67 @@
+[INPUT]
+topfile  = top
+parfile  = par
+psffile  = psf
+pdbfile  = pdb
+rstfile  = rst
+ 
+[OUTPUT]
+gamdfile = out.gamd
+
+[GAMD]
+gamd          = yes
+boost         = yes
+boost_type    = POTENTIAL
+thresh_type   = LOWER
+sigma0_pot    = 6.0
+update_period = 10
+pot_max       = -89927.5189
+pot_min       = -90727.9320
+pot_ave       = -90352.7724
+pot_dev       = 114.3160
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = PME       # [CUTOFF,PME]
+switchdist       = 10.0      # switch distance
+cutoffdist       = 12.0      # cutoff distance
+pairlistdist     = 13.5      # pair-list distance
+output_style     = GENESIS
+pme_alpha        = 0.34
+pme_ngrid_x      = 64
+pme_ngrid_y      = 64
+pme_ngrid_z      = 64
+table_density    = 20.000
+
+[DYNAMICS]
+integrator        = VVER
+nsteps            = 20
+timestep          = 0.004
+eneout_period     = 5
+stoptr_period     = 10
+nbupdate_period   = 5
+nbupdate_period   = 5
+thermostat_period = 5
+barostat_period   = 5
+hydrogen_mr       = yes
+hmr_target        = Solute
+hmr_ratio         = 2.5
+hmr_ratio_xh1     = 2.0
+iseed             = 11
+
+[CONSTRAINTS]
+rigid_bond  = YES
+ 
+[ENSEMBLE]
+ensemble      = NVT
+tpcontrol     = BUSSI
+temperature   = 300.0
+pressure      = 1.0
+group_tp      = yes
+   
+[BOUNDARY]
+type       = PBC
+ 
+[SELECTION]
+
+[RESTRAINTS]
