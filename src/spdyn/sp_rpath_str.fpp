@@ -44,10 +44,10 @@ module sp_rpath_str_mod
     real(wp),             allocatable :: rest_reference(:,:,:)
     real(wp),             allocatable :: rest_reference_prev(:,:)
     real(wp),             allocatable :: rest_reference_init(:,:)
-    real(wip),            allocatable :: force(:)
-    real(wip),            allocatable :: metric(:,:)
-    real(wip),            allocatable :: before_gather(:)
-    real(wip),            allocatable :: after_gather(:)
+    real(dp),             allocatable :: force(:)
+    real(dp),             allocatable :: metric(:,:)
+    real(dp),             allocatable :: before_gather(:)
+    real(dp),             allocatable :: after_gather(:)
     type(s_output)                    :: output
   end type s_rpath
 
@@ -114,10 +114,10 @@ contains
                stat = alloc_stat)
 
       rpath%rest_function(1:var_size1)                 = 0
-      rpath%force(1:var_size1)                         = 0.0_wp
-      rpath%metric(1:var_size1,1:var_size1)            = 0.0_wp
-      rpath%before_gather(1:var_size1)                 = 0.0_wp
-      rpath%after_gather(1:var_size1*var_size2)        = 0.0_wp
+      rpath%force(1:var_size1)                         = 0.0_dp
+      rpath%metric(1:var_size1,1:var_size1)            = 0.0_dp
+      rpath%before_gather(1:var_size1)                 = 0.0_dp
+      rpath%after_gather(1:var_size1*var_size2)        = 0.0_dp
 
     case(RpathUmbrellas)
 

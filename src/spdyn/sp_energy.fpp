@@ -4669,13 +4669,13 @@ contains
     integer                  :: atom_i, atom_j
     real(dp)                 :: etmp, stmp, dtmp
     real(dp)                 :: d(1:3)
-    real(dp),    allocatable :: collection(:)
+    real(wp),    allocatable :: collection(:)
 
     if (enefunc%rpath_pos_func > 0) then
 
       allocate(collection(enefunc%stats_dimension))
 
-      collection(:) = 0.0_dp 
+      collection(:) = 0.0_wp 
 
       call mpi_allreduce(enefunc%stats_delta, collection, enefunc%stats_dimension,&
                          mpi_wp_real, mpi_sum, mpi_comm_country, ierror)
@@ -4692,16 +4692,16 @@ contains
       if (enefunc%rpath_pos_func > 0) then
 
         ifunc = enefunc%rpath_pos_func
-        dtmp  = collection(i)
+        dtmp  = real(collection(i),dp)
         enefunc%stats_force(i) = enefunc%stats_force(i) + &
-        2.0_dp * real(enefunc%restraint_const(1,ifunc),wip) * dtmp
+        2.0_dp * real(enefunc%restraint_const(1,ifunc),dp) * dtmp
 
       else
 
         ifunc = enefunc%rpath_rest_function(i)
-        dtmp  = enefunc%stats_delta(i)
+        dtmp  = real(enefunc%stats_delta(i),dp)
         enefunc%stats_force(i) = enefunc%stats_force(i) + &
-        2.0_dp * real(enefunc%restraint_const(1,ifunc),wip) * dtmp
+        2.0_dp * real(enefunc%restraint_const(1,ifunc),dp) * dtmp
 
       end if
 
@@ -4716,9 +4716,9 @@ contains
       do dimno_i = 1, enefunc%stats_dimension
         etmp = 0.0_dp
         do i = 1, enefunc%stats_natom
-          d(1:3) = enefunc%stats_grad(1:3,i,dimno_i)
+          d(1:3) = real(enefunc%stats_grad(1:3,i,dimno_i),dp)
           do k = 1, 3
-            etmp = etmp + (1.0_dp/enefunc%stats_mass(i,dimno_i))*d(k)*d(k)
+            etmp = etmp + (1.0_dp/real(enefunc%stats_mass(i,dimno_i),dp))*d(k)*d(k)
           end do
         end do
         enefunc%stats_metric(dimno_i, dimno_i) =  &
@@ -4730,8 +4730,8 @@ contains
           etmp = 0.0_dp
           do i = 1, enefunc%stats_natom
             atom_i = enefunc%stats_atom(i,dimno_i)
-            stmp = (1.0_dp / enefunc%stats_mass(i,dimno_i))
-            d(1:3) = enefunc%stats_grad(1:3,i,dimno_i)
+            stmp = (1.0_dp / real(enefunc%stats_mass(i,dimno_i),dp))
+            d(1:3) = real(enefunc%stats_grad(1:3,i,dimno_i),dp)
             do j = 1, enefunc%stats_natom
               atom_j = enefunc%stats_atom(j,dimno_j)
               if (atom_i == atom_j) then
@@ -4740,7 +4740,8 @@ contains
 !                    enefunc%stats_metric(dimno_i,dimno_j) &
 !                    + (1.0_wp / enefunc%stats_mass(i,dimno_i)) &
 !                    * enefunc%stats_grad(k,i,dimno_i) * enefunc%stats_grad(k,j,dimno_j)
-                  etmp = etmp + stmp * d(k) * enefunc%stats_grad(k,j,dimno_j)
+                  etmp = etmp + stmp * d(k) *  &
+                     real(enefunc%stats_grad(k,j,dimno_j),dp)
                 end do
               end if
             end do

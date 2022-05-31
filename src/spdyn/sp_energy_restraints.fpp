@@ -294,9 +294,9 @@ contains
         ! rpath
         !
         if (enefunc%rpath_sum_mf_flag .and. enefunc%rpath_pos_func > 0) then
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 2) = d2(1)
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 1) = d2(2)
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) )    ) = d2(3)
+          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 2) = real(d2(1),wp)
+          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 1) = real(d2(2),wp)
+          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) )    ) = real(d2(3),wp)
         endif
 
       end do
@@ -315,9 +315,9 @@ contains
     if (enefunc%rpath_sum_mf_flag .and. enefunc%rpath_pos_func > 0) then
       enefunc%stats_count = enefunc%stats_count + 1
       do i = 1, enefunc%stats_dimension/3
-        enefunc%stats_grad (1,i,3*i-2) = 1.0_wp
-        enefunc%stats_grad (2,i,3*i-1) = 1.0_wp
-        enefunc%stats_grad (3,i,3*i  ) = 1.0_wp
+        enefunc%stats_grad (1,i,3*i-2) = 1.0_dp
+        enefunc%stats_grad (2,i,3*i-1) = 1.0_dp
+        enefunc%stats_grad (3,i,3*i  ) = 1.0_dp
       enddo
     endif
 
@@ -467,11 +467,11 @@ contains
             dsub(1:3) = coord(1:3,i1,i)-rotated_coord(1:3,ix,i)
             if (enefunc%fitting_method == FittingMethodXYTR_ZROT) &
               dsub(3)=0.0_dp
-            factor = Krmsd*mass(i1,i)*(1.0_wp-rmsd0/rmsd)
+            factor = Krmsd*mass(i1,i)*(1.0_dp-rmsd0/rmsd)
             ermsd  = ermsd + factor*dsub(1)*dsub(1) &
                            + factor*dsub(2)*dsub(2) &
                            + factor*dsub(3)*dsub(3)
-            factor = -2.0_wp*factor
+            factor = -2.0_dp*factor
             force(1:3,i1,i,1) = force(1:3,i1,i,1) + factor*dsub(1:3)
             viri_local(1:3) = viri_local(1:3) + coord(1:3,ix,i)*factor*dsub(1:3)
           end do
@@ -486,11 +486,11 @@ contains
             dsub(1:3) = coord(1:3,i1,i)-rotated_coord(1:3,ix,i)
             if (enefunc%fitting_method == FittingMethodXYTR_ZROT) &
               dsub(3)=0.0_dp
-            factor = Krmsd*(1.0_wp-rmsd0/rmsd)
+            factor = Krmsd*(1.0_dp-rmsd0/rmsd)
             ermsd  = ermsd + factor*dsub(1)*dsub(1) &
                            + factor*dsub(2)*dsub(2) &
                            + factor*dsub(3)*dsub(3)
-            factor = -2.0_wp*factor
+            factor = -2.0_dp*factor
             force(1:3,i1,i,1) = force(1:3,i1,i,1) + factor*dsub(1:3)
             viri_local(1:3) = viri_local(1:3) + coord(1:3,ix,i)*factor*dsub(1:3)
           end do

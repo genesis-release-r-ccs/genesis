@@ -979,14 +979,14 @@ contains
     repid = my_country_no + 1
 
     do dimno = 1, rpath%dimension
-      force(dimno) = force(dimno) / real(count,wip)
+      force(dimno) = force(dimno) / real(count,dp)
     end do
 
     enefunc%stats_force_save(:) = force(:)
 
     do dimno_i = 1, rpath%dimension
       do dimno_j = 1, rpath%dimension
-        metric(dimno_i,dimno_j) = metric(dimno_i,dimno_j) / real(count,wip)
+        metric(dimno_i,dimno_j) = metric(dimno_i,dimno_j) / real(count,dp)
       end do
     end do
 
@@ -994,15 +994,15 @@ contains
 
     if(rpath%fix_terminal) then
       if((repid == 1) .or. (repid == rpath%nreplica)) then
-        force(:) = 0.0_wip
+        force(:) = 0.0_dp
       end if
     else if (rpath%avoid_shrinkage) then
-#ifdef HAVE_MPI_GENESIS
+#ifdef MPI
       do dimno = 1, rpath%dimension
         before_gather(dimno) = rpath%rest_reference(1, dimno, repid)
       end do
-      call mpi_allgather(before_gather, rpath%dimension, mpi_real8, &
-                         after_gather,  rpath%dimension, mpi_real8, &
+      call mpi_allgather(before_gather, rpath%dimension, MPI_Real8, &
+                         after_gather,  rpath%dimension, MPI_Real8, &
                          mpi_comm_airplane, ierror)
       if(repid == 1) then
         repid_i = 1
@@ -1061,13 +1061,9 @@ contains
     real(wip)                :: distance_prev, distance_init, dtmp
     real(wip),   allocatable :: path(:,:), path_smooth(:,:), path_reparm(:,:)
     real(wip),   allocatable :: path_leng(:), path_equi(:)
-
-    real(wip),       pointer :: force(:), metric(:,:)
-    real(wip),       pointer :: before_gather(:), after_gather(:)
+    real(dp),       pointer  :: before_gather(:), after_gather(:)
 
 
-    force         => rpath%force
-    metric        => rpath%metric
     before_gather => rpath%before_gather
     after_gather  => rpath%after_gather
 
@@ -1081,18 +1077,18 @@ contains
              path_leng(rpath%nreplica), path_equi(rpath%nreplica))
 
     do dimno = 1, rpath%dimension
-      before_gather(dimno) = rpath%rest_reference(1, dimno, repid)
+      before_gather(dimno) = real(rpath%rest_reference(1, dimno, repid),dp)
     end do
 
 #ifdef MPI
-    call mpi_gather(before_gather, rpath%dimension, mpi_wip_real,&
-                    after_gather,  rpath%dimension, mpi_wip_real,&
+    call mpi_gather(before_gather, rpath%dimension, MPI_Real8,&
+                    after_gather,  rpath%dimension, MPI_Real8,&
                     0, mpi_comm_airplane, ierror)
 
     if (main_rank) then
       do repid_i = 1, rpath%nreplica
         do dimno = 1, rpath%dimension
-          path(repid_i,dimno) = after_gather((repid_i-1)*rpath%dimension+dimno)
+          path(repid_i,dimno) = real(after_gather((repid_i-1)*rpath%dimension+dimno),wip)
         end do
       end do
 
@@ -1199,8 +1195,8 @@ contains
     if(.not. replica_main_rank) return
 
     enefunc%stats_count       = 0
-    enefunc%stats_force(:)    = 0.0_wip
-    enefunc%stats_metric(:,:) = 0.0_wip
+    enefunc%stats_force(:)    = 0.0_dp
+    enefunc%stats_metric(:,:) = 0.0_dp
 
     return
 
