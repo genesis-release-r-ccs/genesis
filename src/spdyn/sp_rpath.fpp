@@ -71,6 +71,7 @@ module sp_rpath_mod
     real(wp)                          :: delta        = 0.1_wp
     real(wp)                          :: smooth       = 0.0_wp
     logical                           :: fix_terminal = .false.
+    logical                           :: avoid_shrinkage = .false.
     logical                           :: use_restart  = .true.
     integer,              allocatable :: rest_function(:)
   end type s_rpath_info
@@ -118,6 +119,7 @@ contains
         write(MsgOut,'(A)') 'delta             = 0.05'
         write(MsgOut,'(A)') 'smooth            = 0.1'
         write(MsgOut,'(A)') 'fix_terminal      = NO'
+        write(MsgOut,'(A)') 'avoid_shrinkage   = NO'
         write(MsgOut,'(A)') 'rest_function     = 1 2'
         write(MsgOut,'(A)') 'use_restart       = YES'
         write(MsgOut,'(A)') ''
@@ -136,6 +138,7 @@ contains
         write(MsgOut,'(A)') 'delta             = 0.05'
         write(MsgOut,'(A)') 'smooth            = 0.1'
         write(MsgOut,'(A)') 'fix_terminal      = NO'
+        write(MsgOut,'(A)') 'avoid_shrinkage   = NO'
         write(MsgOut,'(A)') 'rest_function     = 1 2'
         write(MsgOut,'(A)') 'use_restart       = YES'
         write(MsgOut,'(A)') ''
@@ -186,6 +189,8 @@ contains
                             rpath_info%smooth)
     call read_ctrlfile_logical(handle, Section, 'fix_terminal',  &
                             rpath_info%fix_terminal)
+    call read_ctrlfile_logical(handle, Section, 'avoid_shrinkage',  &
+                            rpath_info%avoid_shrinkage)
     call read_ctrlfile_string (handle, Section, 'rest_function', &
                                rest_function_char)
     call read_ctrlfile_logical(handle, Section, 'use_restart',  &
@@ -228,6 +233,9 @@ contains
         write(MsgOut,'(A)') '  fix_terminal    = YES'
       else
         write(MsgOut,'(A)') '  fix_terminal    = NO'
+      end if
+      if (rpath_info%avoid_shrinkage) then
+        write(MsgOut,'(A)') '  avoid_shrinkage = YES'
       end if
       if (rpath_info%use_restart) then
         write(MsgOut,'(A)') '  use_restart     = YES'
@@ -331,6 +339,12 @@ contains
         rpath%rpath_period = rpath_info%rpath_period
         rpath%ncycle = dynamics%nsteps/rpath%rpath_period
       end if
+      if (dynamics%rstout_period > 0) then
+        if (mod(dynamics%rstout_period,rpath_info%rpath_period) /= 0) then
+          call error_msg('Setup_Rpath> mod(rstout_period, rpath_period)'//&
+                         ' must be zero')
+        end if
+      endif
     else if (rpath_info%rpath_period == 0) then
       rpath%equilibration_only = .true.
       rpath%rpath_period = dynamics%nsteps
@@ -384,6 +398,7 @@ contains
     rpath%smooth       = rpath_info%smooth
     rpath%fix_terminal = rpath_info%fix_terminal
     rpath%use_restart  = rpath_info%use_restart
+    rpath%avoid_shrinkage = rpath_info%avoid_shrinkage
 
 
     ! setup force constants and references
@@ -419,6 +434,10 @@ contains
                enefunc%restraint_const_replica(j, ifunc)
             rpath%rest_reference(1:2, i, replicaid) =  &
                enefunc%restraint_refcoord(iatm_xyz, iatm)
+            rpath%rest_reference_prev(i, replicaid) =  &
+               rpath%rest_reference(1, i, replicaid)
+            rpath%rest_reference_init(i, replicaid) =  &
+               rpath%rest_reference(1, i, replicaid)
           end do
         end do
 
@@ -449,6 +468,10 @@ contains
             rpath%rest_constants(1:4, i, j) =  &
                enefunc%restraint_const_replica(j, ifunc)
             rpath%rest_reference(1:2, i, j) =  &
+               enefunc%restraint_ref_replica(j, ifunc)
+            rpath%rest_reference_prev(i, j) =  &
+               enefunc%restraint_ref_replica(j, ifunc)
+            rpath%rest_reference_init(i, j) =  &
                enefunc%restraint_ref_replica(j, ifunc)
           end do
         end do
@@ -666,6 +689,9 @@ contains
         !write(MsgOut,*) rpath%rest_reference(1, i, j)
 
         enefunc%restraint_ref_replica(j, ifunc) = rpath%rest_reference(1, i, j)
+        rpath%rest_reference_prev(i, j) =  rpath%rest_reference(1, i, j)
+        rpath%rest_reference_init(i, j) =  rpath%rest_reference(1, i, j)
+
 
       end do
 
@@ -932,16 +958,23 @@ contains
 
     ! local variables
     integer                  :: dimno, dimno_i, dimno_j
-    integer                  :: repid
+    integer                  :: repid, repid_i, repid_j
+    real(dp)                 :: dnorm
+    real(dp),    allocatable :: tangent_vector(:)
+    integer                  :: ifunc
 
     integer,         pointer :: count
     real(dp),        pointer :: force(:), metric(:,:)
+    real(dp),        pointer :: before_gather(:), after_gather(:)
 
     if(.not. replica_main_rank) return
 
     count  => enefunc%stats_count
     force  => enefunc%stats_force
     metric => enefunc%stats_metric
+
+    before_gather => rpath%before_gather
+    after_gather  => rpath%after_gather
 
     repid = my_country_no + 1
 
@@ -963,6 +996,42 @@ contains
       if((repid == 1) .or. (repid == rpath%nreplica)) then
         force(:) = 0.0_wip
       end if
+    else if (rpath%avoid_shrinkage) then
+#ifdef HAVE_MPI_GENESIS
+      do dimno = 1, rpath%dimension
+        before_gather(dimno) = rpath%rest_reference(1, dimno, repid)
+      end do
+      call mpi_allgather(before_gather, rpath%dimension, mpi_real8, &
+                         after_gather,  rpath%dimension, mpi_real8, &
+                         mpi_comm_airplane, ierror)
+      if(repid == 1) then
+        repid_i = 1
+        repid_j = 2
+      else if(repid == rpath%nreplica) then
+        repid_i = rpath%nreplica
+        repid_j = rpath%nreplica - 1
+      end if
+      if(((repid == 1) .or. (repid == rpath%nreplica))  &
+          .and. (repid_i > 0) .and. (repid_j > 0)) then
+        allocate(tangent_vector(rpath%dimension))
+        do dimno = 1, rpath%dimension
+          tangent_vector(dimno) = after_gather((repid_j-1)*rpath%dimension+dimno) &
+                                - after_gather((repid_i-1)*rpath%dimension+dimno)
+        end do
+        dnorm = 0.0_dp
+        do dimno = 1, rpath%dimension
+          dnorm = dnorm + tangent_vector(dimno)**2
+        end do
+        dnorm = sqrt(dnorm)
+        do dimno = 1, rpath%dimension
+          tangent_vector(dimno) = tangent_vector(dimno)/dnorm
+        end do
+        do dimno = 1, rpath%dimension
+          force(dimno) = force(dimno) - force(dimno)*tangent_vector(dimno)
+        end do
+        deallocate(tangent_vector)
+      end if
+#endif
     end if
 
     return
@@ -989,6 +1058,7 @@ contains
     integer                  :: repid, repid_i, repid_j
 
     real(wip)                :: smooth_wip
+    real(wip)                :: distance_prev, distance_init, dtmp
     real(wip),   allocatable :: path(:,:), path_smooth(:,:), path_reparm(:,:)
     real(wip),   allocatable :: path_leng(:), path_equi(:)
 
@@ -1070,6 +1140,27 @@ contains
 
         end do
       end do
+      distance_prev = 0.0_wip
+      distance_init = 0.0_wip
+      do repid_i = 1, rpath%nreplica
+        do dimno = 1, rpath%dimension
+          dtmp = path_reparm(repid_i,dimno)
+          distance_prev = distance_prev +   &
+            (real(rpath%rest_reference_prev(dimno, repid_i),wip) - dtmp)**2
+          distance_init = distance_init +   &
+            (real(rpath%rest_reference_init(dimno, repid_i),wip) - dtmp)**2
+
+          rpath%rest_reference_prev(dimno, repid_i) = real(dtmp,wp)
+        end do
+      end do
+      distance_prev = sqrt(distance_prev)
+      distance_init = sqrt(distance_init)
+      rpath%sum_distance = real(path_leng(rpath%nreplica),wp)
+      rpath%distance_prev    = real(distance_prev,wp)/ &
+                               real((rpath%nreplica), wp)
+      rpath%distance_init    = real(distance_init,wp)/ &
+                             real((rpath%nreplica), wp)
+
     end if
 
     ! broadcast restraint reference

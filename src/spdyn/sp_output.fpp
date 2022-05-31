@@ -1119,6 +1119,11 @@ contains
     ! local variables
     integer                  :: k, repid_i
 
+    if (main_rank .and. output%rpathlogout) then
+      write(output%rpathlogunit, '(I10,3F15.8)') dynvars%step, rpath%sum_distance, &
+                                 rpath%distance_init,rpath%distance_prev
+    endif
+
     ! wrire collective variables per replica
     !
     repid_i = my_country_no + 1
@@ -1190,7 +1195,6 @@ contains
     write(frmt_cont,'(A2,I2,A3)') '(A',clength,',$)'
     write(rfrmt,'(A2,I2,A1,I1,A1)') '(F',clength,'.',flength,')'
     write(rfrmt_cont,'(A2,I2,A1,I1,A3)') '(F',clength,'.',flength,',$)'
-
 
     if (.not. main_rank) return
 

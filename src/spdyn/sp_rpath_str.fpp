@@ -30,14 +30,20 @@ module sp_rpath_str_mod
     integer                           :: rpath_period
     real(wp)                          :: delta
     real(wp)                          :: smooth
+    real(wp)                          :: sum_distance
+    real(wp)                          :: distance_prev
+    real(wp)                          :: distance_init
     logical                           :: fix_terminal
     logical                           :: use_restart
     logical                           :: equilibration_only
+    logical                           :: avoid_shrinkage
     integer                           :: fitting_method
     character(256)                    :: fitting_atom
     integer,              allocatable :: rest_function(:)
     real(wp),             allocatable :: rest_constants(:,:,:)
     real(wp),             allocatable :: rest_reference(:,:,:)
+    real(wp),             allocatable :: rest_reference_prev(:,:)
+    real(wp),             allocatable :: rest_reference_init(:,:)
     real(wip),            allocatable :: force(:)
     real(wip),            allocatable :: metric(:,:)
     real(wip),            allocatable :: before_gather(:)
@@ -119,15 +125,21 @@ contains
         if (size(rpath%rest_constants(:,:,:)) == (4*var_size1*var_size2)) return
         deallocate(rpath%rest_constants,          &
                    rpath%rest_reference,          &
+                   rpath%rest_reference_prev,     &
+                   rpath%rest_reference_init,     &
                    stat = dealloc_stat)
       end if
 
       allocate(rpath%rest_constants(4,var_size1,var_size2), &
                rpath%rest_reference(2,var_size1,var_size2), &
+               rpath%rest_reference_prev(var_size1,var_size2), &
+               rpath%rest_reference_init(var_size1,var_size2), &
                stat = alloc_stat)
 
       rpath%rest_constants(1:4,1:var_size1,1:var_size2) = 0.0_wp
       rpath%rest_reference(1:2,1:var_size1,1:var_size2) = 0.0_wp
+      rpath%rest_reference_prev(1:var_size1,1:var_size2) = 0.0_wp
+      rpath%rest_reference_init(1:var_size1,1:var_size2) = 0.0_wp
 
     case default
 
@@ -184,6 +196,8 @@ contains
       if (allocated(rpath%rest_constants)) then
         deallocate(rpath%rest_constants,       &
                    rpath%rest_reference,      &
+                   rpath%rest_reference_prev, &
+                   rpath%rest_reference_init, &
                    stat = dealloc_stat)
       end if
 
