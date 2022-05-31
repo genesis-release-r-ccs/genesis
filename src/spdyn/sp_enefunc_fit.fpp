@@ -78,6 +78,14 @@ contains
     
     enefunc%fitting_method  = fit_info%fitting_method
 
+    if (enefunc%pressure_rmsd .and. main_rank) then
+      if (enefunc%fitting_method .ne. FittingMethodTR .and.      &
+          enefunc%fitting_method .ne. FittingMethodTR_ROT .and.  &
+          enefunc%fitting_method .ne. FittingMethodTR_ZROT) then
+          write(MsgOut,'(A)') "Setup_Fitting_Spdyn> pressure_rmsd option is set without translate fitting"
+      end if
+    end if
+
     if (enefunc%fitting_method == FittingMethodNO) then
       if (main_rank) then
         fit_check = .false.
@@ -88,10 +96,14 @@ contains
             exit
           endif
         end do
-        if (fit_check) then
-          write(MsgOut,'(A)') "Setup_Fitting_Spdyn> WARNING: NO fitting in RMSD restraint"
-          write(MsgOut,*) 
+        if (fit_check .and. .not. fit_info%force_no_fitting) then
+          call error_msg('Setup_Fitting_Spdyn> No fit is not allowed '//&
+                      'in RMSD restraint')
         endif
+        if (fit_check .and. fit_info%force_no_fitting) then
+          write(MsgOut,'(A)') "Setup_Fitting_Spdyn> RMSD restraint without FITTING"
+          write(MsgOut,*)
+        end if
       endif
       return
     endif
