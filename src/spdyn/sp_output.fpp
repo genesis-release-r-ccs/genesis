@@ -506,12 +506,10 @@ contains
       end if
     end if
 
-    if (dynamics%crdout_period > 0) then
-      if (out_info%rpathfile /= '') then
-        output%rpathfile = out_info%rpathfile
-        call include_id_to_filename(output%rpathfile)
-        output%rpathout  = .true.
-      end if
+    if (out_info%rpathfile /= '') then
+      output%rpathfile = out_info%rpathfile
+      call include_id_to_filename(output%rpathfile)
+      output%rpathout  = .true.
     end if
 
     if (dynamics%crdout_period > 0) then
@@ -522,11 +520,9 @@ contains
       end if
     end if
 
-    if (dynamics%crdout_period .gt. 0) then
-      if (out_info%rpathlogfile .ne. '') then
-        output%rpathlogfile = out_info%rpathlogfile
-        output%rpathlogout  = .true.
-      end if
+    if (out_info%rpathlogfile .ne. '') then
+      output%rpathlogfile = out_info%rpathlogfile
+      output%rpathlogout  = .true.
     end if
 
     output%rpath = .true.
