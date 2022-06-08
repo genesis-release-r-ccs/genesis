@@ -299,6 +299,7 @@ contains
             cwork(1:3,1) = coord(1:3,i1,icel1)
             cwork(1:3,2) = coord(1:3,i2,icel2)
             cwork(1:3,3) = coord(1:3,i3,icel3)
+            dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
             call check_pbc(box_size, dij, pbc_int)
             angl_pbc(1,angle(icel_local),icel_local) = pbc_int
             dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
