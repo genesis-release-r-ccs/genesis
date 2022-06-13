@@ -325,12 +325,24 @@ contains
       call setup_fast_water(par, prmtop, grotop, &
                             molecule, enefunc, constraints)
 
-    else if (enefunc%table%tip4 .and. enefunc%table%num_water > 0) then
+    else if (constraints%fast_water .and. enefunc%table%tip4 .and. &
+             enefunc%table%num_water > 0) then
 
-      call setup_tip4_dummy(par, prmtop, grotop, &
-                            molecule, enefunc, constraints)
+      if (main_rank) &
+        write(MsgOut,'(A)') 'fast_water is defined as yes for TIP4 water model case'
+      call update_num_deg_freedom('After setup of SETTLE',    &
+                                  -6*enefunc%table%num_water  &
+                                    *domain%num_duplicate,    &
+                                  molecule%num_deg_freedom)
+
+      call setup_fast_water_tip4(par, prmtop, grotop, &
+                                 molecule, enefunc, constraints)
  
     end if
+    ! error check for TIP4 & not fast_water 
+    if ((enefunc%table%tip4 .or. constraints%tip4) .and. &
+         .not. constraints%fast_water) &
+         call error_msg('Setup_Constraints> fast_water should be set in TIP4')
    
     return
 

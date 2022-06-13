@@ -225,6 +225,8 @@ contains
     else
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
     end if
+    if (.not. constraints%rigid_bond) & 
+       enefunc%table%tip4 = constraints%tip4
 
     call setup_hbond_group     (molecule, enefunc, constraints)
     call setup_atom_by_HBond   (molecule, boundary, enefunc, constraints, &
