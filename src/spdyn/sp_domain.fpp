@@ -4670,9 +4670,10 @@ contains
       domain%nonbond_kernel  = NBK_Generic
     end if
 
-    if (boundary%num_domain(1) == 1 .or. &
-        boundary%num_domain(2) == 1 .or. &
-        boundary%num_domain(3) == 1) then
+    if ((boundary%num_domain(1) == 1 .or. &
+         boundary%num_domain(2) == 1 .or. &
+         boundary%num_domain(3) == 1) .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
       domain%pairlist_kernel = PLK_Generic
       domain%nonbond_kernel  = NBK_Generic
     end if
