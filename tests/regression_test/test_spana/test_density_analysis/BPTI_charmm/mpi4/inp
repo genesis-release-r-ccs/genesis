@@ -1,0 +1,52 @@
+[INPUT]
+psffile     = ../../../trajectories/BPTI_charmm/BPTI_ionize.psf
+pdbfile     = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+reffile     = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+
+[OUTPUT]
+mapfile       = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+
+[ENSEMBLE]
+ensemble       = NPT
+
+[BOUNDARY]
+type           = PBC
+domain_x       = 2
+domain_y       = 2
+domain_z       = 1
+num_cells_x    = 40
+num_cells_y    = 80
+num_cells_z    = 40
+
+[SELECTION]
+group1 = sid:BPTI & (not hydrogen)
+group2 = sid:BPTI & an:CA
+
+[FITTING]
+fitting_method = TR+ROT
+fitting_atom   = 2
+mass_weight    = no
+
+[SPANA_OPTION]
+buffer      = 2.0
+wrap        = yes
+box_size    = TRAJECTORY
+
+[DENSITY_OPTION]
+density_type  = NUMBER
+output_format = XPLOR
+verbose       = no
+solute        = 2
+solvent       = 1
+recenter      = 2
+range         = 2.0
+voxel_size    = 1.0
+magnification = 10.0

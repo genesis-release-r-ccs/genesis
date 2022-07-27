@@ -1,0 +1,37 @@
+[INPUT]
+topfile = ../../../param/top_all36_lipid.rtf
+parfile = ../../../param/par_all36_lipid.prm
+strfile = ../../../param/toppar_water_ions.str
+psffile = ../../../build//dppc/dppc.psf
+pdbfile = ../../../build//dppc/dppc.pdb
+
+[OUTPUT]
+rstfile       = dd().rst
+cachepath     = ./cache 
+keep_cache    = YES
+ 
+[ENERGY]
+forcefield    = CHARMM
+electrostatic = PME
+switchdist    = 10.0
+cutoffdist    = 12.0
+pairlistdist  = 13.5
+pme_ngrid_x   = 72
+pme_ngrid_y   = 72
+pme_ngrid_z   = 72
+pme_nspline   = 4
+
+[DYNAMICS]
+iseed         = 314159
+
+[CONSTRAINTS]
+rigid_bond     = NO
+
+[BOUNDARY]
+type  = PBC
+box_size_x    = 69.4792
+box_size_y    = 69.4792
+box_size_z    = 71.6508
+domain_x       = 2
+domain_y       = 2
+domain_z       = 2

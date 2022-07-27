@@ -1,0 +1,36 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+trjfile        = out
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = an:CA           # selection group 1
+ 
+[FITTING]
+fitting_method = TR+ROT          # [NO,TR,TR+ROT,TR+ZROT,XYTR,XYTR+ZROT]
+fitting_atom   = 1               # atom group
+ 
+[OPTION]
+check_only     = no           # (YES/NO)
+trjout_format  = PDB          # (PDB/DCD)
+trjout_type    = COOR+BOX     # (COOR/COOR+BOX)
+trjout_atom    = 1            # atom group
+split_trjpdb   = NO           # output split PDB trajectory
+centering      = YES          # shift center of mass (YES requres psf/prmtop/grotop)
+centering_atom = 1            # atom group
+center_coord   = 0.0 0.0 0.0  # target center coordinates
+pbc_correct    = molecule     # (NO/MOLECULE) (MOLECULE requres psf/prmtop/grotop)
+rename_res1    = HSE HIS
+rename_res2    = HSD HIS

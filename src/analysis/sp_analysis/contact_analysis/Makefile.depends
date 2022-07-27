@@ -1,0 +1,9 @@
+contact_analyze.o: contact_analyze.fpp contact_option_str_mod.mod 
+contact_analyze_mod.mod: contact_analyze.fpp contact_analyze.o
+contact_control.o: contact_control.fpp contact_option_mod.mod 
+contact_control_mod.mod: contact_control.fpp contact_control.o
+contact_main.o: contact_main.fpp contact_option_mod.mod contact_analyze_mod.mod contact_control_mod.mod contact_option_str_mod.mod 
+contact_option.o: contact_option.fpp contact_option_str_mod.mod 
+contact_option_mod.mod: contact_option.fpp contact_option.o
+contact_option_str.o: contact_option_str.fpp  
+contact_option_str_mod.mod: contact_option_str.fpp contact_option_str.o

@@ -1,0 +1,39 @@
+# This file was created with hbond_analysis
+# 
+# Column 1: snapshot index
+# Column 2: "|"
+# Column 3: atom name of the analysis atom
+# Column 4: residue name of the analysis atom
+# Column 5: residue number of the analysis atom
+# Column 6: segment name of the analysis atom
+# Column 7: ".."
+# Column 8: atom name of the target atom
+# Column 9: segment name of the target atom
+# Column10: residue number of the target atom
+# Column11: segment name of the target atom
+# Column12: "|"
+# Couumn13: H-bond distance (angstrom)
+# Column14: H-bond H-D..A angle (degree)
+# Column15: H-bond D-H..A angle (degree)
+
+         1 | O    PHE          4 BPTI ..  OH2  TIP3      2065 WT1  |  2.629  167.111    8.231
+         1 | OE2  GLU          7 BPTI ..  OH2  TIP3      2065 WT1  |  2.796  160.046   13.244
+         1 | N    ASN         43 BPTI ..  OH2  TIP3      2065 WT1  |  3.119  140.923   27.451
+         2 | O    PHE          4 BPTI ..  OH2  TIP3      2065 WT1  |  2.877  162.791   11.560
+         2 | OE2  GLU          7 BPTI ..  OH2  TIP3      2065 WT1  |  3.099  154.963   17.526
+         2 | N    ASN         43 BPTI ..  OH2  TIP3      2065 WT1  |  3.141  138.608   29.278
+         3 | O    PHE          4 BPTI ..  OH2  TIP3      2065 WT1  |  2.865  159.469   13.803
+         3 | OE2  GLU          7 BPTI ..  OH2  TIP3      2065 WT1  |  2.817  164.724   10.140
+         3 | N    ASN         43 BPTI ..  OH2  TIP3      2065 WT1  |  3.015  140.733   27.186
+         4 | O    PHE          4 BPTI ..  OH2  TIP3      2065 WT1  |  2.791  170.815    6.047
+         4 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  3.223  155.501   17.425
+         5 | O    PHE          4 BPTI ..  OH2  TIP3      2065 WT1  |  2.529  164.174    9.901
+         5 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  3.374  167.842    8.733
+         6 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  2.811  161.224   12.483
+         6 | N    ASN         43 BPTI ..  OH2  TIP3      2065 WT1  |  3.266  151.339   20.242
+         7 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  2.772  160.288   13.024
+         8 | O    GLU          7 BPTI ..  OH2  TIP3      2065 WT1  |  3.000  141.950   26.708
+         8 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  2.930  161.969   12.228
+         9 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  3.031  146.008   23.821
+        10 | OE1  GLU          7 BPTI ..  OH2  TIP3      2065 WT1  |  2.640  158.629   13.777
+        10 | O    PRO          8 BPTI ..  OH2  TIP3      2065 WT1  |  2.964  140.354   27.754

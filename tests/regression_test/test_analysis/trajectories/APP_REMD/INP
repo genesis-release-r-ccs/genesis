@@ -1,0 +1,46 @@
+[INPUT]
+topfile  = ./toppar/top_all36_prot_lipid.rtf  # topology file
+parfile  = ./toppar/par_all36_prot_lipid.prm         # parameter file
+psffile  = 2lz3.psf
+pdbfile  = 2lz3.pdb
+
+[OUTPUT]
+logfile = rep{}.log
+dcdfile = rep{}.dcd
+rstfile = rep{}.rst
+remfile = rep{}.rem
+
+[REMD]
+dimension        = 1                # Number of dimension of REMD simulation
+exchange_period  = 1000
+type1            = TEMPERATURE
+nreplica1        = 4
+parameters1      = 261.97 274.21 286.88 300.00
+
+[ENERGY]
+forcefield       = CHARMM  # [CHARMM,AAGO,CAGO,KBGO,AMBER,GROAMBER,GROMARTINI]
+electrostatic    = CUTOFF  # [CUTOFF,PME]
+switchdist       = 48.0    # switch distance
+cutoffdist       = 50.0    # cutoff distance
+pairlistdist     = 55.0    # pair-list distance
+vdw_force_switch = YES
+
+[DYNAMICS]
+integrator       = LEAP       # [LEAP,VVER]
+nsteps           =     10000  # number of MD steps
+timestep         =     0.002  # timestep (ps)
+eneout_period    =       500  # energy output period
+crdout_period    =       500
+rstout_period    =     10000
+nbupdate_period  =        10  # nonbond update period
+
+[CONSTRAINTS]
+rigid_bond       = YES       # constraints all bonds involving hydrogen
+
+[ENSEMBLE]
+ensemble         = NVT       # [NVE,NVT,NPT,NPAT,NPgT]
+tpcontrol        = LANGEVIN  # [NO,BERENDSEN,BUSSI,LANGEVIN]
+temperature      = 300.0     # initial and target temperature (K)
+ 
+[BOUNDARY]
+type             = NOBC    # [NOBC,PBC] 

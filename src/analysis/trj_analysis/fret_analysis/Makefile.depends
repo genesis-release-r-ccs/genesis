@@ -1,0 +1,11 @@
+fa_analyze.o: fa_analyze.fpp fa_option_str_mod.mod 
+fa_analyze_mod.mod: fa_analyze.fpp fa_analyze.o
+fa_control.o: fa_control.fpp fa_option_mod.mod 
+fa_control_mod.mod: fa_control.fpp fa_control.o
+fa_main.o: fa_main.fpp fa_setup_mod.mod fa_analyze_mod.mod fa_control_mod.mod fa_option_str_mod.mod 
+fa_option.o: fa_option.fpp fa_option_str_mod.mod 
+fa_option_mod.mod: fa_option.fpp fa_option.o
+fa_option_str.o: fa_option_str.fpp  
+fa_option_str_mod.mod: fa_option_str.fpp fa_option_str.o
+fa_setup.o: fa_setup.fpp fa_control_mod.mod fa_option_mod.mod fa_option_str_mod.mod 
+fa_setup_mod.mod: fa_setup.fpp fa_setup.o

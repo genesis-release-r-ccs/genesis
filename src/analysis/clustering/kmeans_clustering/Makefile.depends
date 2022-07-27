@@ -1,0 +1,11 @@
+kc_analyze.o: kc_analyze.fpp kc_option_str_mod.mod 
+kc_analyze_mod.mod: kc_analyze.fpp kc_analyze.o
+kc_control.o: kc_control.fpp kc_option_mod.mod 
+kc_control_mod.mod: kc_control.fpp kc_control.o
+kc_main.o: kc_main.fpp kc_option_str_mod.mod kc_control_mod.mod kc_setup_mod.mod kc_analyze_mod.mod 
+kc_option.o: kc_option.fpp kc_option_str_mod.mod 
+kc_option_mod.mod: kc_option.fpp kc_option.o
+kc_option_str.o: kc_option_str.fpp  
+kc_option_str_mod.mod: kc_option_str.fpp kc_option_str.o
+kc_setup.o: kc_setup.fpp kc_option_mod.mod kc_option_str_mod.mod kc_control_mod.mod 
+kc_setup_mod.mod: kc_setup.fpp kc_setup.o

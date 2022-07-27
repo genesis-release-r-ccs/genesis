@@ -1,0 +1,11 @@
+density_analyze.o: density_analyze.fpp density_output_mod.mod density_option_str_mod.mod 
+density_analyze_mod.mod: density_analyze.fpp density_analyze.o
+density_control.o: density_control.fpp density_option_mod.mod 
+density_control_mod.mod: density_control.fpp density_control.o
+density_main.o: density_main.fpp density_option_mod.mod density_analyze_mod.mod density_control_mod.mod density_option_str_mod.mod 
+density_option.o: density_option.fpp density_option_str_mod.mod 
+density_option_mod.mod: density_option.fpp density_option.o
+density_option_str.o: density_option_str.fpp  
+density_option_str_mod.mod: density_option_str.fpp density_option_str.o
+density_output.o: density_output.fpp density_option_str_mod.mod density_option_mod.mod 
+density_output_mod.mod: density_output.fpp density_output.o

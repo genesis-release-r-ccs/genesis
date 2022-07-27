@@ -1,0 +1,61 @@
+=====================================
+GENESIS Regression Tests
+=====================================
+
+Regression tests are prepared for ATDYN, SPDYN, prst_setup
+(parallel I/O), and analysis tools to check if these programs 
+work correctly.
+
+In order to run the tests, execute a Python script
+(regression_test/test.py) in the following way:
+
+  $ cd regression_test/
+  $ ./test.py [genesis command] [parallel_io (optional)]
+
+Here, [genesis command] is a command line for executing genesis
+simulators (either ATDYN or SPDYN). The default is "mpirun -np 8 atdyn". 
+[parallel_io] is appended when checking the parallel I/O function.
+Examples are follows:
+
+  # execute atdyn test
+  $ ./test.py "mpirun -np 8 /path/to/atdyn"
+
+  # execute spdyn test
+  $ ./test.py "mpirun -np 8 /path/to/spdyn"
+
+  # execute spdyn test on GPU environment
+  $ ./test.py "mpirun -np 8 /path/to/spdyn" gpu
+   
+  # execute spdyn, parallel_io test
+  $ ./test.py "mpirun -np 8 /path/to/spdyn" parallel_io
+
+  # execute REMD test
+  $ ./test_remd.py "mpirun -np 8 /path/to/atdyn"
+  $ ./test_remd.py "mpirun -np 8 /path/to/spdyn"
+
+  # execute string method test
+  $ ./test_rpath.py "mpirun -np 8 /path/to/atdyn"
+  $ ./test_rpath.py "mpirun -np 8 /path/to/spdyn"
+
+  # execute vibrational analysis test
+  $ ./test_vib.py "mpirun -np 8 /path/to/atdyn"
+
+  # execute GaMD test
+  $ ./test_gamd.py "mpirun -np 8 /path/to/atdyn"
+  $ ./test_gamd.py "mpirun -np 8 /path/to/spdyn"
+
+The test of analysis tools is done in a similar way, but the 
+argument of the python script is the path to the bin directory.
+
+  # test analysis tools
+  $ cd test_analysis
+  $ ./test_analysis.py /path/to/genesis/bin
+  $ cd ..
+
+  # test SPANA
+  $ cd test_spana
+  $ ./test_spana.py /path/to/genesis/bin
+  $ cd ..
+
+More detailed information about the regression test is described
+in the user manual.

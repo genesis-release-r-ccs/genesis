@@ -1,0 +1,11 @@
+di_analyze.o: di_analyze.fpp di_option_str_mod.mod 
+di_analyze_mod.mod: di_analyze.fpp di_analyze.o
+di_control.o: di_control.fpp di_option_mod.mod 
+di_control_mod.mod: di_control.fpp di_control.o
+di_main.o: di_main.fpp di_analyze_mod.mod di_control_mod.mod di_option_str_mod.mod di_setup_mod.mod 
+di_option.o: di_option.fpp di_option_str_mod.mod 
+di_option_mod.mod: di_option.fpp di_option.o
+di_option_str.o: di_option_str.fpp  
+di_option_str_mod.mod: di_option_str.fpp di_option_str.o
+di_setup.o: di_setup.fpp di_control_mod.mod di_option_str_mod.mod di_option_mod.mod 
+di_setup_mod.mod: di_setup.fpp di_setup.o

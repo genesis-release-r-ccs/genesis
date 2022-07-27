@@ -1,0 +1,20 @@
+[INPUT]
+cvfile         = ../../trajectories/triala_cv/{}.dis
+
+[OUTPUT]
+pmffile        = out
+
+[WHAM]
+dimension      = 1
+nblocks        = 1
+temperature    = 300.0
+tolerance      = 10E-08
+rest_function1 = 1
+grids1         = 0.0 15.0 301
+
+[RESTRAINTS]
+constant1      =  1.2  1.2  1.2  1.2  1.2  1.2  1.2  \
+                  1.2  1.2  1.2  1.2  1.2  1.2  1.2
+reference1     =  1.80 2.72 3.64 4.56 5.48 6.40 7.32  \
+                 8.24 9.16 10.08 11.00 11.92 12.84 13.76
+is_periodic1   = NO

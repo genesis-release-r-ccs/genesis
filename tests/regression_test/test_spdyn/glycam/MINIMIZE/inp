@@ -1,0 +1,34 @@
+[INPUT]
+prmtopfile      = ../../../build//glycam/glycam.top 
+ambcrdfile      = ../../../build//glycam/glycam.rst
+rstfile         = ../../../build//glycam/rst
+
+[OUTPUT]
+ 
+[ENERGY]
+forcefield      = AMBER  
+electrostatic   = PME 
+switchdist      = 12.0   
+cutoffdist      = 12.0   
+pairlistdist    = 14.0   
+dielec_const    = 1.0
+pme_alpha       = 0.34
+pme_ngrid_x     = 64
+pme_ngrid_y     = 64
+pme_ngrid_z     = 64
+pme_nspline     = 4
+dispersion_corr = epress
+ 
+[MINIMIZE]
+nsteps          = 20
+eneout_period   = 2
+nbupdate_period = 4
+ 
+[CONSTRAINTS]
+rigid_bond      = NO 
+ 
+[BOUNDARY]
+type            = PBC
+box_size_x      = 69.5294360  
+box_size_y      = 68.0597930  
+box_size_z      = 56.2256950

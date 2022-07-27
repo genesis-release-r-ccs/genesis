@@ -1,0 +1,16 @@
+[INPUT]
+cvfile         = ../../trajectories/AdK_TMD/cv.dat
+dcdfile        = ../../trajectories/AdK_TMD/run.dcd
+dcdvelfile     = ../../trajectories/AdK_TMD/run.dvl
+#prmtopfile     = ../../trajectories/AdK_TMD/1ake_water.top
+#pdbfile        = ../../trajectories/AdK_TMD/1ake.pdb
+prmtopfile     = ../../../build/ake/ake.top
+ambcrdfile     = ../../../build/ake/ake.crd
+ 
+[OUTPUT]
+pdbfile        = {}.pdb
+rstfile        = {}.rst
+ 
+[RPATH]
+nreplica       = 4
+

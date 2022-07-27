@@ -1,0 +1,100 @@
+|===============================================================================
+|
+|  DFTB+ release 18.1
+|
+|  Copyright (C) 2018  DFTB+ developers group
+|
+|===============================================================================
+|
+|  When publishing results obtained with DFTB+, please cite the following
+|  reference:
+|
+|  * B. Aradi, B. Hourahine and T. Frauenheim,
+|    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,
+|    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]
+|
+|  You should also cite additional publications crediting the parametrization
+|  data you use. Please consult the documentation of the SK-files for the
+|  references.
+|
+|===============================================================================
+
+
+***  Parsing and initializing
+
+Parser version: 5
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+Reading SK-files:
+  /home/yagi/pgm/dftb/slako/3ob-3-1/H-H.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/H-C.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/H-N.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/H-O.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/H-P.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/C-C.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/C-N.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/C-O.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/C-P.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/N-N.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/N-O.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/N-P.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/O-O.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/O-P.skf
+  /home/yagi/pgm/dftb/slako/3ob-3-1/P-P.skf
+Done.
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+OpenMP threads:              2
+Chosen random seed:              2082116113
+Mode:                        Static calculation
+Self consistent charges:     Yes
+SCC-tolerance:                 0.100000E-04
+Max. scc iterations:                    100
+Spin polarisation:           No
+Nr. of up electrons:            61.000000
+Nr. of down electrons:          61.000000
+Periodic boundaries:         No
+Diagonalizer:                Relatively robust (version 1)
+Mixer:                       Broyden mixer
+Mixing parameter:                  0.200000
+Maximal SCC-cycles:                     100
+Nr. of chrg. vec. in memory:              0
+Force evaluation method:     Traditional                                                                                                                                                                                             
+Electronic temperature:        0.100000E-07
+Initial charges:             Read in from 'charges'
+Included shells:             H:  s
+                             C:  s, p
+                             N:  s, p
+                             O:  s, p
+                             P:  s, p, d
+Extra options:
+                             Mulliken analysis
+                             Force calculation
+                             External charges specified
+Force type                   original
+
+--------------------------------------------------------------------------------
+
+***  Geometry step: 0
+
+ iSCC Total electronic   Diff electronic      SCC error    
+    1   -0.57759127E+02    0.00000000E+00    0.46289613E+00
+    2   -0.57782408E+02   -0.23280440E-01    0.29344221E+00
+    3   -0.57793257E+02   -0.10849538E-01    0.76426849E-01
+    4   -0.57794121E+02   -0.86416219E-03    0.14687623E-01
+    5   -0.57794141E+02   -0.19638163E-04    0.94114450E-02
+    6   -0.57794153E+02   -0.11615952E-04    0.28848099E-02
+    7   -0.57794153E+02   -0.77331785E-06    0.63839901E-03
+    8   -0.57794153E+02   -0.40651770E-07    0.29655400E-03
+    9   -0.57794153E+02   -0.90115293E-08    0.88113604E-04
+   10   -0.57794153E+02   -0.22929072E-08    0.18413234E-04
+   11   -0.57794153E+02   -0.56374461E-10    0.47840209E-05
+>> Charges saved for restart in charges
+ 
+Total Energy:                      -56.5498737134 H        -1538.8004 eV
+Total Mermin free energy:          -56.5498737134 H        -1538.8004  eV

@@ -1,0 +1,38 @@
+[INPUT]
+grotopfile             = ../../../build/cg_systems/top/polII.top
+grocrdfile             = ../../../build/cg_systems/crd/polII.gro
+
+[ENERGY]
+forcefield             = RESIDCG
+electrostatic          = CUTOFF
+cg_cutoffdist_ele      = 50.0
+cg_cutoffdist_DNAbp    = 18.0
+cg_pairlistdist_ele    = 55.0
+cg_pairlistdist_PWMcos = 23.0
+cg_pairlistdist_DNAbp  = 23.0
+cg_pairlistdist_exv    = 12.0
+cg_sol_ionic_strength  = 0.15
+cg_pro_DNA_ele_scale_Q = -1.0
+
+[DYNAMICS]
+integrator             = VVER
+nsteps                 = 500
+timestep               = 0.020
+eneout_period          = 20
+nbupdate_period        = 20
+stoptr_period          = 20
+
+[CONSTRAINTS]
+rigid_bond             = NO
+
+[ENSEMBLE]
+ensemble               = NVE
+tpcontrol              = NO
+temperature            = 0
+gamma_t                = 0.1
+
+[BOUNDARY]
+type                   = PBC
+box_size_x             = 500.0
+box_size_y             = 500.0
+box_size_z             = 500.0

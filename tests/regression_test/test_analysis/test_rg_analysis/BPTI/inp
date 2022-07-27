@@ -1,0 +1,25 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+rgfile         = out             # RG file
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = all             # selection group 1
+ 
+[OPTION]
+check_only     = no              # (YES/NO)
+analysis_atom  = 1               # atom group
+mass_weighted  = YES             # (YES/NO)
+ 

@@ -1,0 +1,49 @@
+[INPUT]
+grotopfile = ../../../build/ake_macro/AKE_DoME_DB.top
+pdbfile = ../../../build/ake_macro/GO_4akea.pdb
+rstfile = ../../../build/ake_macro/rst
+
+[OUTPUT]
+
+
+[ENERGY]
+forcefield      = KBGO
+electrostatic   = CUTOFF
+switchdist      = 19.9                       # switch distance
+cutoffdist      = 20.0                       # cutoff distance
+pairlistdist    = 50.0                       # pair-list cutoff distance
+output_style  = GENESIS
+water_model   = NONE
+num_basins	= 2
+mix_temperature = 16000
+basinenergy1  = -50
+basinenergy2	= 0
+
+[DYNAMICS]
+integrator      = VVER                        # [LEAP,VVER]
+nsteps          = 50
+timestep        = 0.020                       # timestep (ps)
+eneout_period   = 2
+rstout_period   = 0
+crdout_period   = 0
+nbupdate_period = 10
+stoptr_period	= 1
+verbose=yes
+
+[CONSTRAINTS]
+rigid_bond      = YES                         # constraints all bonds
+fast_water      = NO                          # settle constraint
+shake_tolerance = 1.0e-6                      # tolerance (Angstrom)
+
+[ENSEMBLE]
+ensemble        = NVE                         # [NVE,NVT,NPT]
+temperature     = 200                         # initial and target
+
+[BOUNDARY]
+type            = NOBC                        # [PBC, NOBC]
+
+ 
+
+
+
+

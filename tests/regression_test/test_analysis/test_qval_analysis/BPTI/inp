@@ -1,0 +1,27 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+qntfile        = out
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = sid:BPTI and heavy
+
+[OPTION]
+check_only     = no              # (YES/NO)
+analysis_atom  = 1               # group number
+lambda         = 1.8             # 1.8 for all-atom model.
+                                 # 1.2 for Go model.
+verbose        = YES             # output the native contact.
+ 

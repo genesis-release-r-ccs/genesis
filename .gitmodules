@@ -1,0 +1,3 @@
+[submodule "src/analysis/cg_tools"]
+	path = src/analysis/cg_tools
+	url = https://github.com/genesis-release-r-ccs/genesis_cg_tool.git

@@ -1,0 +1,27 @@
+[INPUT]
+grotopfile      = ../../../build/cg_systems/top/gb1_aicg2p_safe.top
+grocrdfile      = ../../../build/cg_systems/crd/gb1_straight.gro
+
+[ENERGY]
+forcefield      = RESIDCG
+electrostatic   = CUTOFF
+
+[DYNAMICS]
+integrator      = LEAP
+nsteps          = 160
+timestep        = 0.020
+eneout_period   = 20
+nbupdate_period = 20
+stoptr_period   = 20
+
+[CONSTRAINTS]
+rigid_bond      = NO
+
+[ENSEMBLE]
+ensemble        = NVE
+tpcontrol       = NO
+temperature     = 0
+gamma_t         = 1.00
+
+[BOUNDARY]
+type            = NOBC

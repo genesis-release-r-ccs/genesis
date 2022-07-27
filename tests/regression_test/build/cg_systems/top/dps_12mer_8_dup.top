@@ -1,0 +1,17 @@
+#include "./param/atom_types.itp" 
+#include "./param/flexible_local_angle.itp" 
+#include "./param/flexible_local_dihedral.itp" 
+#include "./param/pair_energy_MJ_96.itp"
+
+; Molecule topology 
+#include "./itp/dps_12mer.itp" 
+
+[ system ] 
+dps_cg 
+
+[ molecules ] 
+dps_cg  8
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 96 : 1 - 96
+

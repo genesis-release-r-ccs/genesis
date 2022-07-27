@@ -1,0 +1,11 @@
+ta_analyze.o: ta_analyze.fpp ta_option_str_mod.mod 
+ta_analyze_mod.mod: ta_analyze.fpp ta_analyze.o
+ta_control.o: ta_control.fpp ta_option_mod.mod 
+ta_control_mod.mod: ta_control.fpp ta_control.o
+ta_main.o: ta_main.fpp ta_analyze_mod.mod ta_control_mod.mod ta_option_str_mod.mod ta_setup_mod.mod 
+ta_option.o: ta_option.fpp ta_option_str_mod.mod 
+ta_option_mod.mod: ta_option.fpp ta_option.o
+ta_option_str.o: ta_option_str.fpp  
+ta_option_str_mod.mod: ta_option_str.fpp ta_option_str.o
+ta_setup.o: ta_setup.fpp ta_option_mod.mod ta_control_mod.mod ta_option_str_mod.mod 
+ta_setup_mod.mod: ta_setup.fpp ta_setup.o

@@ -1,0 +1,42 @@
+[INPUT]
+grotopfile      = ../../../build/dppc_martini/system.top
+grocrdfile      = ../../../build/dppc_martini/crd.gro
+rstfile         = ../../../build/dppc_martini/rst
+
+[OUTPUT]
+ 
+[ENERGY]
+forcefield      = GROMARTINI
+electrostatic   = CUTOFF
+switchdist      = 9.0
+cutoffdist      = 12.0
+pairlistdist    = 14.0
+dielec_const    = 15.0
+table_density   = 20.0
+water_model     = NONE
+vdw_shift       = yes
+output_style    = GENESIS
+scale_pairlist_generic = 0.5
+
+[DYNAMICS]
+integrator      = VVER
+nsteps          = 20
+timestep        = 0.03
+eneout_period   = 2
+nbupdate_period = 5
+verbose         = yes
+
+[ENSEMBLE]
+ensemble        = NVE  
+tpcontrol       = NO
+temperature     = 0
+
+[CONSTRAINTS]
+rigid_bond      = NO
+ 
+[BOUNDARY]
+type            = PBC
+ 
+[SELECTION]
+ 
+[RESTRAINTS]

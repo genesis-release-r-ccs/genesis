@@ -1,0 +1,48 @@
+[INPUT]
+psffile        = ../../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+pdbfile        = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+
+[OUTPUT]
+txtfile        = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/BPTI_charmm/BPTI_run.dcd   # trajectory file
+md_step1       = 10              
+mdout_period1  = 1              
+ana_period1    = 1               
+repeat1        = 1
+trj_format     = DCD            
+trj_type       = COOR+BOX           
+trj_natom      = 0              
+
+[BOUNDARY]
+type          = PBC      
+box_size_x    = 68.25815      
+box_size_y    = 80.24045       
+box_size_z    = 66.58892      
+domain_x      = 1        
+domain_y      = 1        
+domain_z      = 1        
+num_cells_x    = 8 
+num_cells_y    = 10 
+num_cells_z    = 8 
+
+[ENSEMBLE]
+ensemble      = NPT 
+
+[SELECTION]
+group1           = ai:1-892 
+
+[SPANA_OPTION]
+buffer         = 8 
+wrap           = yes         
+box_size       = TRAJECTORY       
+
+[SASA_OPTION]
+solute         = 1 
+radi_file      = radi_list 
+probe_radius   = 1.4
+delta_z        = 0.2
+output_style   = atomic+history 
+recenter       = 1 

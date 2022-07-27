@@ -1,0 +1,44 @@
+; In this topology include file, you will find position restraint
+; entries for all the heavy atoms in your original pdb file.
+; This means that all the protons which were added by pdb2gmx are
+; not restrained.
+#ifdef STEP6_0
+#define fc_lpos 1000.0
+#define fc_ldih 1000.0
+#endif
+#ifdef STEP6_1
+#define fc_lpos 1000.0
+#define fc_ldih 1000.0
+#endif
+#ifdef STEP6_2
+#define fc_lpos 1000.0
+#define fc_ldih 400.0
+#endif
+#ifdef STEP6_3
+#define fc_lpos 400.0
+#define fc_ldih 200.0
+#endif
+#ifdef STEP6_4
+#define fc_lpos 200.0
+#define fc_ldih 200.0
+#endif
+#ifdef STEP6_5
+#define fc_lpos 40.0
+#define fc_ldih 100.0
+#endif
+#ifdef STEP6_6
+#define fc_lpos 0.0
+#define fc_ldih 0.0
+#endif  
+#ifdef STEP7  
+#define fc_lpos 0.0 
+#define fc_ldih 0.0 
+#endif  
+
+[ position_restraints ]
+; atom  type      fx      fy      fz
+   20     1      0.0      0.0  fc_lpos
+
+[ dihedral_restraints ]
+   42    31    34    36     1    120.0      2.5  fc_ldih
+

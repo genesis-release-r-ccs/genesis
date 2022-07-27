@@ -1,0 +1,36 @@
+[INPUT]
+grotopfile = ../../../build/bpti/bpti.top
+grocrdfile = ../../../build/bpti/bpti.gro
+ 
+[OUTPUT]
+rstfile         = dd().rst
+cachepath       = ./cache 
+keep_cache      = YES
+ 
+[ENERGY]
+forcefield      = GROAMBER
+electrostatic   = PME 
+switchdist      = 10.0
+cutoffdist      = 10.0
+pairlistdist    = 12.0
+ 
+[CONSTRAINTS]
+rigid_bond      = YES
+water_model     = SOL
+
+[DYNAMICS]
+iseed           = 314159
+ 
+[ENSEMBLE]
+ensemble        = NVE
+tpcontrol       = NO
+ 
+[BOUNDARY]
+type            = PBC
+box_size_x      = 65.3318
+box_size_y      = 65.3318
+box_size_z      = 65.3318
+domain_x        = 2
+domain_y        = 2
+domain_z        = 2
+

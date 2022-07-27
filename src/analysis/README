@@ -1,0 +1,16 @@
+For developers
+
+When you add or modify a tool and its Makefile.ac in analysis:
+1. If you add a new directory, append it to "SUBDIRS = ..."
+   in ./upper_dir_of_the_tool/Makefile.am
+2. Add appropriate Makefile statements around L1080 in ../configure.ac
+3. Run ./bootstrap in the src directory to generate Makefine.in files
+   and the configure.in file
+4. Run ./configure in the src directory to generate Makefile files
+   and the configure file
+5. Add appropriate "rm -f ..." in src/cleanup
+
+For an example, find "rmsd_analysis" in
+  src/analysis/trj_analysis/Makefile.am,
+  src/configure.ac and
+  src/cleanup

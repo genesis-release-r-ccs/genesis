@@ -1,0 +1,11 @@
+eg_control.o: eg_control.fpp eg_option_mod.mod 
+eg_control_mod.mod: eg_control.fpp eg_control.o
+eg_generate.o: eg_generate.fpp eg_option_str_mod.mod eg_option_mod.mod 
+eg_generate_mod.mod: eg_generate.fpp eg_generate.o
+eg_main.o: eg_main.fpp eg_option_str_mod.mod eg_generate_mod.mod eg_control_mod.mod eg_setup_mod.mod 
+eg_option.o: eg_option.fpp eg_option_str_mod.mod 
+eg_option_mod.mod: eg_option.fpp eg_option.o
+eg_option_str.o: eg_option_str.fpp  
+eg_option_str_mod.mod: eg_option_str.fpp eg_option_str.o
+eg_setup.o: eg_setup.fpp eg_control_mod.mod eg_option_str_mod.mod eg_option_mod.mod 
+eg_setup_mod.mod: eg_setup.fpp eg_setup.o

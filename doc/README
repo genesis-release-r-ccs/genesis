@@ -1,0 +1,39 @@
+=====================================
+GENESIS Documents
+=====================================
+
+What is this?
+=============
+This repository contains document files of the Users Guide for 
+GENESIS, a molecular dynamics progam for biomolecules.
+
+The document files are written in the RestructuredText (ReST), a simple
+markup language. By using Sphinx (a tool for typesetting ReST files), 
+the documents can be compiled into a PDF, or some other formats (HTMLs, ePub, etc).
+
+How to Install Sphinx
+=====================
+See the official document of Sphinx;
+http://sphinx-doc.org/latest/install.html
+
+Since the references in the documents are managed by using the BibTeX, 
+an extention package (sphinxcontrib-bibtex) is also required;
+
+sphinxcontrib-bibtex
+http://sphinxcontrib-bibtex.readthedocs.org/en/latest/index.html
+
+How to make PDF with Sphinx
+===========================
+# convert to latex files with sphinx
+$ make latex
+
+# filtering latex files
+$ cd _build/latex
+$ sed -i -e "s/Release//g" GENESIS.tex
+$ sed -i -e "s/Angstrom/\\\AA/g" GENESIS.tex
+$ sed -i -e "s/Go-model/G\{\\\=o\} model/g" GENESIS.tex
+$ sed -i -e "s/Go-like/G\{\\\=o\}-like/g" GENESIS.tex
+
+# typset latex files and create the PDF (GENESIS.pdf)
+$ make
+

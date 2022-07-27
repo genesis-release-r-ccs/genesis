@@ -1,0 +1,30 @@
+[INPUT]
+psffile   = ../../../trajectories/DPPC_RALP/RALP_DPPC.psf
+reffile   = ../../../trajectories/DPPC_RALP/RALP_DPPC_run.pdb
+
+[OUTPUT]
+outfile     = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/DPPC_RALP/RALP_DPPC_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+
+trj_format     = DCD
+trj_type       = COOR+BOX
+
+[SELECTION]
+group1         = sid:PROA
+group2         = resname:DPPC & (an:O11 | an:O12 | an:O13 | an:O14)
+
+[OPTION]
+check_only     = NO
+output_type    = Count_Snap
+solvent_list   = DPPC
+analysis_atom  = 1
+target_atom    = 2
+boundary_type  = PBC
+hb_distance    =   3.4
+dha_angle      = 120.0
+hda_angle      =  30.0

@@ -1,0 +1,11 @@
+rg_control.o: rg_control.fpp rg_option_mod.mod 
+rg_control_mod.mod: rg_control.fpp rg_control.o
+rg_generate.o: rg_generate.fpp rg_option_str_mod.mod rg_option_mod.mod 
+rg_generate_mod.mod: rg_generate.fpp rg_generate.o
+rg_main.o: rg_main.fpp rg_control_mod.mod rg_option_str_mod.mod rg_setup_mod.mod rg_generate_mod.mod 
+rg_option.o: rg_option.fpp rg_option_str_mod.mod 
+rg_option_mod.mod: rg_option.fpp rg_option.o
+rg_option_str.o: rg_option_str.fpp  
+rg_option_str_mod.mod: rg_option_str.fpp rg_option_str.o
+rg_setup.o: rg_setup.fpp rg_control_mod.mod rg_option_str_mod.mod rg_option_mod.mod 
+rg_setup_mod.mod: rg_setup.fpp rg_setup.o

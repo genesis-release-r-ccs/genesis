@@ -1,0 +1,20 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+torfile        = out             # distance file
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[OPTION]
+check_only     = NO
+torsion1       = BPTI:1:ARG:CA  BPTI:2:PRO:CA  BPTI:3:ASP:CA   BPTI:4:PHE:CA

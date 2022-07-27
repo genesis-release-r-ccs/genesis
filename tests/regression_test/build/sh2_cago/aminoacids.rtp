@@ -1,0 +1,126 @@
+[ bondedtypes ]
+; bondtype angletype dihedraltype impropertype all_dih nrexcl nrrecl HH14 bRemoveDih
+     1       1            1            2         1       3     3      0       0
+
+[protein]
+
+ [ ALA ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ ARG ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ ASN ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ ASP ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ CYS ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ GLN ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ GLU ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ GLY ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ HIS ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ ILE ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ LEU ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ LYS ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ MET ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ PHE ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ PRO ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ SER ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ THR ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ TRP ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ TYR ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+ 
+ [ VAL ]
+  [ atoms ]
+     CA  CA  0.00 0
+  [ bonds ]
+     CA  +CA 
+

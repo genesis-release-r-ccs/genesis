@@ -1,0 +1,11 @@
+da_analyze.o: da_analyze.fpp da_option_str_mod.mod 
+da_analyze_mod.mod: da_analyze.fpp da_analyze.o
+da_control.o: da_control.fpp da_option_mod.mod 
+da_control_mod.mod: da_control.fpp da_control.o
+da_main.o: da_main.fpp da_analyze_mod.mod da_control_mod.mod da_option_str_mod.mod da_setup_mod.mod 
+da_option.o: da_option.fpp da_option_str_mod.mod 
+da_option_mod.mod: da_option.fpp da_option.o
+da_option_str.o: da_option_str.fpp  
+da_option_str_mod.mod: da_option_str.fpp da_option_str.o
+da_setup.o: da_setup.fpp da_control_mod.mod da_option_str_mod.mod da_option_mod.mod 
+da_setup_mod.mod: da_setup.fpp da_setup.o

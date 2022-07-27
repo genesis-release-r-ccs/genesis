@@ -1,0 +1,116 @@
+atom_libs.o: atom_libs.fpp constants_mod.mod messages_mod.mod 
+atom_libs_mod.mod: atom_libs.fpp atom_libs.o
+constants.o: constants.fpp  
+constants_mod.mod: constants.fpp constants.o
+dihedral_libs.o: dihedral_libs.fpp constants_mod.mod fileio_par_mod.mod fileio_prmtop_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+dihedral_libs_mod.mod: dihedral_libs.fpp dihedral_libs.o
+fft3d.o: fft3d.fpp constants_mod.mod timers_mod.mod 
+fft3d_mod.mod: fft3d.fpp fft3d.o
+fft3d_1dalltoall.o: fft3d_1dalltoall.fpp constants_mod.mod timers_mod.mod 
+fft3d_1dalltoall_mod.mod: fft3d_1dalltoall.fpp fft3d_1dalltoall.o
+fft3d_2dalltoall.o: fft3d_2dalltoall.fpp constants_mod.mod timers_mod.mod 
+fft3d_2dalltoall_mod.mod: fft3d_2dalltoall.fpp fft3d_2dalltoall.o
+fft3d_slab.o: fft3d_slab.fpp constants_mod.mod timers_mod.mod 
+fft3d_slab_mod.mod: fft3d_slab.fpp fft3d_slab.o
+ffte_dzfft3d.o: ffte_dzfft3d.fpp constants_mod.mod 
+ffte_fft235.o: ffte_fft235.fpp constants_mod.mod 
+ffte_kernel.o: ffte_kernel.fpp constants_mod.mod 
+ffte_pdzfft3d.o: ffte_pdzfft3d.fpp constants_mod.mod 
+ffte_pzdfft3d.o: ffte_pzdfft3d.fpp constants_mod.mod 
+ffte_pzfft3dv.o: ffte_pzfft3dv.fpp constants_mod.mod 
+ffte_zdfft3d.o: ffte_zdfft3d.fpp constants_mod.mod 
+ffte_zfft1d.o: ffte_zfft1d.fpp constants_mod.mod 
+fileio.o: fileio.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+fileio_mod.mod: fileio.fpp fileio.o
+fileio_ambcrd.o: fileio_ambcrd.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_ambcrd_mod.mod: fileio_ambcrd.fpp fileio_ambcrd.o
+fileio_control.o: fileio_control.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_control_mod.mod: fileio_control.fpp fileio_control.o
+fileio_crd.o: fileio_crd.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_crd_mod.mod: fileio_crd.fpp fileio_crd.o
+fileio_data.o: fileio_data.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_data_mod.mod: fileio_data.fpp fileio_data.o
+fileio_eef1.o: fileio_eef1.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_eef1_mod.mod: fileio_eef1.fpp fileio_eef1.o
+fileio_gpr.o: fileio_gpr.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_gpr_mod.mod: fileio_gpr.fpp fileio_gpr.o
+fileio_grocrd.o: fileio_grocrd.fpp constants_mod.mod string_mod.mod messages_mod.mod fileio_mod.mod 
+fileio_grocrd_mod.mod: fileio_grocrd.fpp fileio_grocrd.o
+fileio_gropp.o: fileio_gropp.fpp string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_gropp_mod.mod: fileio_gropp.fpp fileio_gropp.o
+fileio_grotop.o: fileio_grotop.fpp messages_mod.mod constants_mod.mod mpi_parallel_mod.mod fileio_gropp_mod.mod string_mod.mod fileio_mod.mod 
+fileio_grotop_mod.mod: fileio_grotop.fpp fileio_grotop.o
+fileio_localres.o: fileio_localres.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_localres_mod.mod: fileio_localres.fpp fileio_localres.o
+fileio_minfo.o: fileio_minfo.fpp atom_libs_mod.mod constants_mod.mod messages_mod.mod molecules_str_mod.mod fileio_mod.mod 
+fileio_minfo_mod.mod: fileio_minfo.fpp fileio_minfo.o
+fileio_mode.o: fileio_mode.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_mode_mod.mod: fileio_mode.fpp fileio_mode.o
+fileio_morph.o: fileio_morph.fpp messages_mod.mod constants_mod.mod mpi_parallel_mod.mod fileio_grotop_mod.mod string_mod.mod fileio_mod.mod 
+fileio_morph_mod.mod: fileio_morph.fpp fileio_morph.o
+fileio_mrc.o: fileio_mrc.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_mrc_mod.mod: fileio_mrc.fpp fileio_mrc.o
+fileio_par.o: fileio_par.fpp messages_mod.mod fileio_top_mod.mod constants_mod.mod mpi_parallel_mod.mod string_mod.mod fileio_mod.mod 
+fileio_par_mod.mod: fileio_par.fpp fileio_par.o
+fileio_pdb.o: fileio_pdb.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_pdb_mod.mod: fileio_pdb.fpp fileio_pdb.o
+fileio_prmtop.o: fileio_prmtop.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_prmtop_mod.mod: fileio_prmtop.fpp fileio_prmtop.o
+fileio_psf.o: fileio_psf.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_psf_mod.mod: fileio_psf.fpp fileio_psf.o
+fileio_rst.o: fileio_rst.fpp fileio_data_mod.mod messages_mod.mod constants_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_rst_mod.mod: fileio_rst.fpp fileio_rst.o
+fileio_rstmep.o: fileio_rstmep.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_rstmep_mod.mod: fileio_rstmep.fpp fileio_rstmep.o
+fileio_sit.o: fileio_sit.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_sit_mod.mod: fileio_sit.fpp fileio_sit.o
+fileio_spot.o: fileio_spot.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_spot_mod.mod: fileio_spot.fpp fileio_spot.o
+fileio_str.o: fileio_str.fpp fileio_par_mod.mod fileio_top_mod.mod constants_mod.mod mpi_parallel_mod.mod messages_mod.mod string_mod.mod fileio_mod.mod 
+fileio_str_mod.mod: fileio_str.fpp fileio_str.o
+fileio_table.o: fileio_table.fpp fileio_data_mod.mod messages_mod.mod mpi_parallel_mod.mod constants_mod.mod 
+fileio_table_mod.mod: fileio_table.fpp fileio_table.o
+fileio_top.o: fileio_top.fpp constants_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_mod.mod 
+fileio_top_mod.mod: fileio_top.fpp fileio_top.o
+fitting.o: fitting.fpp messages_mod.mod fitting_str_mod.mod constants_mod.mod mpi_parallel_mod.mod molecules_str_mod.mod select_atoms_mod.mod select_mod.mod fileio_control_mod.mod 
+fitting_mod.mod: fitting.fpp fitting.o
+fitting_str.o: fitting_str.fpp select_atoms_str_mod.mod constants_mod.mod messages_mod.mod 
+fitting_str_mod.mod: fitting_str.fpp fitting_str.o
+getopt.o: getopt.fpp constants_mod.mod string_mod.mod messages_mod.mod 
+getopt_mod.mod: getopt.fpp getopt.o
+hardwareinfo.o: hardwareinfo.fpp messages_mod.mod fileio_str_mod.mod constants_mod.mod mpi_parallel_mod.mod string_mod.mod fileio_mod.mod 
+hardwareinfo_mod.mod: hardwareinfo.fpp hardwareinfo.o
+math_libs.o: math_libs.fpp random_mod.mod constants_mod.mod 
+math_libs_mod.mod: math_libs.fpp math_libs.o
+messages.o: messages.fpp mpi_parallel_mod.mod 
+messages_mod.mod: messages.fpp messages.o
+molecules.o: molecules.fpp fileio_ambcrd_mod.mod fileio_par_mod.mod fileio_top_mod.mod fileio_mode_mod.mod constants_mod.mod messages_mod.mod mpi_parallel_mod.mod fileio_gpr_mod.mod select_atoms_str_mod.mod fileio_prmtop_mod.mod fileio_grotop_mod.mod fileio_grocrd_mod.mod fileio_crd_mod.mod fileio_pdb_mod.mod fileio_psf_mod.mod molecules_str_mod.mod 
+molecules_mod.mod: molecules.fpp molecules.o
+molecules_str.o: molecules_str.fpp constants_mod.mod messages_mod.mod 
+molecules_str_mod.mod: molecules_str.fpp molecules_str.o
+mpi_parallel.o: mpi_parallel.fpp  
+mpi_parallel_mod.mod: mpi_parallel.fpp mpi_parallel.o
+nbond_list.o: nbond_list.fpp messages_mod.mod 
+nbond_list_mod.mod: nbond_list.fpp nbond_list.o
+random.o: random.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+random_mod.mod: random.fpp random.o
+select.o: select.fpp molecules_str_mod.mod string_mod.mod messages_mod.mod fileio_control_mod.mod mpi_parallel_mod.mod 
+select_mod.mod: select.fpp select.o
+select_atoms.o: select_atoms.fpp messages_mod.mod select_atoms_str_mod.mod molecules_str_mod.mod select_contacts_mod.mod constants_mod.mod mpi_parallel_mod.mod select_parser_mod.mod string_mod.mod 
+select_atoms_mod.mod: select_atoms.fpp select_atoms.o
+select_atoms_str.o: select_atoms_str.fpp messages_mod.mod mpi_parallel_mod.mod 
+select_atoms_str_mod.mod: select_atoms_str.fpp select_atoms_str.o
+select_contacts.o: select_contacts.fpp select_atoms_str_mod.mod molecules_str_mod.mod messages_mod.mod mpi_parallel_mod.mod constants_mod.mod 
+select_contacts_mod.mod: select_contacts.fpp select_contacts.o
+select_lexer.o: select_lexer.fpp string_mod.mod 
+select_lexer_mod.mod: select_lexer.fpp select_lexer.o
+select_parser.o: select_parser.fpp select_lexer_mod.mod select_atoms_str_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+select_parser_mod.mod: select_parser.fpp select_parser.o
+string.o: string.fpp constants_mod.mod messages_mod.mod 
+procedure.mod string_mod.mod: string.fpp string.o
+structure_check.o: structure_check.fpp molecules_str_mod.mod string_mod.mod messages_mod.mod mpi_parallel_mod.mod constants_mod.mod 
+structure_check_mod.mod: structure_check.fpp structure_check.o
+table_libs.o: table_libs.fpp constants_mod.mod math_libs_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+table_libs_mod.mod: table_libs.fpp table_libs.o
+timers.o: timers.fpp constants_mod.mod messages_mod.mod mpi_parallel_mod.mod 
+ctim.mod timers_mod.mod: timers.fpp timers.o

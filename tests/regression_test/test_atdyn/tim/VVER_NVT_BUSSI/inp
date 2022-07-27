@@ -1,0 +1,68 @@
+[INPUT]
+topfile = ../toppar/top_all36_prot.rtf, ../toppar/top_all36_cgenff.rtf 
+parfile = ../toppar/par_all36_prot.prm, ../toppar/par_all36_cgenff.prm
+strfile = ../toppar/toppar_water_ions.str, ../toppar/toppar_dhap.3.str
+psffile = ../tim.psf     # protein structure file
+pdbfile = ../tim.pdb     # PDB file
+reffile = ../tim.pdb     # PDB file
+
+[OUTPUT]
+#dcdfile = tim.dcd
+#rstfile = tim.rst
+
+[ENERGY]
+forcefield       = CHARMM        # [CHARMM]
+electrostatic    = CUTOFF    # [CUTOFF,PME]
+switchdist       = 16.0      # switch distance
+cutoffdist       = 18.0      # cutoff distance
+pairlistdist     = 19.5      # pair-list distance
+pme_nspline      = 4
+water_model      = NONE
+vdw_force_switch = YES
+
+[DYNAMICS]
+integrator      = VVER          # [LEAP,VVER]
+timestep        = 0.0005        # timestep (ps)
+nsteps          = 50            # number of MD steps
+eneout_period   = 1             # energy output period
+crdout_period   = 0 
+rstout_period   = 0
+nbupdate_period = 10
+stoptr_period   = 10
+iseed           = 20190319
+
+[CONSTRAINTS]
+rigid_bond      = YES           # constraints all bonds involving hydrogen
+shake_tolerance = 1.0D-10
+hydrogen_type   = BOTH
+fast_water      = YES
+noshake_index   = 2
+
+[ENSEMBLE]
+ensemble        = NVT           # [NVE,NVT,NPT]
+tpcontrol       = BUSSI         # thermostat and barostat
+temperature     = 300.0         # initial temerature (K)
+
+[BOUNDARY]
+type          = NOBC      # [PBC,NOBC]
+spherical_pot = yes
+constant      = 10.0
+exponent      = 2
+nfunctions    = 2
+center1       =  17.0, 0.0, 0.0    # [x,y,z]
+radius1       = 40.0
+center2       = -17.0, 0.0, 0.0       # [x,y,z]
+radius2       = 40.0
+fixatom       = no
+
+[SELECTION]
+group1  = (sid:TIMA or sid:TIMB) and (an:CA | an:C | an:O | an:N)      # backbone
+group2  = ano:7588
+
+[RESTRAINTS]
+#nfunctions      = 2
+nfunctions      = 1
+function1       = POSI
+constant1       = 10.0
+select_index1   = 1
+

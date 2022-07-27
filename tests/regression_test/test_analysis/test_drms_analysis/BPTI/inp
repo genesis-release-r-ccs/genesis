@@ -1,0 +1,32 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+pdbfile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+rmsfile        = out
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = an: CA
+
+[OPTION]
+check_only       = no              # (YES/NO)
+contact_groups   = 1               # group number
+ignore_hydrogen  = NO
+two_states       = NO
+avoid_bonding    = YES
+exclude_residues = 4
+minimum_distance = 1.0 
+maximum_distance = 6.0
+pbc_correct      = NO
+verbose          = YES             # output the native contact.

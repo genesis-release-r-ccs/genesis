@@ -1,0 +1,75 @@
+[INPUT]
+topfile  =  ./top
+parfile  =  ./par
+psffile  =  ./psf
+pdbfile  =  ./pdb
+rstfile  =  ./rst{}
+ 
+[OUTPUT]
+logfile    =  ./test{} 
+ 
+[RPATH]
+nreplica          = 4
+rpath_period      = 10
+delta             = 0.01
+smooth            = 0.0
+rest_function     = 1 2
+
+[ENERGY]
+forcefield    = CHARMM
+electrostatic = PME
+switchdist    = 10.0
+cutoffdist    = 12.0
+pairlistdist  = 13.5
+output_style  = GENESIS
+pme_alpha     = 0.34
+pme_ngrid_x   = 64
+pme_ngrid_y   = 64
+pme_ngrid_z   = 64
+water_model   = NONE
+ 
+[DYNAMICS]
+integrator      = VVER
+nsteps          = 40
+timestep        = 0.002
+eneout_period   = 2
+nbupdate_period = 5
+ 
+[CONSTRAINTS]
+rigid_bond    = YES
+fast_water    = YES
+ 
+[ENSEMBLE]
+ensemble      = NVT
+tpcontrol     = BERENDSEN
+group_tp      = NO   # This option is used only for regression tests.
+ 
+[BOUNDARY]
+type          = PBC
+box_size_x    = 64.0
+box_size_y    = 64.0
+box_size_z    = 64.0
+ 
+[SELECTION]
+group1        = an:CLP
+group2        = an:NL
+group3        = an:CA
+group4        = an:CRP
+group5        = an:NL
+group6        = an:CA
+group7        = an:CRP
+group8        = an:NR
+
+[RESTRAINTS]
+nfunctions    = 2
+
+function1     = DIHED
+constant1     = 50.0 50.0 50.0 50.0 50.0 50.0 50.0 50.0
+reference1    = -40.0 -40.0 -40.0 -40.0 -40.0 -40.0 -40.0 -40.0
+select_index1 = 1 2 3 4  # PHI
+
+function2     = DIHED
+constant2     = 50.0 50.0 50.0 50.0 50.0 50.0 50.0 50.0
+reference2    = -45.0 -20.0 5.0 30.0 55.0 80.0 105.0 130.0
+select_index2 = 5 6 7 8  # PSI
+
