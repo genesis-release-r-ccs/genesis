@@ -31,6 +31,9 @@ module nbond_list_mod
   private :: sort_list
   private :: r_side_greator
 
+  ! constants
+  integer, parameter :: BondMapLimits = 10
+
 contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -99,12 +102,12 @@ contains
       natom = max(natom, tbond_list(2,i))
     end do
 
-    allocate(bond_map(5,natom), stat=alloc_stat)
+    allocate(bond_map(BondMapLimits,natom), stat=alloc_stat)
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
     do i = 1, natom
-      bond_map(1:5,i) = 0
+      bond_map(1:BondMapLimits,i) = 0
     end do
 
     do i = 1, nbond
@@ -112,20 +115,20 @@ contains
       i1 = tbond_list(1,i)
       i2 = tbond_list(2,i)
 
-      do ii = 1, 5
+      do ii = 1, BondMapLimits
         if (bond_map(ii,i1) == 0) &
           exit
       end do
-      if (ii > 5) &
-        call error_msg('Create_Bond_Map> Duplicate was overflow. > 5')
+      if (ii > BondMapLimits) &
+        call error_msg('Create_Bond_Map> Duplicate was overflow. > BondMapLimits')
       bond_map(ii,i1) = i2
 
-      do ii = 1, 5
+      do ii = 1, BondMapLimits
         if (bond_map(ii,i2) == 0) &
           exit
       end do
-      if (ii > 5) &
-        call error_msg('Create_Bond_Map> Duplicate was overflow. > 5')
+      if (ii > BondMapLimits) &
+        call error_msg('Create_Bond_Map> Duplicate was overflow. > BondMapLimits')
       bond_map(ii,i2) = i1
 
     end do
@@ -266,7 +269,7 @@ contains
       return
     end if
 
-    do i = 1, 5
+    do i = 1, BondMapLimits
       ito = bond_map(i,iatom)
       if (ito == 0) &
         exit

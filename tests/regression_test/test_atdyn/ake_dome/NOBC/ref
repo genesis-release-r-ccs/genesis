@@ -1,0 +1,289 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 1.3.0
+  commit ID    = faa22f8 [2019-09-04 18:49:19 +0900]
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = chig@eel
+  fortran      = ifort (IFORT) 15.0.4 20150805
+  option       = -xHost -O3 -ip -mkl=parallel  -assume byterecl -openmp 
+  C            = icc (ICC) 15.0.4 20150805
+  option       = -O3 -ip -axCORE-AVX2  -openmp
+  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -openmp -lmkl_intel_lp64 -lmkl_sequential -lmkl_co
+ re -lmkl_lapack95_lp64 
+
+Runtime_Information> Machine and Library Information
+  date       = 2019/09/05 19:34:01
+  cpu model    = Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz
+  exec. host   = chig@eel03
+  LD library   = 
+ /usr/local/cuda/lib:/usr/local/cuda-6.5/lib64:/home/mdsoft/mpi/mpi_cent-v6_inte
+ l64/openmpi-v1.10.1_intel_v15.0.4/lib:/opt/intel/composer_xe_2015.5.223/compile
+ r/lib/intel64:/opt/intel/composer_xe_2015.5.223/mkl/lib/intel64:/opt/intel/comp
+ oser_xe_2015.5.223/compiler/lib/intel64:/opt/intel/composer_xe_2015.5.223/mpirt
+ /lib/intel64:/opt/intel/composer_xe_2015.5.223/ipp/../compiler/lib/intel64:/opt
+ /intel/composer_xe_2015.5.223/ipp/lib/intel64:/opt/intel/composer_xe_2015.5.223
+ /ipp/tools/intel64/perfsys:/opt/intel/composer_xe_2015.5.223/compiler/lib/intel
+ 64:/opt/intel/composer_xe_2015.5.223/mkl/lib/intel64:/opt/intel/composer_xe_201
+ 5.5.223/tbb/lib/intel64/gcc4.4:/opt/intel/composer_xe_2015.5.223/debugger/libip
+ t/intel64/lib
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  grotopfile = ../../../build/AKE_Macro/AKE_DoME_DB.top
+  pdbfile = ../../../build/AKE_Macro/GO_4akea.pdb
+  rstfile = ../../../build/AKE_Macro/rst
+ 
+Read_Ctrl_Output> Output Files
+ 
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =       KBGO
+  switchdist      =     19.900  cutoffdist      =     20.000
+  pairlistdist    =     50.000  dielec_const    =      1.000
+  debye           =      0.000
+ vdW force_switch =         no
+  electrostatic   =  CUTOFF
+  implicit_solvent=       none
+  table           =         no
+  water_model     =       NONE
+  num_basins      =          2  mix_temperature =  16000.000
+  basinenergy1    =    -50.000
+  basinenergy2    =      0.000
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+  user def. table =     no
+ 
+Read_Ctrl_Dynamics> Parameters of MD simulation
+  integrator      =       VVER  nsteps          =         50
+  timestep        =     0.0200  initial_time    =     0.0000
+  eneout_period   =          2  rstout_period   =          0
+  crdout_period   =          0  velout_period   =          0
+  nbupdate_period =         10  stoptr_period   =          1
+  qmsave_period   =          0
+  iseed           =         -1
+  annealing       =         no
+  verbose         =        yes
+  target_md       =         no
+  steered_md      =         no
+  shrink_box      =         no
+ 
+Read_Ctrl_Constraints> Parameters for Constraints
+  rigid_bond      =        yes
+  shake_iteration =        500  shake_tolerance =  0.100E-05
+  fast_water      =         no
+  hydrogen_type   =       name
+ 
+Read_Ctrl_Ensemble> Parameters for Ensemble
+  ensemble        =        NVE
+  initial_temp    =    200.000
+  tpcontrol       =         NO
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =     NOBC  
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          1
+  total number of CPU cores =          8
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Grotop> Summy of Grotopfile
+  num_moltypes    =          1
+    CGprotein             :
+      num_atoms   =        214
+      num_bonds   =        213
+      num_angls   =        212
+      num_dihes   =        844
+      num_cmaps   =          0
+      num_excls   =        396
+      num_constrs =          0
+      num_pairs   =        396
+      num_vsites2 =          0
+      num_vsites3 =          0
+      num_vsites4 =          0
+      num_vsitesn =          0
+      num_posress =          0
+    .. not used molecule types were hidden.
+
+  num_molecules   =          1
+    CGprotein             :  1
+
+  num_atomtypes   =         20  num_bondtypes   =          0
+  num_angltypes   =          0  num_dihetypes   =          0
+  num_constrtypes =          0  num_cmaptypes   =          0
+  num_nbonparms   =          0
+
+Read_Pdb> Summary of Data in PDB file
+  num_atoms       =        214
+ 
+Read_Rst_Binary> Summary of RST file
+  num_atoms       =        214  iseed           =  289945573
+  boxsize (x,y,z) =      0.000     0.000     0.000
+Define_Molecule> Summary of molecules
+  num_atoms       =        214  num_bonds       =        213
+  num_angles      =        212  num_dihedrals   =        844
+  num_impropers   =          0  num_cmap_terms  =          0
+  num_residues    =        214  num_molecules   =          1
+  num_segments    =          1  num_deg_freedom =        642
+  total_charge    =      0.000
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =        639 (After removing translation)
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =        636 (After removing rotation)
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Random_Init> Initialize the random number
+  seed            = 289945573
+
+Random_Mpi_Frombyte> MPI communicator size was changed from previous run.
+                     skip read random internal state of restart file.
+Define_Enefunc_Gromacs> Number of Interactions in Each Term
+  bond_ene        =        213  angle_ene       =        212
+  torsion_ene     =        844  rb_torsion_ene  =          0
+  improper_ene    =          0
+  nb_exclusions   =        821  nb14_calc       =        211
+  contact_ene     =        396
+  multi_contact   =        180
+  vsite2_ene      =          0  vsite3_ene      =          0
+  vsite3fd_ene    =          0  vsite3fad_ene   =          0
+  vsite3out_ene   =          0  vsite4fdn_ene   =          0
+  vsiten_ene      =          0
+ restraint_groups =          0 restraint_funcs  =          0
+ 
+Get_Morph_in> Morphing check
+  morphing_bb =           0  morphing_sc =           0
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Setup_Shake> Setup constrains for SHAKE and RATTLE
+  num_unconsbonds =          0  num_rigid_bonds =        213
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =        423 (After setup of SHAKE/RATTLE)
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP          ENERGY           ANGLE        DIHEDRAL  NATIVE_CONTACT NON-NATIVE_CONT           ELECT    MUL_BASIN001    MUL_BASIN002    BASIN_ENE001    BASIN_ENE002
+ --------------- --------------- --------------- --------------- ---------------
+               0       -944.1558         72.2668        229.7836      -1227.1102        -19.0960          0.0000          1.0000          0.0000       -175.5563        221.5169
+
+[STEP5] Perform Molecular Dynamics Simulation
+ 
+INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG           ANGLE        DIHEDRAL  NATIVE_CONTACT NON-NATIVE_CONT           ELECT    MUL_BASIN001    MUL_BASIN002    BASIN_ENE001    BASIN_ENE002     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          2          0.0400       -804.7476       -932.7525        128.0049          3.5088         69.3990        230.6598      -1213.7054        -19.1058          0.0000          1.0000          0.0000       -170.3057        109.2707        304.5627          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:          4          0.0800       -804.6454       -920.4983        115.8529          3.6802         67.7567        230.9672      -1200.0486        -19.1736          0.0000          0.9989          0.0011       -164.8923          1.4672        275.6493          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:          6          0.1200       -805.9594       -915.4301        109.4707          3.8058         67.0117        230.6198      -1193.7464        -19.3152          0.0000          0.9866          0.0134       -162.4439        -75.8719        260.4642          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:          8          0.1600       -810.4751       -922.6850        112.2099          3.7701         65.3519        229.5944      -1198.1434        -19.4879          0.0000          0.9449          0.0551       -163.2136       -122.8347        266.9816          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         10          0.2000       -813.7989       -933.9924        120.1934          3.6064         61.4628        228.1031      -1203.9103        -19.6480          0.0000          0.9115          0.0885       -164.6973       -140.5369        285.9768          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         12          0.2400       -812.9167       -938.3300        125.4133          3.5609         56.9125        226.6168      -1202.1061        -19.7532          0.0000          0.9224          0.0776       -165.8802       -137.1659        298.3964          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         14          0.2800       -811.2549       -933.7699        122.5150          3.8606         54.9156        225.6871      -1194.6266        -19.7460          0.0000          0.9394          0.0606       -166.4363       -129.3133        291.5004          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         16          0.3200       -810.5591       -929.6053        119.0462          4.1391         55.7166        225.4812      -1191.2137        -19.5893          0.0000          0.9438          0.0562       -165.5502       -125.8860        283.2471          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         18          0.3600       -810.2513       -937.5740        127.3227          3.6070         56.0552        225.4766      -1199.7695        -19.3362          0.0000          0.9525          0.0475       -168.1842       -122.8426        302.9395          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         20          0.4000       -808.8822       -937.4290        128.5468          3.6237         55.0710        225.3042      -1198.7559        -19.0483          0.0000          0.9671          0.0329       -171.7183       -114.2484        305.8519          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         22          0.4400       -807.9904       -930.8900        122.8996          3.9703         53.2742        224.9703      -1190.3473        -18.7872          0.0000          0.9743          0.0257       -172.0025       -106.3783        292.4156          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         24          0.4800       -808.5907       -934.7696        126.1789          3.8001         50.5346        224.6166      -1191.1562        -18.7645          0.0000          0.9695          0.0305       -170.8237       -110.8698        300.2179          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         26          0.5200       -809.9667       -941.4321        131.4654          3.7277         48.5792        224.5761      -1195.6372        -18.9502          0.0000          0.9551          0.0449       -169.9290       -122.6857        312.7963          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         28          0.5600       -809.8689       -939.8298        129.9609          4.0744         49.6808        225.0374      -1195.5232        -19.0248          0.0000          0.9515          0.0485       -171.4298       -126.7638        309.2166          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         30          0.6000       -808.9224       -939.9921        131.0697          3.9715         52.4808        225.7657      -1199.2285        -19.0102          0.0000          0.9603          0.0397       -173.8257       -122.5341        311.8546          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         32          0.6400       -807.5459       -940.2435        132.6975          3.9023         54.4353        226.4531      -1202.0858        -19.0461          0.0000          0.9725          0.0275       -175.1727       -111.8352        315.7278          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         34          0.6800       -806.3950       -940.1091        133.7141          3.8332         55.2678        226.9586      -1203.1589        -19.1767          0.0000          0.9837          0.0163       -174.9355        -94.5340        318.1467          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         36          0.7200       -805.6986       -938.4841        132.7855          3.8185         55.7370        227.3874      -1202.2836        -19.3248          0.0000          0.9913          0.0087       -172.8516        -72.1349        315.9372          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         38          0.7600       -805.3663       -933.5477        128.1814          3.8583         55.5623        227.9431      -1197.6442        -19.4090          0.0000          0.9952          0.0048       -170.5480        -51.2524        304.9827          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         40          0.8000       -805.2755       -926.4530        121.1775          3.9903         54.7446        228.6282      -1190.4186        -19.4071          0.0000          0.9962          0.0038       -168.2574        -41.4059        288.3181          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         42          0.8400       -805.1520       -921.6888        116.5368          4.2105         54.7108        228.9986      -1186.0605        -19.3377          0.0000          0.9954          0.0046       -168.0924        -46.7979        277.2766          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         44          0.8800       -805.6783       -927.4988        121.8204          3.7909         55.2155        228.5911      -1192.0984        -19.2070          0.0000          0.9938          0.0062       -170.0790        -58.8345        289.8479          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         46          0.9200       -805.8371       -929.8814        124.0443          3.7753         55.9627        227.7083      -1194.5536        -18.9988          0.0000          0.9919          0.0081       -171.4653        -68.4963        295.1392          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         48          0.9600       -805.8625       -928.4525        122.5900          3.7871         56.6904        226.9418      -1193.3362        -18.7485          0.0000          0.9911          0.0089       -171.5379        -71.6086        291.6790          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+INFO:         50          1.0000       -805.4728       -927.7961        122.3232          3.7561         56.3611        226.5056      -1192.1048        -18.5579          0.0000          0.9934          0.0066       -172.9447        -63.4334        291.0442          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000          0.0000
+
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       0.128
+    setup         =       0.115
+    dynamics      =       0.012
+      energy      =       0.008
+      integrator  =       0.006
+      pairlist    =       0.000 (       0.000,       0.001)
+  energy           
+    bond          =       0.000 (       0.000,       0.000)
+    angle         =       0.000 (       0.000,       0.001)
+    dihedral      =       0.001 (       0.000,       0.002)
+    nonbond       =       0.003 (       0.000,       0.004)
+      pme real    =       0.000 (       0.000,       0.000)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.005 (       0.003,       0.005)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

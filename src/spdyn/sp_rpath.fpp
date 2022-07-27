@@ -13,6 +13,7 @@
 #endif
 
 module sp_rpath_mod
+
   use sp_energy_mod
   use sp_energy_str_mod
   use sp_energy_restraints_mod
@@ -56,7 +57,7 @@ module sp_rpath_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -175,26 +176,27 @@ contains
     character(30)            :: cdim, partmp, vartmp, fnctmp
     character(MaxLine)       :: rest_function_char
 
+
     ! read parameters from control file
     !
     call begin_ctrlfile_section(handle, Section)
 
-    call read_ctrlfile_integer(handle, Section, 'nreplica',       &
+    call read_ctrlfile_integer(handle, Section, 'nreplica',      &
                                rpath_info%nreplica)
-    call read_ctrlfile_integer(handle, Section, 'rpath_period', &
+    call read_ctrlfile_integer(handle, Section, 'rpath_period',  &
                                rpath_info%rpath_period)
-    call read_ctrlfile_real(handle, Section, 'delta',  &
-                            rpath_info%delta)
-    call read_ctrlfile_real(handle, Section, 'smooth', &
-                            rpath_info%smooth)
+    call read_ctrlfile_real   (handle, Section, 'delta',         &
+                               rpath_info%delta)
+    call read_ctrlfile_real   (handle, Section, 'smooth',        &
+                               rpath_info%smooth)
     call read_ctrlfile_logical(handle, Section, 'fix_terminal',  &
-                            rpath_info%fix_terminal)
+                               rpath_info%fix_terminal)
     call read_ctrlfile_logical(handle, Section, 'avoid_shrinkage',  &
                             rpath_info%avoid_shrinkage)
     call read_ctrlfile_string (handle, Section, 'rest_function', &
                                rest_function_char)
-    call read_ctrlfile_logical(handle, Section, 'use_restart',  &
-                            rpath_info%use_restart)
+    call read_ctrlfile_logical(handle, Section, 'use_restart',   &
+                               rpath_info%use_restart)
 
     call end_ctrlfile_section(handle)
 
@@ -260,7 +262,7 @@ contains
   !> @brief        setup structure of replica
   !! @authors      TM, YK
   !! @param[in]    rpath_info : RPATH section control parameters information
-  !! @param[out]   replica  : replica information
+  !! @param[out]   replica    : replica information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -269,6 +271,7 @@ contains
     ! formal arguments
     type(s_rpath_info),       intent(in)    :: rpath_info
     type(s_rpath),            intent(inout) :: rpath
+
 
     rpath%nreplica = rpath_info%nreplica
 
@@ -286,6 +289,7 @@ contains
   !! @param[in]    boundary   : boundary condition information
   !! @param[in]    dynamics   : dynamics information
   !! @param[in]    molecule   : molecule information
+  !! @param[inout] domain     : domain information
   !! @param[inout] restraints : restraints information
   !! @param[inout] ensemble   : ensemble information
   !! @param[inout] enefunc    : potential energy functions information
@@ -320,13 +324,13 @@ contains
     integer                    :: replicaid
     integer                    :: ifunc, igroup, idm, ikind, itmp
 
+
     mass          => molecule%mass
     grouplist     => enefunc%restraint_grouplist
     numatoms      => enefunc%restraint_numatoms
     atomlist      => enefunc%restraint_atomlist
 
-    if (dynamics%integrator == IntegratorVRES .or. &
-        dynamics%integrator == IntegratorPMTS ) &
+    if (dynamics%integrator == IntegratorPMTS ) &
         call error_msg('Setup_Rpath> Rpath+RESPA is not allowed')
 
     ! setup reparameterization period
@@ -360,7 +364,7 @@ contains
       if (enefunc%restraint_kind(itmp) /= ikind) then
           call error_msg('Setup_Rpath> [ERROR] multiple types of '//&
           'restraint functions as CV are not allowed')
-      endif
+      end if
       enefunc%restraint_rpath_func(itmp)=i
 
     end do
@@ -368,9 +372,9 @@ contains
         ikind /= RestraintsFuncDIST .and. &
         ikind /= RestraintsFuncDIHED) then
       call error_msg('Setup_Rpath> [ERROR] This CV is not allowed in spdyn')
-    endif
+    end if
 
-    if(enefunc%restraint_kind(ifunc) == RestraintsFuncPOSI) then
+    if (enefunc%restraint_kind(ifunc) == RestraintsFuncPOSI) then
       enefunc%rpath_pos_func = ifunc
       if (enefunc%fitting_method /= FittingMethodNO) then
         if (.not. enefunc%do_fitting) &
@@ -384,8 +388,8 @@ contains
           if (enefunc%restraint_rpath_func(i) == 0) then
             call error_msg('Setup_Rpath> [ERROR] all POSI restraint should'//&
                ' be used as R-path CV')
-          endif
-        endif
+          end if
+        end if
       end do
 
     end if
@@ -475,7 +479,7 @@ contains
                enefunc%restraint_ref_replica(j, ifunc)
           end do
         end do
-      endif
+      end if
 
     end if
 
@@ -485,13 +489,13 @@ contains
 
     enefunc%stats_id_atm2cv(:) = 0
 
-    do i = 1, enefunc%restraint_numatoms( igroup )
+    do i = 1, enefunc%restraint_numatoms(igroup)
       j = atomlist(i,igroup)
       !if (j > nsolute) then
       !  call error_msg('Setup_Rpath> [ERROR] too large # of restraint atoms')
-      !endif
+      !end if
       enefunc%stats_id_atm2cv(j) = i
-    enddo
+    end do
 
     call assign_condition(rpath, enefunc, domain)
 
@@ -612,8 +616,8 @@ contains
             write(MsgOut,'(A)') ''
             write(MsgOut,'(A)') ''
           end do
-        endif
-      endif
+        end if
+      end if
 
       ! do i = 1, rpath%dimension
       !   do j = 1, rpath%nreplica
@@ -655,15 +659,16 @@ contains
     integer                                :: i, j, ifunc
     integer                                :: replicaid
 
+
     replicaid = my_country_no + 1
 
-    if(replica_main_rank) then
+    if (replica_main_rank) then
       call mpi_allgather(rst%rest_reference(1, :, replicaid), &
-                         rpath%dimension,                           &
-                         mpi_wp_real,                               &
-                         rpath%rest_reference(1, :, :),             &
-                         rpath%dimension,                           &
-                         mpi_wp_real,                               &
+                         rpath%dimension,                     &
+                         mpi_wp_real,                         &
+                         rpath%rest_reference(1, :, :),       &
+                         rpath%dimension,                     &
+                         mpi_wp_real,                         &
                          mpi_comm_airplane, ierror)
     end if
 
@@ -676,7 +681,7 @@ contains
     do i = 1, rpath%dimension
 
       ifunc = rpath_info%rest_function(1)
-      if(enefunc%restraint_kind(ifunc) /= RestraintsFuncPOSI) then
+      if (enefunc%restraint_kind(ifunc) /= RestraintsFuncPOSI) then
         ifunc = rpath_info%rest_function(i)
       end if
 
@@ -699,6 +704,8 @@ contains
 
     !write(MsgOut,*) " "
 
+    return
+
   end subroutine setup_rpath_restart
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -706,12 +713,9 @@ contains
   !  Subroutine    assign_condition
   !> @brief        control replica exchange
   !! @authors      TM, YK
-  !! @param[inout] molecule    : molecule information
+  !! @param[in]    rpath       : RPATH information
   !! @param[inout] enefunc     : potential energy functions information
-  !! @param[inout] dynvars     : dynamics variables information
-  !! @param[inout] boundary    : boundary conditions information
-  !! @param[inout] ensemble    : ensemble information
-  !! @param[inout] rpath       : RPATH information
+  !! @param[inout] domain      : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -727,6 +731,7 @@ contains
     integer                  :: replicaid
     integer                  :: iatm, iatm_xyz
     integer(int2),   pointer :: id_g2l(:,:)
+
 
     id_g2l      => domain%id_g2l
     ncell_local =  domain%num_cell_local
@@ -762,9 +767,9 @@ contains
           enefunc%restraint_coord(3,ix,i) = &
                                          rpath%rest_reference(1,3*k  ,replicaid)
 
-        enddo
+        end do
 
-      enddo
+      end do
 
     case(RestraintsFuncPC:RestraintsFuncPCCOM)
 
@@ -808,13 +813,15 @@ contains
   !! @param[inout] boundary    : boundary conditions information
   !! @param[inout] constraints : constraints information
   !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] comm        : communicator for domain
   !! @param[inout] rpath       : RPATH information
+  !! @param[inout] remd        : REMD information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine run_rpath(output, domain, enefunc, dynvars, dynamics, &
-                      pairlist, boundary, constraints, ensemble,  &
-                      comm, rpath, remd)
+                       pairlist, boundary, constraints, ensemble,  &
+                       comm, rpath, remd)
 
     ! formal arguments
     type(s_output),          intent(inout) :: output
@@ -834,6 +841,7 @@ contains
     integer                   :: i, j, k
     integer                   :: iloop_start, iloop_end
     integer                   :: replicaid
+
 
     ! Open output files
     !
@@ -923,7 +931,7 @@ contains
 
     real(dp),        pointer :: force(:)
 
-    if(.not. replica_main_rank) return
+    if (.not. replica_main_rank) return
 
     force  => enefunc%stats_force
 
@@ -967,7 +975,8 @@ contains
     real(dp),        pointer :: force(:), metric(:,:)
     real(dp),        pointer :: before_gather(:), after_gather(:)
 
-    if(.not. replica_main_rank) return
+
+    if (.not. replica_main_rank) return
 
     count  => enefunc%stats_count
     force  => enefunc%stats_force
@@ -992,12 +1001,12 @@ contains
 
     force = matmul(metric, force)
 
-    if(rpath%fix_terminal) then
-      if((repid == 1) .or. (repid == rpath%nreplica)) then
+    if (rpath%fix_terminal) then
+      if ((repid == 1) .or. (repid == rpath%nreplica)) then
         force(:) = 0.0_dp
       end if
     else if (rpath%avoid_shrinkage) then
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       do dimno = 1, rpath%dimension
         before_gather(dimno) = rpath%rest_reference(1, dimno, repid)
       end do
@@ -1080,7 +1089,7 @@ contains
       before_gather(dimno) = real(rpath%rest_reference(1, dimno, repid),dp)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_gather(before_gather, rpath%dimension, MPI_Real8,&
                     after_gather,  rpath%dimension, MPI_Real8,&
                     0, mpi_comm_airplane, ierror)
@@ -1106,9 +1115,9 @@ contains
       path_leng = 0.0_wip
       do repid_i = 2, rpath%nreplica
         path_leng(repid_i) = path_leng(repid_i-1) + &
-          sqrt( sum( (path_smooth(repid_i,:)-path_smooth(repid_i-1,:))**2) )
+          sqrt(sum((path_smooth(repid_i,:)-path_smooth(repid_i-1,:))**2))
         ! write(6,*) 'BEFORE inter_replica', &
-        !             sqrt( sum( (path_smooth(repid_i,:)-path_smooth(repid_i-1,:))**2) )
+        !             sqrt(sum((path_smooth(repid_i,:)-path_smooth(repid_i-1,:))**2))
       end do
 
       ! equi path length
@@ -1124,13 +1133,13 @@ contains
       do repid_i = 2, (rpath%nreplica-1)
         do repid_j = 2, rpath%nreplica
 
-          if ( (path_leng(repid_j-1) <  path_equi(repid_i)) .and. &
-            (path_equi(repid_i))  <= path_leng(repid_j) ) then
+          if ((path_leng(repid_j-1) <  path_equi(repid_i)) .and. &
+              (path_equi(repid_i))  <= path_leng(repid_j)) then
 
             path_reparm(repid_i,:) = path_smooth(repid_j-1,:) + &
               (path_equi(repid_i) - path_leng(repid_j-1)) * &
               (path_smooth(repid_j,:) - path_smooth(repid_j-1,:)) / &
-              sqrt( sum((path_smooth(repid_j,:) - path_smooth(repid_j-1,:))**2) )
+              sqrt(sum((path_smooth(repid_j,:) - path_smooth(repid_j-1,:))**2))
             exit
           end if
 
@@ -1181,7 +1190,6 @@ contains
   !> @brief        initialize parameters
   !! @authors      KT
   !! @param[inout] enefunc  : potential energy functions information
-  !! @param[inout] rpath    : RPATH information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1192,7 +1200,7 @@ contains
 
     ! local variables
 
-    if(.not. replica_main_rank) return
+    if (.not. replica_main_rank) return
 
     enefunc%stats_count       = 0
     enefunc%stats_force(:)    = 0.0_dp

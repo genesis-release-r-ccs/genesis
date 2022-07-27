@@ -26,7 +26,7 @@ module sp_dynvars_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
   
@@ -57,6 +57,7 @@ contains
   !> @brief        copy molecule information into dynvars
   !! @authors      JJ
   !! @param[out]   dynvars  : dynamic variables
+  !! @param[in]    dynamics : dynamics inforation
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -65,6 +66,7 @@ contains
     ! formal arguments
     type(s_dynvars),            intent(inout) :: dynvars
     type(s_dynamics), optional, intent(in)    :: dynamics
+
 
     ! initialize variables in dynvars
     !
@@ -77,7 +79,7 @@ contains
         dynvars%step = 1
       else
         dynvars%step = 0
-      endif
+      end if
     end if
 
     return
@@ -103,6 +105,7 @@ contains
     type(s_enefunc),         intent(in)    :: enefunc
     type(s_dynvars),         intent(in)    :: dynvars
     type(s_ensemble),optional,intent(in)   :: ensemble
+
 
     ! If REMD, output is done on replica_main_rank
     ! If MD, output is done on main_rank
@@ -144,6 +147,7 @@ contains
   !  Subroutine    compute_dynvars
   !> @brief        calculate other dynamical variables with domain
   !! @authors      JJ
+  !! @param[in]    enefunc  : potential energy functions information
   !! @param[in]    dynamics : dynamics information
   !! @param[in]    boundary : boundary information
   !! @param[in]    ensemble : ensemble information
@@ -203,7 +207,7 @@ contains
       num_degree = domain%num_group_freedom
     else
       num_degree = domain%num_deg_freedom
-    endif
+    end if
 
     ! rmsg
     !
@@ -234,8 +238,9 @@ contains
     virial_ext_sum(1) = virial_ext(1,1)
     virial_ext_sum(2) = virial_ext(2,2)
     virial_ext_sum(3) = virial_ext(3,3)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call reduce_property(dynvars%energy%bond,               &
+                         dynvars%energy%enm,                &
                          dynvars%energy%angle,              &
                          dynvars%energy%urey_bradley,       &
                          dynvars%energy%dihedral,           &
@@ -301,6 +306,9 @@ contains
     dynvars%box_size_x = boundary%box_size_x_ref
     dynvars%box_size_y = boundary%box_size_y_ref
     dynvars%box_size_z = boundary%box_size_z_ref
+    dynvars%box_size_x_ref = domain%system_size_ini(1)
+    dynvars%box_size_y_ref = domain%system_size_ini(2)
+    dynvars%box_size_z_ref = domain%system_size_ini(3)
 
     dynvars%volume =  boundary%box_size_x_ref &
                     * boundary%box_size_y_ref &
@@ -340,8 +348,10 @@ contains
   !  Subroutine    output_dynvars_genesis
   !> @brief        output dynvars in GENESIS style
   !! @authors      YS, TM
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[in]    dynvars : dynamical variables information
+  !! @param[in]    output   : output information
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    dynvars  : dynamical variables information
+  !! @param[in]    ensemble : ensemble information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -354,7 +364,7 @@ contains
     type(s_ensemble), optional,intent(in)  :: ensemble
 
     ! local variables
-    integer,parameter        :: clength=16, flength=4
+    integer, parameter       :: clength=16, flength=4
     integer                  :: i, ifm
     character(16)            :: title
     character(16)            :: category(999)
@@ -383,7 +393,7 @@ contains
       write(category(ifm),frmt) 'TOTAL_ENE'
       values(ifm) = dynvars%total_energy
       ifm = ifm+1
-    endif
+    end if
 
     write(category(ifm),frmt) 'POTENTIAL_ENE'
     values(ifm) = dynvars%total_pene
@@ -393,7 +403,7 @@ contains
       write(category(ifm),frmt) 'KINETIC_ENE'
       values(ifm) = dynvars%total_kene
       ifm = ifm+1
-    endif
+    end if
 
     write(category(ifm),frmt) 'RMSG'
     values(ifm) = dynvars%rms_gradient
@@ -403,7 +413,13 @@ contains
       write(category(ifm),frmt) 'BOND'
       values(ifm) = dynvars%energy%bond
       ifm = ifm+1
-    endif
+    end if
+
+    if (enefunc%enm_use) then
+      write(category(ifm),frmt) 'ENM'
+      values(ifm) = dynvars%energy%enm
+      ifm = ifm+1
+    end if
 
     if (enefunc%num_angl_all > 0) then
       write(category(ifm),frmt) 'ANGLE'
@@ -414,20 +430,21 @@ contains
         write(category(ifm),frmt) 'UREY-BRADLEY'
         values(ifm) = dynvars%energy%urey_bradley
         ifm = ifm+1
-      endif
-    endif
+      end if
+
+    end if
 
     if (enefunc%num_dihe_all > 0 .or. enefunc%num_rb_dihe_all > 0) then
       write(category(ifm),frmt) 'DIHEDRAL'
       values(ifm) = dynvars%energy%dihedral
       ifm = ifm+1
-    endif
+    end if
 
     if (enefunc%num_impr_all > 0 ) then
       write(category(ifm),frmt) 'IMPROPER'
       values(ifm) = dynvars%energy%improper
       ifm = ifm+1
-    endif
+    end if
 
     if (enefunc%forcefield == ForcefieldCHARMM) then
 
@@ -435,8 +452,8 @@ contains
         write(category(ifm),frmt) 'CMAP'
         values(ifm) = dynvars%energy%cmap
         ifm = ifm+1
-      endif
-    endif
+      end if
+    end if
 
     write(category(ifm),frmt) 'VDWAALS'
     values(ifm) = dynvars%energy%van_der_waals
@@ -446,17 +463,29 @@ contains
       write(category(ifm),frmt) 'DISP-CORR_ENE'
       values(ifm) = dynvars%energy%disp_corr_energy
       ifm = ifm+1
-    endif
+    end if
 
     write(category(ifm),frmt) 'ELECT'
     values(ifm) = dynvars%energy%electrostatic
     ifm = ifm+1
 
-    if (enefunc%use_efield) then
-      write(category(ifm),frmt) 'ELECTRIC FIELD'
-      values(ifm) = dynvars%energy%electric_field
-      ifm = ifm+1
-    endif
+    if (enefunc%use_efield .and. enefunc%efield_normal) then
+      if (abs(enefunc%efield(1)) > EPS) then
+        write(category(ifm),frmt) 'EFIELD_X'
+        values(ifm) = enefunc%efield(1)*dynvars%box_size_x_ref/dynvars%box_size_x
+        ifm = ifm+1
+      end if
+      if (abs(enefunc%efield(2)) > EPS) then
+        write(category(ifm),frmt) 'EFIELD_Y'
+        values(ifm) = enefunc%efield(2)*dynvars%box_size_y_ref/dynvars%box_size_y
+        ifm = ifm+1
+      end if
+      if (abs(enefunc%efield(3)) > EPS) then
+        write(category(ifm),frmt) 'EFIELD_Z'
+        values(ifm) = enefunc%efield(3)*dynvars%box_size_z_ref/dynvars%box_size_z
+        ifm = ifm+1
+      end if
+    end if
 
     if (enefunc%num_restraintfuncs > 0) then
       if (enefunc%restraint_rmsd) then
@@ -466,7 +495,7 @@ contains
         write(category(ifm),frmt) 'RMSD_target'
         values(ifm) = enefunc%rmsd_target
         ifm = ifm+1
-      endif
+      end if
 
       if (enefunc%restraint_emfit) then
         write(category(ifm),frmt) 'EMCORR'
@@ -482,7 +511,7 @@ contains
       values(ifm) = ene_restraint
       ifm = ifm+1
 
-    endif
+    end if
 
     if (present(ensemble)) then
 
@@ -519,7 +548,7 @@ contains
           write(category(ifm),frmt) 'DISP-CORR_VIR'
           values(ifm) = dynvars%energy%disp_corr_virial
           ifm = ifm+1
-        endif
+        end if
      
         write(category(ifm),frmt) 'PRESSURE'
         values(ifm) = dynvars%internal_pressure
@@ -537,8 +566,8 @@ contains
         values(ifm) = dynvars%pressure_zz
         ifm = ifm+1
      
-      endif
-    endif
+      end if
+    end if
 
     if (enefunc%gamd_use) then
         if (enefunc%gamd%boost_pot) then
@@ -569,7 +598,7 @@ contains
           write(DynvarsOut,frmt) category(i)
         else
           write(DynvarsOut,frmt_cont) category(i)
-        endif
+        end if
       end do
 
       write(DynvarsOut,'(A80)') ' --------------- ---------------'//&
@@ -584,7 +613,7 @@ contains
         write(DynvarsOut,rfrmt) values(i)
       else
         write(DynvarsOut,rfrmt_cont) values(i)
-      endif
+      end if
     end do
     write(DynvarsOut,'(A)') ''
 
@@ -699,7 +728,7 @@ contains
       end if
       if (enefunc%dispersion_corr /= Disp_Corr_NONE) then
         write(DynvarsOut,'(A79)') 'DYNA  DISP:       Disp-Corr                                                    '
-      endif
+      end if
       write(DynvarsOut,'(A79)') 'DYNA EXTERN:        VDWaals         ELEC       HBONds          ASP         USER'
       if (enefunc%restraint) then
         write(DynvarsOut,'(A79)') 'DYNA CONSTR:       HARMonic    CDIHedral        CIC     RESDistance       NOE'
@@ -797,7 +826,6 @@ contains
     write(DynvarsOut,'(5F15.4)') pressure, gpressure, volume, pressavg,gpressavg
     write(DynvarsOut,'(A)') ' '
 
-
     return
 
   end subroutine output_dynvars_namd
@@ -807,6 +835,7 @@ contains
   !  Subroutine    output_dynvars_gromacs
   !> @brief        output dynvars in GROMACS style
   !! @authors      YS, CK
+  !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    dynvars : dynamical variables information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -879,7 +908,7 @@ contains
       write(DynvarsOut,'(3ES15.5E2)') &
           posicon,energy,totke
 
-    endif
+    end if
 
     write(DynvarsOut,'(5A15)') &
          'Total Energy', 'Temperature', 'Pressure(int.)', 'Pressure(ext.)'
@@ -938,16 +967,18 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine reduce_property(val1, val2, val3, val4, val5, val6, val7, val8,   &
-                             val9, val10, val11, val12, val13, val14, val15)
+                             val9, val10, val11, val12, val13, val14, val15,   &
+                             val16)
 
     ! formal arguments
     real(dp),               intent(inout) ::  val1, val2, val3, val4, val5
     real(dp),               intent(inout) ::  val6, val7, val8, val9, val10
-    real(dp),               intent(inout) ::  val11, val12(3), val13(3)
-    real(dp),               intent(inout) ::  val14, val15
+    real(dp),               intent(inout) ::  val11, val12, val13(3), val14(3)
+    real(dp),               intent(inout) ::  val15, val16
 
     ! local variables
-    real(dp)                :: before_reduce(19), after_reduce(19)
+    real(dp)                :: before_reduce(20), after_reduce(20)
+
 
     before_reduce(1)     = val1
     before_reduce(2)     = val2
@@ -960,16 +991,17 @@ contains
     before_reduce(9)     = val9
     before_reduce(10)    = val10
     before_reduce(11)    = val11
-    before_reduce(12:14) = val12(1:3)
-    before_reduce(15:17) = val13(1:3)
-    before_reduce(18)    = val14
+    before_reduce(12)    = val12
+    before_reduce(13:15) = val13(1:3)
+    before_reduce(16:18) = val14(1:3)
     before_reduce(19)    = val15
+    before_reduce(20)    = val16
 
-#ifdef MPI
-    call mpi_allreduce(before_reduce, after_reduce, 19, mpi_real8, &
+#ifdef HAVE_MPI_GENESIS
+    call mpi_allreduce(before_reduce, after_reduce, 20, mpi_real8, &
                       mpi_sum, mpi_comm_country, ierror)
 #else
-    after_reduce(1:19) = before_reduce(1:19)
+    after_reduce(1:20) = before_reduce(1:20)
 #endif
 
     val1       = after_reduce(1)
@@ -983,10 +1015,11 @@ contains
     val9       = after_reduce(9)
     val10      = after_reduce(10)
     val11      = after_reduce(11)
-    val12(1:3) = after_reduce(12:14)
-    val13(1:3) = after_reduce(15:17)
-    val14      = after_reduce(18)
+    val12      = after_reduce(12)
+    val13(1:3) = after_reduce(13:15)
+    val14(1:3) = after_reduce(16:18)
     val15      = after_reduce(19)
+    val16      = after_reduce(20)
 
     return
 

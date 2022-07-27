@@ -4,7 +4,7 @@
 #
 # A parser script for CHARMM output style
 #
-# (c) Copyright 2014 RIKEN. All rights reserved.
+# (c) Copyright 2022 RIKEN. All rights reserved.
 #
 
 import re
@@ -20,17 +20,17 @@ class Charmm(object):
         self.is_passed = False
 
     def delete_last(self):
-        for key in self.dict_data.keys():
+        for key in list(self.dict_data.keys()):
             self.dict_text[key].pop()
             self.dict_data[key].pop()
 
     def delete_first(self):
-        for key in self.dict_data.keys():
+        for key in list(self.dict_data.keys()):
             self.dict_text[key].pop(0)
             self.dict_data[key].pop(0)
 
     def extract_first(self):
-        for key in self.dict_data.keys():
+        for key in list(self.dict_data.keys()):
             self.dict_text[key] = [self.dict_text[key][0]]
             self.dict_data[key] = [self.dict_data[key][0]]
 
@@ -136,21 +136,21 @@ class Charmm(object):
             self.dict_text = dict.fromkeys(title, [])
         if len(self.dict_data) == 0:
             self.dict_data = dict.fromkeys(title, [])
-        text_transpose = map(list, zip(*text))
-        data_transpose = map(list, zip(*data))
+        text_transpose = list(map(list, list(zip(*text))))
+        data_transpose = list(map(list, list(zip(*data))))
         for i in range(len(title)):
             self.dict_text[title[i]] = self.dict_text[title[i]] + text_transpose[i]
             self.dict_data[title[i]] = self.dict_data[title[i]] + data_transpose[i]
 
         # count IMAGE terms because these are not written in GENESIS output
-        if self.dict_data.has_key('IMNBvdw') and self.dict_data.has_key('VDWaals'):
+        if 'IMNBvdw' in self.dict_data and 'VDWaals' in self.dict_data:
             nstep = len(self.dict_data['VDWaals'])
             for istep in range(nstep):
                 self.dict_data['VDWaals'][istep] = self.dict_data['VDWaals'][istep] + self.dict_data['IMNBvdw'][istep]
                 self.dict_text['VDWaals'][istep] = "%f" % self.dict_data['VDWaals'][istep]
             # del self.dict_data['IMNBvdw']
             # del self.dict_text['IMNBvdw']
-        if self.dict_data.has_key('IMELec') and self.dict_data.has_key('ELEC'):
+        if 'IMELec' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['IMELec'][istep]
@@ -169,27 +169,27 @@ class Charmm(object):
         #     del self.dict_text['EXTElec']
 
         # count EWALD terms
-        if self.dict_data.has_key('EWKSum') and self.dict_data.has_key('ELEC'):
+        if 'EWKSum' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['EWKSum'][istep]
                 self.dict_text['ELEC'][istep] = "%f" % self.dict_data['ELEC'][istep]
-        if self.dict_data.has_key('EWSElf') and self.dict_data.has_key('ELEC'):
+        if 'EWSElf' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['EWSElf'][istep]
                 self.dict_text['ELEC'][istep] = "%f" % self.dict_data['ELEC'][istep]
-        if self.dict_data.has_key('EWEXcl') and self.dict_data.has_key('ELEC'):
+        if 'EWEXcl' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['EWEXcl'][istep]
                 self.dict_text['ELEC'][istep] = "%f" % self.dict_data['ELEC'][istep]
-        if self.dict_data.has_key('EWQCor') and self.dict_data.has_key('ELEC'):
+        if 'EWQCor' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['EWQCor'][istep]
                 self.dict_text['ELEC'][istep] = "%f" % self.dict_data['ELEC'][istep]
-        if self.dict_data.has_key('EWUTil') and self.dict_data.has_key('ELEC'):
+        if 'EWUTil' in self.dict_data and 'ELEC' in self.dict_data:
             nstep = len(self.dict_data['ELEC'])
             for istep in range(nstep):
                 self.dict_data['ELEC'][istep] = self.dict_data['ELEC'][istep] + self.dict_data['EWUTil'][istep]
@@ -198,12 +198,12 @@ class Charmm(object):
     def test_diff(self, obj, tolerance): # compare energies
         # test MD steps
         is_failure = False
-        dict_failure = dict.fromkeys(self.dict_data.keys(), False)
+        dict_failure = dict.fromkeys(list(self.dict_data.keys()), False)
         nstep_failure = 0
 
         nstep = len(self.dict_data['Step'])
         for istep in range(nstep):
-            for key in self.dict_data.keys():
+            for key in list(self.dict_data.keys()):
                 d = abs(self.dict_data[key][istep] - obj.dict_data[key][istep])
                 if d > tolerance:
                     is_failure = True
@@ -214,41 +214,41 @@ class Charmm(object):
 
         if is_failure:
             self.is_passed = False
-            print "Failure at step %d (tolerance = %4.2e)" % (self.dict_data['Step'][nstep_failure], tolerance)
+            print("Failure at step %d (tolerance = %4.2e)" % (self.dict_data['Step'][nstep_failure], tolerance))
             nstep_max = min([nstep_failure + 3, nstep])
             for istep in range(nstep_failure, nstep_max):
-                print "Step %d" % (self.dict_data['Step'][istep])
+                print("Step %d" % (self.dict_data['Step'][istep]))
 
                 sys.stdout.write("  ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % key.rjust(14))
                 sys.stdout.write("\n")
 
                 sys.stdout.write("< ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % self.dict_text[key][istep].rjust(14))
                 sys.stdout.write("\n")
                 
                 sys.stdout.write("> ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % obj.dict_text[key][istep].rjust(14))
                 sys.stdout.write("\n\n")
         else:
             self.is_passed = True
-            print "Passed (tolerance = %4.2e)" % (tolerance)
+            print("Passed (tolerance = %4.2e)" % (tolerance))
             
     def test_diff_energies(self, obj, tolerance): # compare energies ignoring HFCKe and PRESSE terms
         # test MD steps
         is_failure = False
-        dict_failure = dict.fromkeys(self.dict_data.keys(), False)
+        dict_failure = dict.fromkeys(list(self.dict_data.keys()), False)
         nstep_failure = 0
 
         nstep = len(self.dict_data['Step'])
         for istep in range(nstep):
-            for key in self.dict_data.keys():
+            for key in list(self.dict_data.keys()):
                 if ((key == "Time") or (key == "TOTEner") or (key == "TOTKe") or (key == "ENERgy") or (key == "TEMPerature") or (key == "GRMS") or (key == "BONDs") or (key == "ANGLes") or (key == "UREY-b") or (key == "DIHEdrals") or (key == "IMPRopers") or (key == "CMAPs") or (key == "VDWaals") or (key == "ELEC")):
                     d = abs(self.dict_data[key][istep] - obj.dict_data[key][istep])
                     if d > tolerance:
@@ -260,34 +260,34 @@ class Charmm(object):
 
         if is_failure:
             self.is_passed = False
-            print "Failure at step %d (tolerance = %4.2e)" % (self.dict_data['Step'][nstep_failure], tolerance)
+            print("Failure at step %d (tolerance = %4.2e)" % (self.dict_data['Step'][nstep_failure], tolerance))
             nstep_max = min([nstep_failure + 3, nstep])
             for istep in range(nstep_failure, nstep_max):
-                print "Step %d" % (self.dict_data['Step'][istep])
+                print("Step %d" % (self.dict_data['Step'][istep]))
 
                 sys.stdout.write("  ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % key.rjust(14))
                 sys.stdout.write("\n")
 
                 sys.stdout.write("< ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % self.dict_text[key][istep].rjust(14))
                 sys.stdout.write("\n")
                 
                 sys.stdout.write("> ")
-                for key in self.dict_data.keys():
+                for key in list(self.dict_data.keys()):
                     if dict_failure[key]:
                         sys.stdout.write("%14s" % obj.dict_text[key][istep].rjust(14))
                 sys.stdout.write("\n\n")
         else:
             self.is_passed = True
-            print "Passed (tolerance = %4.2e)" % (tolerance)
+            print("Passed (tolerance = %4.2e)" % (tolerance))
             
     def calc_relative_error(self):
-        print "not available."
+        print("not available.")
 
 ############### TEST ##########################################################
 if __name__ == '__main__':
@@ -587,7 +587,7 @@ $$$$$$  New timer profile $$$$$
     # test parse
     ene.parse(text.split("\n"))
     assert len(ene.dict_data) == 26
-    print ene.dict_text['ELEC'][0]
+    print(ene.dict_text['ELEC'][0])
     assert ene.dict_text['ELEC'][0] == "-86382.838140"
 
     # test diff

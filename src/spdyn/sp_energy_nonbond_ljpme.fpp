@@ -44,6 +44,7 @@ contains
   !! @param[in]    enefunc     : potential energy functions
   !! @param[in]    pairlist    : interaction list in each domain
   !! @param[in]    npt         : flag for NPT or not
+  !! @param[inout] atmcls_pbc  : atom class number
   !! @param[inout] coord_pbc   : coordinates for each cell
   !! @param[inout] force_pbc   : forces for each cell
   !! @param[inout] virial_cell : virial term of target systems
@@ -86,11 +87,10 @@ contains
                               domain, enefunc, pairlist, atmcls_pbc, &
                               coord_pbc, force_pbc, virial, eelec, evdw)
 
-!   case (NBK_IntelGeneric)
-!     call compute_energy_nonbond_tbl_ljpme_intel_generic( &
-!                                    domain, enefunc, pairlist,          &
-!                                    coord_pbc, force_pbc, virial_cell,  &
-!                                    eelec, evdw)
+    case (NBK_Intel)
+      call compute_energy_nonbond_tbl_ljpme_intel( &
+                              domain, enefunc, pairlist, atmcls_pbc, &
+                              coord_pbc, force_pbc, virial, eelec, evdw)
 
     case (NBK_GPU)
       call compute_energy_nonbond_tbl_ljpme_gpu( &
@@ -114,6 +114,7 @@ contains
   !! @param[in]    pairlist    : interaction list in each domain
   !! @param[in]    npt         : flag for NPT or not
   !! @param[in]    cpu_calc    : flag for cpu calculation or not
+  !! @param[inout] atmcls_pbc  : atom class number
   !! @param[inout] coord_pbc   : coordinates for each cell
   !! @param[inout] force       : forces for each cell
   !! @param[inout] force_pbc   : forces for each cell
@@ -142,6 +143,7 @@ contains
     real(dp),                 intent(inout) :: virial(:,:,:)
     real(dp),                 intent(inout) :: ene_virial(:)
 
+
     select case(domain%nonbond_kernel)
 
     case (NBK_Generic)
@@ -155,10 +157,10 @@ contains
                               atmcls_pbc, coord_pbc, force_pbc, virial)
 
 
-!   case (NBK_IntelGeneric)
-!     call compute_force_nonbond_tbl_ljpme_intel_generic( &
-!                                    domain, enefunc, pairlist, &
-!                                    coord_pbc, force_pbc, virial_cell)
+    case (NBK_Intel)
+      call compute_force_nonbond_tbl_ljpme_intel( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc, force_pbc, virial)
 
 
     case (NBK_GPU)

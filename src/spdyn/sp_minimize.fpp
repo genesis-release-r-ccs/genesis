@@ -31,15 +31,23 @@ module sp_minimize_mod
   use sp_constraints_str_mod
   use sp_constraints_mod
   use fileio_control_mod
+  use structure_check_mod
   use timers_mod
+  use string_mod
   use messages_mod
   use constants_mod
+  use string_mod
   use mpi_parallel_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! structures
@@ -53,6 +61,12 @@ module sp_minimize_mod
     logical          :: verbose          = .false.
     real(wp)         :: force_scale_init = 0.00005_wp
     real(wp)         :: force_scale_max  = 0.0001_wp
+    ! structure check
+    logical            :: check_structure      = .true.
+    logical            :: fix_ring_error       = .false.
+    logical            :: fix_chirality_error  = .false.
+    character(MaxLine) :: exclude_ring_grpid   = ''
+    character(MaxLine) :: exclude_chiral_grpid = ''
   end type s_min_info
 
   ! subroutines
@@ -61,6 +75,7 @@ module sp_minimize_mod
   public  :: setup_minimize
   public  :: run_min
   public  :: steepest_descent
+  private :: reduce_coordinates
 
 contains
 
@@ -96,7 +111,13 @@ contains
         write(MsgOut,'(A)') '# nbupdate_period = 10      # nonbond update period'
         write(MsgOut,'(A)') '# verbose       = NO        # output verbosly'
         write(MsgOut,'(A)') ' '
-
+        write(MsgOut,'(A)') '# for structure check'
+        write(MsgOut,'(A)') '# check_structure      = YES # check structure'
+        write(MsgOut,'(A)') '# fix_ring_error       = NO  # fix ring penetration'
+        write(MsgOut,'(A)') '# fix_chirality_error  = NO  # fix chirality error'
+        write(MsgOut,'(A)') '# exclude_ring_grpid   =     # exclusion list for ring error fix'
+        write(MsgOut,'(A)') '# exclude_chiral_grpid =     # exclusion list for chirality error fix'
+        write(MsgOut,'(A)') ' '
 
       end select
 
@@ -162,7 +183,16 @@ contains
                                min_info%force_scale_init)
     call read_ctrlfile_logical(handle, Section, 'verbose',        &
                                min_info%verbose)
-
+    call read_ctrlfile_logical(handle, Section, 'check_structure',     &
+                               min_info%check_structure)
+    call read_ctrlfile_logical(handle, Section, 'fix_ring_error',      &
+                               min_info%fix_ring_error)
+    call read_ctrlfile_logical(handle, Section, 'fix_chirality_error', &
+                               min_info%fix_chirality_error)
+    call read_ctrlfile_string (handle, Section, 'exclude_ring_grpid',  &
+                               min_info%exclude_ring_grpid)
+    call read_ctrlfile_string (handle, Section, 'exclude_chiral_grpid',&
+                               min_info%exclude_chiral_grpid)
     call end_ctrlfile_section(handle)
 
 
@@ -190,6 +220,22 @@ contains
         write(MsgOut,'(A)') '  verbose         =         no'
       end if
 
+      if (min_info%check_structure) then
+         write(MsgOut,'(A,$)') '  check_structure            =        yes'
+       else
+         write(MsgOut,'(A,$)') '  check_structure            =         no'
+       end if
+       if (min_info%fix_ring_error) then
+         write(MsgOut,'(A)')   '  fix_ring_error             =        yes'
+       else
+         write(MsgOut,'(A)')   '  fix_ring_error             =         no'
+       end if
+       if (min_info%fix_chirality_error) then
+         write(MsgOut,'(A)')   '  fix_chirality_error        =        yes'
+       else
+         write(MsgOut,'(A)')   '  fix_chirality_error        =         no'
+       end if
+
       write(MsgOut,'(A)') ' '
     end if
 
@@ -197,32 +243,36 @@ contains
     ! error check
     !
     if (main_rank) then
-      if (min_info%eneout_period > 0 .and.                        &
-          mod(min_info%nsteps, min_info%eneout_period) /= 0) then
-        write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in eneout_period'
-        write(MsgOut,'(A)') '  mod(nsteps, eneout_period) is not ZERO'
-        call error_msg
+      if (min_info%eneout_period > 0) then
+        if (mod(min_info%nsteps, min_info%eneout_period) /= 0) then
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in eneout_period'
+          write(MsgOut,'(A)') '  mod(nsteps, eneout_period) is not ZERO'
+          call error_msg
+        end if
       end if
 
-      if (min_info%crdout_period > 0 .and.                        &
-          mod(min_info%nsteps, min_info%crdout_period) /= 0) then
-        write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in crdout_period'
-        write(MsgOut,'(A)') '  mod(nsteps, crdout_period) is not ZERO'
-        call error_msg
+      if (min_info%crdout_period > 0) then
+        if (mod(min_info%nsteps, min_info%crdout_period) /= 0) then
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in crdout_period'
+          write(MsgOut,'(A)') '  mod(nsteps, crdout_period) is not ZERO'
+          call error_msg
+        end if
       end if
 
-      if (min_info%rstout_period > 0 .and.                        &
-          mod(min_info%nsteps, min_info%rstout_period) /= 0) then
-        write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in rstout_period'
-        write(MsgOut,'(A)') '  mod(nsteps, rstout_period) is not ZERO'
-        call error_msg
+      if (min_info%rstout_period > 0) then
+        if (mod(min_info%nsteps, min_info%rstout_period) /= 0) then
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in rstout_period'
+          write(MsgOut,'(A)') '  mod(nsteps, rstout_period) is not ZERO'
+          call error_msg
+        end if
       end if
 
-      if (min_info%nbupdate_period > 0 .and.                      &
-          mod(min_info%nsteps, min_info%nbupdate_period) /= 0) then
-        write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in nbupdate_period'
-        write(MsgOut,'(A)') '  mod(nsteps, nbupdate_period) is not ZERO'
-        call error_msg
+      if (min_info%nbupdate_period > 0) then
+        if (mod(min_info%nsteps, min_info%nbupdate_period) /= 0) then
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in nbupdate_period'
+          write(MsgOut,'(A)') '  mod(nsteps, nbupdate_period) is not ZERO'
+          call error_msg
+        end if
       end if
 
     end if
@@ -265,6 +315,7 @@ contains
     minimize%verbose          = min_info%verbose
     minimize%force_scale_init = min_info%force_scale_init
     minimize%force_scale_max  = min_info%force_scale_max
+    minimize%check_structure  = min_info%check_structure
 
     return
 
@@ -274,7 +325,7 @@ contains
   !
   !  Subroutine    run_min
   !> @brief        perform energy minimization
-  !! @authors      CK
+  !! @authors      CK, TM
   !! @param[inout] output      : output information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : potential energy functions
@@ -282,6 +333,7 @@ contains
   !! @param[inout] minimize    : minimize information
   !! @param[inout] pairlist    : non-bond pair list
   !! @param[inout] boundary    : boundary condition
+  !! @param[inout] constraints : constraints information
   !! @param[inout] comm        : information of communication
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -299,6 +351,10 @@ contains
     type(s_boundary),         intent(inout) :: boundary
     type(s_constraints),      intent(inout) :: constraints
     type(s_comm),             intent(inout) :: comm
+
+    ! local variables
+    real(wp), pointer :: coord0(:,:)
+
 
     ! Open output files
     !
@@ -319,6 +375,11 @@ contains
     !
     call close_output(output)
 
+    ! check structure
+    !
+    call reduce_coordinates(domain,coord0)
+    call perform_structure_check(coord0, minimize%check_structure, &
+                                 .false., .false., .true.)
 
     return
 
@@ -330,14 +391,15 @@ contains
   !  Subroutine    steepest_descent
   !> @brief        steepest descent integrator
   !> @authors      JJ
-  !! @param[inout] output   : output information
-  !! @param[inout] domain   : domain information
-  !! @param[inout] enefunc  : potential energy functions information
-  !! @param[inout] dynvars  : dynamic variables information
-  !! @param[inout] minimize : minimize information
-  !! @param[inout] pairlist : non-bond pair list information
-  !! @param[inout] boundary : boundary conditions information
-  !! @param[inout] comm     : information of communication
+  !! @param[inout] output      : output information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] minimize    : minimize information
+  !! @param[inout] pairlist    : non-bond pair list information
+  !! @param[inout] boundary    : boundary conditions information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] comm        : information of communication
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -394,7 +456,8 @@ contains
 
     ! Compute energy of the initial structure
     !
-    if (enefunc%table%tip4) call decide_dummy(domain, constraints, coord)
+    if (constraints%water_type == TIP4) &
+      call decide_dummy(domain, constraints, coord)
     call compute_energy(domain, enefunc, pairlist, boundary, coord, &
                         .true., .true., .true., .true.,      &
                         enefunc%nonb_limiter,                &
@@ -407,7 +470,7 @@ contains
 
     call communicate_force(domain, comm, force)
 
-    if (enefunc%table%tip4) &
+    if (constraints%water_type == TIP4) &
       call water_force_redistribution(constraints, domain, force, virial)
 
     dynvars%total_pene = dynvars%energy%bond          &
@@ -432,7 +495,7 @@ contains
     end do
     rmsg = rmsg / real(3*domain%num_atom_all,dp)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, rmsg, 1, mpi_real8, mpi_sum, &
                        mpi_comm_city, ierror)
 #endif
@@ -455,7 +518,8 @@ contains
     if (constraints%fast_water) &
       call compute_settle_min(coord_ref, domain, constraints, coord)
 
-    if (enefunc%table%tip4) call decide_dummy(domain, constraints, coord)
+    if (constraints%water_type == TIP4) &
+      call decide_dummy(domain, constraints, coord)
 
     dynvars%rms_gradient = rmsg
 
@@ -486,11 +550,7 @@ contains
 
       call communicate_force(domain, comm, force)
       
-      if (enefunc%table%tip4) &
-      call water_force_redistribution(constraints, domain, force, &
-                                      dynvars%virial)
-
-      if (enefunc%table%tip4) &
+      if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
       ! Broad cast total energy
@@ -508,7 +568,7 @@ contains
       dynvars%energy%total = dynvars%total_pene
 
       if (my_country_rank==0) delta_energy = dynvars%energy%total - energy_ref
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_bcast(delta_energy, 1, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
       if (delta_energy > 0.0_wip) then
@@ -528,7 +588,7 @@ contains
 
       rmsg = rmsg / real(3*domain%num_atom_all,dp)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, rmsg, 1, mpi_real8, mpi_sum, &
                          mpi_comm_city, ierror)
 #endif
@@ -550,7 +610,7 @@ contains
       if (constraints%fast_water) &
         call compute_settle_min(coord_ref, domain, constraints, coord)
 
-      if (enefunc%table%tip4) call decide_dummy(domain, constraints, coord)
+      if (constraints%water_type == TIP4) call decide_dummy(domain, constraints, coord)
 
       dynvars%rms_gradient = rmsg
 
@@ -578,5 +638,73 @@ contains
     return
 
   end subroutine steepest_descent
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    reduce_coordinates
+  !> @brief        reduce coordinates
+  !! @authors      TM
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine reduce_coordinates(domain, coord0)
+
+    ! formal arguments
+    type(s_domain), target,  intent(inout) :: domain
+    real(wp),       pointer, intent(out)   :: coord0(:,:)
+
+#ifdef HAVE_MPI_GENESIS
+
+    ! local variables
+    integer                     :: i, j, ix
+    integer                     :: ncycle, icycle, nlen, ixx
+    real(wip), pointer          :: coord(:,:,:)
+    integer,   pointer          :: ncell, natom(:), id_l2g(:,:)
+    real(wp),  allocatable      :: coord_tmp(:,:)
+    integer(iintegers), pointer :: natom_all
+
+    ncell     => domain%num_cell_local
+    natom_all => domain%num_atom_all
+    natom     => domain%num_atom
+    id_l2g    => domain%id_l2g
+    coord     => domain%coord
+
+    allocate(coord_tmp(3,natom_all), coord0(3,natom_all))
+
+    ! Reduce coordinates
+    !
+    coord_tmp(1:3,1:natom_all) = 0.0_wp
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        coord_tmp(1:3,id_l2g(ix,i)) = coord(1:3,ix,i)
+      end do
+    end do
+
+    coord0(1:3,1:natom_all) = 0.0_wp
+    do j = 1, natom_all
+      coord0(1,j) = coord_tmp(1,j)
+      coord0(2,j) = coord_tmp(2,j)
+      coord0(3,j) = coord_tmp(3,j)
+    end do
+
+    ncycle = (natom_all - 1) / mpi_drain + 1
+    nlen = mpi_drain
+    ixx  = 1
+
+    do icycle = 1, ncycle
+      if (icycle == ncycle) nlen = natom_all - (ncycle-1) * mpi_drain
+      call mpi_reduce(coord_tmp(1,ixx), coord0(1,ixx), 3*nlen,   &
+                      mpi_wp_real, mpi_sum, 0, mpi_comm_country, &
+                      ierror)
+      ixx = ixx + nlen
+    end do
+
+    deallocate(coord_tmp)
+
+#endif
+
+   return
+
+   end subroutine reduce_coordinates
 
 end module sp_minimize_mod

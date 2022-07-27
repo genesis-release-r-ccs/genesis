@@ -38,11 +38,16 @@ module sp_md_leapfrog_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -75,6 +80,7 @@ contains
   !! @param[inout] constraints : bond constraint information
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -242,7 +248,7 @@ contains
       call timer(TimerComm2, TimerOn)
                           
       call communicate_force(domain, comm, force)
-      if (constraints%tip4) &
+      if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
 
@@ -517,7 +523,7 @@ contains
     ! get forces by communication
     !
     call communicate_force(domain, comm, force)
-      if (constraints%tip4) &
+      if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
 
@@ -607,7 +613,7 @@ contains
                         virial_extern)
 
     call communicate_force(domain, comm, force)
-      if (constraints%tip4) &
+      if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
 
@@ -711,7 +717,6 @@ contains
   !! @param[in]    ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
-  !! @param[inout] boundary    : boundary information
   !! @param[inout] dynvars     : dynamic variables information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -783,7 +788,7 @@ contains
     end do
     ekin   = 0.5_dp * (kin(1)+kin(2)+kin(3))
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, ekin, 1, mpi_real8, &
                        mpi_sum, mpi_comm_country, ierror)
 #endif
@@ -1089,7 +1094,7 @@ contains
     end do
     ekin   = 0.5_dp * ekin
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, ekin, 1, mpi_real8, &
                        mpi_sum, mpi_comm_country, ierror)
 #endif
@@ -1464,7 +1469,7 @@ contains
 
     end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_bcast(pforce, 3, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
 
@@ -1529,18 +1534,18 @@ contains
         if (ensemble%ensemble == EnsembleNPT) then
 
           bmoment(1:2) = bmoment_ref(1:2) + dt*(volume*(pressxy - press0)      &
-                                      + 2.0_wip*real(ekin,wip)/d_ndegf +pforce(1:2))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf +pforce(1:2))/pmass
           bmoment(3)   = bmoment_ref(3) + dt*(volume*(press(3)  - press0)      &
-                                      + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
 
         else if (ensemble%ensemble == EnsembleNPgT) then
 
           pressxy0 = press0 - gamma0 / boundary%box_size_z
 
           bmoment(1:2) = bmoment_ref(1:2) + dt*(volume*(pressxy - pressxy0)    &
-                                      + 2.0_wip*real(ekin,wip)/d_ndegf +pforce(1:2))/pmass
+                          + 2.0_wip*real(ekin,wip)/d_ndegf +pforce(1:2))/pmass
           bmoment(3) = bmoment_ref(3) + dt*(volume*(press(3)  - press0)        &
-                                      + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
+                          + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
 
         end if
 
@@ -1555,16 +1560,16 @@ contains
         if (ensemble%ensemble == EnsembleNPT) then
 
           bmoment(1:3) = bmoment_ref(1:3) + dt*(volume*(press(1:3) - press0)   &
-                                     + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(1:3))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(1:3))/pmass
 
         else if (ensemble%ensemble == EnsembleNPgT) then
 
           pressxy0 = press0 - gamma0 / boundary%box_size_z
 
           bmoment(1:2) = bmoment_ref(1:2) + dt*(volume*(press(1:2) - pressxy0) &
-                                     + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(1:2))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(1:2))/pmass
           bmoment(3) = bmoment_ref(3) + dt*(volume*(press(3) - press0)         &
-                                     + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
 
         end if
 
@@ -1579,7 +1584,7 @@ contains
         bmoment(1) = 0.0_wip
         bmoment(2) = 0.0_wip
         bmoment(3) = bmoment_ref(3) + dt*(volume*(press(3) - press0)           &
-                                    + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
+                           + 2.0_wip*real(ekin,wip)/d_ndegf + pforce(3))/pmass
 
         bmoment(1:3)  = exp(-gamma_p*dt)*bmoment(1:3)
         bmoment2(1:3) = 0.5_wip*(bmoment(1:3) + bmoment_ref(1:3))
@@ -1740,6 +1745,7 @@ contains
     ! local variables
     type(s_enefunc_gamd), pointer    :: gamd
 
+
     gamd => enefunc%gamd
 
     ! Compute and update gamd parameters
@@ -1769,7 +1775,7 @@ contains
     real(dp),               intent(inout) :: val3, val4, val5
     real(dp),               intent(inout) :: val6(1:3)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(dp)                :: before_reduce(7), after_reduce(7)
@@ -1812,7 +1818,7 @@ contains
     ! formal arguments
     real(wip),               intent(inout) :: val1, val2, val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(wip)                :: list(3)

@@ -1,0 +1,53 @@
+[INPUT]
+topfile = top_all36_prot.rtf, top_all36_lipid.rtf
+parfile = par_all36_prot.prm, par_all36_lipid.prm
+strfile = toppar_water_ions.str
+psffile = RALP_DPPC.psf
+pdbfile = RALP_DPPC_init.pdb
+rstfile = RALP_DPPC_eq6.rst
+ 
+[OUTPUT]
+rstfile = RALP_DPPC_run.rst
+dcdfile = RALP_DPPC_run.dcd
+
+[ENERGY]
+forcefield      = CHARMM        # [CHARMM]
+electrostatic   = PME           # [CUTOFF,PME]
+switchdist      = 10.0          # switch distance
+cutoffdist      = 12.0          # cutoff distance
+pairlistdist    = 13.5          # pair-list distance
+pme_nspline     = 4
+water_model     = TIP3
+vdw_force_switch = YES
+
+[DYNAMICS]
+integrator      = LEAP
+initial_time    = 0.0
+timestep        = 0.002
+nsteps          = 100000
+rstout_period   = 10000
+eneout_period   = 2500
+crdout_period   = 10000
+stoptr_period   = 10
+nbupdate_period = 10
+iseed           = 9710741
+verbose         = YES
+
+[CONSTRAINTS]
+rigid_bond      = YES           # constraints all bonds involving hydrogen
+fast_water      = YES         
+water_model     = TIP3
+shake_tolerance = 1.0D-10
+
+[BOUNDARY]
+type            = PBC
+domain_x        = 2
+domain_y        = 3
+domain_z        = 4
+
+[ENSEMBLE]
+ensemble        = NPgT
+gamma           = 20.0
+tpcontrol       = LANGEVIN
+temperature     = 323.15
+isotropy        = semi-iso

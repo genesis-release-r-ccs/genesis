@@ -265,6 +265,12 @@ contains
     character(200)           :: prmtopfile, ambcrdfile, ambreffile
     character(200)           :: grotopfile, grocrdfile, groreffile
 
+    ! initialization
+
+    call init_top(top)
+    call init_par(par)
+    call init_prmtop(prmtop)
+    call init_grotop(grotop)
 
     ! CHARMM input file
     !

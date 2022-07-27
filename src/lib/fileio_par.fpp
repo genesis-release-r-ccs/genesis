@@ -43,6 +43,25 @@ module fileio_par_mod
     real(wp),         allocatable  :: bond_force_const(:)
     real(wp),         allocatable  :: bond_dist_min(:)
 
+    !SPICA ENM
+    integer           :: num_enmt      = 0
+    integer           :: num_enmp      = 0
+    integer,          allocatable  :: bond_enm_param_type(:)
+    integer,          allocatable  :: bond_enm_atom_id(:,:)
+    integer,          allocatable  :: bond_enm_ij_type(:)
+    real(wp),         allocatable  :: bond_enm_force_const(:)
+    real(wp),         allocatable  :: bond_enm_dist_min(:)
+
+    integer           :: num_enmu     = 0
+    integer           :: num_enmq     = 0
+    integer,          allocatable  :: angle_enm_param_type(:)
+    integer,          allocatable  :: angle_enm_atom_id(:,:)
+    integer,          allocatable  :: angle_enm_ij_type(:)
+    real(wp),         allocatable  :: angle_enm_force_const(:)
+    real(wp),         allocatable  :: angle_enm_dist_min(:)
+    real(wp),         allocatable  :: angle_enm_lj_eps(:)
+    real(wp),         allocatable  :: angle_enm_lj_sigma(:)
+
     ! angle
     character(6),     allocatable  :: angl_atom_cls(:,:)
     real(wp),         allocatable  :: angl_force_const(:)
@@ -70,6 +89,8 @@ module fileio_par_mod
     real(wp),         allocatable  :: nonb_polar_14(:)
     real(wp),         allocatable  :: nonb_eps_14(:)
     real(wp),         allocatable  :: nonb_rmin_14(:)
+    integer,          allocatable  :: nonb_lj_type_repuls(:)
+    integer,          allocatable  :: nonb_lj_type_attract(:)
 
     ! nbfix
     character(6),     allocatable  :: nbfi_atom_cls(:,:)
@@ -78,12 +99,17 @@ module fileio_par_mod
     real(wp),         allocatable  :: nbfi_eps_14(:)
     real(wp),         allocatable  :: nbfi_rmin_14(:)
 
+    integer,          allocatable  :: nbfi_repuls(:)
+    integer,          allocatable  :: nbfi_attract(:)
+
     ! cmap
     character(6),     allocatable  :: cmap_atom_cls(:,:)
     integer,          allocatable  :: cmap_resolution(:)
     real(wp),         allocatable  :: cmap_data(:,:,:)
 
   end type s_par
+
+  integer,       parameter :: MAXCOLUMN_PAR   = 150
 
   ! parameters for allocatable variables
   integer,      public,  parameter :: ParBond = 1
@@ -94,6 +120,11 @@ module fileio_par_mod
   integer,      public,  parameter :: ParNbfi = 6
   integer,      public,  parameter :: ParCmap = 7
 
+  integer,      public,  parameter :: ParENMT = 8
+  integer,      public,  parameter :: ParENMP = 9
+  integer,      public,  parameter :: ParENMU = 10
+  integer,      public,  parameter :: ParENMQ = 11
+
   ! parameters
   integer,      public,  parameter :: ParTypeCHARMM = 1
   integer,      public,  parameter :: ParTypeXPLOR  = 2
@@ -102,6 +133,9 @@ module fileio_par_mod
 
   integer,      private, parameter :: IPRE_READ     = 1
   integer,      private, parameter :: IREAD         = 2
+
+  ! local variables
+  logical,                 private :: vervose = .true. 
 
   ! subroutines
   public  :: input_par
@@ -156,7 +190,7 @@ contains
     ! local variables
     type(s_par)              :: par0
     integer                  :: file, i
-    character(100)           :: filename
+    character(MaxFilename)   :: filename
 
 
     call init_par(par)
@@ -186,7 +220,7 @@ contains
 
     end do
 
-    if (main_rank) then
+    if (main_rank .and. vervose) then
       write(MsgOut,'(A)') 'Input_Par> Summary of Parfile'
       write(MsgOut,'(A20,I10,A20,I10)')               &
            '  num_bonds       = ', par%num_bonds,     & 
@@ -200,6 +234,7 @@ contains
       write(MsgOut,'(A20,I10)')                       & 
            '  num_cmap_terms  = ', par%num_cmaps
       write(MSgOut,'(A)') ' '
+      vervose = .false.
     end if
 
     return
@@ -266,6 +301,12 @@ contains
     par%num_nbfix     = 0
     par%num_cmaps     = 0
 
+    par%num_enmt = 0
+    par%num_enmp = 0
+
+    par%num_enmu = 0
+    par%num_enmq = 0
+
     return
 
   end subroutine init_par
@@ -319,6 +360,85 @@ contains
       par%bond_atom_cls(1:2, 1:var_size) = ''
       par%bond_force_const  (1:var_size) = 0.0_wp
       par%bond_dist_min     (1:var_size) = 0.0_wp
+
+    case(ParENMT)
+      if (allocated(par%bond_enm_ij_type)) then
+        if (size(par%bond_enm_ij_type(:)) == var_size) &
+          return
+        deallocate(par%bond_enm_atom_id,    &
+                   par%bond_enm_ij_type,    &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(par%bond_enm_atom_id(2,var_size),  &
+               par%bond_enm_ij_type(var_size),    &
+               stat = alloc_stat)
+
+      par%bond_enm_atom_id(1:2,1:var_size) = -1
+      par%bond_enm_ij_type(1:var_size) = -1
+
+    case(ParENMP)
+      if (allocated(par%bond_enm_param_type)) then
+        if (size(par%bond_enm_param_type(:)) == var_size) &
+          return
+        deallocate(par%bond_enm_param_type,    &
+                   par%bond_enm_force_const,   &
+                   par%bond_enm_dist_min,      &
+                   stat = dealloc_stat)
+      end if
+
+
+      allocate(par%bond_enm_param_type(var_size),   &
+               par%bond_enm_force_const(var_size),  &
+               par%bond_enm_dist_min(var_size),     &
+               stat = alloc_stat)
+
+
+      par%bond_enm_param_type(1:var_size) = -1
+      par%bond_enm_force_const(1:var_size) = 0.0_wp
+      par%bond_enm_dist_min(1:var_size) = 0.0_wp
+
+    case(ParENMU)
+      if (allocated(par%angle_enm_ij_type)) then
+        if (size(par%angle_enm_ij_type(:)) == var_size) &
+          return
+        deallocate(par%angle_enm_atom_id,    &
+                   par%angle_enm_ij_type,    &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(par%angle_enm_atom_id(3,var_size),  &
+               par%angle_enm_ij_type(var_size),    &
+               stat = alloc_stat)
+
+      par%angle_enm_atom_id(1:3,1:var_size) = -1
+      par%angle_enm_ij_type(1:var_size) = -1
+
+    case(ParENMQ)
+      if (allocated(par%angle_enm_param_type)) then
+        if (size(par%angle_enm_param_type(:)) == var_size) &
+          return
+        deallocate(par%angle_enm_param_type,    &
+                   par%angle_enm_force_const,   &
+                   par%angle_enm_dist_min,      &
+                   par%angle_enm_lj_eps,        &
+                   par%angle_enm_lj_sigma,      &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(par%angle_enm_param_type(var_size),  &
+               par%angle_enm_force_const(var_size), &
+               par%angle_enm_dist_min(var_size),    &
+               par%angle_enm_lj_eps(var_size),      &
+               par%angle_enm_lj_sigma(var_size),    &
+               stat = alloc_stat)
+
+
+      par%angle_enm_param_type(1:var_size) = -1
+      par%angle_enm_force_const(1:var_size) = 0.0_wp
+      par%angle_enm_dist_min(1:var_size) = 0.0_wp
+      par%angle_enm_lj_eps(1:var_size) = 0.0_wp
+      par%angle_enm_lj_sigma(1:var_size) = 0.0_wp
 
     case(ParAngl)
 
@@ -397,23 +517,27 @@ contains
       if (allocated(par%nonb_atom_cls)) then
         if (size(par%nonb_atom_cls) == var_size) &
              return
-        deallocate(par%nonb_atom_cls,  &
-                   par%nonb_polar,     &
-                   par%nonb_eps,       &
-                   par%nonb_rmin,      &
-                   par%nonb_polar_14,  &
-                   par%nonb_eps_14,    &
-                   par%nonb_rmin_14,   &
+        deallocate(par%nonb_atom_cls,          &
+                   par%nonb_polar,             &
+                   par%nonb_eps,               &
+                   par%nonb_rmin,              &
+                   par%nonb_polar_14,          &
+                   par%nonb_eps_14,            &
+                   par%nonb_rmin_14,           &
+                   par%nonb_lj_type_repuls,    &
+                   par%nonb_lj_type_attract,   &
                    stat = dealloc_stat)
       end if
 
-      allocate(par%nonb_atom_cls(var_size), &
-               par%nonb_polar(var_size),    &
-               par%nonb_eps(var_size),      &
-               par%nonb_rmin(var_size),     &
-               par%nonb_polar_14(var_size), &
-               par%nonb_eps_14(var_size),   &
-               par%nonb_rmin_14(var_size),  &
+      allocate(par%nonb_atom_cls(var_size),          &
+               par%nonb_polar(var_size),             &
+               par%nonb_eps(var_size),               &
+               par%nonb_rmin(var_size),              &
+               par%nonb_polar_14(var_size),          &
+               par%nonb_eps_14(var_size),            &
+               par%nonb_rmin_14(var_size),           &
+               par%nonb_lj_type_repuls(var_size),    &
+               par%nonb_lj_type_attract(var_size),   &
                stat = alloc_stat)
 
       par%nonb_atom_cls(1:var_size) = ''
@@ -423,6 +547,8 @@ contains
       par%nonb_polar_14(1:var_size) = 0.0_wp
       par%nonb_eps_14  (1:var_size) = 0.0_wp
       par%nonb_rmin_14 (1:var_size) = 0.0_wp
+      par%nonb_lj_type_repuls(1:var_size)  = -1
+      par%nonb_lj_type_attract(1:var_size) = -1
 
     case(ParNbfi)
 
@@ -434,6 +560,8 @@ contains
                    par%nbfi_rmin,      &
                    par%nbfi_eps_14,    &
                    par%nbfi_rmin_14,   &
+                   par%nbfi_repuls,    &
+                   par%nbfi_attract,   &
                    stat = dealloc_stat)
       end if
 
@@ -442,6 +570,8 @@ contains
                par%nbfi_rmin(var_size),       &
                par%nbfi_eps_14(var_size),     &
                par%nbfi_rmin_14(var_size),    &
+               par%nbfi_repuls(var_size),     &
+               par%nbfi_attract(var_size),    &
                stat = alloc_stat)
 
       par%nbfi_atom_cls(1:2,1:var_size) = ''
@@ -449,6 +579,8 @@ contains
       par%nbfi_rmin        (1:var_size) = 0.0_wp
       par%nbfi_eps_14      (1:var_size) = 0.0_wp
       par%nbfi_rmin_14     (1:var_size) = 0.0_wp
+      par%nbfi_repuls      (1:var_size) = -1
+      par%nbfi_attract     (1:var_size) = -1
 
     case(ParCmap)
 
@@ -516,6 +648,42 @@ contains
                     stat = dealloc_stat)
       end if
 
+    case(ParENMT)
+
+      if (allocated(par%bond_enm_ij_type)) then
+        deallocate(par%bond_enm_atom_id,    &
+                   par%bond_enm_ij_type,    &
+                   stat = dealloc_stat)
+      end if
+
+    case(ParENMP)
+
+      if (allocated(par%bond_enm_param_type)) then
+        deallocate(par%bond_enm_param_type,    &
+                   par%bond_enm_force_const,    &
+                   par%bond_enm_dist_min,    &
+                   stat = dealloc_stat)
+      end if
+
+    case(ParENMU)
+
+      if (allocated(par%angle_enm_ij_type)) then
+        deallocate(par%angle_enm_atom_id,    &
+                   par%angle_enm_ij_type,    &
+                   stat = dealloc_stat)
+      end if
+
+    case(ParENMQ)
+
+      if (allocated(par%angle_enm_param_type)) then
+        deallocate(par%angle_enm_param_type,    &
+                   par%angle_enm_force_const,    &
+                   par%angle_enm_dist_min,    &
+                   par%angle_enm_lj_eps,    &
+                   par%angle_enm_lj_sigma,    &
+                   stat = dealloc_stat)
+      end if
+
     case(ParAngl)
 
       if (allocated(par%angl_atom_cls)) then
@@ -550,13 +718,15 @@ contains
     case(ParNbon)
 
       if (allocated(par%nonb_atom_cls)) then
-        deallocate( par%nonb_atom_cls,  &
-                    par%nonb_polar,     &
-                    par%nonb_eps,       &
-                    par%nonb_rmin,      &
-                    par%nonb_polar_14,  &
-                    par%nonb_eps_14,    &
-                    par%nonb_rmin_14,   &
+        deallocate( par%nonb_atom_cls,        &
+                    par%nonb_polar,           &
+                    par%nonb_eps,             &
+                    par%nonb_rmin,            &
+                    par%nonb_polar_14,        &
+                    par%nonb_eps_14,          &
+                    par%nonb_rmin_14,         &
+                    par%nonb_lj_type_repuls,  &
+                    par%nonb_lj_type_attract, &
                     stat = dealloc_stat)
       end if
 
@@ -568,6 +738,8 @@ contains
                     par%nbfi_rmin,      &
                     par%nbfi_eps_14,    &
                     par%nbfi_rmin_14,   &
+                    par%nbfi_repuls,    &
+                    par%nbfi_attract,   &
                     stat = dealloc_stat)
       end if
 
@@ -608,6 +780,8 @@ contains
 
 
     call dealloc_par(par, ParBond)
+    call dealloc_par(par, ParENMP)
+    call dealloc_par(par, ParENMT)
     call dealloc_par(par, ParAngl)
     call dealloc_par(par, ParDihe)
     call dealloc_par(par, ParImpr)
@@ -632,31 +806,42 @@ contains
   subroutine read_par(file, par)
 
     ! parameter
-    integer,       parameter :: MAXROW = 80
-    integer,       parameter :: MAXKEY = 14
+!    integer,       parameter :: MAXROW = 80
+    integer,       parameter :: MAXKEY = 18
 
     integer,       parameter :: IBOND= 1,IANGL= 2,ITHET= 3,IDIHE= 4,IPHI = 5
     integer,       parameter :: IIMPR= 6,IIMPH= 7,INONB= 8,INBFI= 9,ICMAP=10
     integer,       parameter :: IHBON=11,IRESI=12,IPRES=13,IEND =14
+    integer,       parameter :: ENMT =15,ENMP =16,ENMU =17,ENMQ =18  ! SPICA
     character(4),  parameter :: keywd(MAXKEY) = &
                                       (/'BOND','ANGL','THET','DIHE','PHI ', &
                                         'IMPR','IMPH','NONB','NBFI','CMAP', &
-                                        'HBON','RESI','PRES','END '/)
+                                        'HBON','RESI','PRES','END ',        &
+                                        'ENMT','ENMP','ENMU','ENMQ'/)
 
     ! formal arguments
     integer,                 intent(in)    :: file
     type(s_par),             intent(out)   :: par
 
     ! local variables
-    character(80)            :: line
+    character(MAXCOLUMN_PAR) :: line
     character(4)             :: ckeywd
+    character(6)             :: frmt
     integer                  :: i, j, ikeywd, nsta, nend, nchar, read_cnt
     integer                  :: nb, na, nd, ni, nn, nx, nc, mapi, mapi2
+    integer                  :: nbenmt, nbenmp, nbenmu, nbenmq
 
 
     ! Check par file type
     !
     par%type = ParTypeCHARMM
+
+    frmt = "      "
+    if (MAXCOLUMN_PAR < 100) then
+      write(frmt(1:5),'(A2,I2,A)') '(A',MAXCOLUMN_PAR,')'
+    else
+      write(frmt,'(A2,I3,A)') '(A',MAXCOLUMN_PAR,')'
+    end if
 
 
     !  Read parameter file
@@ -675,12 +860,17 @@ contains
       nc = 0
       read_cnt = 0
 
+      nbenmt = 0
+      nbenmp = 0
+      nbenmu = 0
+      nbenmq = 0
+
       do while(.true.)
 
-        read(file, '(a80)') line
+        read(file, frmt) line
         read_cnt = read_cnt + 1
 
-        call char_line(MAXROW, line, nchar)
+        call char_line(MAXCOLUMN_PAR, line, nchar)
 
         if (nchar <= 0) cycle
 
@@ -739,6 +929,18 @@ contains
           ikeywd = 0
           call skip_toppar_resi(file, i)
 
+        else if (ikeywd == ENMT) then
+           call read_par_enmt(line, nchar, i, par, nbenmt)
+
+        else if (ikeywd == ENMP) then
+           call read_par_enmp(line, nchar, i, par, nbenmp)
+
+        else if (ikeywd == ENMU) then
+           call read_par_enmu(line, nchar, i, par, nbenmu)
+
+        else if (ikeywd == ENMQ) then
+           call read_par_enmQ(line, nchar, i, par, nbenmq)
+
         else if (ikeywd == IEND) then
 
           if (i == IPRE_READ) then
@@ -751,6 +953,10 @@ contains
             call alloc_par(par, ParNbon, nn)
             call alloc_par(par, ParNbfi, nx)
             call alloc_par(par, ParCmap, nc)
+            call alloc_par(par, ParENMT, nbenmt)
+            call alloc_par(par, ParENMP, nbenmp)
+            call alloc_par(par, ParENMU, nbenmu)
+            call alloc_par(par, ParENMQ, nbenmq)
 
             do j = 1, read_cnt
               backspace(file)
@@ -769,6 +975,10 @@ contains
     end do
 
     par%num_bonds     = size(par%bond_atom_cls(1,:))
+    par%num_enmt      = size(par%bond_enm_ij_type(:))
+    par%num_enmp      = size(par%bond_enm_param_type(:))
+    par%num_enmu      = size(par%angle_enm_ij_type(:))
+    par%num_enmq      = size(par%angle_enm_param_type(:))
     par%num_angles    = size(par%angl_atom_cls(1,:))
     par%num_dihedrals = size(par%dihe_atom_cls(1,:))
     par%num_impropers = size(par%impr_atom_cls(1,:))
@@ -1151,17 +1361,24 @@ contains
     real(wp)                 :: polar, eps, rmin, polar14, eps14, rmin14
     integer                  :: nsta, nend, ndata
     character(6)             :: catm1
+    character(4)             :: key4
 
 
     nsta = 1
     nend = nchar
 
     call read_ndata(line, nsta, nend, ndata)
+    key4 = line(1:4)
+    call toupper(key4)
 
     if (ndata == 1 .or. ndata >= 8) then
 
       !  Do nothing
       !
+    else if (key4 .eq. 'NONB') then
+      !  Do nothing
+      !
+
     else if (ndata == 4) then
 
       nn = nn + 1
@@ -1258,7 +1475,7 @@ contains
     real(wp)                 :: v1, v2
     integer                  :: nsta, nend, ndata
     character(6)             :: a1, a2
-
+    integer                  :: pow1,pow2
 
     nsta = 1
     nend = nchar
@@ -1294,6 +1511,37 @@ contains
         par%nbfi_rmin    (nx)    = v2
         par%nbfi_eps_14  (nx)    = v1
         par%nbfi_rmin_14 (nx)    = v2
+
+      end if
+
+    else if (ndata == 6) then
+
+      nx = nx + 1
+
+      if (mode == IREAD) then
+
+        !  Read information: atom1, atom2, eps, rmin
+        !
+        nsta = 1
+        nend = nchar
+
+        call read_word(line, nsta, nend, 6, a1)
+        call read_word(line, nsta, nend, 6, a2)
+        call read_real(line, nsta, nend, v1)
+        call read_real(line, nsta, nend, v2)
+        call read_int(line, nsta, nend, pow1)
+        call read_int(line, nsta, nend, pow2)
+
+        !  Store parameters
+        !
+        par%nbfi_atom_cls(1, nx) = a1
+        par%nbfi_atom_cls(2, nx) = a2
+        par%nbfi_eps     (nx)    = v1
+        par%nbfi_rmin    (nx)    = v2
+        par%nbfi_eps_14  (nx)    = v1
+        par%nbfi_rmin_14 (nx)    = v2
+        par%nbfi_repuls (nx)     = pow1
+        par%nbfi_attract (nx)    = pow2
 
       end if
 
@@ -1336,7 +1584,7 @@ contains
     ! local variables
     real(wp)                 :: rval
     integer                  :: nsta, nend, ndata, i
-    character(80)            :: temp_line
+    character(MAXCOLUMN_PAR) :: temp_line
     character(6)             :: str
 
 
@@ -1436,7 +1684,8 @@ contains
     integer,                 intent(in)    :: mode
 
     ! local variables
-    character(80)            :: line, str
+    character(MAXCOLUMN_PAR) :: line, str
+    character(6)             :: frmt
 
 
     if (mode == IPRE_READ .and. main_rank) then
@@ -1444,9 +1693,16 @@ contains
       write(MsgOut,'(A)') ' '
     end if
 
+    frmt = "      "
+    if (MAXCOLUMN_PAR < 100) then
+      write(frmt(1:5),'(A2,I2,A)') '(A',MAXCOLUMN_PAR,')'
+    else
+      write(frmt,'(A2,I3,A)') '(A',MAXCOLUMN_PAR,')'
+    endif
+
     do while (.true.)
 
-      read(file, '(a80)') line
+      read(file, frmt) line
       str = adjustl(line)
       if (str(1:3) == 'end' .or. str(1:3) == 'END') &
         exit
@@ -2062,6 +2318,10 @@ contains
     if (par%num_bonds == 0) then
 
       call alloc_par(par, ParBond, par0%num_bonds)
+      call alloc_par(par, ParENMT, par0%num_enmt)
+      call alloc_par(par, ParENMP, par0%num_enmp)
+      call alloc_par(par, ParENMU, par0%num_enmu)
+      call alloc_par(par, ParENMQ, par0%num_enmq)
       call alloc_par(par, ParAngl, par0%num_angles)
       call alloc_par(par, ParDihe, par0%num_dihedrals)
       call alloc_par(par, ParImpr, par0%num_impropers)
@@ -2070,6 +2330,10 @@ contains
       call alloc_par(par, ParCmap, par0%num_cmaps)
 
       par%num_bonds     = par0%num_bonds
+      par%num_enmt      = par0%num_enmt
+      par%num_enmp      = par0%num_enmp
+      par%num_enmu      = par0%num_enmu
+      par%num_enmq      = par0%num_enmq
       par%num_angles    = par0%num_angles
       par%num_dihedrals = par0%num_dihedrals
       par%num_impropers = par0%num_impropers
@@ -2084,6 +2348,10 @@ contains
     end if
 
     parw%num_bonds     = par%num_bonds     + par0%num_bonds
+    parw%num_enmt      = par%num_enmt      + par0%num_enmt
+    parw%num_enmp      = par%num_enmp      + par0%num_enmp
+    parw%num_enmu      = par%num_enmu      + par0%num_enmu
+    parw%num_enmq      = par%num_enmq      + par0%num_enmq
     parw%num_angles    = par%num_angles    + par0%num_angles
     parw%num_dihedrals = par%num_dihedrals + par0%num_dihedrals
     parw%num_impropers = par%num_impropers + par0%num_impropers
@@ -2092,6 +2360,10 @@ contains
     parw%num_cmaps     = par%num_cmaps     + par0%num_cmaps
 
     call alloc_par(parw, ParBond, parw%num_bonds)
+    call alloc_par(parw, ParENMT, parw%num_enmt)
+    call alloc_par(parw, ParENMP, parw%num_enmp)
+    call alloc_par(parw, ParENMU, parw%num_enmu)
+    call alloc_par(parw, ParENMQ, parw%num_enmq)
     call alloc_par(parw, ParAngl, parw%num_angles)
     call alloc_par(parw, ParDihe, parw%num_dihedrals)
     call alloc_par(parw, ParImpr, parw%num_impropers)
@@ -2110,7 +2382,7 @@ contains
         if (par0%bond_atom_cls(1,i) /= par%bond_atom_cls(1,j) .or. &
             par0%bond_atom_cls(2,i) /= par%bond_atom_cls(2,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(5a)') ' Merge_Par> WARNING: BOND: Multiple definition: "', &
           trim(par%bond_atom_cls(1,j)), '"-"', &
           trim(par%bond_atom_cls(2,j)), '"'
@@ -2129,6 +2401,107 @@ contains
     call dealloc_par(par, ParBond)
     call alloc_par  (par, ParBond, n)
 
+    ii = 0
+    do i = 1, par0%num_enmt
+      do j = 1, par%num_enmt
+        if (par0%bond_enm_atom_id(1,i) /= par%bond_enm_atom_id(1,j) .or. &
+            par0%bond_enm_atom_id(2,i) /= par%bond_enm_atom_id(2,j)) &
+          cycle
+        if (main_rank) &
+          write(MsgOut,'(5a)') ' Merge_Par> WARNING: ENMBOND: Multiple definition: "', &
+          par%bond_enm_atom_id(1,j), '"-"', &
+          par%bond_enm_atom_id(2,j), '"'
+        exit
+     end do
+      if (j <= par%num_enmt) &
+        cycle
+
+      ii = ii + 1
+      parw%bond_enm_atom_id(:,ii+par%num_enmt)= par0%bond_enm_atom_id(:,i)
+      parw%bond_enm_ij_type(ii+par%num_enmt)= par0%bond_enm_ij_type(i)
+
+    end do
+
+    n = ii + par%num_enmt
+    call dealloc_par(par, ParENMT)
+    call alloc_par  (par, ParENMT, n)
+
+    ii = 0
+    do i = 1, par0%num_enmp
+      do j = 1, par%num_enmp
+        if (par0%bond_enm_param_type(i) /= par%bond_enm_param_type(j) ) &
+          cycle
+        if (main_rank) &
+          write(MsgOut,'(5a)') ' Merge_Par> WARNING: ENMBOND: Multiple definition: PARAM"', &
+          par%bond_enm_param_type(j),'"'
+        exit
+     end do
+      if (j <= par%num_enmp) &
+        cycle
+
+      ii = ii + 1
+      parw%bond_enm_param_type(ii+par%num_enmp)=par0%bond_enm_param_type(i)
+      parw%bond_enm_force_const(ii+par%num_enmp)=par0%bond_enm_force_const(i)
+      parw%bond_enm_dist_min(ii+par%num_enmp)=par0%bond_enm_dist_min(i)
+
+    end do
+
+    n = ii + par%num_enmp
+    call dealloc_par(par, ParENMP)
+    call alloc_par  (par, ParENMP, n)
+
+    ii = 0
+    do i = 1, par0%num_enmu
+      do j = 1, par%num_enmu
+        if (par0%angle_enm_atom_id(1,i) /= par%angle_enm_atom_id(1,j) .or. &
+            par0%angle_enm_atom_id(2,i) /= par%angle_enm_atom_id(2,j) .or. &
+            par0%angle_enm_atom_id(3,i) /= par%angle_enm_atom_id(3,j) ) &
+          cycle
+        if (main_rank) &
+          write(MsgOut,'(5a)') ' Merge_Par> WARNING: ENMANGLE: Multiple definition: "', &
+          par%angle_enm_atom_id(1,j), '"-"', &
+          par%angle_enm_atom_id(2,j), '"-"', &
+          par%angle_enm_atom_id(3,j), '"'
+        exit
+     end do
+      if (j <= par%num_enmu) &
+        cycle
+
+      ii = ii + 1
+      parw%angle_enm_atom_id(:,ii+par%num_enmu)= par0%angle_enm_atom_id(:,i)
+      parw%angle_enm_ij_type(ii+par%num_enmu)= par0%angle_enm_ij_type(i)
+
+    end do
+
+    n = ii + par%num_enmu
+    call dealloc_par(par, ParENMU)
+    call alloc_par  (par, ParENMU, n)
+
+    ii = 0
+    do i = 1, par0%num_enmq
+      do j = 1, par%num_enmq
+        if (par0%angle_enm_param_type(i) /= par%angle_enm_param_type(j) ) &
+          cycle
+        if (main_rank) &
+          write(MsgOut,'(5a)') ' Merge_Par> WARNING: ENMANGLE: Multiple definition: PARAM"', &
+          par%angle_enm_param_type(j),'"'
+        exit
+     end do
+      if (j <= par%num_enmq) &
+        cycle
+
+      ii = ii + 1
+      parw%angle_enm_param_type(ii+par%num_enmq)=par0%angle_enm_param_type(i)
+      parw%angle_enm_force_const(ii+par%num_enmq)=par0%angle_enm_force_const(i)
+      parw%angle_enm_dist_min(ii+par%num_enmq)=par0%angle_enm_dist_min(i)
+      parw%angle_enm_lj_eps(ii+par%num_enmq)=par0%angle_enm_lj_eps(i)
+      parw%angle_enm_lj_sigma(ii+par%num_enmq)=par0%angle_enm_lj_sigma(i)
+
+    end do
+
+    n = ii + par%num_enmq
+    call dealloc_par(par, ParENMQ)
+    call alloc_par  (par, ParENMQ, n)
 
     ! check and copy angles
     !
@@ -2139,7 +2512,7 @@ contains
             par0%angl_atom_cls(2,i) /= par%angl_atom_cls(2,j) .or. &
             par0%angl_atom_cls(3,i) /= par%angl_atom_cls(3,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(7a)') ' Merge_Par> WARNING: ANGL: Multiple definition: "', &
           trim(par%angl_atom_cls(1,j)), '"-"', &
           trim(par%angl_atom_cls(2,j)), '"-"', &
@@ -2172,7 +2545,7 @@ contains
             par0%dihe_atom_cls(3,i) /= par%dihe_atom_cls(3,j) .or. &
             par0%dihe_atom_cls(4,i) /= par%dihe_atom_cls(4,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(9a)') ' Merge_Par> WARNING: DIHE: Multiple definition: "', &
           trim(par%dihe_atom_cls(1,j)), '"-"', &
           trim(par%dihe_atom_cls(2,j)), '"-"', &
@@ -2205,7 +2578,7 @@ contains
             par0%impr_atom_cls(3,i) /= par%impr_atom_cls(3,j) .or. &
             par0%impr_atom_cls(4,i) /= par%impr_atom_cls(4,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(9a)') ' Merge_Par> WARNING: IMPR: Multiple definition: "', &
           trim(par%impr_atom_cls(1,j)), '"-"', &
           trim(par%impr_atom_cls(2,j)), '"-"', &
@@ -2235,7 +2608,7 @@ contains
       do j = 1, par%num_atom_cls
         if (par0%nonb_atom_cls(i) /= par%nonb_atom_cls(j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(3a)') ' Merge_Par> WARNING: NONB: Multiple definition: "', &
           trim(par%nonb_atom_cls(j)), '"'
         exit
@@ -2251,6 +2624,10 @@ contains
       parw%nonb_polar_14(ii+par%num_atom_cls) = par0%nonb_polar_14(i)
       parw%nonb_eps_14  (ii+par%num_atom_cls) = par0%nonb_eps_14  (i)
       parw%nonb_rmin_14 (ii+par%num_atom_cls) = par0%nonb_rmin_14 (i)
+      parw%nonb_lj_type_repuls(ii+par%num_atom_cls) = &
+                                        par0%nonb_lj_type_repuls  (i)
+      parw%nonb_lj_type_attract (ii+par%num_atom_cls) = &
+                                        par0%nonb_lj_type_attract (i)
     end do
 
     n = ii + par%num_atom_cls
@@ -2266,7 +2643,7 @@ contains
         if (par0%nbfi_atom_cls(1,i) /= par%nbfi_atom_cls(1,j) .or. &
             par0%nbfi_atom_cls(2,i) /= par%nbfi_atom_cls(2,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(5a)') ' Merge_Par> WARNING: NBFIX: Multiple definition: "',&
           trim(par%nbfi_atom_cls(1,j)), '"-"', &
           trim(par%nbfi_atom_cls(2,j)), '"'
@@ -2281,6 +2658,8 @@ contains
       parw%nbfi_rmin      (ii+par%num_nbfix) = par0%nbfi_rmin      (i)
       parw%nbfi_eps_14    (ii+par%num_nbfix) = par0%nbfi_eps_14    (i)
       parw%nbfi_rmin_14   (ii+par%num_nbfix) = par0%nbfi_rmin_14   (i)
+      parw%nbfi_repuls    (ii+par%num_nbfix) = par0%nbfi_repuls    (i)
+      parw%nbfi_attract   (ii+par%num_nbfix) = par0%nbfi_attract   (i)
     end do
 
     n = ii + par%num_nbfix
@@ -2302,7 +2681,7 @@ contains
             par0%cmap_atom_cls(7,i) /= par%cmap_atom_cls(7,j) .or. &
             par0%cmap_atom_cls(8,i) /= par%cmap_atom_cls(8,j)) &
           cycle
-        if (main_rank) &
+        if (main_rank .and. vervose) &
           write(MsgOut,'(16a)')' Merge_Par> WARNING: CMAP: Multiple definition: "', &
           trim(par%cmap_atom_cls(1,j)), '","', &
           trim(par%cmap_atom_cls(2,j)), '","', &
@@ -2328,6 +2707,10 @@ contains
     call alloc_par  (par, ParCmap, n)
 
     par%num_bonds     = size(par%bond_atom_cls(1,:))
+    par%num_enmt      = size(par%bond_enm_ij_type(:))
+    par%num_enmp      = size(par%bond_enm_param_type(:))
+    par%num_enmu      = size(par%angle_enm_ij_type(:))
+    par%num_enmq      = size(par%angle_enm_param_type(:))
     par%num_angles    = size(par%angl_atom_cls(1,:))
     par%num_dihedrals = size(par%dihe_atom_cls(1,:))
     par%num_impropers = size(par%impr_atom_cls(1,:))
@@ -2368,6 +2751,26 @@ contains
     par_dst%bond_force_const(1:n) = par_src%bond_force_const(1:n)
     par_dst%bond_dist_min   (1:n) = par_src%bond_dist_min   (1:n)
 
+    n = min(par_dst%num_enmt, par_src%num_enmt)
+    par_dst%bond_enm_atom_id(:,1:n) =    par_src%bond_enm_atom_id(:,1:n)
+    par_dst%bond_enm_ij_type(1:n)   =    par_src%bond_enm_ij_type(1:n)
+
+    n = min(par_dst%num_enmp, par_src%num_enmp)
+    par_dst%bond_enm_param_type(1:n)=    par_src%bond_enm_param_type(1:n)
+    par_dst%bond_enm_force_const(1:n)=    par_src%bond_enm_force_const(1:n)
+    par_dst%bond_enm_dist_min(1:n)  =    par_src%bond_enm_dist_min(1:n)
+
+    n = min(par_dst%num_enmu, par_src%num_enmu)
+    par_dst%angle_enm_atom_id(:,1:n) =    par_src%angle_enm_atom_id(:,1:n)
+    par_dst%angle_enm_ij_type(1:n)   =    par_src%angle_enm_ij_type(1:n)
+
+    n = min(par_dst%num_enmq, par_src%num_enmq)
+    par_dst%angle_enm_param_type(1:n)=    par_src%angle_enm_param_type(1:n)
+    par_dst%angle_enm_force_const(1:n)=    par_src%angle_enm_force_const(1:n)
+    par_dst%angle_enm_dist_min(1:n)  =    par_src%angle_enm_dist_min(1:n)
+    par_dst%angle_enm_lj_eps(1:n)=    par_src%angle_enm_lj_eps(1:n)
+    par_dst%angle_enm_lj_sigma(1:n)  =    par_src%angle_enm_lj_sigma(1:n)
+
     n = min(par_dst%num_angles, par_src%num_angles)
     par_dst%angl_atom_cls    (:,1:n) = par_src%angl_atom_cls    (:,1:n)
     par_dst%angl_force_const   (1:n) = par_src%angl_force_const   (1:n)
@@ -2395,6 +2798,8 @@ contains
     par_dst%nonb_polar_14(1:n) = par_src%nonb_polar_14(1:n)
     par_dst%nonb_eps_14  (1:n) = par_src%nonb_eps_14  (1:n)
     par_dst%nonb_rmin_14 (1:n) = par_src%nonb_rmin_14 (1:n)
+    par_dst%nonb_lj_type_repuls (1:n) = par_src%nonb_lj_type_repuls (1:n)
+    par_dst%nonb_lj_type_attract(1:n) = par_src%nonb_lj_type_attract(1:n)
 
     n = min(par_dst%num_nbfix, par_src%num_nbfix)
     par_dst%nbfi_atom_cls(:,1:n) = par_src%nbfi_atom_cls(:,1:n)
@@ -2402,6 +2807,8 @@ contains
     par_dst%nbfi_rmin      (1:n) = par_src%nbfi_rmin      (1:n)
     par_dst%nbfi_eps_14    (1:n) = par_src%nbfi_eps_14    (1:n)
     par_dst%nbfi_rmin_14   (1:n) = par_src%nbfi_rmin_14   (1:n)
+    par_dst%nbfi_repuls    (1:n) = par_src%nbfi_repuls    (1:n)
+    par_dst%nbfi_attract   (1:n) = par_src%nbfi_attract   (1:n)
 
     n = min(par_dst%num_cmaps, par_src%num_cmaps)
     par_dst%cmap_atom_cls(:,1:n) = par_src%cmap_atom_cls(:,1:n)
@@ -2447,14 +2854,14 @@ contains
       return
 
     if (.not. present(top)) then
-      if (main_rank) &
+      if (main_rank .and. vervose) &
         write(MsgOut,'(a)') &
         'Resolve_Wildcard> WARNING: WildCard must be resolved.'
       return
     end if
 
     ! resolve wild-card
-    if (main_rank) &
+    if (main_rank .and. vervose) &
       write(MsgOut,'(a)') 'Resolve_Wildcard> '
 
     call alloc_par(par0, ParNbon, top%num_atom_cls)
@@ -2476,6 +2883,8 @@ contains
         par0%nonb_polar_14(i0) = par%nonb_polar_14(i)
         par0%nonb_eps_14(i0)   = par%nonb_eps_14(i)  
         par0%nonb_rmin_14(i0)  = par%nonb_rmin_14(i) 
+        par0%nonb_lj_type_repuls(i0)   = par%nonb_lj_type_repuls(i)
+        par0%nonb_lj_type_attract(i0)  = par%nonb_lj_type_attract(i)
 
       else
 
@@ -2508,6 +2917,8 @@ contains
               par0%nonb_polar_14(i0) = par%nonb_polar_14(i)
               par0%nonb_eps_14(i0)   = par%nonb_eps_14(i)  
               par0%nonb_rmin_14(i0)  = par%nonb_rmin_14(i) 
+              par0%nonb_lj_type_repuls(i0)   = par%nonb_lj_type_repuls(i)
+              par0%nonb_lj_type_attract(i0)  = par%nonb_lj_type_attract(i)
 
               if (main_rank) &
                 write(MsgOut,'(4a)') '    ', catm, ' => ', ctatm
@@ -2532,6 +2943,8 @@ contains
     par%nonb_eps_14(1:i0)   = par0%nonb_eps_14(1:i0)
     par%nonb_rmin_14(1:i0)  = par0%nonb_rmin_14(1:i0)
     par%num_atom_cls = i0
+    par%nonb_lj_type_repuls(1:i0)   = par0%nonb_lj_type_repuls(1:i0)
+    par%nonb_lj_type_attract(1:i0)  = par0%nonb_lj_type_attract(1:i0)
 
     call dealloc_par(par0, ParNbon)
 
@@ -2541,5 +2954,300 @@ contains
     return
 
   end subroutine resolve_wildcard
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_par_enmt
+  !> @brief        read elastic network bond type information from PAR file
+  !! @authors      RU
+  !! @param[in]    line  : read file line
+  !! @param[in]    nchar : number of characters to read
+  !! @param[in]    mode  : mode (IPRE_READ or IREAD)
+  !! @param[inout] par   : SPICA PAR information
+  !! @param[inout] nb    :
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_par_enmt(line, nchar, mode, par, nb)
+
+    ! formal arguments
+    character(*),            intent(in)    :: line
+    integer,                 intent(in)    :: nchar
+    integer,                 intent(in)    :: mode
+    type(s_par),             intent(inout) :: par
+    integer,                 intent(inout) :: nb
+
+    ! local variables
+    real(wp)                 :: rbond1, rbond2
+    integer                  :: nsta, nend, ndata
+    character(6)             :: catm(2)
+    integer                  :: atomi,atomj,enmtype
+
+
+    nsta = 1
+    nend = nchar
+
+    call read_ndata(line, nsta, nend, ndata)
+
+    if (ndata == 1) then
+
+      !  Do nothing
+      !
+
+    else if (ndata == 3) then
+
+      nb = nb + 1
+
+      if (mode == IREAD) then
+
+        !  Read information: lb(1), lb2(2), parmID
+        !
+        nsta = 1
+        nend = nchar
+
+        call read_int(line, nsta, nend,  atomi)
+        call read_int(line, nsta, nend,  atomj)
+        call read_int(line, nsta, nend, enmtype)
+        ! call read_real(line, nsta, nend, rbond2)
+
+        !  Store parameters
+        !
+        par%bond_enm_atom_id(1, nb) =atomi
+        par%bond_enm_atom_id(2, nb) =atomj
+        par%bond_enm_ij_type(nb)   = enmtype
+
+      end if
+
+    else
+
+      call error_msg('  Read_Par_ENMT_Bond> ERROR: Format is not correct')
+
+    end if
+
+    return
+
+  end subroutine read_par_enmt
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_par_enmp
+  !> @brief        read elastic network bond param information from PAR file
+  !! @authors      RU
+  !! @param[in]    line  : read file line
+  !! @param[in]    nchar : number of characters to read
+  !! @param[in]    mode  : mode (IPRE_READ or IREAD)
+  !! @param[inout] par   : CHARMM PAR information
+  !! @param[inout] nb    :
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_par_enmp(line, nchar, mode, par, nb)
+
+    ! formal arguments
+    character(*),            intent(in)    :: line
+    integer,                 intent(in)    :: nchar
+    integer,                 intent(in)    :: mode
+    type(s_par),             intent(inout) :: par
+    integer,                 intent(inout) :: nb
+
+    ! local variables
+    real(wp)                 :: rbond1, rbond2
+    integer                  :: nsta, nend, ndata
+    character(6)             :: catm(2)
+    integer                  :: enmtype
+
+
+    nsta = 1
+    nend = nchar
+
+    call read_ndata(line, nsta, nend, ndata)
+
+    if (ndata == 1) then
+
+      !  Do nothing
+      !
+
+    else if (ndata == 3) then
+
+      nb = nb + 1
+
+      if (mode == IREAD) then
+
+        !  Read information: lb(1), lb2(2), kb, b0
+        !
+        nsta = 1
+        nend = nchar
+
+        call read_int (line, nsta, nend,  enmtype)
+        call read_real(line, nsta, nend, rbond1)
+        call read_real(line, nsta, nend, rbond2)
+
+        !  Store parameters
+        !
+        par%bond_enm_param_type(nb)  = enmtype
+        par%bond_enm_force_const(nb) = rbond1
+        par%bond_enm_dist_min(nb)    = rbond2
+
+      end if
+
+    else
+
+      call error_msg('  Read_Par_ENMP_Bond> ERROR: Format is not correct')
+
+    end if
+
+    return
+
+  end subroutine read_par_enmp
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_par_enmu
+  !> @brief        read elastic network bond type information from PAR file
+  !! @authors      RU
+  !! @param[in]    line  : read file line
+  !! @param[in]    nchar : number of characters to read
+  !! @param[in]    mode  : mode (IPRE_READ or IREAD)
+  !! @param[inout] par   : SPICA PAR information
+  !! @param[inout] nb    :
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_par_enmu(line, nchar, mode, par, nb)
+
+    ! formal arguments
+    character(*),            intent(in)    :: line
+    integer,                 intent(in)    :: nchar
+    integer,                 intent(in)    :: mode
+    type(s_par),             intent(inout) :: par
+    integer,                 intent(inout) :: nb
+
+    ! local variables
+    real(wp)                 :: rbond1, rbond2
+    integer                  :: nsta, nend, ndata
+    character(6)             :: catm(2)
+    integer                  :: atomi,atomj,atomk,enmtype
+
+
+    nsta = 1
+    nend = nchar
+
+    call read_ndata(line, nsta, nend, ndata)
+
+    if (ndata == 1) then
+
+      !  Do nothing
+      !
+
+    else if (ndata == 4) then
+
+      nb = nb + 1
+
+      if (mode == IREAD) then
+
+        !  Read information: lb(1), lb2(2),lb(3), paramID
+        !
+        nsta = 1
+        nend = nchar
+
+        call read_int(line, nsta, nend,  atomi)
+        call read_int(line, nsta, nend,  atomj)
+        call read_int(line, nsta, nend,  atomk)
+        call read_int(line, nsta, nend, enmtype)
+
+        !  Store parameters
+        !
+        par%angle_enm_atom_id(1, nb) =atomi
+        par%angle_enm_atom_id(2, nb) =atomj
+        par%angle_enm_atom_id(3, nb) =atomk
+        par%angle_enm_ij_type(nb)   = enmtype
+
+      end if
+
+    else
+
+      call error_msg('  Read_Par_ENMU_Angle> ERROR: Format is not correct')
+
+    end if
+
+    return
+
+  end subroutine read_par_enmu
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_par_enmq
+  !> @brief        read elastic network bond param information from PAR file
+  !! @authors      RU
+  !! @param[in]    line  : read file line
+  !! @param[in]    nchar : number of characters to read
+  !! @param[in]    mode  : mode (IPRE_READ or IREAD)
+  !! @param[inout] par   : SPICA PAR information
+  !! @param[inout] nb    :
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_par_enmq(line, nchar, mode, par, nb)
+
+    ! formal arguments
+    character(*),            intent(in)    :: line
+    integer,                 intent(in)    :: nchar
+    integer,                 intent(in)    :: mode
+    type(s_par),             intent(inout) :: par
+    integer,                 intent(inout) :: nb
+
+    ! local variables
+    real(wp)                 :: rbond1, rbond2,rlj1,rlj2
+    integer                  :: nsta, nend, ndata
+    character(6)             :: catm(2)
+    integer                  :: enmtype
+
+
+    nsta = 1
+    nend = nchar
+
+    call read_ndata(line, nsta, nend, ndata)
+
+    if (ndata == 1) then
+
+      !  Do nothing
+      !
+
+    else if (ndata == 5) then
+
+      nb = nb + 1
+
+      if (mode == IREAD) then
+
+        !  Read information: lb(1), lb2(2), kb, b0
+        !
+        nsta = 1
+        nend = nchar
+
+        call read_int (line, nsta, nend,  enmtype)
+        call read_real(line, nsta, nend, rbond1)
+        call read_real(line, nsta, nend, rbond2)
+        call read_real(line, nsta, nend, rlj1)
+        call read_real(line, nsta, nend, rlj2)
+
+        !  Store parameters
+        !
+        par%angle_enm_param_type(nb)  = enmtype
+        par%angle_enm_force_const(nb) = rbond1
+        par%angle_enm_dist_min(nb)    = rbond2
+        par%angle_enm_lj_eps(nb)      = rlj1
+        par%angle_enm_lj_sigma(nb)    = rlj2
+
+      end if
+
+    else
+
+      call error_msg('  Read_Par_ENMQ_Angle> ERROR: Format is not correct')
+
+    end if
+
+    return
+
+  end subroutine read_par_enmq
 
 end module fileio_par_mod

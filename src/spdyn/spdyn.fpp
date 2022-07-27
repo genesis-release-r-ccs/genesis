@@ -48,7 +48,7 @@ program spdyn
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -80,7 +80,7 @@ program spdyn
   integer                     :: omp_get_max_threads, i
   real(dp)                    :: sas, eae
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   call mpi_init(ierror)
   call mpi_comm_rank(mpi_comm_world, my_world_rank, ierror)
   call mpi_comm_size(mpi_comm_world, nproc_world,   ierror)
@@ -111,7 +111,7 @@ program spdyn
   !
   call domain_decomposition_genesis(ctrl_filename, genesis_run_mode)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   call mpi_barrier(mpi_comm_world,ierror)
   call mpi_finalize(ierror)
 #endif
@@ -278,7 +278,7 @@ contains
 
     case (GenesisRPATH)
 
-      call setup_spdyn_rpath(ctrl_data, output, molecule, enefunc, pairlist,  &
+      call setup_spdyn_rpath(ctrl_data, output, molecule, enefunc, pairlist, &
                           dynvars, dynamics, constraints, ensemble, boundary,&
                           domain, comm, rpath)
 
@@ -312,7 +312,9 @@ contains
 
     ! [Step5] Perform MD/REMD/RPATH simulation or Energy minimization
     !
+#ifdef HAVE_MPI_GENESIS
     call mpi_barrier(mpi_comm_world, ierror)
+#endif
     call timer(TimerDynamics, TimerOn)
 
     select case (genesis_run_mode)

@@ -13,10 +13,10 @@ boost_type    = POTENTIAL
 thresh_type   = LOWER
 sigma0_pot    = 6.0
 update_period = 10
-pot_max       = -21034.0864
-pot_min       = -21414.9372
-pot_ave       = -21206.9038
-pot_dev       = 52.7554
+pot_max       = -21012.5870
+pot_min       = -21402.8924
+pot_ave       = -21215.1064
+pot_dev       = 51.1611
 
 [ENERGY]
 forcefield       = AMBER
@@ -27,9 +27,10 @@ pairlistdist     = 10.0      # pair-list distance
 pme_nspline      = 4
 pme_alpha        = 0.34864
 pme_alpha_tol    = 0.100E-04
-pme_ngrid_x      = 36
-pme_ngrid_y      = 36
-pme_ngrid_z      = 36
+pme_ngrid_x      = 32
+pme_ngrid_y      = 32
+pme_ngrid_z      = 32
+pme_scheme       = NOOPT_2DALLTOALL
 table_density    = 20.000
 dispersion_corr  = epress
 

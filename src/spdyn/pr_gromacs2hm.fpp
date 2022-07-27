@@ -648,7 +648,8 @@ contains
            atom_coord(1:3), &
            vel(1:3)
            
-      atom_coord(1:3) = atom_coord(1:3) * 10.0_wp - center(1:3)
+!     atom_coord(1:3) = atom_coord(1:3) * 10.0_wp - center(1:3)
+      atom_coord(1:3) = atom_coord(1:3) * 10.0_wp
 
       if (.not. is_ref) then
         call hm_set_atom_coord   (1, iatom, real(atom_coord(1),wip))

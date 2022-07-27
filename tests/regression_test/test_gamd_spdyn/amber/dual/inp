@@ -14,14 +14,14 @@ thresh_type   = LOWER
 sigma0_pot    = 6.0
 sigma0_dih    = 6.0
 update_period = 10
-pot_max       = -21045.2483
-pot_min       = -21425.9736
-pot_ave       = -21217.9890
-pot_dev       = 52.7654
-dih_max       = 17.2535
-dih_min       = 8.7068
-dih_ave       = 11.0852
-dih_dev       = 1.0166
+pot_max       = -21022.8131
+pot_min       = -21413.4450
+pot_ave       = -21226.2044
+pot_dev       = 51.1705
+dih_max       = 19.3102
+dih_min       = 8.5397
+dih_ave       = 11.0981
+dih_dev       = 1.2397
 
 [ENERGY]
 forcefield       = AMBER
@@ -32,9 +32,10 @@ pairlistdist     = 10.0      # pair-list distance
 pme_nspline      = 4
 pme_alpha        = 0.34864
 pme_alpha_tol    = 0.100E-04
-pme_ngrid_x      = 36
-pme_ngrid_y      = 36
-pme_ngrid_z      = 36
+pme_ngrid_x      = 32
+pme_ngrid_y      = 32
+pme_ngrid_z      = 32
+pme_scheme       = NOOPT_2DALLTOALL
 table_density    = 20.000
 dispersion_corr  = epress
 

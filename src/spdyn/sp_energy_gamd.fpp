@@ -29,7 +29,7 @@ module sp_energy_gamd_mod
   use constants_mod
   use math_libs_mod
   use string_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -59,12 +59,18 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_boost_potential_gamd(ene, k, ene_th, e_gamd, w_gamd)
+
+    ! formal arguments
     real(dp),                intent(in)  :: ene
     real(dp),                intent(in)  :: k
     real(dp),                intent(in)  :: ene_th
     real(dp),                intent(out) :: e_gamd
     real(wp),                intent(out) :: w_gamd
+
+    ! local variables
     real(dp) :: ev, factor
+
+
     e_gamd = 0.0_dp
     if (ene < ene_th) then
       ev = ene - ene_th
@@ -74,7 +80,9 @@ contains
     else
       w_gamd = 1.0_wp
     end if
+
     return
+
   end subroutine compute_boost_potential_gamd
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -93,15 +101,19 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_stat_gamd(E, E_max, E_min, E_ave, E_ave2, E_dev, counter)
-    real(dp),                intent(in)  :: E
-    real(dp),             intent(inout)  :: E_max
-    real(dp),             intent(inout)  :: E_min
-    real(dp),             intent(inout)  :: E_ave
-    real(dp),             intent(inout)  :: E_ave2
-    real(dp),             intent(inout)  :: E_dev
-    integer,              intent(inout)  :: counter
 
+    ! formal arguments
+    real(dp),                intent(in)    :: E
+    real(dp),                intent(inout) :: E_max
+    real(dp),                intent(inout) :: E_min
+    real(dp),                intent(inout) :: E_ave
+    real(dp),                intent(inout) :: E_ave2
+    real(dp),                intent(inout) :: E_dev
+    integer,                 intent(inout) :: counter
+
+    ! local variables
     real(dp) :: E_diff
+
 
     if (E > E_max) E_max = E
     if (E < E_min) E_min = E
@@ -113,6 +125,7 @@ contains
     counter = counter + 1
 
     return
+
   end subroutine compute_stat_gamd
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -138,14 +151,15 @@ contains
     real(dp),                intent(inout) :: virial(3,3)
 
     ! local variable
-    integer                      :: ncell, natom, id, i, ix, ic, jc, k
-    real(wp)                     :: f_tmp(1:3)
-    real(dp)                     :: v_tmp(3,3)
-    real(wp)                     :: w_pot_gamd, w_dih_gamd
-    real(dp)                     :: ene_pot, ene_dih
-    real(dp)                     :: before_reduce(2), after_reduce(2)
+    integer                  :: ncell, natom, id, i, ix, ic, jc, k
+    real(wp)                 :: f_tmp(1:3)
+    real(dp)                 :: v_tmp(3,3)
+    real(wp)                 :: w_pot_gamd, w_dih_gamd
+    real(dp)                 :: ene_pot, ene_dih
+    real(dp)                 :: before_reduce(2), after_reduce(2)
 
-    type(s_enefunc_gamd),pointer :: gamd
+    type(s_enefunc_gamd), pointer :: gamd
+
 
     gamd => enefunc%gamd
 
@@ -156,11 +170,13 @@ contains
 
     ! Reduce potential energy or dihedral energy.
     !
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     if (gamd%boost_dih) then
       before_reduce(1) = energy%dihedral
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         before_reduce(1) = before_reduce(1) + energy%cmap
+      end if
       call mpi_allreduce(before_reduce, after_reduce, 1, mpi_real8,  &
         mpi_sum, mpi_comm_country, ierror)
       ene_dih = after_reduce(1)
@@ -172,8 +188,10 @@ contains
                        + energy%electrostatic &
                        + energy%van_der_waals
       before_reduce(2) = energy%dihedral
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         before_reduce(2) = before_reduce(2) + energy%cmap
+      end if
       call mpi_allreduce(before_reduce, after_reduce, 2, mpi_real8,  &
         mpi_sum, mpi_comm_country, ierror)
       ene_pot = after_reduce(1)
@@ -186,8 +204,10 @@ contains
                        + energy%improper      &
                        + energy%electrostatic &
                        + energy%van_der_waals
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         before_reduce(1) = before_reduce(1) + energy%cmap
+      end if
       call mpi_allreduce(before_reduce, after_reduce, 1, mpi_real8,  &
         mpi_sum, mpi_comm_country, ierror)
       ene_pot = after_reduce(1)
@@ -195,8 +215,10 @@ contains
 #else
     if (gamd%boost_dih) then
       ene_dih = energy%dihedral
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         ene_dih = ene_dih + energy%cmap
+      end if
     else if (gamd%boost_dual) then
       ene_pot = energy%bond          &
               + energy%angle         &
@@ -205,8 +227,10 @@ contains
               + energy%electrostatic &
               + energy%van_der_waals
       ene_dih = energy%dihedral
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         ene_dih = ene_dih + energy%cmap
+      end if
     else if (gamd%boost_pot) then
       ene_pot = energy%bond          &
               + energy%angle         &
@@ -215,8 +239,10 @@ contains
               + energy%improper      &
               + energy%electrostatic &
               + energy%van_der_waals
-      if (enefunc%forcefield == ForcefieldCHARMM) &
+      if (enefunc%forcefield == ForcefieldCHARMM .or. &
+          enefunc%forcefield == ForcefieldAMBER) then
         ene_pot = ene_pot + energy%cmap
+      end if
     end if
 #endif
     ! Compute statistics
@@ -418,6 +444,7 @@ contains
     real(wp), pointer :: f_rest_omp(:,:,:,:)
     real(dp), pointer :: v_rest_omp(:,:,:)
 
+
     ! number of cells and atoms
     !
     ncell = domain%num_cell_local + domain%num_cell_boundary
@@ -456,9 +483,9 @@ contains
 
     call compute_energy_restraints(get_coord, calc_force, domain, boundary, &
                         enefunc, coord, &
-                        force, virial, virial_ext,           &
-                        eposi, energy%restraint_rmsd,                &
-                        energy%rmsd, energy%restraint_distance,          &
+                        force, virial, virial_ext, &
+                        eposi, energy%restraint_rmsd, &
+                        energy%rmsd, energy%restraint_distance, &
                         energy%restraint_emfit, energy%emcorr)
 
     if (enefunc%gamd%boost_pot .or. enefunc%gamd%boost_dual) then
@@ -498,6 +525,7 @@ contains
   !! @param[in]    nonb_ene : flag for calculate nonbonded energy
   !! @param[in]    coord    : coordinates of target systems
   !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial term of target systems
   !! @param[inout] edihe    : dihedral energy of target systems
   !! @param[inout] ecmap    : cmap energy of target systems
   !! @param[inout] eimprop  : improper energy of target systems
@@ -507,7 +535,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_dihed_gamd(domain, enefunc, npt, nonb_ene, &
-      coord, force, virial, edihed, ecmap, eimprop)
+                                  coord, force, virial, edihed, ecmap, eimprop)
 
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
@@ -526,6 +554,7 @@ contains
     integer           :: omp_get_thread_num
     real(wp), pointer :: f_dihe_omp(:,:,:,:)
     real(dp), pointer :: v_dihe_omp(:,:,:)
+
 
     ! number of cells and atoms
     !
@@ -572,7 +601,8 @@ contains
         force, virial, edihed)
     end if
 
-    if (enefunc%forcefield == ForcefieldCHARMM) then
+    if (enefunc%forcefield == ForcefieldCHARMM .or. &
+        enefunc%forcefield == ForcefieldAMBER) then
       ! cmap energy
       ! 
       call compute_energy_cmap(domain, enefunc, coord, force, virial, ecmap)

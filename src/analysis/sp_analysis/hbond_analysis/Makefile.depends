@@ -1,0 +1,9 @@
+hbond_analyze.o: hbond_analyze.fpp hbond_option_str_mod.mod 
+hbond_analyze_mod.mod: hbond_analyze.fpp hbond_analyze.o
+hbond_control.o: hbond_control.fpp hbond_option_mod.mod 
+hbond_control_mod.mod: hbond_control.fpp hbond_control.o
+hbond_main.o: hbond_main.fpp hbond_control_mod.mod hbond_option_str_mod.mod hbond_option_mod.mod hbond_analyze_mod.mod 
+hbond_option.o: hbond_option.fpp hbond_option_str_mod.mod 
+hbond_option_mod.mod: hbond_option.fpp hbond_option.o
+hbond_option_str.o: hbond_option_str.fpp  
+hbond_option_str_mod.mod: hbond_option_str.fpp hbond_option_str.o

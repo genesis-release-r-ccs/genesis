@@ -1,0 +1,11 @@
+hb_analyze.o: hb_analyze.fpp hb_option_str_mod.mod 
+hb_analyze_mod.mod: hb_analyze.fpp hb_analyze.o
+hb_control.o: hb_control.fpp hb_option_mod.mod 
+hb_control_mod.mod: hb_control.fpp hb_control.o
+hb_main.o: hb_main.fpp hb_analyze_mod.mod hb_option_str_mod.mod hb_control_mod.mod hb_setup_mod.mod 
+hb_option.o: hb_option.fpp hb_option_str_mod.mod 
+hb_option_mod.mod: hb_option.fpp hb_option.o
+hb_option_str.o: hb_option_str.fpp  
+hb_option_str_mod.mod: hb_option_str.fpp hb_option_str.o
+hb_setup.o: hb_setup.fpp hb_option_str_mod.mod hb_option_mod.mod hb_control_mod.mod 
+hb_setup_mod.mod: hb_setup.fpp hb_setup.o

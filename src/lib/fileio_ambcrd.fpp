@@ -43,7 +43,7 @@ module fileio_ambcrd_mod
   end type s_ambcrd
 
   ! parameters for allocatable variables
-  integer,     private, parameter :: PrmcrdAtom = 1
+  integer,     public, parameter :: PrmcrdAtom = 1
 
   ! privates
   public  :: init_ambcrd

@@ -1,0 +1,11 @@
+ra_analyze.o: ra_analyze.fpp ra_option_str_mod.mod 
+ra_analyze_mod.mod: ra_analyze.fpp ra_analyze.o
+ra_control.o: ra_control.fpp ra_option_mod.mod 
+ra_control_mod.mod: ra_control.fpp ra_control.o
+ra_main.o: ra_main.fpp ra_control_mod.mod ra_option_str_mod.mod ra_analyze_mod.mod ra_setup_mod.mod 
+ra_option.o: ra_option.fpp ra_option_str_mod.mod 
+ra_option_mod.mod: ra_option.fpp ra_option.o
+ra_option_str.o: ra_option_str.fpp  
+ra_option_str_mod.mod: ra_option_str.fpp ra_option_str.o
+ra_setup.o: ra_setup.fpp ra_control_mod.mod ra_option_str_mod.mod ra_option_mod.mod 
+ra_setup_mod.mod: ra_setup.fpp ra_setup.o

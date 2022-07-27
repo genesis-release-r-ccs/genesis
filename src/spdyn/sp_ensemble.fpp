@@ -51,7 +51,7 @@ module sp_ensemble_mod
     ! parameters for NPT
     integer                   :: isotropy        = IsotropyISO
 
-    logical                   :: group_tp        = .false.
+    logical                   :: group_tp        = .true.
 
   end type s_ens_info
 
@@ -95,7 +95,7 @@ contains
         write(MsgOut,'(A)') '# tau_p         = 5.0       # pressure coupling time (ps)    in [BERENDSEN,BUSSI]'
         write(MsgOut,'(A)') '# compressibility = 4.63e-5 # compressibility (atm-1) in [BERENDSEN]'
         write(MsgOut,'(A)') '# isotropy      = ISO       # [ISO,SEMI-ISO,ANISO,XY-FIXED]'
-        write(MsgOut,'(A)') '# group_tp      = NO        # usage of group tempeature and pressure'
+        write(MsgOut,'(A)') '# group_tp      = YES       # usage of group tempeature and pressure'
         write(MsgOut,'(A)') ' '
 
       end select

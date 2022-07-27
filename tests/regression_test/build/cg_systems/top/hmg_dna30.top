@@ -1,0 +1,20 @@
+#include "./param/atom_types.itp"
+#include "./param/flexible_local_angle.itp"
+#include "./param/flexible_local_dihedral.itp"
+#include "./param/pair_energy_MJ_96.itp"
+
+; Molecule topology 
+#include "./itp/hmg.itp" 
+#include "./itp/dna30.itp" 
+
+[ system ] 
+hmg + 30bp dsDNA
+
+[ molecules ] 
+hmg  1 
+dna30  1 
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 3 : 1 - 3 
+OFF 1 - 1 
+

@@ -1,0 +1,307 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 1.7.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = oshima@goby
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  option       = -xHost -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.0.5.281 20190815
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
+
+Runtime_Information> Machine and Library Information
+  date       = 2021/10/04 15:37:16
+  cpu model    = Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
+  exec. host   = oshima@goby21
+  LD library   = 
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
+ linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_librar
+ ies_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compile
+ rs_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel
+ /compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  topfile = ../1_setup//top
+  parfile = ../1_setup//par
+  psffile = ../1_setup//psf
+  pdbfile = ../1_setup//pdb
+  rstfile = ../3_init/run.rst
+ 
+Read_Ctrl_Output> Output Files
+  gamdfile   = out.gamd
+ 
+Read_Ctrl_Gamd> Gamd information
+  boost_type       = POTENTIAL
+  sigma0_pot       =   6.00000
+  pot_max          = -89354.1016000000
+  pot_min          = -90812.1953000000
+  pot_ave          = -90433.4766000000
+  pot_dev          =    109.9978000000
+  thresh_type      = LOWER
+  update_period    =        10
+  boost            = YES
+
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =     CHARMM
+  switchdist      =     10.000  cutoffdist      =     12.000
+  pairlistdist    =     13.500  dielec_const    =      1.000
+  debye           =     10.000
+ vdW force_switch =         no
+  electrostatic   =        PME
+  pme_alpha       =    0.34000
+  pme_ngrid(x,y,z)=         64        64        64
+  pme_nspline     =          4
+  pme_multiple    =         no
+  implicit_solvent=       none
+  table_order     =          1
+  table_density   =     20.000
+  water_model     =       TIP3
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+  user def. table =     no
+ 
+Read_Ctrl_Dynamics> Parameters of MD simulation
+  integrator      =    VVER     nsteps          =        100
+  timestep        =     0.0020  initial_time    =     0.0000
+  eneout_period   =          5  rstout_period   =          0
+  crdout_period   =          0  velout_period   =          0
+  nbupdate_period =         10  stoptr_period   =          0
+  iseed           =         11
+  annealing       =         no
+  verbose         =         no
+  target_md       =         no
+  steered_md      =         no
+  shrink_box      =         no
+  esp_mm          =         no
+ 
+Read_Ctrl_Constraints> Parameters for Constraints
+  rigid_bond      =        yes
+  shake_iteration =        500  shake_tolerance =  0.100E-09
+  fast_water      =        yes  water_model     =       TIP3
+  hydrogen_type   =       name
+  noshake_index   =       none
+  fixatm_select_index        =       none
+ 
+Read_Ctrl_Ensemble> Parameters for Ensemble
+  ensemble        =        NVT
+  temperature     =    300.000
+  tpcontrol       =      BUSSI
+  tau_t           =      5.000
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =     PBC   
+  pairlist_grid   =      3.000
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          4
+  total number of CPU cores =         32
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Input_Top> Summary of Topfile
+  num_atom_class  =        121  num_resi_type   =         71
+ 
+Input_Par> Summary of Parfile
+  num_bonds       =        185  num_angles      =        467
+  num_dihedrals   =        601  num_impropers   =         47
+  num_atom_cls    =        121  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+Read_Psf> Summary of Psffile
+  psftype         =     charmm
+  num_atoms       =      27757  num_bonds       =      27756
+  num_angles      =       9281  num_dihedrals   =         41
+  num_impropers   =          4  num_cmap_terms  =          1
+  num_HB_donors   =          0  num_HB_acceptors=       9245
+  num_NB_exclusion=          0  num_groups      =       9251
+  total_charge    =      0.000
+ 
+Read_Pdb> Summary of Data in PDB file
+  num_atoms       =      27757
+ 
+Read_Rst_Binary> Summary of RST file
+  num_atoms       =      27757  iseed           =     128270
+  boxsize (x,y,z) =     65.063    65.063    65.063
+
+Define_Molecule> Summary of molecules
+  num_atoms       =      27757  num_bonds       =      27756
+  num_angles      =       9281  num_dihedrals   =         41
+  num_impropers   =          4  num_cmap_terms  =          1
+  num_residues    =       9246  num_molecules   =       9246
+  num_segments    =          2  num_deg_freedom =      83271
+  total_charge    =      0.000
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      83268 (After removing translation)
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  box_size(x,y,z) =     65.063    65.063    65.063
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Random_Init> Initialize the random number
+  seed            = 11
+
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =         22  num_waters      =       9245
+
+Define_Enefunc_CHARMM> Number of Interactions in Each Term
+  bond_ene        =      27756  angle_ene       =       9281
+  urey_ene        =         15
+  torsion_ene     =         43  improper_ene    =          4
+  cmap_ene        =          1
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Get_Morph_in> Morphing check
+  morphing_bb =           0  morphing_sc =           0
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Setup_Settle> Setup constraints for SETTLE
+  num_unconsbonds =         21      num_Settle  =       9245
+  r0(O-H)         =     0.9572  mass(O)         =    15.9994
+  r0(H-H)         =     1.5139  mass(H)         =     1.0080
+ 
+Setup_Shake> Setup constrains for SHAKE and RATTLE
+  num_unconsbonds =          9  num_rigid_bonds =         12
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      55533 (After setup of SETTLE)
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      55521 (After setup of SHAKE/RATTLE)
+ 
+Setup_Gamd> Gamd initial parameters
+      ene_pot_th  =   -89354.10160
+      k_pot       =        0.00005
+
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP          ENERGY            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT  POTENTIAL_GAMD
+ --------------- --------------- --------------- --------------- ---------------
+               0     -90327.3915          5.7251         13.9139          0.6448          3.1099          0.4511         -1.1261       9645.1936     -99995.3038         23.9359
+
+[STEP5] Perform Molecular Dynamics Simulation
+ 
+INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT     TEMPERATURE          VOLUME  POTENTIAL_GAMD
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          5          0.0100     -73874.3881     -90022.0642      16136.4024         13.0566          3.6557         17.3316          0.9058          3.7148          0.8403         -1.2829       9797.2463     -99844.4760        292.5094     275426.5726         11.2738
+
+INFO:         10          0.0200     -73876.5208     -90002.2192      16115.0845         13.0625          4.6466         12.7469          0.8453          3.8354          0.9362         -1.3908       9821.2197     -99845.0585        292.1230     275426.5726         10.6138
+
+INFO:         15          0.0300     -73878.6134     -90145.8330      16247.8129         12.8335          2.9885         12.5517          0.8361          3.8392          1.4229         -1.4113       9759.7733     -99925.8333        294.5290     275426.5726         19.4066
+
+INFO:         20          0.0400     -73883.0775     -90046.8569      16148.9217         12.9048          2.7580         13.7877          0.4703          3.5281          0.7615         -1.2843       9699.5548     -99766.4329        292.7363     275426.5726         14.8578
+
+INFO:         25          0.0500     -73882.2476     -90057.2271      16154.7778         12.7023          3.5088          9.9565          0.9873          3.5771          1.4168         -1.0751       9659.4053     -99735.0039        292.8425     275426.5726         20.2018
+
+INFO:         30          0.0600     -73883.2950     -89977.0329      16077.8815         12.7843          2.2138         10.4809          0.4741          3.2710          1.2571         -1.4446       9654.3228     -99647.6081        291.4486     275426.5726         15.8564
+
+INFO:         35          0.0700     -73868.0423     -89935.7358      16051.2997         12.7137          1.7644          9.9149          1.0299          2.8895          0.1326         -1.2057       9676.0400     -99626.3014        290.9667     275426.5726         16.3938
+
+INFO:         40          0.0800     -73870.7574     -89938.3829      16051.0822         12.7072          3.5746          8.6016          0.5626          3.6333          0.5572         -0.9273       9691.0651     -99645.4499        290.9628     275426.5726         16.5433
+
+INFO:         45          0.0900     -73872.0020     -89904.4144      16017.9795         12.7651          3.2590          9.1797          0.5131          3.4111          0.2864         -1.3420       9696.7714     -99616.4931        290.3627     275426.5726         14.4329
+
+INFO:         50          0.1000     -73878.8139     -89988.2299      16090.2518         12.6635          1.6711         11.6948          1.1670          4.1902          1.0574         -1.1791       9676.3459     -99683.1772        291.6728     275426.5726         19.1642
+
+INFO:         55          0.1100     -73873.2223     -89911.8077      16023.5608         12.7620          5.2137          9.4578          0.7946          4.5511          1.1540         -1.4435       9652.0241     -99583.5594        290.4639     275426.5726         15.0245
+
+INFO:         60          0.1200     -73873.7801     -89927.9438      16038.2571         12.7593          2.5979         12.6707          0.8510          5.7362          0.1651         -1.2664       9676.1528     -99624.8511        290.7303     275426.5726         15.9065
+
+INFO:         65          0.1300     -73879.9253     -89887.5994      15993.2543         12.7748          5.4172          5.3633          0.2866          5.0409          1.9537         -1.2101       9718.0112     -99622.4623        289.9145     275426.5726         14.4198
+
+INFO:         70          0.1400     -73880.7525     -89947.3705      16048.7861         12.7042          2.7135          7.0564          1.8684          4.2557          2.7206         -1.3993       9771.0228     -99735.6086        290.9211     275426.5726         17.8319
+
+INFO:         75          0.1500     -73883.2745     -89935.7575      16034.8910         12.6961          1.1066          7.4106          0.4684          4.3788          1.6213         -0.8131       9773.8427     -99723.7726        290.6693     275426.5726         17.5919
+
+INFO:         80          0.1600     -73880.6202     -89890.6988      15995.1066         12.7408          3.7526         11.5500          0.6905          5.6488          0.7387         -1.3434       9714.7284     -99626.4643        289.9481     275426.5726         14.9719
+
+INFO:         85          0.1700     -73889.2106     -89923.5138      16016.6554         12.6427          0.9509          8.2180          0.6546          6.8124          1.4497         -1.2971       9638.9921     -99579.2944        290.3387     275426.5726         17.6479
+
+INFO:         90          0.1800     -73892.3855     -89873.1704      15966.1197         12.6978          1.4801          9.2091          0.7639          3.8795          0.7136         -1.1617       9590.7676     -99478.8226        289.4226     275426.5726         14.6652
+
+INFO:         95          0.1900     -73903.7645     -89853.9631      15936.1296         12.6897          5.1614         11.6259          0.9773          3.3709          1.3594         -1.2109       9546.5267     -99421.7737        288.8790     275426.5726         14.0690
+
+INFO:        100          0.2000     -73909.4959     -89861.1681      15937.1947         12.6888          2.7801         11.7690          0.3591          3.7401          0.8197         -1.3001       9535.7677     -99415.1036        288.8983     275426.5726         14.4775
+
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       2.650
+    setup         =       0.423
+    dynamics      =       2.227
+      energy      =       2.059
+      integrator  =       0.136
+      pairlist    =       0.103 (       0.101,       0.104)
+  energy           
+    bond          =       0.000 (       0.000,       0.001)
+    angle         =       0.001 (       0.001,       0.001)
+    dihedral      =       0.001 (       0.001,       0.001)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       1.823 (       1.814,       1.831)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       1.070 (       1.047,       1.079)
+      pme recip   =       0.753 (       0.742,       0.773)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.079 (       0.077,       0.080)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

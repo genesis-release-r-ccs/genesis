@@ -38,11 +38,16 @@ module sp_md_respa_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -77,6 +82,7 @@ contains
   !! @param[inout] constraints : bond constraint information
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -122,6 +128,7 @@ contains
     real(wip),       pointer :: force_short(:,:,:), force_long(:,:,:)
     integer,         pointer :: ncell, natom(:)
     logical,         pointer :: XI_RESPA, XO_RESPA
+
 
     atmcls_pbc    => domain%atmcls_pbc
     ncell         => domain%num_cell_local
@@ -203,7 +210,7 @@ contains
         call communicate_force(domain, comm, force_short)
         call communicate_force(domain, comm, force_long)
 
-        if (constraints%tip4) then
+        if (constraints%water_type == TIP4) then
           call water_force_redistribution(constraints, domain, &
                                           force_short, virial)
           call water_force_redistribution(constraints, domain, &
@@ -281,7 +288,7 @@ contains
         ! cell migration and update cell pairlist
         !
         if (dynamics%nbupdate_period > 0 .and. &
-            j .eq. multistep .and. i > istart) then
+            j == multistep .and. i > istart) then
 
           call domain_interaction_update(istep, dynamics%nbupdate_period,     &
                                          domain, enefunc, pairlist, boundary, &
@@ -291,9 +298,9 @@ contains
 
         ! Simulated annealing
         !
-        if (dynamics%anneal_period > 0 .and. i > istart .and. &
-            mod(istep-1,dynamics%anneal_period) == 0) then
-          call simulated_annealing_vverlet(dynamics, ensemble)
+        if (dynamics%anneal_period > 0 .and. i > istart) then
+          if (mod(istep-1,dynamics%anneal_period) == 0) &
+            call simulated_annealing_vverlet(dynamics, ensemble)
         end if
 
         ! short range forces
@@ -310,7 +317,7 @@ contains
 
           pairlist%univ_update = 0
           enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
-          npt1 = npt .and. mod(istep-1,dynamics%baro_period)==0
+          npt1 = npt .and. mod(istep-1,dynamics%baro_period) == 0
 
           call compute_energy_short(domain, enefunc, pairlist, boundary, coord,&
                                     npt1,                                      &
@@ -329,7 +336,7 @@ contains
 
           call communicate_force(domain, comm, force_short)
 
-          if (constraints%tip4) &
+          if (constraints%water_type == TIP4) &
             call water_force_redistribution(constraints, domain, force_short, &
                                             virial)
           call timer(TimerComm2, TimerOff)
@@ -340,14 +347,14 @@ contains
         ! full step velocities with foce_short
         ! long range force for last inner step
         !
-        if (j .eq. multistep) then
+        if (j == multistep) then
 
           enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
-          npt1 = npt .and. mod(istep,dynamics%baro_period)==0
+          npt1 = npt .and. mod(istep,dynamics%baro_period) == 0
 
           call compute_energy(domain, enefunc, pairlist, boundary, coord,      &
                               npt1,.false.,                                    &
-                              mod(istep,dynamics%eneout_period)==0,            &
+                              mod(istep,dynamics%eneout_period) == 0,          &
                               .false.,                                         &
                               enefunc%nonb_limiter,                            &
                               dynvars%energy,                                  &
@@ -366,7 +373,7 @@ contains
           call communicate_force(domain, comm, force_long)
           call communicate_force(domain, comm, force_short)
 
-          if (constraints%tip4) then
+          if (constraints%water_type == TIP4) then
             call water_force_redistribution(constraints, domain, &
                                             force_short, virial)
             call water_force_redistribution(constraints, domain, &
@@ -423,8 +430,8 @@ contains
   !! @authors      JJ
   !! @param[in]    npt         : flag for NPT or not
   !! @param[in]    output      : output information
-  !! @param[in]    enefunc     : potential energy functions information
-  !! @param[in]    dynamics    : dynamics information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] dynamics    : dynamics information
   !! @param[in]    pairlist    : pairlist information
   !! @param[in]    boundary    : boundary information
   !! @param[in]    ensemble    : ensemble information
@@ -473,6 +480,7 @@ contains
     real(dp),        pointer :: kin_full(:), ekin_full
     real(wip),       pointer :: force_short(:,:,:), force_long(:,:,:)
     integer,         pointer :: natom(:)
+
 
     atmcls_pbc    => domain%atmcls_pbc
     natom         => domain%num_atom
@@ -532,7 +540,7 @@ contains
         end do
       end do
 
-    else if (enefunc%table%tip4) then
+    else if (constraints%water_type == TIP4) then
 
       call decide_dummy(domain, constraints, coord)
 
@@ -552,7 +560,7 @@ contains
 
     call communicate_force(domain, comm, force_short)
     call communicate_force(domain, comm, force_long)
-    if (constraints%tip4 .or. enefunc%table%tip4) then
+    if (constraints%water_type == TIP4) then
       call water_force_redistribution(constraints, domain, &
                                       force_short, virial)
       call water_force_redistribution(constraints, domain, &
@@ -595,7 +603,7 @@ contains
       end do
     end do
 
-    call compute_constraints(ConstraintModeLEAP, .false., -dt, coord_ref,   &
+    call compute_constraints(ConstraintModeLEAP, .false., -dt, coord_ref,    &
                              domain, constraints, coord, vel_ref,            &
                              virial_const)
     virial_const(1:3,1:3) = 2.0_dp * virial_const(1:3,1:3)
@@ -643,6 +651,8 @@ contains
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    istep       : dynamics step        
+  !! @param[in]    istart      : dynamics start step
+  !! @param[in]    inner_step  : inner step
   !! @param[in]    dt_long     : outer loop time step 
   !! @param[in]    dt_short    : inner loop time step 
   !! @param[inout] ensemble    : ensemble information
@@ -653,8 +663,9 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine integrate_vv1(dynamics, istep, istart, inner_step, dt_long, dt_short,   &
-                           ensemble, domain, constraints, boundary, dynvars)
+  subroutine integrate_vv1(dynamics, istep, istart, inner_step, dt_long, &
+                           dt_short, ensemble, domain, constraints, boundary, &
+                           dynvars)
 
     ! formal arguments
     type(s_dynamics),        intent(in)    :: dynamics
@@ -672,9 +683,10 @@ contains
     integer  :: alloc_stat, ncell
     real(wip):: dt_therm, dt_baro
 
+
     ! select ensemble, thermostat and barostat
     !
-    if (.not. ensemble%group_tp) &
+    if (.not. ensemble%group_tp .and. constraints%rigid_bond) &
       call error_msg('In VRES, ensemble%group_tp=NO does not work')
 
     select case (ensemble%ensemble)
@@ -691,8 +703,8 @@ contains
       case (TpcontrolBerendsen, TpcontrolBussi, TpcontrolNHC)
 
         call vel_rescaling_thermostat_vv1(inner_step, dt_long, dt_short,     &
-                                          dynamics, istep, istart, ensemble, domain, &
-                                          constraints, dynvars)
+                                          dynamics, istep, istart, ensemble, &
+                                          domain, constraints, dynvars)
 
       case default
 
@@ -734,6 +746,7 @@ contains
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    istep       : dynamics step        
+  !! @param[in]    inner_step  : inner step
   !! @param[in]    dt_long     : outer loop time step 
   !! @param[in]    dt_short    : inner loop time step 
   !! @param[inout] ensemble    : ensemble information
@@ -760,6 +773,7 @@ contains
     type(s_dynvars),         intent(inout) :: dynvars
 
     real(wip):: dt_therm
+
 
     dt_therm = dt_short * real(dynamics%thermo_period,wip)
 
@@ -820,14 +834,10 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    integrate_vv1_final
+  !  Subroutine    coord_vel_ref
   !> @brief        output in the last step
   !! @authors      JJ
-  !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    dt_long     : long time step        
-  !! @param[in]    dt_short    : short time step        
   !! @param[inout] domain      : domain information
-  !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -880,6 +890,7 @@ contains
   !> @brief        VV1 with NVE
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
+  !! @@aram[in]    istep       : dynamics step
   !! @param[in]    dt_long     : long time step        
   !! @param[in]    dt_short    : short time step        
   !! @param[inout] domain      : domain information
@@ -1037,6 +1048,7 @@ contains
   !> @brief        VV2 with NVE
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    inner_step  : inner step
   !! @param[in]    dt_long     : long time step        
   !! @param[in]    dt_short    : short time step        
   !! @param[inout] domain      : domain information
@@ -1070,6 +1082,7 @@ contains
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)
     real(dp),        pointer :: virial(:,:), viri_const(:,:)
 
+
     ! use pointers
     !
     ncell       =  domain%num_cell_local
@@ -1092,7 +1105,7 @@ contains
 
     ! VV2
     !
-    if (inner_step .eq. dynamics%elec_long_period) then
+    if (inner_step == dynamics%elec_long_period) then
 
       !$omp parallel do private(i, ix, factor)
       do i = 1, ncell
@@ -1137,7 +1150,13 @@ contains
   !  Subroutine    vel_rescaling_thermostat_vv1
   !> @brief        VV1 with Bussi's thermostat (group temp or no constraint)
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    inner_step  : inner step
+  !! @param[in]    dt_long     : long time step
+  !! @param[in]    dt_short    : short time step
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step        
+  !! @param[in]    istart      : dynamics start step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1145,8 +1164,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine vel_rescaling_thermostat_vv1(inner_step, dt_long, dt_short,      &
-                                          dynamics, istep, istart, ensemble, domain,  &
-                                          constraints, dynvars)
+                                          dynamics, istep, istart, ensemble,  &
+                                          domain, constraints, dynvars)
 
     ! formal arguments
     integer,                 intent(in)    :: inner_step
@@ -1180,6 +1199,7 @@ contains
     real(dp),        pointer :: virial_long(:,:)
     real(dp),        pointer :: kin(:), kin_full(:), kin_half(:), kin_ref(:)
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
+
 
     ncell       => domain%num_cell_local
     natom       => domain%num_atom
@@ -1295,7 +1315,7 @@ contains
     end if
  
     ! VV1
-    if (inner_step .eq. 1) then
+    if (inner_step == 1) then
 
       !$omp parallel do private(i, ix, k, l, factor)
       do i = 1, ncell
@@ -1344,13 +1364,16 @@ contains
 
   end subroutine vel_rescaling_thermostat_vv1
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    langevin_thermostat_vv1
   !> @brief        control temperature using Langevin thermostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    inner_step  : inner step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
   !! @param[in]    ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
@@ -1469,7 +1492,7 @@ contains
 
     ! Thermostat before VV1
     !
-    if (mod(istep-1, dynamics%thermo_period).eq.0) then
+    if (mod(istep-1, dynamics%thermo_period) == 0) then
 
       ! Thermostat
       !
@@ -1484,7 +1507,7 @@ contains
 
     ! VV1 with long range force
     !
-    if (inner_step .eq. 1) then
+    if (inner_step == 1) then
       do j = 1, ncell
         do jx = 1, natom(j)
           factor = 0.5_wip * dt_long * inv_mass(jx,j)
@@ -1531,13 +1554,16 @@ contains
 
   end subroutine langevin_thermostat_vv1
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    langevin_thermostat_vv2
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    inner_step  : inner step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
   !! @param[in]    ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
@@ -1609,7 +1635,7 @@ contains
       end do
     end do
 
-    if (inner_step .eq. dynamics%elec_long_period) then
+    if (inner_step == dynamics%elec_long_period) then
 
       ! VV2 (long range force)
       !
@@ -1620,7 +1646,7 @@ contains
         end do
       end do
 
-      if (mod(istep,  dynamics%thermo_period) .eq. 0) then
+      if (mod(istep,  dynamics%thermo_period) == 0) then
 
         ! random force
         !
@@ -1692,14 +1718,16 @@ contains
 
   end subroutine langevin_thermostat_vv2
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    langevin_barostat_vv1
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -1805,7 +1833,7 @@ contains
 
     ! maximum iteration
     !
-    if (mod(istep-1,dynamics%baro_period) .eq. 0) then
+    if (mod(istep-1,dynamics%baro_period) == 0) then
       if (constraints%rigid_bond) then
         maxiter = 4
       else
@@ -1861,7 +1889,7 @@ contains
 
       end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_bcast(pforce, 3, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
 
@@ -1928,7 +1956,7 @@ contains
       end do
     end do
 
-    if (mod(istep-1,dynamics%baro_period).eq.0) then
+    if (mod(istep-1,dynamics%baro_period) == 0) then
 
       do i = 1, maxiter
 
@@ -2078,7 +2106,7 @@ contains
 
       ! Thermostat
       !
-      if (mod(istep-1,dynamics%thermo_period).eq.0) then
+      if (mod(istep-1,dynamics%thermo_period) == 0) then
         do j = 1, ncell
           do jx = 1, natom(j)
             vel(1:3,jx,j) = vel(1:3,jx,j) * vel_scale
@@ -2126,7 +2154,6 @@ contains
       call mpi_allreduce(mpi_in_place, kin_temp, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 
-
       do j = 1, ncell
         do jx = 1, natom(j)
           vel(1:3,jx,j) = vel_ref(1:3,jx,j)
@@ -2135,7 +2162,7 @@ contains
 
       ! Thermostat
       !
-      if (mod(istep-1,dynamics%thermo_period).eq.0) then
+      if (mod(istep-1,dynamics%thermo_period) == 0) then
         do j = 1, ncell
           do jx = 1, natom(j)
             vel(1:3,jx,j) = vel(1:3,jx,j) * vel_scale
@@ -2146,7 +2173,7 @@ contains
 
       ! VV1 (long range force)
       !
-      if (mod(istep-1,dynamics%elec_long_period).eq.0) then
+      if (mod(istep-1,dynamics%elec_long_period) == 0) then
         do j = 1, ncell
           do jx = 1, natom(j)
             factor = 0.5_wip * dt_long * inv_mass(jx,j)
@@ -2189,7 +2216,7 @@ contains
 
     kin_ref(1:3) = kin_temp(1:3)
 
-    if (mod(istep-1,dynamics%baro_period).eq.0) then
+    if (mod(istep-1,dynamics%baro_period) == 0) then
 
       viri_const(1:3,1:3) = virial_constraint(1:3,1:3)
 
@@ -2233,7 +2260,11 @@ contains
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ, TM
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    inner_step  : inner step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -2341,7 +2372,7 @@ contains
 
     ! Langevin piston force
     !
-    if (mod(istep, dynamics%baro_period) .eq. 0) then
+    if (mod(istep, dynamics%baro_period) == 0) then
 
       ! barostate coefficient
       !
@@ -2376,17 +2407,17 @@ contains
         pforce(1) = 0.0_wip
         pforce(2) = 0.0_wip
         pforce(3) = sigma * real(random_get_gauss(),wip)
-  
+
       end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_bcast(pforce, 3, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
     end if
 
     ! Langevin random force
     !
-    if (mod(istep, dynamics%thermo_period) .eq. 0) then
+    if (mod(istep, dynamics%thermo_period) == 0) then
 
       vel_scale = exp(-gamma_t*half_dt_therm)
       factor    = 1.0_wip - vel_scale*vel_scale
@@ -2445,7 +2476,7 @@ contains
 
     ! VV2 (long range force)
     !
-    if (inner_step .eq. dynamics%elec_long_period) then
+    if (inner_step == dynamics%elec_long_period) then
       do j = 1, ncell
         do jx = 1, natom(j)
           factor = 0.5_wip * dt_long * inv_mass(jx,j)
@@ -2456,7 +2487,7 @@ contains
 
     ! Thermostat
     !
-    if (mod(istep, dynamics%thermo_period) .eq. 0) then
+    if (mod(istep, dynamics%thermo_period) == 0) then
       do j = 1, ncell
         do jx = 1, natom(j)
           vel(1:3,jx,j) = vel(1:3,jx,j) * vel_scale
@@ -2479,7 +2510,7 @@ contains
                                coord_ref, domain, constraints, coord,  &
                                coord_deri, viri_const)
 
-      if (mod(istep,dynamics%baro_period) .eq. 0) then
+      if (mod(istep,dynamics%baro_period) == 0) then
 
         do j = 1, ncell
           do jx = 1, natom(j)
@@ -2506,13 +2537,12 @@ contains
 
     end if
 
-    if (mod(istep, dynamics%baro_period) .eq. 0) &
+    if (mod(istep, dynamics%baro_period) == 0) &
       viri_const(1:3,1:3) = virial_constraint(1:3,1:3)
 
     return
 
   end subroutine langevin_barostat_vv2
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2520,10 +2550,11 @@ contains
   !> @brief        Bussi thermostat and barostat
   !! @authors      TA, JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
-  !! @param[in]    inner_step  : inner step
-  !! @param[in]    dt_long     : long time step
-  !! @param[in]    dt_short    : shot time step
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    istart      : dynamics start step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -2532,8 +2563,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine mtk_barostat_vv1(dynamics, istep, istart, dt_long, dt_short, &
-                                ensemble, domain, constraints,      &
-                                boundary, dynvars)
+                              ensemble, domain, constraints,      &
+                              boundary, dynvars)
 
     ! formal arguments
     type(s_dynamics),         intent(in)    :: dynamics
@@ -2582,6 +2613,7 @@ contains
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
     real(wip),       pointer :: bmoment(:)
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
+
 
     dt          =  dt_short
     inv_dt      =  1.0_wip/dt
@@ -2674,13 +2706,26 @@ contains
       scale_b(1:3) = bmoment(1:3) + gr
       vel_scale(1:3) = exp(-scale_b(1:3)*half_dt_long)
 
-      call update_vel_group_3d(constraints, ncell, nwater, water_list, &
-                               vel_scale, mass, vel)
+      if (ensemble%group_tp) then
+        call update_vel_group_3d(constraints, ncell, nwater, water_list, &
+                                 vel_scale, mass, vel)
+      else
+        !$omp parallel do private(j,jx)
+        do j = 1, ncell
+          do jx = 1, natom(j)
+            vel(1,jx,j) = vel(1,jx,j) * vel_scale(1)
+            vel(2,jx,j) = vel(2,jx,j) * vel_scale(2)
+            vel(3,jx,j) = vel(3,jx,j) * vel_scale(3)
+          end do
+        end do
+        !$omp end parallel do
+      end if
 
     end if
 
     if (calc_thermostat) then
 
+      !$omp parallel do private(j, jx, factor)
       do j = 1, ncell
         do jx = 1, natom(j)
           factor = half_dt * inv_mass(jx,j)
@@ -2692,12 +2737,17 @@ contains
           vel_half(3,jx,j) = factor*force(3,jx,j)
         end do
       end do
+      !$omp end parallel do
 
-      call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
-                             vel_half, kin_half, ekin_half)
-      call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
-                             vel, kin_full, ekin_full)
-
+      if (ensemble%group_tp) then
+        call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
+                               vel_half, kin_half, ekin_half)
+        call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
+                               vel, kin_full, ekin_full)
+      else
+        call calc_kinetic(ncell, natom, mass, vel_half, kin_half, ekin_half)
+        call calc_kinetic(ncell, natom, mass, vel     , kin_full, ekin_full)
+      end if
 
       ekin = ekin_full + 2.0_dp*ekin_half/3.0_dp
       ekin = ekin + 0.5_dp*pmass*dot_product(bmoment(1:3),bmoment(1:3))
@@ -2716,8 +2766,21 @@ contains
                            ensemble, dynvars, scale_vel)
       end if
 
-      call update_vel_group(constraints, ncell, nwater, water_list, &
-                            scale_vel, mass, vel)
+      if (ensemble%group_tp) then
+        call update_vel_group(constraints, ncell, nwater, water_list, &
+                              scale_vel, mass, vel)
+      else
+        !$omp parallel do private(j,jx)
+        do j = 1, ncell
+          do jx = 1, natom(j)
+            vel(1,jx,j) = vel(1,jx,j)*scale_vel
+            vel(2,jx,j) = vel(2,jx,j)*scale_vel
+            vel(3,jx,j) = vel(3,jx,j)*scale_vel
+          end do
+        end do
+        !$omp end parallel do
+      end if
+
       bmoment(1:3) = bmoment(1:3) * scale_vel
 
       kin_full(1:3) = kin_full(1:3)*scale_vel*scale_vel
@@ -2747,7 +2810,7 @@ contains
         virial_sum(3) = virial(3,3)
       end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 
@@ -2784,8 +2847,21 @@ contains
                            ensemble, dynvars, scale_vel)
       end if
 
-      call update_vel_group(constraints, ncell, nwater, water_list, &
-                            scale_vel, mass, vel)
+      if (ensemble%group_tp) then
+        call update_vel_group(constraints, ncell, nwater, water_list, &
+                              scale_vel, mass, vel)
+      else
+        !$omp parallel do private(j, jx)
+        do j = 1, ncell
+          do jx = 1, natom(j)
+            vel(1,jx,j) = vel(1,jx,j)*scale_vel
+            vel(2,jx,j) = vel(2,jx,j)*scale_vel
+            vel(3,jx,j) = vel(3,jx,j)*scale_vel
+          end do
+        end do
+        !$omp end parallel do
+      end if
+
       bmoment(1:3) = bmoment(1:3) * scale_vel
 
       kin_full(1:3) = kin_full(1:3)*scale_vel*scale_vel
@@ -2806,8 +2882,20 @@ contains
 
       ! scale velocity
       !
-      call update_vel_group_3d(constraints, ncell, nwater, water_list, &
-                            vel_scale, mass, vel)
+      if (ensemble%group_tp) then
+        call update_vel_group_3d(constraints, ncell, nwater, water_list, &
+                              vel_scale, mass, vel)
+      else
+        !$omp parallel do private(j, jx)
+        do j = 1, ncell
+          do jx = 1, natom(j)
+            vel(1,jx,j) = vel(1,jx,j) * vel_scale(1)
+            vel(2,jx,j) = vel(2,jx,j) * vel_scale(2)
+            vel(3,jx,j) = vel(3,jx,j) * vel_scale(3)
+          end do
+        end do
+        !$omp end parallel do
+      end if
 
       !$omp parallel private(j, jx, factor, id)
 #ifdef OMP
@@ -2845,9 +2933,24 @@ contains
     end do
     !$omp end parallel
     size_scale(1:3)  = exp(bmoment(1:3)*half_dt)
-    call compute_vv1_coord_group(constraints, ncell, natom, nwater,       &
-                                 water_list, mass, inv_mass, force_short, &
-                                 coord_ref, vel, size_scale, dt, coord)
+    if (ensemble%group_tp) then
+      call compute_vv1_coord_group(constraints, ncell, natom, nwater,       &
+                                   water_list, mass, inv_mass, force_short, &
+                                   coord_ref, vel, size_scale, dt, coord)
+    else
+      !$omp parallel do private(j, jx)
+      do j = 1, ncell
+        do jx = 1, natom(j)
+          coord(1,jx,j) = size_scale(1)*coord_ref(1,jx,j) + vel(1,jx,j)*dt
+          coord(2,jx,j) = size_scale(2)*coord_ref(2,jx,j) + vel(2,jx,j)*dt
+          coord(3,jx,j) = size_scale(3)*coord_ref(3,jx,j) + vel(3,jx,j)*dt
+          coord(1,jx,j) = size_scale(1)*coord(1,jx,j)
+          coord(2,jx,j) = size_scale(2)*coord(2,jx,j)
+          coord(3,jx,j) = size_scale(3)*coord(3,jx,j)
+        end do
+      end do
+      !$omp end parallel do
+    end if
 
     ! constraints
     !
@@ -2906,11 +3009,10 @@ contains
   !> @brief        VV2 with MTK barostat
   !! @authors      TA, JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
-  !! @param[in]    istep       : step number
-  !! @param[in]    inner_step  : inner step
-  !! @param[in]    dt_long     : long time step
-  !! @param[in]    dt_short    : shot time step
+  !! @param[in]    istep       : dynamics step
+  !! @param[in]    dt_long     : outer loop time step 
+  !! @param[in]    dt_short    : inner loop time step 
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -2957,6 +3059,7 @@ contains
     real(dp) ,       pointer :: virial(:,:), viri_const(:,:), virial_long(:,:)
     real(wip),       pointer :: bmoment(:)
     integer,         pointer :: natom(:)
+
 
     dt          =  dt_short
     inv_dt      =  1.0_wip/dt
@@ -3050,7 +3153,7 @@ contains
 
     ! VV2 (long range force)
     !
-    if (mod(istep, dynamics%elec_long_period) .eq. 0 ) then
+    if (mod(istep, dynamics%elec_long_period) == 0) then
       !$omp parallel private(j,jx,factor,id)
 #ifdef OMP
       id = omp_get_thread_num()
@@ -3176,6 +3279,7 @@ contains
     real(wip)        :: vel_scale(1:3), ekin_real
     integer          :: i, ix
 
+
     gamma0 = ensemble%gamma*ATMOS_P*100.0_wip/1.01325_wip
     ekin_real = real(ekin, wip)
 
@@ -3215,19 +3319,19 @@ contains
 
       if (ensemble%ensemble == EnsembleNPT) then
         bmoment(1) = bmoment(1) + quart_dt*(volume*(press(1) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
         bmoment(2) = bmoment(2) + quart_dt*(volume*(press(2) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
         bmoment(3) = bmoment(3) + quart_dt*(volume*(press(3) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
       else if (ensemble%ensemble == EnsembleNPgT) then
         pressxy0 = press0 - gamma0 / boundary%box_size_z
         bmoment(1) = bmoment(1) + quart_dt*(volume*(press(1) - pressxy0) &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
         bmoment(2) = bmoment(2) + quart_dt*(volume*(press(2) - pressxy0) &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
         bmoment(3) = bmoment(3) + quart_dt*(volume*(press(3) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
       end if
 
     else if (ensemble%isotropy == IsotropyXY_Fixed) then
@@ -3287,19 +3391,19 @@ contains
 
       if (ensemble%ensemble == EnsembleNPT) then
         bmoment(1) = bmoment(1) + quart_dt*(volume*(press(1) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
         bmoment(2) = bmoment(2) + quart_dt*(volume*(press(2) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
         bmoment(3) = bmoment(3) + quart_dt*(volume*(press(3) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
       else if (ensemble%ensemble == EnsembleNPgT) then
         pressxy0 = press0 - gamma0 / boundary%box_size_z
         bmoment(1) = bmoment(1) + quart_dt*(volume*(press(1) - pressxy0) &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(1))/pmass
         bmoment(2) = bmoment(2) + quart_dt*(volume*(press(2) - pressxy0) &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(2))/pmass
         bmoment(3) = bmoment(3) + quart_dt*(volume*(press(3) - press0)   &
-                                    + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
+                                + 2.0_wip*ekin_real/d_ndegf + pforce(3))/pmass
       end if
 
     else if (ensemble%isotropy == IsotropyXY_Fixed) then
@@ -3346,16 +3450,17 @@ contains
 
     real(wip)                :: ekin_real
 
+
     ekin_real = real(ekin,wip)
 
-    if (ensemble%isotropy .eq. IsotropyISO) then
+    if (ensemble%isotropy == IsotropyISO) then
 
       bmoment(1) = bmoment(1) + half_dt*(3.0_wip*volume*(pressxyz - press0) &
                               + 6.0_wip*ekin_real/d_ndegf)/pmass
       bmoment(2) = bmoment(1)
       bmoment(3) = bmoment(1)
 
-    else if (ensemble%isotropy .eq. IsotropySEMI_ISO) then
+    else if (ensemble%isotropy == IsotropySEMI_ISO) then
 
       bmoment(1) = bmoment(1) + half_dt*(volume*(pressxy - press0)   &
                               + 2.0_wip*ekin_real/d_ndegf)/pmass
@@ -3364,7 +3469,7 @@ contains
       bmoment(3) = bmoment(3) + half_dt*(volume*(pressz  - press0)   &
                               + 2.0_wip*ekin_real/d_ndegf)/pmass
 
-    else if (ensemble%isotropy .eq. IsotropyANISO) then
+    else if (ensemble%isotropy == IsotropyANISO) then
 
       bmoment(1) = bmoment(1) + half_dt*(volume*(pressx - press0)    &
                               + 2.0_wip*ekin_real/d_ndegf)/pmass
@@ -3373,7 +3478,7 @@ contains
       bmoment(3) = bmoment(3) + half_dt*(volume*(pressz - press0)    &
                               + 2.0_wip*ekin_real/d_ndegf)/pmass
 
-    else if (ensemble%isotropy .eq. IsotropyXY_Fixed) then
+    else if (ensemble%isotropy == IsotropyXY_Fixed) then
 
       bmoment(1) = 0.0_wip
       bmoment(2) = 0.0_wip
@@ -3386,7 +3491,7 @@ contains
 
   end subroutine update_barostat_mtk
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine reduce_pres
@@ -3405,6 +3510,7 @@ contains
 
     ! local variables
     double precision              :: before_reduce(7), after_reduce(7)
+
 
     before_reduce(1:3) = val1(1:3)
     before_reduce(4)   = val2
@@ -3442,6 +3548,7 @@ contains
 
     integer                  :: i, ix
 
+
     kin(1:3) = 0.0_dp
     !$omp parallel do private(i, ix) reduction(+:kin)
     do i = 1, ncell
@@ -3452,7 +3559,7 @@ contains
       end do
     end do
     !$omp end parallel do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
@@ -3484,6 +3591,7 @@ contains
 
     real(wip)                :: tempf, tempt, factor
 
+
     factor = exp(-dt/tau_t)
     tempf = 2.0_wip * real(ekin,wip)/(real(degree,wip)*KBOLTZ)
     tempt = tempf*factor    &
@@ -3493,7 +3601,7 @@ contains
             *(1.0_wip-factor)*factor)*rr
     scale_vel = sqrt(tempt/tempf)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_bcast(scale_vel, 1, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
 
@@ -3519,6 +3627,7 @@ contains
     real(wip),               intent(inout) :: scale_vel
 
     real(wip)                :: tempf, tempt, factor
+
 
     factor = exp(-dt/tau_t)
     tempf = 2.0_wip * real(ekin,wip)/(real(degree,wip)*KBOLTZ)
@@ -3557,6 +3666,7 @@ contains
     real(wip)                :: tempf, tempt, scale_kin
     real(wip),       pointer :: nh_mass(:), nh_vel(:)
     real(wip),       pointer :: nh_force(:), nh_coef(:)
+
 
     nh_length   = ensemble%nhchain
     nh_step     = ensemble%nhmultistep
@@ -3660,6 +3770,7 @@ contains
 
     integer                  :: i, ix
 
+
     !$omp parallel do
     do i = 1, ncell
       do ix = 1, natom(i)
@@ -3692,7 +3803,7 @@ contains
     ! formal arguments
     real(wip),               intent(inout) :: val1, val2, val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(wip)                :: list(3)

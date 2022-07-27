@@ -15,10 +15,10 @@ boost_type    = DIHEDRAL
 thresh_type   = LOWER
 sigma0_dih    = 6.0
 update_period = 10
-dih_max       = 8.1351
-dih_min       = -1.6350
-dih_ave       = 2.6025
-dih_dev       = 1.2736
+dih_max       = 9.1716
+dih_min       = -1.4541
+dih_ave       = 2.8288
+dih_dev       = 1.2448
 
 [ENERGY]
 forcefield       = CHARMM
@@ -31,6 +31,8 @@ pme_alpha        = 0.34
 pme_ngrid_x      = 64
 pme_ngrid_y      = 64
 pme_ngrid_z      = 64
+pme_nspline      = 4
+pme_scheme       = NOOPT_2DALLTOALL
 table_density    = 20.000
 
 [DYNAMICS]

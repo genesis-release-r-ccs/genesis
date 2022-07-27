@@ -21,16 +21,17 @@ Build_Information> Compiler Information
   build host   = oshima@goby
   fortran      = ifort (IFORT) 19.0.5.281 20190815
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+ -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
   C            = icc (ICC) 19.0.5.281 20190815
-  option       = -O3 -ip -axCORE-AVX2  -qopenmp
-  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp  -L/home/oshima/Soft/lapack-3.8.0 -lmkl_intel_lp64 -
- lmkl_sequential -lmkl_core -lmkl_lapack95_lp64 
+  -assume byterecl -lgfortran -qopenmp  -L/home/oshima/Soft/lapack-3.8.0 -lmkl_i
+ ntel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64  
 
 Runtime_Information> Machine and Library Information
-  date       = 2022/02/25 01:13:54
+  date       = 2022/05/09 17:18:03
   cpu model    = Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz
   exec. host   = oshima@goby14
   LD library   = 
@@ -56,10 +57,10 @@ Read_Ctrl_Output> Output Files
 Read_Ctrl_Gamd> Gamd information
   boost_type       = POTENTIAL
   sigma0_pot       =   6.00000
-  pot_max          = -21034.0864000000
-  pot_min          = -21414.9372000000
-  pot_ave          = -21206.9038000000
-  pot_dev          =     52.7554000000
+  pot_max          = -21012.5870000000
+  pot_min          = -21402.8924000000
+  pot_ave          = -21215.1064000000
+  pot_dev          =     51.1611000000
   thresh_type      = LOWER
   update_period    =        10
   boost            = YES
@@ -72,10 +73,10 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   dielec_const    =           1.000
   VDW type        =          CUTOFF
   electrostatic   =             PME
-  pme_ngrid(x,y,z)=    36   36   36
+  pme_ngrid(x,y,z)=    32   32   32
   pme_nspline     =               4
   pme_alpha       =         0.34864
-  pme_scheme      =      AUTOSELECT
+  pme_scheme      = NOOPT_2DALLTOAL
   nonbond_kernel  =      AUTOSELECT
   table_order     =               1
   table_density   =          20.000
@@ -83,6 +84,11 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   dispersion_corr =          epress
   nonb_limiter    =              no
   contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
  
 Read_Ctrl_Dynamics> Parameters of MD simulation
   integrator      =       VVER  nsteps          =         20
@@ -148,10 +154,12 @@ Read_Prmtop> Summary of PRMTOP file
   NUMBND          =         13  NUMANG          =         21
   NPTRA           =         20  NATYP           =         10
   NPHB            =          1
+  NCMAP           =          0  NCMAPTYPE       =          0
  
 Read_Rst_Binary> Summary of RST file
   num_atoms       =       6721  iseed           =     379362
   boxsize (x,y,z) =     40.741    40.741    40.741
+
 Define_Molecule> Summary of molecules
   num_atoms       =       6721  num_bonds       =       6720
   num_angles      =         36  num_dihedrals   =         63
@@ -170,29 +178,17 @@ Select_kernel>
   Pairlist        = INTEL       
   Nonbond         = INTEL       
 
+Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
+
 Define_Enefunc_Amber> Number of Interactions in Each Term
   bond_ene        =          9  angle_ene       =         36
   torsion_ene     =         63  improper_ene    =          4
+  cmap_ene        =          0
  restraint_groups =          0 restraint_funcs  =          0
  
 Setup_Fitting_Spdyn> NO fitting is applied, skip
   fitting method  =  NO
  
-Select_FFT_Scheme> Checking performance of long range interaction operation...
-
-  OPT_1DALLTOALL   :       62.740 (ms)
-  NOOPT-1DALLTOALL :       50.579 (ms)
-
-  WARNING: PME grid number is different from the input
-  pme_ngrid(x,y,z)=         40        36        36
-
-
-  WARNING: PME grid number is different from the input
-  pme_ngrid(x,y,z)=         40        36        36
-
-  NOOPT-2DALLTOALL :       43.796 (ms)
-
-Select_FFT_Scheme> selected scheme is NOOPT_2DALLTOALL
 Setup_Dynamics> Subtract 3 translational degrees of freedom
  
 Update_Num_Deg_Freedom> Number of degrees of freedom was updated
@@ -205,6 +201,7 @@ Setup_Fast_Water> Setup constraints for SETTLE
   r0(O-H)         =     0.9572  mass(O)         =    16.0000
   r0(H-H)         =     1.5136  mass(H)         =     1.0080
  
+ 
 Update_Num_Deg_Freedom> Number of degrees of freedom was updated
   num_deg_freedom =      13461 (After setup of SETTLE)
  
@@ -215,8 +212,8 @@ Update_Num_Deg_Freedom> Number of degrees of freedom was updated
   num_deg_freedom =      13449 (After setup of SHAKE/RATTLE)
  
 Setup_Gamd> Gamd initial parameters
-      ene_pot_th  =   -21034.08640
-      k_pot       =        0.00066
+      ene_pot_th  =   -21012.58700
+      k_pot       =        0.00058
 
 Random_Init> Initialize the random number
   seed            = 11
@@ -230,46 +227,58 @@ Update_Num_Deg_Freedom> Number of degrees of freedom was updated
  
             STEP            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT  POTENTIAL_GAMD
  --------------- --------------- --------------- --------------- ---------------
-               0          3.1490         10.2090         11.4320          0.6744       3365.6533       -181.4002     -24602.8036         10.3789
+               0          4.8796          7.5649         10.5728          0.6573       3396.1208       -181.4002     -24641.6350         12.6782
 
 [STEP5] Perform Molecular Dynamics Simulation
  
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT     TEMPERATURE          VOLUME  POTENTIAL_GAMD
  --------------- --------------- --------------- --------------- ---------------
-INFO:          5          0.0200     -17442.4219     -21355.3953       3906.5324         12.7159          2.8371          9.5885         10.6402          0.5065       3345.5830       -181.4002     -24543.1504        297.6007      67624.3257          6.4410
+INFO:          5          0.0200     -17445.5471     -21291.9455       3843.6200         13.3032          3.5659          6.2760         10.3705          0.6734       3473.1841       -181.4002     -24604.6152        296.2624      67624.3257          2.7784
 
-INFO:         10          0.0400     -17439.4111     -21298.6044       3856.9201         13.2697          4.3426          6.8893         10.1794          1.6822       3406.7143       -181.4002     -24547.0120        289.1937      67624.3257          2.2733
+INFO:         10          0.0400     -17442.6910     -21311.9047       3865.1878         13.1071          3.5579          9.0960          9.4762          0.4117       3446.4206       -181.4002     -24599.4669        295.6441      67624.3257          4.0260
 
-INFO:         15          0.0600     -17436.7612     -21251.8621       3814.2227         13.3388          4.5185         11.1472          9.6030          0.1554       3413.1372       -181.4002     -24509.0234        286.8606      67624.3257          0.8782
+INFO:         15          0.0600     -17438.6815     -21267.1866       3824.8425         12.6126          2.8625          6.9856          9.7098          1.0761       3441.9053       -181.4002     -24548.3258        293.9218      67624.3257          3.6625
 
-INFO:         20          0.0800     -17430.2004     -21263.4636       3831.7356         13.0887          3.0323          8.7268          9.9041          0.1684       3390.1696       -181.4002     -24494.0646        290.3786      67624.3257          1.5277
+INFO:         20          0.0800     -17432.7211     -21224.9448       3791.5686         13.4687          2.7777          4.9277         10.4039          0.5889       3508.5353       -181.4002     -24570.7780        286.7242      67624.3257          0.6551
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.402
-    setup         =       0.358
-    dynamics      =       0.044
-      energy      =       0.033
-      integrator  =       0.004
-      pairlist    =       0.005 (       0.005,       0.006)
+  total time      =       0.284
+    setup         =       0.219
+    dynamics      =       0.065
+      energy      =       0.050
+      integrator  =       0.006
+      pairlist    =       0.006 (       0.005,       0.006)
   energy           
     bond          =       0.000 (       0.000,       0.000)
     angle         =       0.000 (       0.000,       0.000)
-    dihedral      =       0.000 (       0.000,       0.000)
-    nonbond       =       0.029 (       0.028,       0.029)
-      pme real    =       0.018 (       0.017,       0.019)
-      pme recip   =       0.011 (       0.010,       0.012)
+    dihedral      =       0.000 (       0.000,       0.001)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.044 (       0.044,       0.044)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.027 (       0.020,       0.031)
+      pme recip   =       0.017 (       0.014,       0.024)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
     restraint     =       0.000 (       0.000,       0.000)
     qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.001 (       0.001,       0.001)
-    update        =       0.002 (       0.002,       0.003)
-    comm_coord    =       0.001 (       0.001,       0.001)
-    comm_force    =       0.001 (       0.001,       0.001)
-    comm_migrate  =       0.001 (       0.000,       0.001)
+    update        =       0.005 (       0.004,       0.005)
+    comm_coord    =       0.002 (       0.002,       0.003)
+    comm_force    =       0.002 (       0.001,       0.002)
+    comm_migrate  =       0.002 (       0.000,       0.002)
 

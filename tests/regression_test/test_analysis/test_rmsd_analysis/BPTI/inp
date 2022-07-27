@@ -1,0 +1,27 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+rmsfile        = out
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = sid:BPTI and an:CA
+ 
+[FITTING]
+fitting_method = TR+ROT
+fitting_atom   = 1
+ 
+[OPTION]
+check_only     = NO              # (YES/NO)
+analysis_atom  = 1               # atom group

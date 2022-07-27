@@ -1,3 +1,4 @@
+MPI startup(): "shm" shm transport is not supported. "bdw_avx2" shm transport will be used.
 ****************************************************
 *                                                  *
 *                  GENESIS SPDYN                   *
@@ -18,28 +19,36 @@ GENESIS_Information> GENESIS Information
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = jung@eel
-  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  build host   = jung@dolphin1
+  fortran      = ifort (IFORT) 19.1.3.304 20200925
   option       = 
- -xHost -axCORE-AVX2 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
-  C            = icc (ICC) 19.0.5.281 20190815
-  option       = -O3 -ip -axCORE-AVX2  -qopenmp
-  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+ -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.1.3.304 20200925
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_
- lapack95_lp64 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
 
 Runtime_Information> Machine and Library Information
-  date       = 2020/11/17 17:36:24
-  cpu model    = Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz
-  exec. host   = jung@eel10.local
+  date       = 2022/05/10 18:21:18
+  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
+  exec. host   = jung@
   LD library   = 
- /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
- intel-v2019.5_pbspro/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019
- .5.281/linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and
- _libraries_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/
- compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/inte
- l/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+ /opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/opt/intel/compilers_and_libr
+ aries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_librar
+ ies_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_librari
+ es_2020.4.304/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_
+ 2020.4.304/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/
+ linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/l
+ ib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/inte
+ l64/gcc4.8:/opt/intel/debugger_2020/python/intel64/lib:/opt/intel/debugger_2020
+ /libipt/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/li
+ b/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/../tbb/l
+ ib/intel64_lin/gcc4.4:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/
+ ../tbb/lib/intel64_lin/gcc4.8:/usr/local/cuda/lib64:/home/jung/program/openmpi/
+ gcc/lib:/usr/local/lib
 
 [STEP1] Read Control Parameters
  
@@ -73,6 +82,11 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   dispersion_corr =            none
   nonb_limiter    =              no
   contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
  
 Read_Ctrl_Minimize> Parameters of MIN
   method          =         SD  nsteps          =         20
@@ -103,8 +117,8 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
  
 Setup_Mpi_Md> Summary of Setup MPI
   number of MPI processes   =          8
-  number of OpenMP threads  =          3
-  total number of CPU cores =         24
+  number of OpenMP threads  =          2
+  total number of CPU cores =         16
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -133,14 +147,15 @@ Read_Psf> Summary of Psffile
   num_impropers   =        324  num_cmap_terms  =          0
   num_HB_donors   =      10044  num_HB_acceptors=       5022
   num_NB_exclusion=          0  num_groups      =      10206
-  total_charge    =      0.000
+  total_charge    =     -0.000
  
 Read_Pdb> Summary of Data in PDB file
   num_atoms       =      36126
  
 Read_Rst_Binary> Summary of RST file
   num_atoms       =      36126  iseed           =  602678132
-  boxsize (x,y,z) =     69.479    69.479    71.651
+  boxsize (x,y,z) =     69.478    69.478    71.650
+
 Define_Molecule> Summary of molecules
   num_atoms       =      36126  num_bonds       =      35964
   num_angles      =      45522  num_dihedrals   =      56538
@@ -156,13 +171,13 @@ Setup_Boundary_Cell> Set Variables for Boundary Condition
   ncells (x,y,z)  =          8         8         8
  
 Select_kernel> 
-  Pairlist        = KNL         
-  Nonbond         = INTELKNL    
+  Pairlist        = INTEL       
+  Nonbond         = INTEL       
 
 Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
 
 Define_Enefunc_Charmm> Number of Interactions in Each Term
-  bond_ene        =      30942  angle_ene       =      45522
+  bond_ene        =      35964  angle_ene       =      45522
   torsion_ene     =      73872  improper_ene    =        324
   cmap_ene        =          0
   nb_exclusions   =      76464  nb14_calc       =      56538
@@ -174,60 +189,72 @@ Setup_Fitting_Spdyn> NO fitting is applied, skip
  
             STEP            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER         VDWAALS           ELECT
  --------------- --------------- --------------- --------------- ---------------
-               0        983.2740       5081.7874       2369.4869       7789.4295         88.7273      -4971.7644     -72494.5226
+               0        983.7833       5037.1461       2583.1276       7353.7846         34.0442      -5195.2955     -72424.0070
 
 [STEP5] Perform Energy Minimization
  
 INFO:       STEP   POTENTIAL_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER         VDWAALS           ELECT
  --------------- --------------- --------------- --------------- ---------------
-INFO:          0     -61153.5819         11.2765        983.2740       5081.7874       2369.4869       7789.4295         88.7273      -4971.7644     -72494.5226
+INFO:          0     -61627.4168         11.4797        983.7833       5037.1461       2583.1276       7353.7846         34.0442      -5195.2955     -72424.0070
 
-INFO:          2     -63284.2074          8.4561        869.2455       4710.0766       2262.0592       7767.8100         75.4928      -5016.9374     -73951.9540
+INFO:          2     -63791.7785          8.5668        814.9671       4664.7842       2462.6282       7342.9152         30.3951      -5264.1538     -73843.3144
 
-INFO:          4     -64850.7054          6.1085       1167.9652       4422.6811       2156.7717       7745.1434         62.3355      -5054.8377     -75350.7647
+INFO:          4     -65373.5456          6.1419       1090.6707       4388.1830       2335.7236       7331.5995         26.7227      -5327.5070     -75218.9381
 
-INFO:          6     -65979.8566          4.4650       1651.0845       4200.5949       2049.8057       7721.2174         49.5994      -5085.7469     -76566.4116
+INFO:          6     -66503.1251          4.4402       1580.3393       4186.1895       2200.8329       7319.3584         23.3138      -5385.2417     -76427.9174
 
-INFO:          8     -66838.9969          3.5809       2010.9957       4015.6988       1942.7609       7696.9674         38.6495      -5110.8759     -77433.1933
+INFO:          8     -67353.3603          3.5306       1961.2858       4026.7198       2064.4439       7306.2997         20.7620      -5435.8028     -77297.0687
 
-INFO:         10     -67558.4846          3.0970       2124.4132       3850.4057       1842.6551       7674.0554         30.7922      -5132.7175     -77948.0887
+INFO:         10     -68061.8692          3.0493       2090.1986       3887.1724       1939.5955       7293.4377         19.4159      -5478.1616     -77813.5277
 
-INFO:         12     -68189.3341          2.7369       2107.4303       3705.1373       1752.8765       7652.8321         25.7575      -5152.9697     -78280.3982
+INFO:         12     -68683.8832          2.7053       2082.3752       3765.3617       1831.2420       7281.4158         18.9437      -5513.1845     -78150.0370
 
-INFO:         14     -68748.5700          2.4319       2061.2160       3581.8690       1673.4537       7632.9378         22.6550      -5171.6487     -78549.0529
+INFO:         14     -69238.7270          2.4234       2042.3114       3661.4519       1738.1019       7270.3012         18.8703      -5541.5999     -78428.1640
 
-INFO:         16     -69246.2980          2.1675       2020.0428       3478.2410       1603.9839       7614.1002         20.7565      -5188.4007     -78795.0216
+INFO:         16     -69737.4389          2.1853       2005.1620       3571.5522       1658.2177       7260.0293         18.8880      -5563.6690     -78687.6190
 
-INFO:         18     -69690.5350          1.9374       1989.7088       3390.0223       1543.9870       7596.1620         19.5761      -5202.8748     -79027.1164
+INFO:         18     -70188.3700          1.9811       1977.3228       3490.9130       1589.8887       7250.5178         18.8580      -5579.7219     -78936.1485
 
-INFO:         20     -70088.1877          1.7368       1969.0877       3313.4672       1492.8326       7579.0141         18.8152      -5214.8773     -79246.5272
+INFO:         20     -70598.0715          1.8039       1958.2892       3416.2901       1531.6543       7241.6784         18.7497      -5590.1353     -79174.5978
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       1.053
-    setup         =       0.410
-    dynamics      =       0.642
-      energy      =       0.625
+  total time      =       1.594
+    setup         =       0.666
+    dynamics      =       0.928
+      energy      =       0.886
       integrator  =       0.000
-      pairlist    =       0.026 (       0.026,       0.028)
+      pairlist    =       0.075 (       0.072,       0.078)
   energy           
-    bond          =       0.001 (       0.001,       0.001)
-    angle         =       0.004 (       0.004,       0.005)
-    dihedral      =       0.007 (       0.006,       0.008)
-    nonbond       =       0.579 (       0.578,       0.580)
-      pme real    =       0.497 (       0.480,       0.515)
-      pme recip   =       0.082 (       0.064,       0.099)
+    bond          =       0.002 (       0.002,       0.003)
+    angle         =       0.009 (       0.008,       0.009)
+    dihedral      =       0.015 (       0.014,       0.016)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.835 (       0.833,       0.836)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.704 (       0.679,       0.734)
+      pme recip   =       0.130 (       0.101,       0.154)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
     restraint     =       0.000 (       0.000,       0.000)
     qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.000 (       0.000,       0.000)
-    update        =       0.008 (       0.008,       0.009)
+    update        =       0.010 (       0.009,       0.010)
     comm_coord    =       0.000 (       0.000,       0.000)
     comm_force    =       0.000 (       0.000,       0.000)
-    comm_migrate  =       0.001 (       0.000,       0.001)
+    comm_migrate  =       0.000 (       0.000,       0.001)
 

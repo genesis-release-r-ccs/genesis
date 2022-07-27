@@ -27,6 +27,7 @@ module sp_constraints_str_mod
     logical                       :: fast_bond
     logical                       :: fast_water
     integer                       :: hydrogen_type
+    integer                       :: num_water
 
     ! for SHAKE, RATTLE, and LINCS
     integer                       :: shake_iteration
@@ -74,13 +75,16 @@ module sp_constraints_str_mod
     integer                       :: lincs_order
 
     ! for SETTLE
-    logical                       :: tip4
+    integer                       :: water_type = 0
     character(5)                  :: water_model
     real(wip)                     :: water_rHH
     real(wip)                     :: water_rOH
     real(wip)                     :: water_rOD
     real(wip)                     :: water_massO
     real(wip)                     :: water_massH
+    real(wip)                     :: water_mass1
+    real(wip)                     :: water_mass2
+    real(wip)                     :: water_r12
 
   end type s_constraints
 
@@ -156,6 +160,7 @@ contains
   !! @param[inout] constraints : constraints information
   !! @param[in]    variable    : selected variable
   !! @param[in]    var_size    : size of the selected variable
+  !! @param[in]    var_size1   : 1st size of the selected variable (optional)
   !! @param[in]    var_size2   : 2nd size of the selected variable (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8

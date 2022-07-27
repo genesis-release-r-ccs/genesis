@@ -73,8 +73,9 @@ contains
   !! @param[inout] experiments      : information of experiments
   !! @param[in]    variable  : allocatable variable
   !! @param[in]    var_size1 : size of variables
-  !! @param[in]    var_size2 : size of variables
-  !! @param[in]    var_size3 : size of variables
+  !! @param[in]    var_size2 : size of variables (optional)
+  !! @param[in]    var_size3 : size of variables (optional)
+  !! @param[in]    var_size4 : size of variables (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -144,8 +145,8 @@ contains
   !  Subroutine    dealloc_experiments
   !> @brief        deallocate experiments information
   !! @authors      TM
-  !! @param[inout] experiments     : experiments information
-  !! @param[in]    variable : allocatable variable
+  !! @param[inout] experiments : experiments information
+  !! @param[in]    variable    : allocatable variable
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 

@@ -39,6 +39,7 @@ module sp_restraints_mod
      integer,            allocatable :: exponent(:)
      character(MaxLine), allocatable :: exponent_dist(:)
      character(MaxLine), allocatable :: weight_dist(:)
+     character(MaxLine), allocatable :: vector(:) 
      logical                         :: pressure_position = .false.
      logical                         :: pressure_rmsd   = .false.
   end type s_res_info
@@ -170,7 +171,8 @@ contains
              res_info%direction    (nfunc), &
              res_info%exponent     (nfunc), &
              res_info%exponent_dist(nfunc), &
-             res_info%weight_dist  (nfunc))
+             res_info%weight_dist  (nfunc), &
+             res_info%vector       (nfunc))
 
     res_info%function     (1:nfunc) = RestraintsFuncPOSI
     res_info%constant     (1:nfunc) = ''
@@ -180,6 +182,7 @@ contains
     res_info%exponent     (1:nfunc) = 2
     res_info%exponent_dist(1:nfunc) = ''
     res_info%weight_dist  (1:nfunc) = ''
+    res_info%vector       (1:nfunc) = ''
 
 
     ! read each restraint function
@@ -218,6 +221,10 @@ contains
       call read_ctrlfile_string (handle, Section, name, &
                                  res_info%weight_dist(i))
 
+      write(name,'(a,i0)') 'vector', i
+      call read_ctrlfile_string (handle, Section, name, &
+                                 res_info%vector(i))
+
       if (res_info%exponent(i) <= 0) &
         call error_msg('Read_Ctrl_Restraints> exponent is incorrect')
 
@@ -250,39 +257,40 @@ contains
         if (res_info%function(i) == RestraintsFuncPOSI) then
           write(MsgOut,'(a,a)') &
               '    direction     = ',RestraintsDirTypes(res_info%direction(i))
-        endif
+        end if
 
 
         write(MsgOut,'(a,a)') &
               '    constant      = ', trim(res_info%constant(i))
 
         write(MsgOut,'(a,a)') &
-              '    reference     = ', trim(res_info%reference(i))
-
-        write(MsgOut,'(a,a)') &
               '    select_index  = ', trim(res_info%select_index(i))
 
+        write(MsgOut,'(a,a)') &
+              '    reference     = ', trim(res_info%reference(i))
+
         write(MsgOut,'(a,i3)') &
-              '    exponent      = ', res_info%exponent(i)
-
+                '    exponent      = ', res_info%exponent(i)
+  
         write(MsgOut,'(a,a)') &
-              '    exponent_dist = ',trim(res_info%exponent_dist(i))
-
+                '    exponent_dist = ',trim(res_info%exponent_dist(i))
+  
         write(MsgOut,'(a,a)') &
-              '    weight_dist   = ',trim(res_info%weight_dist(i))
+                '    weight_dist   = ',trim(res_info%weight_dist(i))
+
       end do
 
       if (res_info%pressure_position) then
         write(MsgOut,'(a)') '  pressure_position   = YES'
       else
         write(MsgOut,'(a)') '  pressure_position   = NO'
-      endif
+      end if
 
       if (res_info%pressure_rmsd) then
         write(MsgOut,'(a)') '  pressure_rmsd     = YES'
       else
         write(MsgOut,'(a)') '  pressure_rmsd     = NO'
-      endif
+      end if
 
       write(MsgOut,'(a)')
 
@@ -297,7 +305,7 @@ contains
   !  Function      setup_restraints
   !> @brief        setup restraints information
   !! @authors      CK, TM
-  !! @param[in]    ref_info   : RESTRAINTS section control parameter information
+  !! @param[in]    res_info   : RESTRAINTS section control parameter information
   !! @param[in]    sel_info   : SELECTIONS section control parameter information
   !! @param[inout] molecule   : molecule information
   !! @param[inout] restraints : restraints information
@@ -344,7 +352,7 @@ contains
       restraints%exponent_dist(1:nfunc) = res_info%exponent_dist(1:nfunc)
       restraints%weight_dist  (1:nfunc) = res_info%weight_dist  (1:nfunc)
       restraints%group       (1:ngroup) = sel_info%groups      (1:ngroup)
-    endif
+    end if
 
     restraints%restraint_flag     = (restraints%nfunctions > 0)
     restraints%pressure_position  = res_info%pressure_position
@@ -403,10 +411,10 @@ contains
   !  Function      setup_restraints_pio
   !> @brief        setup restraints information
   !! @authors      JJ
-  !! @param[in]    ref_info   : RESTRAINTS section control parameter information
+  !! @param[in]    res_info   : RESTRAINTS section control parameter information
   !! @param[in]    sel_info   : SELECTIONS section control parameter information
-  !! @param[inout] molecule   : molecule information
   !! @param[inout] restraints : restraints information
+  !! @param[inout] enefunc    : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -424,6 +432,7 @@ contains
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
     integer                  :: i, j
+
 
     restraints%nfunctions  = res_info%nfunctions
     restraints%num_groups = size(sel_info%groups)
@@ -446,7 +455,7 @@ contains
       restraints%exponent_dist(1:nfunc) = res_info%exponent_dist(1:nfunc)
       restraints%weight_dist  (1:nfunc) = res_info%weight_dist  (1:nfunc)
       restraints%group       (1:ngroup) = sel_info%groups      (1:ngroup)
-    endif
+    end if
 
     restraints%restraint_flag     = (restraints%nfunctions > 0)
     restraints%pressure_position  = res_info%pressure_position

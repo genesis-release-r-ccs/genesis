@@ -30,7 +30,7 @@ module sp_parallel_io_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -88,7 +88,7 @@ module sp_parallel_io_mod
   logical                       :: pio_veltrj_hdr = .true.
 
   integer,          allocatable :: tmp_atom_idx(:)
-  real(wp),         allocatable :: tmp_atom_crd(:,:)
+  real(sp),         allocatable :: tmp_atom_crd(:,:)
 
 
   ! subroutines
@@ -96,6 +96,7 @@ module sp_parallel_io_mod
   public  :: pio_write_selection
   public  :: pio_write_domain_rst
   public  :: pio_read_selection
+  public  :: pio_read_selection_blank
   public  :: pio_read_domain_rst
   public  :: pio_read_domain_str
   public  :: pio_check_ranked_file
@@ -135,7 +136,7 @@ contains
     logical,                 intent(in)    :: crd_trj
 
     ! local variables
-    real(wp)                 :: box(6)
+    real(sp)                 :: box(6)
     integer                  :: i, ix, natom_domain
 
 
@@ -178,7 +179,7 @@ contains
 
     natom_domain = natom_domain - 1
 
-    box = 0.0_wp
+    box = 0.0_sp
     box(1) = boundary%box_size_x_ref
     box(3) = boundary%box_size_y_ref
     box(6) = boundary%box_size_z_ref
@@ -285,7 +286,7 @@ contains
     integer               :: file
     integer               :: i, j, ncell, ncell_local, nvar, nvar1, nvar2, nvar3
     integer               :: nrep, ndim
-    logical               :: tip4, write_file
+    logical               :: write_file
     character,allocatable :: bytes(:)
 
 
@@ -387,10 +388,8 @@ contains
 
     ! write tip4 information
     !
-    call write_data_logical   &
-         (file, 'constraints:tip4', constraints%tip4)
-    call write_data_logical &
-         (file, 'enefunc:table:tip4', enefunc%table%tip4)
+    call write_data_integer   &
+         (file, 'constraints:tip4', constraints%water_type)
 
     ! write s_domain information
     !
@@ -451,12 +450,12 @@ contains
       nvar = domain%num_water(i)
       if (nvar == 0) &
         cycle
-      if (constraints%tip4) then
+      if (constraints%water_type == TIP4) then
         nvar1 = 4
-        tip4  = .true.
-      else
+      else if (constraints%water_type == TIP3) then
         nvar1 = 3
-        tip4  = .false.
+      else if (constraints%water_type == TIP1) then
+        nvar1 = 1
       end if
       call write_data_integer_array &
          (file, 'domain:water_list', &
@@ -515,6 +514,9 @@ contains
         call write_data_real_wp_array &
              (file, 'enefunc:bond_dist_min', &
                  (/nvar,1/), enefunc%bond_dist_min   (     1:nvar, i))
+        call write_data_integer_array &
+             (file, 'enefunc:bond_pbc', &
+                 (/nvar,1/), enefunc%bond_pbc        (     1:nvar, i))
       end if
 
       nvar = enefunc%num_angle(i)
@@ -534,6 +536,9 @@ contains
         call write_data_real_wp_array &
              (file, 'enefunc:urey_rmin', &
                  (/nvar,1/), enefunc%urey_rmin        (     1:nvar, i))
+        call write_data_integer_array &
+             (file, 'enefunc:angle_pbc', &
+                 (/3,nvar,1/), enefunc%angle_pbc      (1:3, 1:nvar, i))
       end if
 
       nvar = enefunc%num_dihedral(i)
@@ -550,6 +555,9 @@ contains
         call write_data_real_wp_array &
              (file, 'enefunc:dihe_phase', &
                  (/nvar,1/), enefunc%dihe_phase      (     1:nvar, i))
+        call write_data_integer_array &
+             (file, 'enefunc:dihe_pbc', &
+                 (/3,nvar,1/), enefunc%dihe_pbc      (1:3, 1:nvar, i))
       end if
 
       nvar = enefunc%num_rb_dihedral(i)
@@ -560,6 +568,9 @@ contains
         call write_data_real_wp_array &
              (file, 'enefunc:rb_dihe_c', &
                  (/6,nvar,1/), enefunc%rb_dihe_c   (1:6, 1:nvar, i))
+        call write_data_integer_array &
+             (file, 'enefunc:rb_dihe_pbc', &
+                 (/3,nvar,1/), enefunc%rb_dihe_pbc (1:3, 1:nvar, i))
       end if
 
       nvar = enefunc%num_improper(i)
@@ -576,6 +587,9 @@ contains
         call write_data_real_wp_array &
              (file, 'enefunc:impr_phase', &
                  (/nvar,1/), enefunc%impr_phase      (     1:nvar, i))
+        call write_data_integer_array &
+             (file, 'enefunc:impr_pbc', &
+                 (/3,nvar,1/), enefunc%impr_pbc      (1:3, 1:nvar, i))
       end if
 
     end do
@@ -636,6 +650,9 @@ contains
       call write_data_integer_array &
            (file, 'enefunc:cmap_type', &
                (/nvar,1/),   enefunc%cmap_type(     1:nvar, i))
+      call write_data_integer_array &
+           (file, 'enefunc:cmap_pbc', &
+               (/6,nvar,1/), enefunc%cmap_pbc (1:6, 1:nvar, i))
 
     end do
 
@@ -699,21 +716,21 @@ contains
          (file, 'enefunc:table:atom_cls_no_O', enefunc%table%atom_cls_no_O)
     call write_data_integer &
          (file, 'enefunc:table:atom_cls_no_H', enefunc%table%atom_cls_no_H)
-    if (tip4) &
+    if (constraints%water_type == TIP4) &
       call write_data_integer &
            (file, 'enefunc:table:atom_cls_no_D', enefunc%table%atom_cls_no_D)
     call write_data_real_wp &
          (file, 'enefunc:table:charge_O', enefunc%table%charge_O)
     call write_data_real_wp &
          (file, 'enefunc:table:charge_H', enefunc%table%charge_H)
-    if (tip4) &
+    if (constraints%water_type == TIP4) &
       call write_data_real_wp &
            (file, 'enefunc:table:charge_D', enefunc%table%charge_D)
     call write_data_real_wp &
          (file, 'enefunc:table:mass_O', enefunc%table%mass_O)
     call write_data_real_wp &
          (file, 'enefunc:table:mass_H', enefunc%table%mass_H)
-    if (tip4) &
+    if (constraints%water_type == TIP4) &
       call write_data_real_wp &
            (file, 'enefunc:table:mass_D', enefunc%table%mass_D)
     call write_data_byte_array &
@@ -734,7 +751,7 @@ contains
          (file, 'constraints:water_rHH', constraints%water_rHH)
     call write_data_real_wip &
          (file, 'constraints:water_rOH', constraints%water_rOH)
-    if (constraints%tip4) &
+    if (constraints%water_type == TIP4) &
       call write_data_real_wip &
            (file, 'constraints:water_rOD', constraints%water_rOD)
     call write_data_real_wip &
@@ -915,6 +932,35 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    pio_read_selection_blank
+  !> @brief        read selection list
+  !! @authors      JJ
+  !! @param[in]    restraints  : selection list information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pio_read_selection_blank(restraints)
+
+    ! formal arguments
+    type(s_restraints),             intent(inout) :: restraints
+
+    ! local variables
+    integer               :: i, j, ngroup, max_natom, nvar
+
+    ngroup = 0
+    restraints%num_groups = ngroup
+
+    call alloc_restraints(restraints, RestraintsList, 1, 1)
+
+    restraints%num_atoms(1) = 0
+    restraints%atomlist(1,1) = 0
+
+    return
+
+  end subroutine pio_read_selection_blank
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    pio_read_domain_rst
   !> @brief        read restart information for domain
   !! @authors      NT
@@ -959,7 +1005,7 @@ contains
     integer               :: ix, icel, ig, nbyte
     integer               :: iseed_tmp = 0
     integer               :: temp(6)
-    logical               :: tip4, read_file
+    logical               :: read_file
     character,allocatable :: bytes(:)
 
 
@@ -1068,10 +1114,8 @@ contains
 
     ! read tip4 information
     !
-    call read_data_logical &
-         (file, 'constraints:tip4', constraints%tip4)
-    call read_data_logical &
-         (file, 'enefunc:table:tip4', enefunc%table%tip4)
+    call read_data_integer &
+         (file, 'constraints:tip4', constraints%water_type)
 
     ! read s_domain information
     !
@@ -1109,12 +1153,12 @@ contains
                    domain%cell_b2g_pio(i-ncell_local,filenum)
     end do
 
-    if (constraints%tip4) then
-      tip4 = .true.
+    if (constraints%water_type == TIP4) then
       nvar1 = 4
-    else
-      tip4 = .false.
+    else if (constraints%water_type == TIP3) then
       nvar1 = 3
+    else if (constraints%water_type == TIP1) then
+      nvar1 = 1
     end if
     if (filenum == 1) &
       call alloc_domain(domain, DomainDynvar_Atom_pio, ncell, &
@@ -1211,6 +1255,9 @@ contains
         call read_data_real_wp_array &
              (file, 'enefunc:bond_dist_min', &
               (/nvar,1/), enefunc%bond_dist_min_pio   (     1:nvar, i,filenum))
+        call read_data_integer_array &
+             (file, 'enefunc:bond_pbc', &
+              (/nvar,1/), enefunc%bond_pbc_pio        (     1:nvar, i,filenum))
       end if
 
       nvar = enefunc%num_angle_pio(i,filenum)
@@ -1230,6 +1277,9 @@ contains
         call read_data_real_wp_array &
              (file, 'enefunc:urey_rmin', &
               (/nvar,1/), enefunc%urey_rmin_pio        (     1:nvar, i,filenum))
+        call read_data_integer_array &
+             (file, 'enefunc:angle_pbc', &
+              (/3,nvar,1/), enefunc%angle_pbc_pio      (1:3, 1:nvar, i,filenum))
       end if
 
       nvar = enefunc%num_dihedral_pio(i,filenum)
@@ -1246,6 +1296,9 @@ contains
         call read_data_real_wp_array &
              (file, 'enefunc:dihe_phase', &
               (/nvar,1/), enefunc%dihe_phase_pio      (     1:nvar, i,filenum))
+        call read_data_integer_array &
+             (file, 'enefunc:dihe_pbc', &
+              (/3,nvar,1/), enefunc%dihe_pbc_pio      (1:3, 1:nvar, i,filenum))
       end if
 
       nvar = enefunc%num_rb_dihedral_pio(i,filenum)
@@ -1256,6 +1309,9 @@ contains
         call read_data_real_wp_array &
              (file, 'enefunc:rb_dihe_c', &
                  (/6,nvar,1/), enefunc%rb_dihe_c_pio   (1:6, 1:nvar, i,filenum))
+        call read_data_integer_array &
+             (file, 'enefunc:rb_dihe_pbc', &
+                 (/3,nvar,1/), enefunc%rb_dihe_pbc_pio (1:3, 1:nvar, i,filenum))
       end if
 
       nvar = enefunc%num_improper_pio(i, filenum)
@@ -1272,6 +1328,9 @@ contains
         call read_data_real_wp_array &
              (file, 'enefunc:impr_phase', &
               (/nvar,1/), enefunc%impr_phase_pio      (     1:nvar, i, filenum))
+        call read_data_integer_array &
+             (file, 'enefunc:impr_pbc', &
+              (/3,nvar,1/), enefunc%impr_pbc_pio      (1:3, 1:nvar, i, filenum))
       end if
 
     end do
@@ -1336,6 +1395,9 @@ contains
       call read_data_integer_array &
            (file, 'enefunc:cmap_type', &
                (/nvar,1/),   enefunc%cmap_type_pio(     1:nvar, i,filenum))
+      call read_data_integer_array &
+           (file, 'enefunc:cmap_pbc', &
+               (/6,nvar,1/), enefunc%cmap_pbc_pio (1:6, 1:nvar, i,filenum))
 
     end do
 
@@ -1401,21 +1463,22 @@ contains
          (file, 'enefunc:table:atom_cls_no_O', enefunc%table%atom_cls_no_O)
     call read_data_integer &
          (file, 'enefunc:table:atom_cls_no_H', enefunc%table%atom_cls_no_H)
-    if (tip4) &
+    constraints%num_water = enefunc%table%num_water
+    if (constraints%water_type == TIP4) &
       call read_data_integer &
            (file, 'enefunc:table:atom_cls_no_D', enefunc%table%atom_cls_no_D)
     call read_data_real_wp &
          (file, 'enefunc:table:charge_O', enefunc%table%charge_O)
     call read_data_real_wp &
          (file, 'enefunc:table:charge_H', enefunc%table%charge_H)
-    if (tip4) &
+    if (constraints%water_type == TIP4) &
       call read_data_real_wp &
            (file, 'enefunc:table:charge_D', enefunc%table%charge_D)
     call read_data_real_wp &
          (file, 'enefunc:table:mass_O', enefunc%table%mass_O)
     call read_data_real_wp &
          (file, 'enefunc:table:mass_H', enefunc%table%mass_H)
-    if (tip4) &
+    if (constraints%water_type == TIP4) &
       call read_data_real_wp &
            (file, 'enefunc:table:mass_D', enefunc%table%mass_D)
     call read_data_byte_array &
@@ -1436,7 +1499,7 @@ contains
          (file, 'constraints:water_rHH', constraints%water_rHH)
     call read_data_real_wip &
          (file, 'constraints:water_rOH', constraints%water_rOH)
-    if (constraints%tip4) &
+    if (constraints%water_type == TIP4) &
       call read_data_real_wip &
            (file, 'constraints:water_rOD', constraints%water_rOD)
     call read_data_real_wip &

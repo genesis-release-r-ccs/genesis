@@ -23,7 +23,7 @@ module sp_energy_pme_opt_slab_mod
   use mpi_parallel_mod
   use constants_mod
   use fft3d_slab_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -119,7 +119,8 @@ contains
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
   !! @param[in]    boundary : boundary information
-  !! @param[inout] enefunc  : energy function
+  !! @param[in]    enefunc  : energy function
+  !! @param[inout] calc     : flag of whether calculated
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -141,6 +142,7 @@ contains
     integer                  :: nix, niy, niz
 
     real(wp),    allocatable :: bs(:)
+
 
     ncell    =  domain%num_cell_local + domain%num_cell_boundary
 
@@ -625,7 +627,12 @@ contains
           g2 = gx(ix)*gx(ix) + gy(j)*gy(j) + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,j,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,j,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,j,ix) = 0.0_wp
+            else
+              theta(k,j,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            end if
+            if (abs(theta(k,j,ix)) < 1.0e-15) theta(k,j,ix) = 0.0_wp
           else
             vir_fact(k,j,ix) = 0.0_wp
             theta(k,j,ix) = 0.0_wp
@@ -657,7 +664,12 @@ contains
         g2 = gx1*gx1 + gy1(iy)*gy1(iy) + gz(k)*gz(k) 
         if (g2 > EPS) then
           vir_fact1(k,iy) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-          theta1(k,iy) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+          if (g2*fact < -80.0_wp) then
+            theta1(k,iy) = 0.0_wp
+          else
+            theta1(k,iy) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+          end if
+          if (abs(theta1(k,iy)) < 1.0e-15) theta1(k,iy) = 0.0_wp
         else
           vir_fact1(k,iy) = 0.0_wp
           theta1(k,iy) = 0.0_wp
@@ -730,6 +742,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -914,7 +927,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commxy, ierror)
@@ -1024,7 +1037,7 @@ contains
                      nthread,  nproc_city,                      &
                      mpi_comm_city)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     !$omp barrier
     !$omp master
     call mpi_alltoall(qdf_work, nlocalx*nlocaly*niz, mpi_wp_real,        &
@@ -1141,6 +1154,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1370,7 +1384,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commxy, ierror)
@@ -1380,13 +1394,13 @@ contains
     !$omp end master
     !$omp barrier
 
-    call fft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work, &
+    call fft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work,           &
                     ftqdf_work, ftqdf2, ftqdf2, ftqdf_work2,      &
                     work1, work2,                                 &
-                    nlocalx, nlocaly, nix, niy, niz,     &
+                    nlocalx, nlocaly, nix, niy, niz,              &
                     ngrid(1), ngrid(2), ngrid(3),                 &
-                    nprocx, nprocy, id,                   &
-                    nthread, nproc_city,            &
+                    nprocx, nprocy, id,                           &
+                    nthread, nproc_city,                          &
                     mpi_comm_city)
 
 
@@ -1474,14 +1488,14 @@ contains
     !$omp barrier
     call bfft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work,       &
                      ftqdf_work, ftqdf2, ftqdf2, ftqdf_work2,  &
-                     work1, work2,                                       &
-                     nlocalx, nlocaly, nix, niy, niz,           &
-                     ngrid(1), ngrid(2), ngrid(3),              &
-                     nprocx, nprocy, id, &
-                     nthread,  nproc_city,                      &
+                     work1, work2,                             &
+                     nlocalx, nlocaly, nix, niy, niz,          &
+                     ngrid(1), ngrid(2), ngrid(3),             &
+                     nprocx, nprocy, id,                       &
+                     nthread,  nproc_city,                     &
                      mpi_comm_city)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     !$omp barrier
     !$omp master
     call mpi_alltoall(qdf_work, nlocalx*nlocaly*niz, mpi_wp_real,        &
@@ -1599,6 +1613,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1888,7 +1903,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commxy, ierror)
@@ -1898,13 +1913,13 @@ contains
     !$omp end master
     !$omp barrier
 
-    call fft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work, &
+    call fft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work,           &
                     ftqdf_work, ftqdf2, ftqdf2, ftqdf_work2,      &
                     work1, work2,                                 &
-                    nlocalx, nlocaly, nix, niy, niz,     &
+                    nlocalx, nlocaly, nix, niy, niz,              &
                     ngrid(1), ngrid(2), ngrid(3),                 &
-                    nprocx, nprocy, id,                   &
-                    nthread, nproc_city,            &
+                    nprocx, nprocy, id,                           &
+                    nthread, nproc_city,                          &
                     mpi_comm_city)
 
 
@@ -1992,14 +2007,14 @@ contains
     !$omp barrier
     call bfft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work,       &
                      ftqdf_work, ftqdf2, ftqdf2, ftqdf_work2,  &
-                     work1, work2,                                       &
-                     nlocalx, nlocaly, nix, niy, niz,           &
-                     ngrid(1), ngrid(2), ngrid(3),              &
-                     nprocx, nprocy, id, &
-                     nthread,  nproc_city,                      &
+                     work1, work2,                             &
+                     nlocalx, nlocaly, nix, niy, niz,          &
+                     ngrid(1), ngrid(2), ngrid(3),             &
+                     nprocx, nprocy, id,                       &
+                     nthread,  nproc_city,                     &
                      mpi_comm_city)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     !$omp barrier
     !$omp master
     call mpi_alltoall(qdf_work, nlocalx*nlocaly*niz, mpi_wp_real,        &
@@ -2075,9 +2090,6 @@ contains
   !  Subroutine    communicate_pme_pre
   !> @brief        communicate boundary grid data before FFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2087,7 +2099,7 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
 
@@ -2104,7 +2116,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -2116,10 +2128,10 @@ contains
                    grid_commz, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_z_rank+2*nprocz+lower_rank,               &
+                   my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocz+my_z_rank,               &
+                   upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2156,7 +2168,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -2168,10 +2180,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2208,7 +2220,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -2220,10 +2232,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2256,9 +2268,6 @@ contains
   !  Subroutine    communicate_pme_post
   !> @brief        communicate boundary grid data after bFFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2268,7 +2277,7 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
 
@@ -2285,7 +2294,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -2297,10 +2306,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2335,7 +2344,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -2347,10 +2356,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2385,7 +2394,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -2397,10 +2406,10 @@ contains
                    grid_commz, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_z_rank+2*nprocz+lower_rank,               &
+                   my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocz+my_z_rank,               &
+                   upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -2425,6 +2434,5 @@ contains
     return
 
   end subroutine communicate_pme_post
-
 
 end module sp_energy_pme_opt_slab_mod

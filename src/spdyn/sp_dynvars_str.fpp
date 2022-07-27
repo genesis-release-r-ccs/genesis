@@ -62,8 +62,8 @@ module sp_dynvars_str_mod
     real(wip)                     :: barostat_momentum_ref(3)
 
     real(wip)                     :: nh_mass(1:10)
-    real(wip)                     :: nh_velocity(1:10)
-    real(wip)                     :: nh_velocity_ref(1:10)
+    real(wip)                     :: nh_velocity(1:10) = 0.0_wip
+    real(wip)                     :: nh_velocity_ref(1:10) = 0.0_wip
     real(wip)                     :: nh_force(1:10)
     real(wip)                     :: nh_coef(1:10)
     real(wip)                     :: nh_baro_velocity(1:10)
@@ -73,6 +73,9 @@ module sp_dynvars_str_mod
     real(wip)                     :: box_size_x
     real(wip)                     :: box_size_y
     real(wip)                     :: box_size_z
+    real(wip)                     :: box_size_x_ref
+    real(wip)                     :: box_size_y_ref
+    real(wip)                     :: box_size_z_ref
     real(dp)                      :: pressure_xx
     real(dp)                      :: pressure_yy
     real(dp)                      :: pressure_zz

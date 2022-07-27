@@ -172,6 +172,7 @@ contains
       allocate(di%selatoms_list(hm_num_selatoms_list))
       do j = 1, hm_num_selatoms_list
         allocate(di%selatoms_list(j)%i(GrowSize))
+        di%selatoms_list(j)%n=0
       end do
     end do
 

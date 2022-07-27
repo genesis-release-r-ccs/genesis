@@ -39,11 +39,16 @@ module sp_md_vverlet_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -80,6 +85,7 @@ contains
   !! @param[inout] constraints : bond constraint information
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -117,6 +123,7 @@ contains
     real(wp),        pointer :: force_omp(:,:,:,:), force_pbc(:,:,:,:)
     real(dp),        pointer :: virial_cell(:,:), virial(:,:)
     integer,         pointer :: natom(:)
+
 
     atmcls_pbc  => domain%atmcls_pbc
     natom       => domain%num_atom
@@ -181,7 +188,7 @@ contains
       !
       if (istart == 1) then
 
-        if (constraints%tip4 .or. enefunc%table%tip4) &
+        if (constraints%water_type == TIP4) &
           call decide_dummy(domain, constraints, coord)
 
         call communicate_coor(domain, comm)
@@ -203,7 +210,7 @@ contains
                             dynvars%virial_extern)
 
         call communicate_force(domain, comm, force)
-        if (constraints%tip4 .or. enefunc%table%tip4) &
+        if (constraints%water_type == TIP4) &
           call water_force_redistribution(constraints, domain, force, virial)
 
       end if
@@ -279,8 +286,8 @@ contains
 
       ! Simulated annealing
       !
-      if (dynamics%anneal_period > 0 .and. i > 1 .and. &
-          mod(i-1,dynamics%anneal_period) == 0) then
+      if (dynamics%anneal_period > 0) then
+        if (i > 1 .and. mod(i-1,dynamics%anneal_period) == 0) &
         call simulated_annealing_vverlet(dynamics, ensemble)
       end if
 
@@ -325,7 +332,7 @@ contains
       call timer(TimerComm2, TimerOn)
 
       call communicate_force(domain, comm, force)
-      if (constraints%tip4 .or. enefunc%table%tip4) &
+      if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
       call timer(TimerComm2, TimerOff)
@@ -419,6 +426,7 @@ contains
     real(dp),        pointer :: ekin, ekin_full, ekin_half, ekin_ref
     integer,         pointer :: natom(:)
 
+
     atmcls_pbc  => domain%atmcls_pbc
     natom       => domain%num_atom
     coord       => domain%coord
@@ -496,7 +504,7 @@ contains
                         dynvars%virial_extern)
 
     call communicate_force(domain, comm, force)
-    if (constraints%tip4 .or. enefunc%table%tip4) &
+    if (constraints%water_type == TIP4) &
       call water_force_redistribution(constraints, domain, force, virial)
 
     ! velocitiest at 0 + dt/2
@@ -522,7 +530,7 @@ contains
         kin_half(1:3) = kin_half(1:3) + mass(ix,i)*vel(1:3,ix,i)*vel(1:3,ix,i)
       end do
     end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin_half, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
@@ -551,7 +559,7 @@ contains
         kin_ref(1:3) = kin_ref(1:3) + mass(ix,i)*vel_ref(1:3,ix,i)*vel_ref(1:3,ix,i)
       end do
     end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin_ref, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
@@ -571,7 +579,7 @@ contains
         kin_full(1:3) = kin_full(1:3) + mass(ix,i)*vel_ref(1:3,ix,i)*vel_ref(1:3,ix,i)
       end do
     end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin_full, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
@@ -608,7 +616,7 @@ contains
   !! @authors      JJ, TA, TM
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    istep       : dynamics step
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -629,6 +637,7 @@ contains
     type(s_dynvars),         intent(inout) :: dynvars
 
     integer  :: alloc_stat, ncell
+
 
     ! allocation for langevin
     !
@@ -708,7 +717,6 @@ contains
 
     end select
 
-
     return
 
   end subroutine integrate_vv1
@@ -718,7 +726,6 @@ contains
   !  Subroutine    coord_vel_ref       
   !> @brief        save coordinate and velocity at reference values
   !! @authors      JJ
-  !! @param[in]    ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] dynvars     : dynamic variables information
   !
@@ -737,6 +744,7 @@ contains
     integer,         pointer :: natom(:), ncell
     real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
     real(wip),       pointer :: vel(:,:,:), vel_ref(:,:,:), vel_half(:,:,:)
+
 
     ncell      => domain%num_cell_local
     natom      => domain%num_atom
@@ -772,7 +780,7 @@ contains
   !! @authors      JJ, TA
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    istep       : dynamics step
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -849,7 +857,8 @@ contains
   !  Subroutine    nve_vv1
   !> @brief        VV1 with NVE
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -880,6 +889,7 @@ contains
     real(dp),        pointer :: virial(:,:), viri_const(:,:), viri_group(:,:)
     real(dp),        pointer :: kin(:), kin_full(:), kin_half(:), kin_ref(:)
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
+
 
     ncell      => domain%num_cell_local
     natom      => domain%num_atom
@@ -986,7 +996,8 @@ contains
   !  Subroutine    nve_vv1_nogroup
   !> @brief        VV1 with NVE (w/o group temperature/pressure)
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1016,6 +1027,7 @@ contains
     real(dp),        pointer :: virial(:,:), viri_const(:,:)
     real(dp),        pointer :: kin(:), kin_full(:), kin_half(:), kin_ref(:)
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
+
 
     ncell      => domain%num_cell_local
     natom      => domain%num_atom
@@ -1052,7 +1064,7 @@ contains
           kin_full(3) = kin_full(3) + mass(ix,i)*vel(3,ix,i)*vel(3,ix,i)
         end do
       end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, kin_full, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -1113,7 +1125,7 @@ contains
           kin_half(3) = kin_half(3) + mass(ix,i)*vel(3,ix,i)*vel(3,ix,i)
         end do
       end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, kin_half, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -1143,7 +1155,7 @@ contains
           kin_ref(3) = kin_ref(3) + mass(ix,i)*vel(3,ix,i)*vel(3,ix,i)
         end do
       end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, kin_ref, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -1160,7 +1172,7 @@ contains
   !  Subroutine    nve_vv2
   !> @brief        VV2 with NVE
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    dynamics    : dynamics information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1278,7 +1290,9 @@ contains
   !  Subroutine    vel_rescaling_thermostat_vv1_cons
   !> @brief        VV1 with Bussi's thermostat
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1286,7 +1300,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine vel_rescaling_thermostat_vv1_cons(dynamics, istep, ensemble, &
-                                            domain, constraints, dynvars)
+                                               domain, constraints, dynvars)
 
     ! formal arguments
     type(s_dynamics),        intent(in)    :: dynamics
@@ -1314,6 +1328,7 @@ contains
     real(dp),        pointer :: virial(:,:), viri_const(:,:)
     real(dp),        pointer :: kin(:), kin_full(:), kin_half(:), kin_ref(:)
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
+
 
     ncell       => domain%num_cell_local
     natom       => domain%num_atom
@@ -1346,6 +1361,7 @@ contains
 
     scale_vel = 1.0_wip
     kin_full_ref(1:3) = 0.0_dp
+    ekin_full_ref = 0.0_dp
 
     ! reference coordinates and velocities
     !
@@ -1437,7 +1453,9 @@ contains
   !  Subroutine    vel_rescaling_thermostat_vv1
   !> @brief        VV1 with Bussi's thermostat (group temp or no constraint)
   !! @authors      JJ
-  !! @param[in]    dt          : time step
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1473,6 +1491,7 @@ contains
     real(dp),        pointer :: virial(:,:), viri_const(:,:), viri_group(:,:)
     real(dp),        pointer :: kin(:), kin_full(:), kin_half(:), kin_ref(:)
     real(dp),        pointer :: ekin_full, ekin_half, ekin_ref, ekin
+
 
     ncell       => domain%num_cell_local
     natom       => domain%num_atom
@@ -1510,7 +1529,7 @@ contains
       num_degree = domain%num_group_freedom
     else
       num_degree = domain%num_deg_freedom
-    endif
+    end if
 
     scale_vel  = 1.0_wip
     scale_vel2 = 1.0_wip
@@ -1609,14 +1628,14 @@ contains
 
   end subroutine vel_rescaling_thermostat_vv1
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    langevin_thermostat_vv1
   !> @brief        control temperature using Langevin thermostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
@@ -1778,18 +1797,18 @@ contains
 
   end subroutine langevin_thermostat_vv1
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    langevin_barostat_vv1
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
-  !! @param[inout] boundary    : boundary information
   !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] boundary    : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1977,7 +1996,7 @@ contains
       end if
       kin(1:3) = kin_full(1:3) + kin_half(1:3)
       ekin = ekin_full + ekin_half
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -1997,7 +2016,7 @@ contains
     vel_scale(1:3) = exp(-scale_b(1:3)*half_dt)
 
     call update_vel_vv1_group(constraints, ncell, natom, nwater, water_list, &
-                              mass, force, vel_scale, half_dt, vel)
+                              mass, inv_mass, force, vel_scale, half_dt, vel)
 
     call update_coord_vv1_group(constraints, ncell, natom, nwater,  &
                                 water_list, mass, force, coord_ref, &
@@ -2125,7 +2144,7 @@ contains
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    istep       : present md step
+  !! @param[in]    istep       : dynamics step
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
@@ -2216,7 +2235,7 @@ contains
 
     ! time step
     !
-    half_dt = dt / 2.0_wip
+    half_dt =  dt / 2.0_wip
     quart_dt = dt / 4.0_wip
     dt_therm = dt * real(dynamics%thermo_period,wip)
     half_dt_therm  = dt_therm / 2.0_wip
@@ -2229,7 +2248,7 @@ contains
     vel_scale(1:3) = exp(-scale_b(1:3)*half_dt)
 
     call update_vel_vv1_group(constraints, ncell, natom, nwater, water_list, &
-                              mass, force, vel_scale, half_dt, vel)
+                              mass, inv_mass, force, vel_scale, half_dt, vel)
 
     call timer(TimerUpdate, TimerOff)
 
@@ -2263,14 +2282,14 @@ contains
 
   end subroutine langevin_barostat_vv2
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    mtk_barostat_vv1_cons
   !> @brief        Bussi thermostat and barostat
   !! @authors      TA, JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -2279,7 +2298,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine mtk_barostat_vv1_cons(dynamics, istep, ensemble, domain,   &
-                                     constraints, boundary, dynvars)
+                                   constraints, boundary, dynvars)
 
     ! formal arguments
     type(s_dynamics),         intent(in)    :: dynamics
@@ -2431,7 +2450,7 @@ contains
           kin_full(3)  = kin_full(3)+mass(jx,j)*vel(3,jx,j)*vel(3,jx,j)
         end do
       end do
-#ifdef MPI 
+#ifdef HAVE_MPI_GENESIS 
       call mpi_allreduce(mpi_in_place, kin_full, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -2468,7 +2487,7 @@ contains
           virial_sum(1) = virial(1,1) + virial_constraint(1,1)
           virial_sum(2) = virial(2,2) + virial_constraint(2,2)
           virial_sum(3) = virial(3,3) + virial_constraint(3,3)
-#ifdef MPI 
+#ifdef HAVE_MPI_GENESIS 
           call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
                              mpi_comm_country, ierror)
 #endif
@@ -2585,7 +2604,7 @@ contains
             kin_half(3)  = kin_half(3) + mass(jx,j)*vel(3,jx,j)*vel(3,jx,j)
           end do
         end do
-#ifdef MPI 
+#ifdef HAVE_MPI_GENESIS 
         call mpi_allreduce(mpi_in_place, kin_half, 3, mpi_real8, mpi_sum, &
                            mpi_comm_country, ierror)
 #endif
@@ -2599,15 +2618,15 @@ contains
 
         if (iter < maxiter) then
           if (ensemble%tpcontrol == TpcontrolBussi) then
-            call vel_scale_bussi(int(degree,kind=iintegers), half_dt_therm, tau_t, temp0, ekin, &
-                                 random_gr, scale_vel)
+            call vel_scale_bussi(int(degree,kind=iintegers), half_dt_therm, &
+                              tau_t, temp0, ekin, random_gr, scale_vel)
           else if (ensemble%tpcontrol == TpcontrolBerendsen) then
-            call vel_scale_berendsen(int(degree,kind=iintegers), half_dt_therm, tau_t, temp0,   &
-                                     ekin, scale_vel)
+            call vel_scale_berendsen(int(degree,kind=iintegers),half_dt_therm,&
+                              tau_t, temp0, ekin, scale_vel)
           else if (ensemble%tpcontrol == TpcontrolNHC) then
             dynvars%nh_velocity(1:5) = dynvars%nh_velocity_ref(1:5)
-            call vel_scale_nhc(int(degree,kind=iintegers), half_dt_therm, tau_t, temp0, ekin,   &
-                               ensemble, dynvars, scale_vel)
+            call vel_scale_nhc(int(degree,kind=iintegers), half_dt_therm, &
+                              tau_t, temp0, ekin, ensemble, dynvars, scale_vel)
           end if
         end if
       
@@ -2634,7 +2653,7 @@ contains
           kin_ref(3)  = kin_ref(3) + mass(jx,j)*vel(3,jx,j)*vel(3,jx,j)
         end do
       end do
-#ifdef MPI 
+#ifdef HAVE_MPI_GENESIS 
       call mpi_allreduce(mpi_in_place, kin_ref, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -2684,7 +2703,8 @@ contains
   !> @brief        Bussi thermostat and barostat
   !! @authors      TA, JJ
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    istep       : dynamics step
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -2841,14 +2861,14 @@ contains
       !
       random_gr = real(random_get_gauss(),wip)
       if (ensemble%tpcontrol == TpcontrolBussi) then
-        call vel_scale_bussi(int(degree,iintegers), half_dt_therm, tau_t, temp0, ekin, &
-                             random_gr, scale_vel)
+        call vel_scale_bussi(int(degree,iintegers), half_dt_therm, tau_t, &
+                         temp0, ekin, random_gr, scale_vel)
       else if (ensemble%tpcontrol == TpcontrolBerendsen) then
-        call vel_scale_berendsen(int(degree,iintegers), half_dt_therm, tau_t, temp0,   &
-                                 ekin, scale_vel)
+        call vel_scale_berendsen(int(degree,iintegers), half_dt_therm, tau_t, &
+                         temp0, ekin, scale_vel)
       else if (ensemble%tpcontrol == TpcontrolNHC) then
-        call vel_scale_nhc(int(degree,iintegers), half_dt_therm, tau_t, temp0, ekin,   &
-                           ensemble, dynvars, scale_vel)
+        call vel_scale_nhc(int(degree,iintegers), half_dt_therm, tau_t, &
+                         temp0, ekin, ensemble, dynvars, scale_vel)
       end if
 
       if (ensemble%group_tp) then
@@ -2888,7 +2908,7 @@ contains
         virial_sum(2) = virial(2,2)
         virial_sum(3) = virial(3,3)
       end if
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
                          mpi_comm_country, ierror)
 #endif
@@ -2910,14 +2930,14 @@ contains
       ekin = ekin + 0.5_dp*pmass*dot_product(bmoment(1:3),bmoment(1:3))
       random_gr = real(random_get_gauss(),wip)
       if (ensemble%tpcontrol == TpcontrolBussi) then
-        call vel_scale_bussi(int(degree,iintegers), half_dt_therm, tau_t, temp0, ekin, &
-                             random_gr, scale_vel)
+        call vel_scale_bussi(int(degree,iintegers), half_dt_therm, tau_t, &
+                             temp0, ekin, random_gr, scale_vel)
       else if (ensemble%tpcontrol == TpcontrolBerendsen) then
-        call vel_scale_berendsen(int(degree,iintegers), half_dt_therm, tau_t, temp0,   &
-                                 ekin, scale_vel)
+        call vel_scale_berendsen(int(degree,iintegers), half_dt_therm, tau_t, &
+                             temp0, ekin, scale_vel)
       else if (ensemble%tpcontrol == TpcontrolNHC) then
-        call vel_scale_nhc(int(degree,iintegers), half_dt_therm, tau_t, temp0, ekin,   &
-                           ensemble, dynvars, scale_vel)
+        call vel_scale_nhc(int(degree,iintegers), half_dt_therm, tau_t, &
+                             temp0, ekin, ensemble, dynvars, scale_vel)
       end if
 
       if (ensemble%group_tp) then
@@ -3027,7 +3047,7 @@ contains
   !> @brief        Bussi thermostat and barostat
   !! @authors      TA
   !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    ensemble    : ensemble information
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
   !! @param[inout] boundary    : boundary information
@@ -3145,7 +3165,7 @@ contains
     !
     if (ensemble%group_tp) then
       call compute_vv2_group(constraints, ncell, natom, nwater, water_list, &
-                             mass, force, vel_scale, half_dt, vel)
+                             mass, inv_mass, force, vel_scale, half_dt, vel)
     else
       do j = 1, ncell
         do jx = 1, natom(j)
@@ -3219,13 +3239,14 @@ contains
   !  Subroutine    update_gamd_vverlet
   !> @brief        update GaMD parameters
   !! @authors      HO
-  !! @param[inout] output      : output information
-  !! @param[inout] enefunc     : potential energy functions information
-  !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] output  : output information
+  !! @param[inout] enefunc : potential energy functions information
+  !! @param[inout] dynvars : dynamic variables information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
  
   subroutine update_gamd_vverlet(output, enefunc, dynvars)
+
     ! formal arguments
     type(s_output),           intent(inout) :: output
     type(s_enefunc),  target, intent(inout) :: enefunc
@@ -3233,6 +3254,7 @@ contains
 
     ! local variables
     type(s_enefunc_gamd), pointer    :: gamd
+
 
     gamd => enefunc%gamd
 
@@ -3263,7 +3285,7 @@ contains
     real(dp),                intent(inout) :: val2
     real(dp),                intent(inout) :: val3(:)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(dp)                :: before_reduce(7), after_reduce(7)
@@ -3312,6 +3334,7 @@ contains
     real(wip),               intent(inout) :: bmoment(:)
 
     real(wip)                              :: ekin_real, gamma0, pressxy0
+
 
     gamma0    =  ensemble%gamma*ATMOS_P*100.0_wip/1.01325_wip
     ekin_real = real(ekin,wip)
@@ -3379,7 +3402,7 @@ contains
     ! formal arguments
     real(wip),               intent(inout) :: val1, val2, val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(wip)                :: list(3)
@@ -3421,6 +3444,7 @@ contains
 
     integer                  :: i, ix
 
+
     kin(1:3) = 0.0_dp
     !$omp parallel do private(i, ix) reduction(+:kin)
     do i = 1, ncell
@@ -3431,7 +3455,7 @@ contains
       end do
     end do
     !$omp end parallel do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
@@ -3462,6 +3486,7 @@ contains
 
     real(wip)                :: tempf, tempt, factor
 
+
     factor = exp(-dt/tau_t)
     tempf = 2.0_wip * real(ekin,wip)/(real(degree,wip)*KBOLTZ)
     tempt = tempf*factor    &
@@ -3470,7 +3495,7 @@ contains
           + 2.0_wip*sqrt(tempf*temp0/real(degree,wip) &
             *(1.0_wip-factor)*factor)*rr
     scale_vel = sqrt(tempt/tempf)
-#ifdef MPI 
+#ifdef HAVE_MPI_GENESIS 
     call mpi_bcast(scale_vel, 1, mpi_wip_real, 0, mpi_comm_country, ierror)
 #endif
 
@@ -3496,6 +3521,7 @@ contains
     real(wip),               intent(inout) :: scale_vel
 
     real(wip)                :: tempf, tempt, factor
+
 
     factor = exp(-dt/tau_t)
     tempf = 2.0_wip * real(ekin,wip)/(real(degree,wip)*KBOLTZ)
@@ -3534,6 +3560,7 @@ contains
     real(wip)                :: tempf, tempt, scale_kin
     real(wip),       pointer :: nh_mass(:), nh_vel(:)
     real(wip),       pointer :: nh_force(:), nh_coef(:)
+
 
     nh_length   = ensemble%nhchain
     nh_step     = ensemble%nhmultistep
@@ -3635,7 +3662,9 @@ contains
     real(wip),               intent(inout) :: coord_out(:,:,:)
     real(wip),               intent(inout) :: vel_out(:,:,:)
 
+    ! local variables
     integer                  :: i, ix
+
 
     !$omp parallel do
     do i = 1, ncell

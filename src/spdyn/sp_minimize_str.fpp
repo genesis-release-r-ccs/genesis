@@ -30,6 +30,7 @@ module sp_minimize_str_mod
     real(wp)            :: force_scale_init
     real(wp)            :: force_scale_max 
     logical             :: verbose
+    logical             :: check_structure
   end type s_minimize
 
   ! parameters
@@ -65,6 +66,7 @@ contains
     minimize%rstout_period   = 0
     minimize%nbupdate_period = 0
     minimize%verbose         = .false.
+    minimize%check_structure = .true.
 
     return
 

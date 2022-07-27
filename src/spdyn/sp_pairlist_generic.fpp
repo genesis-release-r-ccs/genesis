@@ -20,7 +20,7 @@ module sp_pairlist_generic_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -82,6 +82,7 @@ contains
 
 
     real(dp)                             :: sas,eae
+
 
     table           => enefunc%table%table
     table_order     => enefunc%table%table_order
@@ -146,26 +147,38 @@ contains
 
       do ix = 1, natom(i) - 1
 
+        rtmp(1) = trans2(ix,1,i) 
+        rtmp(2) = trans2(ix,2,i) 
+        rtmp(3) = trans2(ix,3,i) 
+
         do iy = ix + 1, natom(i)
 
           if (exclusion_mask1(iy,ix,i) == 1) then
 
-            num_nb15 = num_nb15 + 1
+            dij(1) = rtmp(1) - trans2(iy,1,i) 
+            dij(2) = rtmp(2) - trans2(iy,2,i) 
+            dij(3) = rtmp(3) - trans2(iy,3,i) 
+            rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+            if (rij2 < pairdist2) then
+
+              num_nb15 = num_nb15 + 1
 #ifdef DEBUG
-            if (table .and. table_order == 1 .and. (.not. nonb_limiter))then
-              dij(1) = trans2(ix,1,i) - trans2(iy,1,i)
-              dij(2) = trans2(ix,2,i) - trans2(iy,2,i)
-              dij(3) = trans2(ix,3,i) - trans2(iy,3,i)
-              rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-              if (rij2 < err_minimum_contact) &
+              if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
+                dij(1) = trans2(ix,1,i) - trans2(iy,1,i)
+                dij(2) = trans2(ix,2,i) - trans2(iy,2,i)
+                dij(3) = trans2(ix,3,i) - trans2(iy,3,i)
+                rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+                if (rij2 < err_minimum_contact) &
+                  call error_msg( &
+                    'Debug: Update_Pairlist_Pbc> too small contact')
+              end if
+              if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                  'Debug: Update_Pairlist_Pbc> too small contact')
-            endif
-            if (num_nb15 > MaxNb15) &
-              call error_msg( &
-                   'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
 #endif
-            nb15_calc_list1(num_nb15,i) = iy
+              nb15_calc_list1(num_nb15,i) = iy
+            end if
           end if
         end do
 
@@ -217,11 +230,11 @@ contains
               num_nb15 = num_nb15 + 1
 
 #ifdef DEBUG
-              if (table .and. table_order == 1 .and. (.not. nonb_limiter))then
+              if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
                 if (rij2 < err_minimum_contact) &
                   call error_msg( &
                     'Debug: Update_Pairlist_Pbc> too small contact')
-              endif
+              end if
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
                      'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
@@ -315,7 +328,7 @@ contains
 
     !$omp end parallel
 
-!#ifdef MPI
+!#ifdef HAVE_MPI_GENESIS
 !    call mpi_reduce(num_nb15_total, num_nb15_total1, 1, mpi_integer, mpi_sum, &
 !         0, mpi_comm_country, ierror)
 !#endif
@@ -441,7 +454,7 @@ contains
 
             num_nb15 = num_nb15 + 1
 
-            if (table .and. table_order == 1 .and. (.not. nonb_limiter))then
+            if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
               dij(1) = trans2(ix,1,i) - trans2(iy,1,i)
               dij(2) = trans2(ix,2,i) - trans2(iy,2,i)
               dij(3) = trans2(ix,3,i) - trans2(iy,3,i)
@@ -506,7 +519,7 @@ contains
 
               num_nb15 = num_nb15 + 1
 
-              if (table .and. table_order == 1 .and. (.not. nonb_limiter))then
+              if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
                 if (rij2 < err_minimum_contact) then
                   if (.not. nonb_limiter) &
                   call error_msg( &
@@ -604,9 +617,9 @@ contains
 
     if (small_contact > 0) then
       write(MsgOut, *) "Warning: small contacts exist in inner loop"
-    endif
+    end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_reduce(num_nb15_total, num_nb15_total1, 1, mpi_integer, mpi_sum, &
          0, mpi_comm_country, ierror)
 #endif

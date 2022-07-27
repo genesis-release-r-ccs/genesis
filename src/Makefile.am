@@ -7,10 +7,25 @@
 #
 #--------1---------2---------3---------4---------5---------6---------7---------8
 
-SUBDIRS = lib $(ATDYN_DIR) spdyn $(ANALYSIS_DIR)
+if ATDYN
+  ATDYN_DIR=atdyn
+else
+  ATDYN_DIR=
+endif
+if ANALYSIS
+  ANALYSIS_DIR=analysis
+else
+  ANALYSIS_DIR=
+endif
+if SPDYN
+  SPDYN_DIR=spdyn
+else
+  SPDYN_DIR=
+endif
+SUBDIRS = lib $(ATDYN_DIR) $(SPDYN_DIR) $(ANALYSIS_DIR)
 
 MAINTAINERCLEANFILES = Makefile.in
 
 EXTRA_DIST = \
-        GENESIS_VERSION
+	GENESIS_VERSION
 

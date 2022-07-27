@@ -60,7 +60,7 @@
       SUBROUTINE PZFFT3DV(A,B,NX,NY,NZ,ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
       IMPLICIT REAL(WP) (A-H,O-Z)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       INCLUDE 'mpif.h'
 #endif
       INCLUDE 'ffte_param.h'
@@ -112,7 +112,7 @@
                            ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
       IMPLICIT REAL(WP) (A-H,O-Z)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       INCLUDE 'mpif.h'
 #endif
       INCLUDE 'ffte_param.h'
@@ -151,7 +151,7 @@
    60 CONTINUE
 !$omp END DO
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(B,NN/NPUY,MPI_WP_COMPLEX, &
                         A,NN/NPUY,MPI_WP_COMPLEX, &
                         ICOMMY,IERR)
@@ -191,7 +191,7 @@
   150   CONTINUE
   160 CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(A,NN/NPUZ,MPI_WP_COMPLEX, &
                         B,NN/NPUZ,MPI_WP_COMPLEX, &
                         ICOMMZ,IERR)
@@ -232,7 +232,7 @@
   260 CONTINUE
       IF (IOPT .EQ. -2) RETURN
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(B,NN/NPUZ,MPI_WP_COMPLEX, &
                         A,NN/NPUZ,MPI_WP_COMPLEX, &
                         ICOMMZ,IERR)
@@ -257,7 +257,7 @@
   290   CONTINUE
   300 CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(B,NN/NPUY,MPI_WP_COMPLEX, &
                         A,NN/NPUY,MPI_WP_COMPLEX, &
                         ICOMMY,IERR)
@@ -288,7 +288,7 @@
                            ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
       IMPLICIT REAL(WP) (A-H,O-Z)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       INCLUDE 'mpif.h'
 #endif
       INCLUDE 'ffte_param.h'
@@ -322,7 +322,7 @@
    30     CONTINUE
    40   CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
         CALL MPI_ALLTOALL(B,NN/NPUY,MPI_WP_COMPLEX, &
                           A,NN/NPUY,MPI_WP_COMPLEX, &
                           ICOMMY,IERR)
@@ -347,7 +347,7 @@
    70     CONTINUE
    80   CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
         CALL MPI_ALLTOALL(B,NN/NPUZ,MPI_WP_COMPLEX, &
                           A,NN/NPUZ,MPI_WP_COMPLEX, &
                           ICOMMZ,IERR)
@@ -389,7 +389,7 @@
   170   CONTINUE
   180 CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(A,NN/NPUZ,MPI_WP_COMPLEX, &
                         B,NN/NPUZ,MPI_WP_COMPLEX, &
                         ICOMMZ,IERR)
@@ -429,7 +429,7 @@
   270   CONTINUE
   280 CONTINUE
 !$omp SINGLE
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALL(B,NN/NPUY,MPI_WP_COMPLEX, &
                         A,NN/NPUY,MPI_WP_COMPLEX, &
                         ICOMMY,IERR)

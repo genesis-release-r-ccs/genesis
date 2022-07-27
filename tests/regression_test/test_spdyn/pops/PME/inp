@@ -1,10 +1,10 @@
 [INPUT]
-topfile = ../../../param/top_all36_lipid.rtf
-parfile = ../../../param/par_all36_lipid.prm
-strfile = ../../../param/toppar_water_ions_nbfix.str
-rstfile = ../../../build//pops//rst
-psffile = ../../../build//pops/pops.psf
-pdbfile = ../../../build//pops/pops.pdb
+topfile          = ../../../param/top_all36_lipid.rtf
+parfile          = ../../../param/par_all36_lipid.prm
+strfile          = ../../../param/toppar_water_ions_nbfix.str
+rstfile          = ../../../build/pops/rst
+psffile          = ../../../build/pops/pops.psf
+pdbfile          = ../../../build/pops/pops.pdb
 
 [OUTPUT]
  
@@ -29,7 +29,6 @@ nsteps           = 20
 timestep         = 0.001
 eneout_period    = 2 
 nbupdate_period  = 5
-iseed            = 314159 
 verbose          = yes
 
 [CONSTRAINTS]
@@ -41,6 +40,7 @@ shake_tolerance  = 1.0e-10
 ensemble         = NVE
 tpcontrol        = NO
 temperature      = 0
+group_tp         = NO   # This option is used only for regression tests.
  
 [BOUNDARY]
 type             = PBC

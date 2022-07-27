@@ -28,9 +28,15 @@ module sp_pairlist_str_mod
   type, public :: s_pairlist
     real(wp)                        :: pairlistdist
     integer,            allocatable :: num_nb15_calc(:,:)
+    integer,            allocatable :: num_nb15_calc_solute(:)
+    integer,            allocatable :: num_nb15_calc_water(:)
+    integer,            allocatable :: num_nb15_calc_water_p(:)
     integer,            allocatable :: num_nb15_calc1(:,:)
     integer,            allocatable :: nb15_calc_list(:,:)
     integer,            allocatable :: nb15_calc_list_fugaku(:,:,:)
+    integer,            allocatable :: nb15_calc_list_solute(:,:)
+    integer,            allocatable :: nb15_calc_list_water(:,:)
+    integer,            allocatable :: nb15_calc_list_water_p(:,:)
     integer,            allocatable :: nb15_calc_list1(:,:)
     integer,            allocatable :: nb15_cell(:)
     integer,            allocatable :: nb15_list(:,:)
@@ -69,6 +75,9 @@ module sp_pairlist_str_mod
   integer,        public            :: MaxNb15        = 15000
   integer,        public            :: MaxNb15_Fugaku = 3000
   integer,        public            :: MaxNb15Water   = 1500
+  integer,        public            :: MaxNb15_S      = 1000
+  integer,        public            :: MaxNb15_W      = 1000
+  integer,        public            :: MaxNb15_W_P    = 1000
 
   ! subroutines
   public  :: init_pairlist
@@ -119,6 +128,7 @@ contains
 
     ! local variables
     integer                  :: alloc_stat, dealloc_stat
+
 
     alloc_stat   = 0
     dealloc_stat = 0

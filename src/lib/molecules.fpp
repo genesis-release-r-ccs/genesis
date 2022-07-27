@@ -3,7 +3,7 @@
 !  Module   molecules_mod
 !> @brief   define molecules information
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Chigusa Kobayashi (CK), 
-!!          Norio Takase (NT)
+!!          Norio Takase (NT), Kiyoshi Yagi (KY)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -35,6 +35,9 @@ module molecules_mod
   implicit none
   private
 
+  ! local variables
+  logical, private :: vervose = .true.   
+
   ! subroutines
   public  :: define_molecules
   public  :: update_num_deg_freedom
@@ -51,6 +54,9 @@ module molecules_mod
   private :: export_molecule_sel
   private :: export_molecule_all
   public  :: check_light_atom_name
+  private :: export_molecule_sel_crd
+  private :: export_molecule_all_crd
+  private :: export_molecule_sel_psf
 
 contains
 
@@ -64,8 +70,10 @@ contains
   !! @param[in]    crd      : CRD information (optional)
   !! @param[in]    top      : TOP information (optional)
   !! @param[in]    par      : PAR information (optional)
+  !! @param[in]    gpr      : GPR information (optional)
   !! @param[in]    psf      : PSF information (optional)
   !! @param[in]    ref      : REF information (optional)
+  !! @param[in]    fit      : FIT information (optional)
   !! @param[in]    mode     : MODE information (optional)
   !! @param[in]    prmtop   : PRMTOP information (optional)
   !! @param[in]    ambdrd   : AMBCRD information (optional)
@@ -77,7 +85,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit,&
-                              mode,prmtop, ambcrd, ambref,                     &
+                              mode, prmtop, ambcrd, ambref,                    &
                               grotop, grocrd, groref)
 
     ! formal arguments
@@ -109,6 +117,7 @@ contains
     logical         :: present_top, present_par, present_psf, present_gpr
     logical         :: present_prmtop, present_ambcrd, present_ambref
     logical         :: present_grotop, present_grocrd, present_groref
+
 
     present_pdb    = .false.
     present_crd    = .false.
@@ -335,7 +344,7 @@ contains
 
     ! write summary of molecule information
     !
-    if (main_rank) then
+    if (main_rank .and. vervose) then
 
       write(MsgOut,'(A)') 'Define_Molecule> Summary of molecules'
 
@@ -357,8 +366,8 @@ contains
       write(MsgOut,'(A20,F10.3)')                          &
            '  total_charge    = ', molecule%total_charge
       write(MsgOut,'(A)') ' '
+      vervose = .false.
     end if
-
 
     return
 
@@ -403,13 +412,14 @@ contains
   !
   !  Subroutine    export_molecules
   !> @brief        a driver subroutine for export moleucles
-  !! @authors      NT
+  !! @authors      NT, KYMD
   !! @param[in]    molecule : molecule information
   !! @param[in]    selatoms : selection information  (optional)
   !! @param[out]   pdb      : PDB information        (optional)
   !! @param[out]   crd      : CRD information        (optional)
   !! @param[out]   top      : TOP information        (optional)
   !! @param[out]   par      : par information        (optional)
+  !! @param[out]   gpr      : GPR information        (optional)
   !! @param[out]   psf      : PSF information        (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -438,7 +448,13 @@ contains
     end if
 
     if (present(crd)) then
-      ! Not supported yet.
+
+      if (present(selatoms)) then
+        call export_molecule_sel_crd(molecule, selatoms, crd)
+      else
+        call export_molecule_all_crd(molecule, crd)
+      end if
+
     end if
 
     if (present(top)) then
@@ -454,7 +470,11 @@ contains
     end if
 
     if (present(psf)) then
-      ! Not supported yet.
+
+      if (present(selatoms)) then
+        call export_molecule_sel_psf(molecule, selatoms, psf)
+      end if
+
     end if
 
     return
@@ -488,6 +508,7 @@ contains
     ! local variables
     integer                  :: natom
     integer                  :: nbond
+    integer                  :: nenm 
     integer                  :: nangl
     integer                  :: ndihe
     integer                  :: nimpr
@@ -506,6 +527,7 @@ contains
     !
     natom = psf%num_atoms
     nbond = psf%num_bonds
+    nenm  = psf%num_enm_bonds
     nangl = psf%num_angles
     ndihe = psf%num_dihedrals
     nimpr = psf%num_impropers
@@ -513,6 +535,7 @@ contains
 
     call alloc_molecules(molecule, MoleculeAtom, natom)
     call alloc_molecules(molecule, MoleculeBond, nbond)
+    call alloc_molecules(molecule, MoleculeEnm , nenm)
     call alloc_molecules(molecule, MoleculeAngl, nangl)
     call alloc_molecules(molecule, MoleculeDihe, ndihe)
     call alloc_molecules(molecule, MoleculeImpr, nimpr)
@@ -529,11 +552,19 @@ contains
     molecule%atom_cls_name(1:natom)    = psf%atom_cls_name(1:natom)
     molecule%charge(1:natom)           = psf%charge(1:natom)
     molecule%mass(1:natom)             = psf%mass(1:natom)
-    molecule%inv_mass(1:natom)         = 1.0_wp/psf%mass(1:natom)
+    do i = 1, natom
+      if (psf%mass(i) > EPS) then
+        molecule%inv_mass(i)           = 1.0_wp/psf%mass(i)
+      else
+        molecule%inv_mass(i)           = 0.0_wp
+      end if
+    end do
     molecule%imove(1:natom)            = psf%imove(1:natom)
 
     if (nbond >= 1) &
     molecule%bond_list(1:2,1:nbond)    = psf%bond_list(1:2,1:nbond)
+    if (nenm >= 1) &
+    molecule%enm_list(1:2,1:nenm)      = psf%enm_list (1:2,1:nenm)
     if (nangl >= 1) &
     molecule%angl_list(1:3,1:nangl)    = psf%angl_list(1:3,1:nangl)
     if (ndihe >= 1) &
@@ -572,6 +603,7 @@ contains
     !
     molecule%num_atoms       = natom
     molecule%num_bonds       = nbond
+    molecule%num_enm_bonds   = nenm 
     molecule%num_angles      = nangl
     molecule%num_dihedrals   = ndihe
     molecule%num_impropers   = nimpr
@@ -728,7 +760,6 @@ contains
       molecule%bond_list(2,icnt) = prmtop%bond_wo_hy(2,i) / 3 + 1
     end do
 
-
     ! angles
     !
     molecule%num_angles = prmtop%num_anglh + prmtop%num_mangla
@@ -829,6 +860,19 @@ contains
 
     end do
 
+    ! cmap 
+    !
+    molecule%num_cmaps = prmtop%num_cmap 
+
+    call alloc_molecules(molecule, MoleculeCmap, molecule%num_cmaps)
+
+    do i = 1, prmtop%num_cmap
+
+      molecule%cmap_list(1:4,i) = prmtop%cmap_list(1:4,i)
+      molecule%cmap_list(5:8,i) = prmtop%cmap_list(2:5,i)
+
+    end do
+
     ! assigen center of the system and shift coordinates according to center
     !
 !   center(1:3) = 0.0_wp
@@ -912,12 +956,13 @@ contains
 
         do k = 1, gromol%num_dihes
           select case (gromol%dihes(k)%func)
-          case (1,3,4,9)
+         !shinobu-edited
+          case (1,3,4,9,21,22,31,32,33,41,43,52)
             ndihe = ndihe + 1
           case (2)
             nimpr = nimpr + 1
           case default
-            call error_msg('Setup_Molecule_Gromacs> Unknown dihedral fucn type.')
+            call error_msg('Setup_Molecule_Gromacs> Unknown dihedral func type.')
           end select
         end do
 
@@ -948,21 +993,28 @@ contains
 
         ! atom
         do k = 1, gromol%num_atoms
-          m                         = molecule%num_atoms + 1
-          molecule%atom_no(m)       = m
-          molecule%segment_name(m)  = name
-          molecule%residue_no(m)    = gromol%atoms(k)%residue_no
-          molecule%residue_name(m)  = gromol%atoms(k)%residue_name
-          molecule%atom_name(m)     = gromol%atoms(k)%atom_name
-          molecule%atom_cls_name(m) = gromol%atoms(k)%atom_type
-          molecule%charge(m)        = gromol%atoms(k)%charge
-          molecule%mass(m)          = gromol%atoms(k)%mass
+          m                             = molecule%num_atoms + 1
+          molecule%atom_no(m)           = m
+          molecule%segment_name(m)      = name
+          molecule%residue_no(m)        = gromol%atoms(k)%residue_no
+          molecule%residue_name(m)      = gromol%atoms(k)%residue_name
+          molecule%atom_name(m)         = gromol%atoms(k)%atom_name
+          molecule%atom_cls_name(m)     = gromol%atoms(k)%atom_type
+          molecule%charge(m)            = gromol%atoms(k)%charge
+          molecule%mass(m)              = gromol%atoms(k)%mass
           if (molecule%mass(m) > EPS) then 
-            molecule%inv_mass(m)      = 1.0_wp / molecule%mass(m)
+            molecule%inv_mass(m)        = 1.0_wp / molecule%mass(m)
           else
-            molecule%inv_mass(m)      = 0.0_wp
+            molecule%inv_mass(m)        = 0.0_wp
           end if
-          molecule%num_atoms        = m
+          molecule%stokes_radius(m)     = gromol%atoms(k)%stokes_r * 10.0_wp
+          !shinobu-edited
+          if (molecule%stokes_radius(m) > EPS) then
+            molecule%inv_stokes_radius(m) = 0.1_wp / molecule%stokes_radius(m)
+          else
+            molecule%inv_stokes_radius(m) = 0.0_wp
+          end if
+          molecule%num_atoms            = m
         end do
 
         ! bond
@@ -1022,7 +1074,8 @@ contains
         ! dihedral/improper dihedral
         do k = 1, gromol%num_dihes
           select case (gromol%dihes(k)%func)
-          case (1,4,9)
+          !shinobu-edited
+          case (1,3,4,9,21,22,31,32,33,41,43,52)
             m                        = molecule%num_dihedrals + 1
             molecule%dihe_list(1, m) = gromol%dihes(k)%atom_idx1 + ioffset
             molecule%dihe_list(2, m) = gromol%dihes(k)%atom_idx2 + ioffset
@@ -1215,7 +1268,6 @@ contains
     molecule%num_atoms       = natom
     molecule%num_deg_freedom = 3*natom
 
-
     return
 
   end subroutine setup_molecule_crd
@@ -1336,7 +1388,7 @@ contains
   !> @brief        setup molecules by Mode information
   !! @authors      YK
   !! @param[inout] molecule : molecule information
-  !! @param[in]    mode      : mode information
+  !! @param[in]    mode     : mode information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1348,6 +1400,7 @@ contains
 
     ! local variables
     integer                  :: nmode
+
 
     nmode = mode%num_pc_modes
   
@@ -1845,5 +1898,436 @@ contains
     return
 
   end subroutine check_light_atom_name
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    export_molecule_sel_crd
+  !> @brief        export molecule to crd
+  !! @authors      KYMD
+  !! @param[in]    molecule : structure of molecule
+  !! @param[in]    selatoms : information of atom selection
+  !! @param[out]   crd      : CRD information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine export_molecule_sel_crd(molecule, selatoms, crd)
+
+    ! formal arguments
+    type(s_molecule),        intent(in)  :: molecule
+    type(s_selatoms),        intent(in)  :: selatoms
+    type(s_crd),             intent(out) :: crd
+
+    ! local variables
+    integer                  :: i, idx, natom, residue_no_base, last_residue_no
+
+
+    natom = size(selatoms%idx)
+
+    ! init crd
+    call init_crd(crd)
+
+    ! setup atom data
+    call alloc_crd(crd, CrdAtom, natom)
+
+    crd%num_atoms   = natom
+    residue_no_base = molecule%residue_no(selatoms%idx(1)) - 1
+    last_residue_no = residue_no_base + 1
+    do i = 1, natom
+
+      idx = selatoms%idx(i)
+      if(molecule%residue_no(idx) /= last_residue_no) then
+        residue_no_base = residue_no_base + (molecule%residue_no(idx) - last_residue_no) - 1
+        last_residue_no = molecule%residue_no(idx)
+      end if
+
+      crd%atom_name(i)        = molecule%atom_name(idx)
+      crd%residue_name(i)     = molecule%residue_name(idx) 
+      crd%segment_name(i)     = molecule%segment_name(idx)
+      crd%atom_no(i)          = i 
+      crd%residue_no(i)       = molecule%residue_no(idx) - residue_no_base
+      crd%residue_id(i)       = molecule%residue_no(idx)
+      crd%atom_coord(:,i)     = molecule%atom_coord(:,idx)
+
+    end do
+
+    return
+
+  end subroutine export_molecule_sel_crd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    export_molecule_all_crd
+  !> @brief        export molecule to crd
+  !! @authors      KYMD
+  !! @param[in]    molecule : molecule information
+  !! @param[out]   crd      : crd information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine export_molecule_all_crd(molecule, crd)
+
+    ! formal arguments
+    type(s_molecule),        intent(in)  :: molecule
+    type(s_crd),             intent(out) :: crd
+
+    ! local variables
+    integer                  :: i, natom, residue_no_base
+
+
+    natom = size(molecule%atom_name)
+
+    ! init pdb
+    call init_crd(crd)
+
+    ! setup atom data
+    call alloc_crd(crd, CrdAtom, natom)
+
+    crd%num_atoms   = natom
+    residue_no_base = molecule%residue_no(1) - 1
+    do i = 1, natom
+
+      crd%atom_name(i)        = molecule%atom_name(i)
+      crd%residue_name(i)     = molecule%residue_name(i)(1:4)
+      crd%segment_name(i)     = molecule%segment_name(i)
+      crd%atom_no(i)          = i
+      crd%residue_no(i)       = molecule%residue_no(i) - residue_no_base
+      crd%residue_id(i)       = molecule%residue_no(i)
+      crd%atom_coord(:,i)     = molecule%atom_coord(:,i)
+
+    end do
+
+    return
+
+  end subroutine export_molecule_all_crd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    export_molecule_psf
+  !> @brief        export molecule to crd
+  !! @authors      NT, KY
+  !! @param[in]    molecule : structure of molecule
+  !! @param[in]    selatoms : information of atom selection
+  !! @param[inout] psf      : PSF information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine export_molecule_sel_psf(molecule, selatoms, psf)
+
+    ! formal arguments
+    type(s_molecule),        intent(in)    :: molecule
+    type(s_selatoms),        intent(in)    :: selatoms
+    type(s_psf),             intent(inout) :: psf
+
+    ! local variables
+    integer                  :: i, j, jfirst, jlast
+    integer                  :: natom, nbond, ntheta, nphi, nimphi,  &
+                                ndon, nacc, nnb, ngrp, nst2, molnt,  &
+                                numlp, numlph, ncrterm
+    integer                  :: idx
+    integer                  :: iatom, ibond, itheta, iphi, iimphi,  &
+                                idon, iacc, inb, igrp, ist2, imolnt, &
+                                inumlp, inumlph, icrterm
+    type(s_psf)              :: tmp_psf
+    real(wp)                 :: total_charge
+    integer                  :: itmp(8), item 
+    integer, allocatable     :: sel_idx(:), inv_sel_idx(:)
+    integer                  :: alloc_stat, dealloc_stat
+    logical                  :: isGRP
+
+
+    natom = size(selatoms%idx)
+    iatom = psf%num_atoms
+    if (natom == iatom .and. psf%total_charge == 0.0_wp) return
+
+    allocate(sel_idx(1: natom), inv_sel_idx(0: iatom), stat = alloc_stat)
+    if (alloc_stat /= 0) call error_msg_alloc
+    sel_idx(1: natom)     = selatoms%idx(1: natom)
+    inv_sel_idx(0: iatom) = 0
+
+    ! init psf
+    !
+    call init_psf(tmp_psf)
+
+    ! setup atom data
+    !
+    tmp_psf%type = psf%type
+    ibond        = psf%num_bonds
+    itheta       = psf%num_angles
+    iphi         = psf%num_dihedrals
+    iimphi       = psf%num_impropers
+    igrp         = psf%num_groups
+    icrterm      = psf%num_cross_terms
+    idon         = psf%num_HB_donors
+    iacc         = psf%num_HB_acceptors
+    inb          = psf%num_NB_exclusions
+    call alloc_psf(tmp_psf, PsfAtom, natom)
+    call alloc_psf(tmp_psf, PsfBond, ibond)
+    call alloc_psf(tmp_psf, PsfAngl, itheta)
+    call alloc_psf(tmp_psf, PsfDihe, iphi)
+    call alloc_psf(tmp_psf, PsfImpr, iimphi)
+    call alloc_psf(tmp_psf, PsfDonr, idon)
+    call alloc_psf(tmp_psf, PsfAcce, iacc)
+    call alloc_psf(tmp_psf, PsfNb, inb)
+    call alloc_psf(tmp_psf, PsfGrp, igrp)
+    call alloc_psf(tmp_psf, PsfCmap, icrterm)
+
+    !  Atomic information
+    !
+    total_charge             = 0.0_wp
+    do i = 1, natom 
+      idx = sel_idx(i)
+
+      tmp_psf%atom_no(i)        = i ! psf%atom_no(idx)
+      tmp_psf%segment_name(i)   = psf%segment_name(idx)
+      tmp_psf%residue_no(i)     = psf%residue_no(idx) 
+      tmp_psf%residue_name(i)   = psf%residue_name(idx)
+      tmp_psf%atom_name(i)      = psf%atom_name(idx)
+      tmp_psf%atom_cls_name(i)  = psf%atom_cls_name(idx)
+      tmp_psf%atom_cls_no(i)    = psf%atom_cls_no(idx)
+      tmp_psf%charge(i)         = psf%charge(idx)
+      tmp_psf%mass(i)           = psf%mass(idx)
+      tmp_psf%imove(i)          = psf%imove(idx)
+      tmp_psf%molecule_no(i)    = psf%molecule_no(idx) 
+
+      total_charge              = total_charge + psf%charge(idx)
+      inv_sel_idx(idx)          = i
+    end do
+
+    ! Bond
+    !
+    nbond = 0
+    item  = 2
+    do i = 1, ibond
+      itmp(1: item) = psf%bond_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      nbond = nbond + 1
+      do j = 1, item
+        tmp_psf%bond_list(j, nbond) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! Angle
+    !
+    ntheta = 0
+    item   = 3
+    do i = 1, itheta
+      itmp(1: item) = psf%angl_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      ntheta = ntheta + 1
+      do j = 1, item
+        tmp_psf%angl_list(j, ntheta) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! Dihedral
+    !
+    nphi = 0
+    item = 4
+    do i = 1, iphi
+      itmp(1: item) = psf%dihe_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      nphi = nphi + 1
+      do j = 1, item
+        tmp_psf%dihe_list(j, nphi) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! Improper
+    !
+    nimphi = 0
+    item   = 4
+    do i = 1, iimphi
+      itmp(1: item) = psf%impr_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      nimphi = nimphi + 1
+      do j = 1, item
+        tmp_psf%impr_list(j, nimphi) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! Donor
+    !
+    ndon = 0
+    item = 2
+    do i = 1, idon
+      itmp(1: item) = psf%donr_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      ndon = ndon + 1
+      do j = 1, item
+        tmp_psf%donr_list(j, ndon) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! Acceptor
+    !
+    nacc = 0
+    item = 2
+    do i = 1, iacc
+      itmp(1: item) = psf%acce_list(1: item, i)
+      if (.not.any(sel_idx(1: natom) == itmp(1))) cycle
+      if (.not.any(sel_idx(1: natom) == itmp(2)) .and. itmp(2) /= 0) cycle
+      nacc = nacc + 1
+      do j = 1, item
+        tmp_psf%acce_list(j, nacc) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+    ! NB
+    !
+    nnb  = 0
+    item = 1
+    do i = 1, inb
+      itmp(1) = psf%nb_list(i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if(j /= item + 1) cycle
+      nnb = nnb + 1
+      tmp_psf%nb_list(nnb) = inv_sel_idx(itmp(j))
+    end do
+
+    ! Group
+    !
+    ngrp = 0
+    item = 3
+    do i = 1, igrp 
+      itmp(1: item) = psf%grp_list(1: item, i)
+      jfirst = itmp(1) + 1
+      if (i /= igrp) then
+        jlast = psf%grp_list(1, i + 1) 
+      else
+        jlast = iatom
+      end if
+      isGRP = .true.
+      do j = jfirst, jlast
+        if (inv_sel_idx(j) == 0) then
+          isGRP = .false.
+          exit
+        end if
+      end do
+      if (isGRP) then
+        ngrp = ngrp + 1
+        tmp_psf%grp_list(1, ngrp)       = inv_sel_idx(jfirst)-1
+        tmp_psf%grp_list(2: item, ngrp) = itmp(2: item)
+      end if
+    end do
+
+    ! Cmap
+    !
+    ncrterm = 0
+    item    = 8
+    do i = 1, icrterm
+      itmp(1: item) = psf%cmap_list(1: item, i)
+      do j = 1, item
+        if (.not.any(sel_idx(1: natom) == itmp(j))) exit
+      end do
+      if (j /= item + 1) cycle
+      ncrterm = ncrterm + 1
+      do j = 1, item
+        tmp_psf%cmap_list(j, ncrterm) = inv_sel_idx(itmp(j))
+      end do
+    end do
+
+
+    ! substitution with array size changed
+    !
+    call dealloc_psf_all(psf)
+    call init_psf(psf)
+    psf%type              = tmp_psf%type
+    psf%num_atoms         = natom
+    psf%num_bonds         = nbond
+    psf%num_angles        = ntheta
+    psf%num_dihedrals     = nphi
+    psf%num_impropers     = nimphi
+    psf%num_groups        = ngrp
+    psf%num_cross_terms   = ncrterm
+    psf%num_HB_donors     = ndon
+    psf%num_HB_acceptors  = nacc
+    psf%num_NB_exclusions = nnb
+    psf%total_charge      = total_charge
+    call alloc_psf(psf, PsfAtom, natom)
+    call alloc_psf(psf, PsfBond, nbond)
+    call alloc_psf(psf, PsfAngl, ntheta)
+    call alloc_psf(psf, PsfDihe, nphi)
+    call alloc_psf(psf, PsfImpr, nimphi)
+    call alloc_psf(psf, PsfDonr, ndon)
+    call alloc_psf(psf, PsfAcce, nacc)
+    call alloc_psf(psf, PsfNb, nnb)
+    call alloc_psf(psf, PsfGrp, ngrp)
+    call alloc_psf(psf, PsfCmap, ncrterm)
+
+    do i = 1, natom
+      psf%atom_no(i)        = i ! tmp_psf%atom_no(i)
+      psf%segment_name(i)   = tmp_psf%segment_name(i)
+      psf%residue_no(i)     = tmp_psf%residue_no(i) 
+      psf%residue_name(i)   = tmp_psf%residue_name(i)
+      psf%atom_name(i)      = tmp_psf%atom_name(i)
+      psf%atom_cls_name(i)  = tmp_psf%atom_cls_name(i)
+      psf%atom_cls_no(i)    = tmp_psf%atom_cls_no(i)
+      psf%charge(i)         = tmp_psf%charge(i)
+      psf%mass(i)           = tmp_psf%mass(i)
+      psf%imove(i)          = tmp_psf%imove(i)
+      psf%molecule_no(i)    = tmp_psf%molecule_no(i) 
+    end do
+
+    do i = 1, nbond
+      psf%bond_list(1: 2, i) = tmp_psf%bond_list(1: 2, i)
+    end do
+
+    do i = 1, ntheta
+      psf%angl_list(1: 3, i) = tmp_psf%angl_list(1: 3, i)
+    end do
+
+    do i = 1, nphi
+      psf%dihe_list(1: 4, i) = tmp_psf%dihe_list(1: 4, i)
+    end do
+
+    do i = 1, nimphi
+      psf%impr_list(1: 4, i) = tmp_psf%impr_list(1: 4, i)
+    end do
+
+    do i = 1, ndon
+      psf%donr_list(1: 2, i) = tmp_psf%donr_list(1: 2, i)
+    end do
+
+    do i = 1, nacc
+      psf%acce_list(1: 2, i) = tmp_psf%acce_list(1: 2, i)
+    end do
+
+    do i = 1, nnb
+      psf%nb_list(i) = tmp_psf%nb_list(i)
+    end do
+
+    do i = 1, ngrp
+      psf%grp_list(1: 3, i) = tmp_psf%grp_list(1: 3, i)
+    end do
+
+    do i = 1, ncrterm
+      psf%cmap_list(1: 8, i) = tmp_psf%cmap_list(1: 8, i)
+    end do
+
+    call dealloc_psf_all(tmp_psf)
+
+    deallocate(sel_idx, inv_sel_idx, stat = dealloc_stat)
+    if (dealloc_stat /= 0) call error_msg_dealloc
+
+    return
+
+  end subroutine export_molecule_sel_psf
 
 end module molecules_mod

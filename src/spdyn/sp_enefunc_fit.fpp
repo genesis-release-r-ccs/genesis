@@ -27,20 +27,25 @@ module sp_enefunc_fit_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
-  public   :: setup_fitting_spdyn
-  public   :: fitting_sel
-  public   :: fitting_sel_2d
-  private  :: setup_enefunc_fit_domain
-  private  :: setup_enefunc_fit_refcoord
-  private  :: reduce_com
+  public  :: setup_fitting_spdyn
+  public  :: fitting_sel
+  public  :: fitting_sel_2d
+  private :: setup_enefunc_fit_domain
+  private :: setup_enefunc_fit_refcoord
+  private :: reduce_com
 
 contains
 
@@ -76,6 +81,7 @@ contains
     logical                                :: fit_check, fit_check_rpath
     type(s_selatoms)                       :: selatoms
     
+
     enefunc%fitting_method  = fit_info%fitting_method
 
     if (enefunc%pressure_rmsd .and. main_rank) then
@@ -94,7 +100,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM) then
             fit_check = .true.
             exit
-          endif
+          end if
         end do
         if (fit_check .and. .not. fit_info%force_no_fitting) then
           call error_msg('Setup_Fitting_Spdyn> No fit is not allowed '//&
@@ -102,11 +108,11 @@ contains
         endif
         if (fit_check .and. fit_info%force_no_fitting) then
           write(MsgOut,'(A)') "Setup_Fitting_Spdyn> RMSD restraint without FITTING"
-          write(MsgOut,*)
+          write(MsgOut,*) 
         end if
-      endif
+      end if
       return
-    endif
+    end if
 
     fit_check       = .false.
     do i = 1,enefunc%num_restraintfuncs
@@ -116,16 +122,16 @@ contains
           enefunc%restraint_kind(i) == RestraintsFuncPCCOM) then
           fit_check = .true.
           exit
-      endif
+      end if
     end do
 
     fit_check_rpath = .false.
     do i = 1,enefunc%num_restraintfuncs
-      if ( enefunc%restraint_kind(i) == RestraintsFuncPOSI .and. &
-           is_rpath) then
+      if (enefunc%restraint_kind(i) == RestraintsFuncPOSI .and. &
+          is_rpath) then
         fit_check_rpath = .true.
         exit
-      endif
+      end if
     end do
 
     if (.not. fit_check .and. .not. fit_check_rpath) then
@@ -133,10 +139,10 @@ contains
          write(MsgOut,'(A)') "Setup_Fitting_Spdyn> NO fitting is applied, skip"
          write(MsgOut,'(A)') "  fitting method  =  NO"
          write(MsgOut,*) 
-       endif
+       end if
        enefunc%fitting_method=FittingMethodNO
        return
-    endif
+    end if
 
     if (enefunc%fitting_method /= FittingMethodTR_ROT .and. &
         enefunc%fitting_method /= FittingMethodXYTR_ZROT) &
@@ -151,24 +157,24 @@ contains
     else
       enefunc%fitting_file  = FittingFileREF
       enefunc%fitting_move  = FittingMoveREF
-    endif
+    end if
 
     do i = 1,enefunc%num_restraintfuncs
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM .and. &
         (.not. enefunc%mass_weight) ) &
         call error_msg('Setup_Fitting_Spdyn> RESTRAINTS and FITTING '//&
-                       'is inconsistent')
+                       'is inconsistent.  Please check [FITTING] section')
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .and. &
         (enefunc%mass_weight) ) &
         call error_msg('Setup_Fitting_Spdyn> RESTRAINTS and FITTING'//&
-                       'is inconsistent')
+                       'is inconsistent.  Please check [FITTING] section')
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .or. &
           enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM) then
         if (fitting_atom_idx /= enefunc%restraint_grouplist(1,i)) then
           call error_msg('Setup_Fitting_Spdyn> fitting group should be'//&
                        'same with restraint group in RMSD restraint')
-        endif
-      endif
+        end if
+      end if
     end do
 
     call setup_enefunc_fit_refcoord(enefunc%fitting_file, molecule, enefunc)
@@ -231,7 +237,7 @@ contains
         !  write(MsgOut,*) my_country_no + 1, icel, nfitting(icel)
         !  write(MsgOut,*) iatm, fit_refcoord(1:3,iatm)
         !  write(MsgOut,*) " "
-        !endif
+        !end if
       end if
 
     end do
@@ -270,7 +276,7 @@ contains
       if (size(enefunc%restraint_refcoord(1,:)) /= molecule%num_atoms) &
       call error_msg('Setup_Enefunc_Fit_Refcoord> bad reffile in [INPUT]')
      
-    endif
+    end if
 
     enefunc%do_fitting = .true.
 
@@ -292,7 +298,7 @@ contains
         enefunc%fit_refcoord(3,j) = enefunc%restraint_refcoord(3,j)
       end do
 
-    endif
+    end if
 
     return
 
@@ -426,8 +432,10 @@ contains
     sym_matrix(4,1) = sym_matrix(1,4)
     sym_matrix(4,2) = sym_matrix(2,4)
     sym_matrix(4,3) = sym_matrix(3,4)
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, sym_matrix, 16, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
+#endif
 
     !if (my_country_no + 1 == 1) then
       !write(MsgOut,*) "sym(1,1)", sym_matrix(1,1)
@@ -591,7 +599,6 @@ contains
     id_g2l          => domain%id_g2l
     mass            => domain%mass
 
-
     nrestraint      => enefunc%num_restraint
     restraint_atom  => enefunc%restraint_atom
     restraint_coord => enefunc%restraint_coord
@@ -655,8 +662,10 @@ contains
       end do
     end do
 
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, cor_matrix, 4, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
+#endif
 
     ! eigenvalue and eigenvector
     !
@@ -762,14 +771,14 @@ contains
     real(dp),                intent(inout) :: val1(:), val2(:), val3
 
     ! local variables
-    real(dp)                      :: before_reduce(7), after_reduce(7)
+    real(dp)                 :: before_reduce(7), after_reduce(7)
 
 
     before_reduce(1:3) = val1(1:3)
     before_reduce(4:6) = val2(1:3)
     before_reduce(7)   = val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(before_reduce, after_reduce, 7, mpi_real8, &
                        mpi_sum, mpi_comm_country, ierror)
 #else

@@ -23,7 +23,7 @@ module sp_setup_mpi_mod
   use math_libs_mod
   use messages_mod
   use mpi_parallel_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -61,27 +61,27 @@ contains
     logical,     allocatable :: nonbreal(:), nonbrecip(:)
 
 
-#ifdef MPI
-      ! Equalize communicators (comm_country & comm_city) between MD
-      !
-      mpi_comm_country = mpi_comm_world
-      nproc_country    = nproc_world
-      my_country_rank  = my_world_rank
+#ifdef HAVE_MPI_GENESIS
+    ! Equalize communicators (comm_country & comm_city) between MD
+    !
+    mpi_comm_country = mpi_comm_world
+    nproc_country    = nproc_world
+    my_country_rank  = my_world_rank
 
-      ! check factorization of 2,3,5
-      if (nproc_country /= 1) then
-        prime_flag=factorization_235(nproc_country)
-        if (.not. prime_flag)  &
-          call error_msg('Setup_Mpi_Md> number of MPI processes should be'//&
-                         ' multiples of 2,3,5')
-      end if
+    ! check factorization of 2,3,5
+    if (nproc_country /= 1) then
+      prime_flag=factorization_235(nproc_country)
+      if (.not. prime_flag)  &
+        call error_msg('Setup_Mpi_Md> number of MPI processes should be'//&
+                       ' multiples of 2,3,5')
+    end if
 #endif
 
     select case (ene_info%electrostatic)
 
     case (ElectrostaticPME)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 
@@ -92,7 +92,7 @@ contains
 
     case (ElectrostaticCUTOFF)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 
@@ -103,7 +103,7 @@ contains
 
     end select
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     ! Write the summary of setup MP
     !
     allocate(globrank (nproc_world), &
@@ -165,8 +165,9 @@ contains
   !  Subroutine    setup_mpi_remd
   !> @brief        setup mpi in REMD
   !> @authors      TM, JJ
-  !! @param[in]    ene_info : ENERGY section control parameters information
-  !! @param[in]    rep_info : REMD section control parameters information
+  !! @param[in]    ene_info   : ENERGY section control parameters information
+  !! @param[in]    rep_info   : REMD section control parameters information
+  !! @param[in]    bound_info : BOUNDARY section control parameters information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -193,7 +194,7 @@ contains
     logical,     allocatable :: repmast(:), nonbreal(:), nonbrecip(:)
 
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     nreplicas  = product(rep_info%nreplicas(1:rep_info%dimension))
 
@@ -278,7 +279,7 @@ contains
 
     case (ElectrostaticPME)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 
@@ -289,7 +290,7 @@ contains
 
     case (ElectrostaticCUTOFF)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 
@@ -389,7 +390,7 @@ contains
   !  Subroutine    setup_mpi_rpath
   !> @brief        setup mpi in RPATH
   !> @authors      TM, JJ
-  !! @param[in]    ene_info : ENERGY section control parameters information
+  !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    rpath_info : RPATH section control parameters information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -412,7 +413,7 @@ contains
     logical,     allocatable :: repmast(:), nonbreal(:), nonbrecip(:)
 
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     nreplica  = rpath_info%nreplica
 
@@ -467,7 +468,7 @@ contains
 
     case (ElectrostaticPME)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 
@@ -478,7 +479,7 @@ contains
 
     case (ElectrostaticCUTOFF)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       mpi_comm_city = mpi_comm_country
 #endif
 

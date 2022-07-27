@@ -1,0 +1,31 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+#pdbfile       = output1.pdb      # PDB file
+#rmsfile       = output1.rms      # RMSD file
+pdb_avefile    = out              # PDB file (Averaged coordinates of analysis atoms)
+#pdb_aftfile   = output1_aft.pdb  # PDB file (Averaged coordinates of fitting atoms)
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = an:CA           # selection group 1
+ 
+[FITTING]
+fitting_method = TR+ROT          # [NO,TR,TR+ROT,TR+ZROT,XYTR,XYTR+ZROT]
+fitting_atom   = 1               # atom group
+ 
+[OPTION]
+check_only     = no              # (YES/NO)
+num_iterations = 5               # number of iterations
+analysis_atom  = 1               # analysis target atom group

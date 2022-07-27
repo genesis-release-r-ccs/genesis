@@ -230,8 +230,8 @@ contains
   !  Subroutine    read_localres
   !> @brief        read data from local restraint file
   !! @authors      CK
-  !! @param[in]    file      : unit number of local restraint file
-  !! @param[out]   localres  : localres data
+  !! @param[in]    file     : unit number of local restraint file
+  !! @param[out]   localres : localres data
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -273,19 +273,19 @@ contains
 
       line = adjustl(line)
 
-      if (line(1:4) == 'BOND' .or. line(1:4) == 'bond') then
+      if (line(1:4) .eq. 'BOND' .or. line(1:4) .eq. 'bond') then
         ifuncs = ifuncs + 1
         read(line,*) chara,(localres%index_atoms(i,ifuncs),i=1,2), &
                      localres%const(ifuncs), localres%ref(ifuncs)
         localres%func(ifuncs) = LocalResBonds
 
-      else if (line(1:4) == 'ANGL' .or. line(1:4) == 'angl') then
+      else if (line(1:4) .eq. 'ANGL' .or. line(1:4) .eq. 'angl') then
         ifuncs = ifuncs + 1
         read(line,*) chara,(localres%index_atoms(i,ifuncs),i=1,3), &
                      localres%const(ifuncs), localres%ref(ifuncs)
         localres%func(ifuncs) = LocalResAngles
 
-      else if (line(1:4) == 'DIHE' .or. line(1:4) == 'dihe') then
+      else if (line(1:4) .eq. 'DIHE' .or. line(1:4) .eq. 'dihe') then
         ifuncs = ifuncs + 1
         read(line,*) chara,(localres%index_atoms(i,ifuncs),i=1,4), &
                      localres%const(ifuncs), localres%ref(ifuncs)
@@ -344,17 +344,17 @@ contains
 
       line = adjustl(line)
 
-      if (line(1:4) == 'BOND' .or. line(1:4) == 'bond') then
+      if (line(1:4) .eq. 'BOND' .or. line(1:4) .eq. 'bond') then
         num_funcs = num_funcs + 1
         num_char=split_num(line)
         if (num_char /= 5) error_flag = .true.
 
-      else if (line(1:4) == 'ANGL' .or. line(1:4) == 'angl') then
+      else if (line(1:4) .eq. 'ANGL' .or. line(1:4) .eq. 'angl') then
         num_funcs = num_funcs + 1
         num_char=split_num(line)
         if (num_char /= 6) error_flag = .true.
 
-      else if (line(1:4) == 'DIHE' .or. line(1:4) == 'dihe') then
+      else if (line(1:4) .eq. 'DIHE' .or. line(1:4) .eq. 'dihe') then
         num_funcs = num_funcs + 1
         num_char=split_num(line)
         if (num_char /= 7) error_flag = .true.

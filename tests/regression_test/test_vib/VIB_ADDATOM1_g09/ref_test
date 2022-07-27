@@ -1,0 +1,601 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 1.6.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = yagi@beluga
+  fortran      = ifort (IFORT) 18.0.1 20171018
+  option       = -xHost -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 18.0.1 20171018
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp
+  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_
+ lapack95_lp64 
+
+Runtime_Information> Machine and Library Information
+  date       = 2021/05/12 17:57:04
+  cpu model    = Intel(R) Xeon(R) CPU E5-2667 v4 @ 3.20GHz
+  exec. host   = yagi@beluga12
+  LD library   = 
+ /home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v3.1.2_intel_v18.0.1/lib:/opt/inte
+ l/compilers_and_libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/
+ compilers_and_libraries_2018.1.163/linux/mkl/lib/intel64_lin:/opt/intel/compile
+ rs_and_libraries_2018.1.163/linux/compiler/lib/intel64:/opt/intel/compilers_and
+ _libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_l
+ ibraries_2018.1.163/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_20
+ 18.1.163/linux/mpi/mic/lib:/opt/intel/compilers_and_libraries_2018.1.163/linux/
+ ipp/lib/intel64:/opt/intel/compilers_and_libraries_2018.1.163/linux/compiler/li
+ b/intel64_lin:/opt/intel/compilers_and_libraries_2018.1.163/linux/mkl/lib/intel
+ 64_lin:/opt/intel/compilers_and_libraries_2018.1.163/linux/tbb/lib/intel64/gcc4
+ .7:/opt/intel/compilers_and_libraries_2018.1.163/linux/tbb/lib/intel64/gcc4.7:/
+ opt/intel/compilers_and_libraries_2018.1.163/linux/daal/lib/intel64_lin:/home/y
+ agi/pgm/terachem1.93P/TeraChem/lib:/home/yagi/pgm/amber18_beluga/lib:/home/mdso
+ ft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.0_intel_v18.0.1/lib:/opt/intel/compiler
+ s_and_libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_
+ and_libraries_2018.1.163/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_lib
+ raries_2018.1.163/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries
+ _2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2
+ 018.1.163/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.1.163/
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  topfile = ../toppar/top_all27_prot_na.rtf
+  parfile = ../toppar/par_all27_prot_na.prm
+  strfile = ../toppar/toppar_prot_na_all.str
+  psffile = ../br.psf
+  crdfile = ../br.crd
+  rstfile = ../br.rst
+ 
+Read_Ctrl_Output> Output Files
+  logfile    = test{}
+  minfofile  = vib.minfo
+ 
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =     CHARMM
+  switchdist      =     10.000  cutoffdist      =     12.000
+  pairlistdist    =     13.500  dielec_const    =      1.000
+ vdW force_switch =         no
+  electrostatic   =  CUTOFF
+  implicit_solvent=       none
+  table_order     =          3
+  table_density   =     20.000
+  water_model     =       NONE
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+ 
+Read_Ctrl_Vibration> Parameters of VIBRATION
+  runmode             =       HARM
+  nreplica            =          8
+  vibatm_select_index = 5 6
+  output_minfo_atm    = 1 2 3 4
+  minfo_folder        = minfo.files
+  diff_stepsize       =   0.10E-01
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =       NOBC
+  spherical_pot   =         no  restart         =          T
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          7
+    group 1 = ano:1213-1224
+    group 2 = ano:1262-1267
+    group 3 = ano:3274-3279
+    group 4 = ano:3334-3386
+    group 5 = ano:3634-3636
+    group 6 = ano:3637-3639
+    group 7 = ano:3649-3651
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_QMMM> Parameters of QM/MM
+  qmtyp              = gaussian
+  qmcnt              = ../script/gaussian.com
+  qmexe              = ../script/runGau.sh
+  workdir            = qmmm
+  savedir            = none
+  basename           = job
+  qmsave_period      = 1
+  qmmaxtrial         = 1
+  qmatm_select_index = 1 2 3 4 5 6 7
+  exclude_charge     = GROUP
+  qm_total_charge    = 0
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Vib> Summary of Setup MPI
+  number of MPI processes                =          8
+  number of MPI processes in one replica =          1
+  number of OpenMP threads               =          8
+  total number of CPU cores              =         64
+     world_rank     country_no   country_rank
+              0              0              0  REAL        MASTER
+              1              1              0  REAL        MASTER
+              2              2              0  REAL        MASTER
+              3              3              0  REAL        MASTER
+              4              4              0  REAL        MASTER
+              5              5              0  REAL        MASTER
+              6              6              0  REAL        MASTER
+              7              7              0  REAL        MASTER
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Input_Top> Summary of Topfile
+  num_atom_class  =        182  num_resi_type   =         68
+ 
+Input_Par> Summary of Parfile
+  num_bonds       =        257  num_angles      =        656
+  num_dihedrals   =       1127  num_impropers   =         70
+  num_atom_cls    =        164  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+    CR*    => CR5   
+    CR*    => CR6   
+    CR*    => CR7   
+    CR*    => CR8   
+    CR*    => CR9   
+    CR*    => CR10  
+    CR*    => CR11  
+    CR*    => CR12  
+    CR*    => CR13  
+    CR*    => CR14  
+    CR*    => CR15  
+ 
+Input_Str> Summary of Top information
+  num_atom_class  =        182  num_resi_type   =         90
+ 
+Input_Str> Summary of Par information
+  num_bonds       =        299  num_angles      =        749
+  num_dihedrals   =       1228  num_impropers   =         88
+  num_atom_cls    =        182  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+Read_Psf> Summary of Psffile
+  psftype         =     charmm
+  num_atoms       =       3702  num_bonds       =       3751
+  num_angles      =       6698  num_dihedrals   =       9742
+  num_impropers   =        509  num_cmap_terms  =        225
+  num_HB_donors   =        333  num_HB_acceptors=        323
+  num_NB_exclusion=          0  num_groups      =       1158
+  total_charge    =      3.000
+ 
+Read_Crd> Summary of CRD file
+  num_atoms       =       3702
+ 
+Read_Rst_Binary> Summary of RST file
+  num_atoms       =       3702  iseed           =          0
+  boxsize (x,y,z) =      0.000     0.000     0.000
+
+Define_Molecule> Summary of molecules
+  num_atoms       =       3702  num_bonds       =       3751
+  num_angles      =       6698  num_dihedrals   =       9742
+  num_impropers   =        509  num_cmap_terms  =        225
+  num_residues    =        250  num_molecules   =         24
+  num_segments    =          2  num_deg_freedom =      11106
+  total_charge    =      3.000
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Setup_QMMM> Link bond length is set to 1.000 angstrom
+Setup_QMMM> Setup QM region
+  QM assignment info
+  1213 BR       78 ARG    CD   CT2    assigned to QM atom    1 of element: C     6
+  1214 BR       78 ARG    HD1  HA     assigned to QM atom    2 of element: H     1
+  1215 BR       78 ARG    HD2  HA     assigned to QM atom    3 of element: H     1
+  1216 BR       78 ARG    NE   NC2    assigned to QM atom    4 of element: N     7
+  1217 BR       78 ARG    HE   HC     assigned to QM atom    5 of element: H     1
+  1218 BR       78 ARG    CZ   C      assigned to QM atom    6 of element: C     6
+  1219 BR       78 ARG    NH1  NC2    assigned to QM atom    7 of element: N     7
+  1220 BR       78 ARG    HH11 HC     assigned to QM atom    8 of element: H     1
+  1221 BR       78 ARG    HH12 HC     assigned to QM atom    9 of element: H     1
+  1222 BR       78 ARG    NH2  NC2    assigned to QM atom   10 of element: N     7
+  1223 BR       78 ARG    HH21 HC     assigned to QM atom   11 of element: H     1
+  1224 BR       78 ARG    HH22 HC     assigned to QM atom   12 of element: H     1
+  1262 BR       81 ASP    CB   CT2    assigned to QM atom   13 of element: C     6
+  1263 BR       81 ASP    HB1  HA     assigned to QM atom   14 of element: H     1
+  1264 BR       81 ASP    HB2  HA     assigned to QM atom   15 of element: H     1
+  1265 BR       81 ASP    CG   CC     assigned to QM atom   16 of element: C     6
+  1266 BR       81 ASP    OD1  OC     assigned to QM atom   17 of element: O     8
+  1267 BR       81 ASP    OD2  OC     assigned to QM atom   18 of element: O     8
+  3274 BR      208 ASP    CB   CT2    assigned to QM atom   19 of element: C     6
+  3275 BR      208 ASP    HB1  HA     assigned to QM atom   20 of element: H     1
+  3276 BR      208 ASP    HB2  HA     assigned to QM atom   21 of element: H     1
+  3277 BR      208 ASP    CG   CC     assigned to QM atom   22 of element: C     6
+  3278 BR      208 ASP    OD1  OC     assigned to QM atom   23 of element: O     8
+  3279 BR      208 ASP    OD2  OC     assigned to QM atom   24 of element: O     8
+  3334 BR      212 LYR    CE   CT2    assigned to QM atom   25 of element: C     6
+  3335 BR      212 LYR    HE1  HA     assigned to QM atom   26 of element: H     1
+  3336 BR      212 LYR    HE2  HA     assigned to QM atom   27 of element: H     1
+  3337 BR      212 LYR    N16  NCH1   assigned to QM atom   28 of element: N     7
+  3338 BR      212 LYR    H16  HCR    assigned to QM atom   29 of element: H     1
+  3339 BR      212 LYR    C15  CR15   assigned to QM atom   30 of element: C     6
+  3340 BR      212 LYR    H15  HPL1   assigned to QM atom   31 of element: H     1
+  3341 BR      212 LYR    C14  CR14   assigned to QM atom   32 of element: C     6
+  3342 BR      212 LYR    H14  HPL    assigned to QM atom   33 of element: H     1
+  3343 BR      212 LYR    C13  CR13   assigned to QM atom   34 of element: C     6
+  3344 BR      212 LYR    C20  CT3    assigned to QM atom   35 of element: C     6
+  3345 BR      212 LYR    H20A HA     assigned to QM atom   36 of element: H     1
+  3346 BR      212 LYR    H20B HA     assigned to QM atom   37 of element: H     1
+  3347 BR      212 LYR    H20C HA     assigned to QM atom   38 of element: H     1
+  3348 BR      212 LYR    C12  CR12   assigned to QM atom   39 of element: C     6
+  3349 BR      212 LYR    H12  HPL    assigned to QM atom   40 of element: H     1
+  3350 BR      212 LYR    C11  CR11   assigned to QM atom   41 of element: C     6
+  3351 BR      212 LYR    H11  HPL    assigned to QM atom   42 of element: H     1
+  3352 BR      212 LYR    C10  CR10   assigned to QM atom   43 of element: C     6
+  3353 BR      212 LYR    H10  HPL    assigned to QM atom   44 of element: H     1
+  3354 BR      212 LYR    C9   CR9    assigned to QM atom   45 of element: C     6
+  3355 BR      212 LYR    C19  CT3    assigned to QM atom   46 of element: C     6
+  3356 BR      212 LYR    H19A HA     assigned to QM atom   47 of element: H     1
+  3357 BR      212 LYR    H19B HA     assigned to QM atom   48 of element: H     1
+  3358 BR      212 LYR    H19C HA     assigned to QM atom   49 of element: H     1
+  3359 BR      212 LYR    C8   CR8    assigned to QM atom   50 of element: C     6
+  3360 BR      212 LYR    H8   HPL    assigned to QM atom   51 of element: H     1
+  3361 BR      212 LYR    C7   CR7    assigned to QM atom   52 of element: C     6
+  3362 BR      212 LYR    H7   HPL    assigned to QM atom   53 of element: H     1
+  3363 BR      212 LYR    C6   CR6    assigned to QM atom   54 of element: C     6
+  3364 BR      212 LYR    C5   CR5    assigned to QM atom   55 of element: C     6
+  3365 BR      212 LYR    C18  CT3    assigned to QM atom   56 of element: C     6
+  3366 BR      212 LYR    H18A HA     assigned to QM atom   57 of element: H     1
+  3367 BR      212 LYR    H18B HA     assigned to QM atom   58 of element: H     1
+  3368 BR      212 LYR    H18C HA     assigned to QM atom   59 of element: H     1
+  3369 BR      212 LYR    C4   CT2    assigned to QM atom   60 of element: C     6
+  3370 BR      212 LYR    H4A  HA     assigned to QM atom   61 of element: H     1
+  3371 BR      212 LYR    H4B  HA     assigned to QM atom   62 of element: H     1
+  3372 BR      212 LYR    C3   CT2    assigned to QM atom   63 of element: C     6
+  3373 BR      212 LYR    H3A  HA     assigned to QM atom   64 of element: H     1
+  3374 BR      212 LYR    H3B  HA     assigned to QM atom   65 of element: H     1
+  3375 BR      212 LYR    C2   CT2    assigned to QM atom   66 of element: C     6
+  3376 BR      212 LYR    H2A  HA     assigned to QM atom   67 of element: H     1
+  3377 BR      212 LYR    H2B  HA     assigned to QM atom   68 of element: H     1
+  3378 BR      212 LYR    C1   CT3    assigned to QM atom   69 of element: C     6
+  3379 BR      212 LYR    C16  CT3    assigned to QM atom   70 of element: C     6
+  3380 BR      212 LYR    H16A HA     assigned to QM atom   71 of element: H     1
+  3381 BR      212 LYR    H16B HA     assigned to QM atom   72 of element: H     1
+  3382 BR      212 LYR    H16C HA     assigned to QM atom   73 of element: H     1
+  3383 BR      212 LYR    C17  CT3    assigned to QM atom   74 of element: C     6
+  3384 BR      212 LYR    H17A HA     assigned to QM atom   75 of element: H     1
+  3385 BR      212 LYR    H17B HA     assigned to QM atom   76 of element: H     1
+  3386 BR      212 LYR    H17C HA     assigned to QM atom   77 of element: H     1
+  3634 WAT       1 TIP3   OH2  OT     assigned to QM atom   78 of element: O     8
+  3635 WAT       1 TIP3   H1   HT     assigned to QM atom   79 of element: H     1
+  3636 WAT       1 TIP3   H2   HT     assigned to QM atom   80 of element: H     1
+  3637 WAT       2 TIP3   OH2  OT     assigned to QM atom   81 of element: O     8
+  3638 WAT       2 TIP3   H1   HT     assigned to QM atom   82 of element: H     1
+  3639 WAT       2 TIP3   H2   HT     assigned to QM atom   83 of element: H     1
+  3649 WAT       6 TIP3   OH2  OT     assigned to QM atom   84 of element: O     8
+  3650 WAT       6 TIP3   H1   HT     assigned to QM atom   85 of element: H     1
+  3651 WAT       6 TIP3   H2   HT     assigned to QM atom   86 of element: H     1
+  number of QM atoms = 86
+ 
+ 
+
+Generate_LinkAtoms> QM-MM interface info. Link hydrogen is set between:
+              [ QM atom ]             -             [ MM atom ]
+  1213 BR       78 ARG    CD   CT2    -   1210 BR       78 ARG    CG   CT2   
+                                          1211 BR       78 ARG    HG1  HA     excluded
+                                          1212 BR       78 ARG    HG2  HA     excluded
+  1262 BR       81 ASP    CB   CT2    -   1260 BR       81 ASP    CA   CT1   
+                                          1258 BR       81 ASP    N    NH1    excluded
+                                          1259 BR       81 ASP    HN   H      excluded
+                                          1261 BR       81 ASP    HA   HB     excluded
+  3274 BR      208 ASP    CB   CT2    -   3272 BR      208 ASP    CA   CT1   
+                                          3270 BR      208 ASP    N    NH1    excluded
+                                          3271 BR      208 ASP    HN   H      excluded
+                                          3273 BR      208 ASP    HA   HB     excluded
+  3334 BR      212 LYR    CE   CT2    -   3331 BR      212 LYR    CD   CT2   
+                                          3332 BR      212 LYR    HD1  HA     excluded
+                                          3333 BR      212 LYR    HD2  HA     excluded
+
+  number of link atoms           = 4
+  number of external MM charges  = 3602
+
+ 
+  Check the control file for Gaussian [ ../script/gaussian.com ]
+  Passed the check!
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =       3702  num_waters      =          0
+
+Define_Enefunc_CHARMM> Number of Interactions in Each Term
+  bond_ene        =       3668  angle_ene       =       6575
+  urey_ene        =       3183
+  torsion_ene     =       9986  improper_ene    =        494
+  cmap_ene        =        225
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Setup_Vibration_Atoms> Atoms subject to vibrational analysis
+     1  3634 WAT       1 TIP3   OH2  OT    
+     2  3635 WAT       1 TIP3   H1   HT    
+     3  3636 WAT       1 TIP3   H2   HT    
+     4  3637 WAT       2 TIP3   OH2  OT    
+     5  3638 WAT       2 TIP3   H1   HT    
+     6  3639 WAT       2 TIP3   H2   HT    
+  number of VIB atoms = 6
+ 
+Setup_Vibration_Atoms> Atoms punched to minfo file in addition
+     1  1213 BR       78 ARG    CD   CT2   
+     2  1214 BR       78 ARG    HD1  HA    
+     3  1215 BR       78 ARG    HD2  HA    
+     4  1216 BR       78 ARG    NE   NC2   
+     5  1217 BR       78 ARG    HE   HC    
+     6  1218 BR       78 ARG    CZ   C     
+     7  1219 BR       78 ARG    NH1  NC2   
+     8  1220 BR       78 ARG    HH11 HC    
+     9  1221 BR       78 ARG    HH12 HC    
+    10  1222 BR       78 ARG    NH2  NC2   
+    11  1223 BR       78 ARG    HH21 HC    
+    12  1224 BR       78 ARG    HH22 HC    
+    13  1262 BR       81 ASP    CB   CT2   
+    14  1263 BR       81 ASP    HB1  HA    
+    15  1264 BR       81 ASP    HB2  HA    
+    16  1265 BR       81 ASP    CG   CC    
+    17  1266 BR       81 ASP    OD1  OC    
+    18  1267 BR       81 ASP    OD2  OC    
+    19  3274 BR      208 ASP    CB   CT2   
+    20  3275 BR      208 ASP    HB1  HA    
+    21  3276 BR      208 ASP    HB2  HA    
+    22  3277 BR      208 ASP    CG   CC    
+    23  3278 BR      208 ASP    OD1  OC    
+    24  3279 BR      208 ASP    OD2  OC    
+    25  3334 BR      212 LYR    CE   CT2   
+    26  3335 BR      212 LYR    HE1  HA    
+    27  3336 BR      212 LYR    HE2  HA    
+    28  3337 BR      212 LYR    N16  NCH1  
+    29  3338 BR      212 LYR    H16  HCR   
+    30  3339 BR      212 LYR    C15  CR15  
+    31  3340 BR      212 LYR    H15  HPL1  
+    32  3341 BR      212 LYR    C14  CR14  
+    33  3342 BR      212 LYR    H14  HPL   
+    34  3343 BR      212 LYR    C13  CR13  
+    35  3344 BR      212 LYR    C20  CT3   
+    36  3345 BR      212 LYR    H20A HA    
+    37  3346 BR      212 LYR    H20B HA    
+    38  3347 BR      212 LYR    H20C HA    
+    39  3348 BR      212 LYR    C12  CR12  
+    40  3349 BR      212 LYR    H12  HPL   
+    41  3350 BR      212 LYR    C11  CR11  
+    42  3351 BR      212 LYR    H11  HPL   
+    43  3352 BR      212 LYR    C10  CR10  
+    44  3353 BR      212 LYR    H10  HPL   
+    45  3354 BR      212 LYR    C9   CR9   
+    46  3355 BR      212 LYR    C19  CT3   
+    47  3356 BR      212 LYR    H19A HA    
+    48  3357 BR      212 LYR    H19B HA    
+    49  3358 BR      212 LYR    H19C HA    
+    50  3359 BR      212 LYR    C8   CR8   
+    51  3360 BR      212 LYR    H8   HPL   
+    52  3361 BR      212 LYR    C7   CR7   
+    53  3362 BR      212 LYR    H7   HPL   
+    54  3363 BR      212 LYR    C6   CR6   
+    55  3364 BR      212 LYR    C5   CR5   
+    56  3365 BR      212 LYR    C18  CT3   
+    57  3366 BR      212 LYR    H18A HA    
+    58  3367 BR      212 LYR    H18B HA    
+    59  3368 BR      212 LYR    H18C HA    
+    60  3369 BR      212 LYR    C4   CT2   
+    61  3370 BR      212 LYR    H4A  HA    
+    62  3371 BR      212 LYR    H4B  HA    
+    63  3372 BR      212 LYR    C3   CT2   
+    64  3373 BR      212 LYR    H3A  HA    
+    65  3374 BR      212 LYR    H3B  HA    
+    66  3375 BR      212 LYR    C2   CT2   
+    67  3376 BR      212 LYR    H2A  HA    
+    68  3377 BR      212 LYR    H2B  HA    
+    69  3378 BR      212 LYR    C1   CT3   
+    70  3379 BR      212 LYR    C16  CT3   
+    71  3380 BR      212 LYR    H16A HA    
+    72  3381 BR      212 LYR    H16B HA    
+    73  3382 BR      212 LYR    H16C HA    
+    74  3383 BR      212 LYR    C17  CT3   
+    75  3384 BR      212 LYR    H17A HA    
+    76  3385 BR      212 LYR    H17B HA    
+    77  3386 BR      212 LYR    H17C HA    
+  number of atoms = 77
+ 
+Setup_Vibration> 
+  WARNING: qmmaxtrial in [QMMM] is non-zero: qmmaxtrial =    1
+  WARNING: QM retry causes problems in numerical differentiations, and thus
+  WARNING: not recommended. If you encounter SCF convergence problems,
+  WARNING: try instead with increased SCF maximum iteration in a QM input.
+  WARNING: qmmaxtrial is reset to zero.
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+SKIPPED: Energy calculation is omitted when QMMM is performed
+ 
+[STEP5] Perform Vibrational Analysis
+ 
+Enter vibrational analysis
+ 
+  Cartesian coordinates of atoms for vib. analysis
+     1       3634 WAT       1 TIP3   OH2          -0.3365060936     -5.3671536426     -4.3524271334
+     2       3635 WAT       1 TIP3   H1           -0.2218647720     -4.5510356873     -3.8103494083
+     3       3636 WAT       1 TIP3   H2           -0.3996895712     -6.1058380094     -3.6662395726
+     4       3637 WAT       2 TIP3   OH2           1.5793852379     -6.3887690272     -1.2831220641
+     5       3638 WAT       2 TIP3   H1            1.9264032299     -6.0217270166     -2.1342889686
+     6       3639 WAT       2 TIP3   H2            0.6677149165     -6.7871073945     -1.5729899122
+ 
+  Generate Hessian matrix by num. diff. of gradients  
+    Loop over atoms
+      Done for   32   H2  +X      replicaID =     8
+      Done for   12   H1  +Z      replicaID =     4
+      Done for   22   OH2 +Y      replicaID =     6
+      Done for    4   OH2 +Y      replicaID =     2
+      Done for   27   H1  +Y      replicaID =     7
+      Done for    8   H1  +X      replicaID =     3
+      Done for   17   H2  +Z      replicaID =     5
+      Done for    0   input       replicaID =     1      energy =      -1133299.927231
+      Done for    1   OH2 +X      replicaID =     1
+      Done for   28   H1  +Y      replicaID =     7
+      Done for   33   H2  +Y      replicaID =     8
+      Done for   13   H2  +X      replicaID =     4
+      Done for    5   OH2 +Z      replicaID =     2
+      Done for   23   OH2 +Z      replicaID =     6
+      Done for    9   H1  +Y      replicaID =     3
+      Done for   18   H2  +Z      replicaID =     5
+      Done for    2   OH2 +X      replicaID =     1
+      Done for   29   H1  +Z      replicaID =     7
+      Done for   14   H2  +X      replicaID =     4
+      Done for   24   OH2 +Z      replicaID =     6
+      Done for   34   H2  +Y      replicaID =     8
+      Done for    6   OH2 +Z      replicaID =     2
+      Done for   10   H1  +Y      replicaID =     3
+      Done for   19   OH2 +X      replicaID =     5
+      Done for    3   OH2 +Y      replicaID =     1
+      Done for    7   H1  +X      replicaID =     2
+      Done for   30   H1  +Z      replicaID =     7
+      Done for   25   H1  +X      replicaID =     6
+      Done for   15   H2  +Y      replicaID =     4
+      Done for   35   H2  +Z      replicaID =     8
+      Done for   20   OH2 +X      replicaID =     5
+      Done for   11   H1  +Z      replicaID =     3
+      Done for    4   OH2 +Y      replicaID =     1
+      Done for    8   H1  +X      replicaID =     2
+      Done for   31   H2  +X      replicaID =     7
+      Done for   36   H2  +Z      replicaID =     8
+      Done for   26   H1  +X      replicaID =     6
+      Done for   12   H1  +Z      replicaID =     3
+      Done for   16   H2  +Y      replicaID =     4
+      Done for   21   OH2 +Y      replicaID =     5
+ 
+  RMSD of the gradient at the input geometry =    0.843658D-01 [kcal mol-1 Angs-1]
+ 
+ 
+  Harmonic frequencies and normal displacement vectors
+          mode             1           2           3           4           5 
+          omega        127.4717    157.7133    198.2542    223.3980    266.8081 
+         IR int.         9.8169      5.6069      2.9127     43.5665      4.7881 
+         1   OH2  X     -0.0066      0.2604      0.7740      0.1399      0.5042 
+         1   OH2  Y      0.0108     -0.8727      0.0610     -0.0308      0.3401 
+         1   OH2  Z     -0.0048     -0.2576      0.5520     -0.0186     -0.7210 
+         2   H1   X      0.0048      0.0031      0.1904      0.0306      0.0898 
+         2   H1   Y      0.0052     -0.2210      0.0107     -0.0059      0.1015 
+         2   H1   Z     -0.0062     -0.0530      0.1452     -0.0063     -0.1942 
+         3   H2   X      0.0101      0.0203      0.1007      0.0285      0.0813 
+         3   H2   Y      0.0060     -0.2094      0.0031     -0.0045      0.1117 
+         3   H2   Z      0.0034     -0.0508      0.1176     -0.0061     -0.1648 
+         4   OH2  X      0.2520      0.0658      0.0826     -0.7126      0.0355 
+         4   OH2  Y     -0.8648     -0.0070     -0.0044      0.0484     -0.0120 
+         4   OH2  Z      0.3372     -0.0303     -0.0574      0.6227     -0.0752 
+         5   H1   X      0.0722      0.0068      0.0100     -0.1169      0.0162 
+         5   H1   Y     -0.1995      0.0036     -0.0019     -0.0199     -0.0046 
+         5   H1   Z      0.0959     -0.0101     -0.0201      0.1715     -0.0163 
+         6   H2   X      0.0306      0.0184      0.0219     -0.1682      0.0043 
+         6   H2   Y     -0.1259     -0.0005     -0.0044     -0.0023      0.0024 
+         6   H2   Z      0.0597      0.0010     -0.0010      0.0867     -0.0199 
+ 
+          mode             6           7           8           9          10 
+          omega        330.0554    544.9901    584.4631    657.3815    779.9135 
+         IR int.        20.8191    117.4184     17.0012     83.1886     37.6426 
+         1   OH2  X      0.0089     -0.1408     -0.0387      0.1447      0.0015 
+         1   OH2  Y      0.0246      0.0894      0.0819      0.1624      0.0146 
+         1   OH2  Z     -0.0245     -0.0602     -0.0431     -0.0332     -0.0157 
+         2   H1   X     -0.0184      0.7073      0.2577     -0.6106     -0.0282 
+         2   H1   Y      0.0155     -0.2865     -0.1683     -0.2190     -0.0140 
+         2   H1   Z     -0.0159      0.2941      0.2150      0.5124      0.0295 
+         3   H2   X      0.0022     -0.0658     -0.0860     -0.1152     -0.0010 
+         3   H2   Y      0.0117     -0.1927     -0.1422     -0.2867     -0.0125 
+         3   H2   Z      0.0035     -0.2511     -0.1921     -0.3875     -0.0188 
+         4   OH2  X      0.5656     -0.0347      0.1067     -0.0191      0.0725 
+         4   OH2  Y      0.4207      0.0648     -0.1111     -0.0013      0.1495 
+         4   OH2  Z      0.6287      0.0074      0.0216      0.0037      0.0229 
+         5   H1   X      0.1493      0.2933     -0.5801      0.1059     -0.3824 
+         5   H1   Y      0.0876     -0.2971      0.6065     -0.0713     -0.5517 
+         5   H1   Z      0.1496     -0.0079      0.0294      0.0145     -0.4203 
+         6   H2   X      0.1617     -0.0224      0.0406     -0.0099     -0.0026 
+         6   H2   Y      0.0940      0.0917     -0.1667      0.0546     -0.2348 
+         6   H2   Z      0.1348     -0.0802      0.1603     -0.0523      0.5354 
+ 
+          mode            11          12          13          14          15 
+          omega        898.2784    996.9689   1647.1549   1681.1783   2652.9135 
+         IR int.        80.9014     83.9419    100.4448     92.0776   2330.9481 
+         1   OH2  X      0.1263     -0.0049     -0.0016      0.0039      0.0016 
+         1   OH2  Y     -0.0265     -0.0025      0.0195      0.0100     -0.0269 
+         1   OH2  Z      0.0001      0.0088      0.2324      0.0845      0.0218 
+         2   H1   X      0.0283      0.0053      0.0279      0.0077     -0.0053 
+         2   H1   Y      0.0432      0.0112      0.3188      0.1167     -0.0045 
+         2   H1   Z     -0.0799     -0.0179     -0.4868     -0.1799      0.0027 
+         3   H2   X     -0.9741      0.0397     -0.0318     -0.0493     -0.0091 
+         3   H2   Y      0.1273     -0.0076     -0.4594     -0.1733      0.0948 
+         3   H2   Z      0.0706     -0.0060     -0.5220     -0.1915     -0.0773 
+         4   OH2  X     -0.0046      0.1085      0.0324     -0.0907      0.2194 
+         4   OH2  Y     -0.0088     -0.1226      0.0118     -0.0185      0.0982 
+         4   OH2  Z      0.0137     -0.0295      0.0770     -0.2065      0.0424 
+         5   H1   X     -0.0043     -0.1511     -0.1573      0.4451      0.0405 
+         5   H1   Y     -0.0335      0.0198     -0.0886      0.1998      0.0129 
+         5   H1   Z     -0.0146     -0.0624     -0.1011      0.2689      0.0137 
+         6   H2   X     -0.0034     -0.4457      0.0397     -0.0847     -0.8497 
+         6   H2   Y      0.0478      0.8268      0.0415     -0.1611     -0.4060 
+         6   H2   Z     -0.0146      0.2464     -0.2618      0.6948     -0.1879 
+ 
+          mode            16          17          18 
+          omega       3085.3397   3453.9517   3558.6224 
+         IR int.      1058.5230    252.5529     61.5216 
+         1   OH2  X     -0.0141     -0.0009     -0.0281 
+         1   OH2  Y     -0.1685     -0.0020     -0.2141 
+         1   OH2  Z      0.1638      0.0047     -0.1132 
+         2   H1   X     -0.0055      0.0003      0.1113 
+         2   H1   Y     -0.0821     -0.0076      0.8111 
+         2   H1   Z     -0.0191     -0.0054      0.5153 
+         3   H2   X      0.0531      0.0023     -0.0019 
+         3   H2   Y      0.7324      0.0165      0.0270 
+         3   H2   Z     -0.6178     -0.0151     -0.0625 
+         4   OH2  X     -0.0226     -0.0920     -0.0022 
+         4   OH2  Y     -0.0093     -0.0917     -0.0015 
+         4   OH2  Z     -0.0113      0.2019      0.0009 
+         5   H1   X     -0.0125      0.3619      0.0033 
+         5   H1   Y     -0.0083      0.3701      0.0034 
+         5   H1   Z      0.0187     -0.8205     -0.0057 
+         6   H2   X      0.1095     -0.0106      0.0067 
+         6   H2   Y      0.0490     -0.0109      0.0026 
+         6   H2   Z      0.0289      0.0205      0.0029 
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =     474.195
+    setup         =       0.464
+    dynamics      =     473.730
+      energy      =     466.919
+      integrator  =       0.000
+      pairlist    =       0.039 (       0.035,       0.040)
+  energy           
+    bond          =       0.001 (       0.001,       0.001)
+    angle         =       0.002 (       0.001,       0.002)
+    dihedral      =       0.003 (       0.002,       0.003)
+    nonbond       =       0.053 (       0.053,       0.054)
+      pme real    =       0.053 (       0.053,       0.054)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =     466.860 (     451.346,     473.208)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

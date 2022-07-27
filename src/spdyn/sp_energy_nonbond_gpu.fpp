@@ -40,15 +40,15 @@ contains
   !  Subroutine    compute_energy_nonbond_tbl_lnr_gpu
   !> @brief        calculate nonbonded energy with gpu
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -107,6 +107,7 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -191,15 +192,15 @@ contains
   !  Subroutine    compute_energy_nonbond_tbl_ljpme_gpu
   !> @brief        calculate nonbonded energy with gpu (LJ-PME)
   !! @authors      JJ
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -258,6 +259,7 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -342,15 +344,15 @@ contains
   !  Subroutine    compute_energy_nonbond_notbl_gpu
   !> @brief        calculate nonbonded energy with gpu
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -409,6 +411,7 @@ contains
     integer                   :: num_atom_cls
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -487,19 +490,20 @@ contains
 
   end subroutine compute_energy_nonbond_notbl_gpu
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_force_nonbond_tbl_lnr_gpu
   !> @brief        calculate nonbonded force with gpu
   !! @authors      JJ
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[in]    cpu_calc   : flag for cpu calculation or not
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force_omp  : temporary forces of target system
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -560,6 +564,7 @@ contains
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
     integer                   :: ij, start_i, ix, i
+
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
@@ -641,19 +646,20 @@ contains
 
   end subroutine compute_force_nonbond_tbl_lnr_gpu
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_force_nonbond_tbl_ljpme_gpu
   !> @brief        calculate nonbonded force with gpu
   !! @authors      JJ
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[in]    cpu_calc   : flag for cpu calculation or not
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force_omp  : temporary forces of target system
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -714,6 +720,7 @@ contains
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
     integer                   :: ij, start_i, ix, i
+
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
@@ -800,13 +807,15 @@ contains
   !  Subroutine    compute_force_nonbond_notbl_gpu
   !> @brief        calculate nonbonded force with gpu
   !! @authors      JJ
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[in]    npt      : logical to check virial calculation is required
-  !! @param[inout] coord_pbc: pbc oriented coordinates
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : logical to check virial calculation is required
+  !! @param[in]    cpu_calc   : flag for cpu calculation or not
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force_omp  : temporary forces of target system
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   !! @param[inout] ene_virial : energy&virial outputs
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -867,6 +876,7 @@ contains
     integer                   :: ret_shape(1)
     integer                   :: univ_ij, univ_ij0, iiy, idx, base_idx
     integer                   :: ij, start_i, ix, i
+
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
@@ -1004,6 +1014,7 @@ contains
     integer                   :: iatmcls,jatmcls
     integer                   :: num_count
 
+
     !$omp parallel default(shared)                                            &
     !$omp private(id, i, j, ix, iy, iix, iiy, k, univ_ij, index, idx, j_list, &
     !$omp         ix_natom, iy_natom, num_count, L, L1, iatmcls, jatmcls,     &
@@ -1103,7 +1114,7 @@ contains
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine cpu_compute_force_notbl_univ(coord, trans1, cell_move,          &
+  subroutine cpu_compute_force_notbl_univ(coord, trans1, cell_move,        &
              system_size, charge, atmcls, natom, nonb_lj12, nonb_lj6,      &
              table_grad, univ_cell_pairlist1, univ_mask2,                  &
              univ_ix_natom, univ_ix_list, univ_iy_natom, univ_iy_list,     &
@@ -1150,6 +1161,7 @@ contains
     integer                   :: id, omp_get_thread_num
     integer                   :: iatmcls,jatmcls
     integer                   :: num_count
+
 
     !$omp parallel default(shared)                                            &
     !$omp private(id, i, j, ix, iy, iix, iiy, k, univ_ij, index, idx, j_list, &

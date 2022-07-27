@@ -37,7 +37,7 @@ module sp_md_mts_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -52,7 +52,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    vverlet_mts_dynamics
+  !  Subroutine    pverlet_mts_dynamics
   !> @brief        velocity verlet integrator using mts
   !! @authors      JJ
   !! @param[inout] output      : output information
@@ -65,6 +65,7 @@ contains
   !! @param[inout] constraints : bond constraint information
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -250,7 +251,7 @@ contains
         call communicate_coor(domain, comm)
 
         call compute_energy_short(domain, enefunc, pairlist, boundary, coord,  &
-                                  mod(istep,dynamics%eneout_period) == 0, &
+                                  mod(istep,dynamics%eneout_period) == 0,      &
                                   dynvars%energy,                              &
                                   domain%atmcls_pbc,                           &
                                   coord_pbc,                                   &
@@ -340,7 +341,7 @@ contains
   !! @authors      JJ
   !! @param[in]    npt         : flag for NPT or not
   !! @param[in]    output      : output information
-  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[inout] enefunc     : potential energy functions information
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    pairlist    : pairlist information
   !! @param[in]    boundary    : boundary information
@@ -537,8 +538,6 @@ contains
   !  Subroutine    integrate_pv
   !> @brief        PV1 
   !! @authors      JJ
-  !! @param[in]    dynamics    : dynamics information
-  !! @param[in]    dt_long     : long time step        
   !! @param[in]    dt_short    : short time step        
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
@@ -565,6 +564,7 @@ contains
     real(wip),       pointer :: force_long(:,:,:), force_short(:,:,:)
     real(wip),       pointer :: mass(:,:)
     real(dp),        pointer :: viri_const(:,:)
+
 
     ! use pointers
     !
@@ -606,10 +606,9 @@ contains
   !  Subroutine    langevin_thermostat_vv
   !> @brief        Langevin thermostat and barostat
   !! @authors      JJ
-  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    dt_short    : short time step        
   !! @param[in]    ensemble    : ensemble information
   !! @param[inout] domain      : domain information
-  !! @param[inout] constraints : constraints information
   !! @param[inout] dynvars     : dynamic variables information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -729,6 +728,5 @@ contains
     end do
 
   end subroutine langevin_thermostat_vv
-
 
 end module sp_md_mts_mod

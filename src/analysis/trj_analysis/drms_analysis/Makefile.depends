@@ -1,0 +1,11 @@
+dr_analyze.o: dr_analyze.fpp dr_option_str_mod.mod 
+dr_analyze_mod.mod: dr_analyze.fpp dr_analyze.o
+dr_control.o: dr_control.fpp dr_option_mod.mod 
+dr_control_mod.mod: dr_control.fpp dr_control.o
+dr_main.o: dr_main.fpp dr_analyze_mod.mod dr_control_mod.mod dr_option_str_mod.mod dr_setup_mod.mod 
+dr_option.o: dr_option.fpp dr_option_str_mod.mod 
+dr_option_mod.mod: dr_option.fpp dr_option.o
+dr_option_str.o: dr_option_str.fpp  
+dr_option_str_mod.mod: dr_option_str.fpp dr_option_str.o
+dr_setup.o: dr_setup.fpp dr_control_mod.mod dr_option_str_mod.mod dr_option_mod.mod 
+dr_setup_mod.mod: dr_setup.fpp dr_setup.o

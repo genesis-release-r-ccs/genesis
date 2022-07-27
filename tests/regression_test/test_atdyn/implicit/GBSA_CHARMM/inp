@@ -1,0 +1,47 @@
+[INPUT]
+topfile  = ../../../param/top_all36_prot.rtf  # topology file
+parfile  = ../../../param/par_all36_prot.prm         # parameter file
+psffile  = ../../../build/implicit/bpti/bpti.psf
+pdbfile  = ../../../build/implicit/bpti/bpti.pdb
+rstfile  = ../../../build/implicit/bpti/rst
+
+[OUTPUT]
+
+[ENERGY]
+forcefield       = CHARMM  # [CHARMM,AAGO,CAGO,KBGO,AMBER,GROAMBER,GROMARTINI]
+electrostatic    = CUTOFF  # [CUTOFF,PME]
+switchdist       = 15.0    # switch distance
+cutoffdist       = 16.0    # cutoff distance
+pairlistdist     = 18.0    # pair-list distance
+implicit_solvent = GBSA    # [NONE,EEF1,IMM1,IMIC,GBSA]
+gbsa_salt_cons   =   0.15
+gbsa_surf_tens   =   0.005
+gbsa_eps_solvent =  78.5
+vdw_force_switch =   YES
+
+[DYNAMICS]
+integrator      =   LEAP
+nsteps          =     20
+timestep        =  0.001
+eneout_period   =      2
+nbupdate_period =      5
+iseed           = 314159
+verbose         =    yes
+
+[CONSTRAINTS]
+rigid_bond      = YES
+shake_iteration = 500
+shake_tolerance = 1.0e-10
+
+[ENSEMBLE]
+ensemble        = NVT
+tpcontrol       = LANGEVIN
+temperature     = 300.0
+pressure        = 5.0
+ 
+[BOUNDARY]
+type            = NOBC
+ 
+[SELECTION]
+ 
+[RESTRAINTS]

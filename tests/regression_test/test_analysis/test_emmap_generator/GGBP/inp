@@ -1,0 +1,19 @@
+# control parameters in emmap_generator
+ 
+[INPUT]
+pdbfile        = open.pdb
+ 
+[OUTPUT]
+mapfile        = out             # 3D density map file (xplor/ccp4/dx/sit)
+ 
+[OPTION]
+check_only     = NO              # only checking input files (YES/NO)
+allow_backup   = NO              # backup existing output files (YES/NO)
+map_format     = SITUS           # (SITUS)
+auto_margin    = YES             # (YES/NO)
+margin_size_x  =  5.0            # margin size
+margin_size_y  =  5.0            # margin size
+margin_size_z  =  5.0            # margin size
+voxel_size     =  1.0            # voxel size
+sigma          =  1.0            # resolution
+tolerance      =  0.01           # tolerance

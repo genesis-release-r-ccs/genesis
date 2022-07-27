@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   math_lib_mod
+!  Module   math_libs_mod
 !> @brief   utilities of math libraries in ATDYN
 !! @authors Yuji Sugita (YS), Chigusa Kobayashi (CK)
 !
@@ -33,6 +33,7 @@ module math_libs_mod
   public  :: get_ewald_alpha
   public  :: factorization_235
   public  :: powersinh
+  public  :: powersinh_double
   public  :: sum_gauss
   private :: factorization_prime
   public  :: cubic_spline
@@ -96,7 +97,7 @@ contains
     integer,                 intent(in)    :: num_list(:)
     real(wp),                intent(in)    :: list_2d(:,:)
     real(wp),                intent(inout) :: list_1d(:)
-    
+
     ! local variables
     integer                  :: i, j, k
 
@@ -110,7 +111,7 @@ contains
     end do
 
     return
-    
+
   end subroutine pack_array_r
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -144,7 +145,7 @@ contains
 !
 ! Developed at SunSoft, a Sun Microsystems, Inc. business.
 ! Permission to use, copy, modify, and distribute this
-! software is freely granted, provided that this notice 
+! software is freely granted, provided that this notice
 ! is preserved.
 !-------------------------------------------------------------------------------
 ! Definition:
@@ -152,7 +153,7 @@ contains
 !                       x
 !                2      |\
 ! erf(x)  =  ---------  | exp(-t*t)dt
-!             sqrt(pi) \| 
+!             sqrt(pi) \|
 !                       0
 !
 ! erfc(x) =  1 - erf(x)
@@ -195,14 +196,14 @@ contains
 !                     = 0.845.. + P1(s)/Q1(s)
 !            That is, we use rational approximation to approximate
 !            erf(1+s) - (c = (single)0.84506291151)
-!    Note that |P1/Q1|< 0.078 for x in [0.84375,1.25] where 
+!    Note that |P1/Q1|< 0.078 for x in [0.84375,1.25] where
 !    P1(s) = degree 6 poly in s
 !    Q1(s) = degree 6 poly in s
 !
-! 3. For x in [1.25,1/0.35(~2.857143)], 
+! 3. For x in [1.25,1/0.35(~2.857143)],
 !    erfc(x) = (1/x)*exp(-x*x-0.5625+R1/S1)
 !    erf(x)  = 1 - erfc(x)
-!    where 
+!    where
 !    R1(z) = degree 7 poly in z, (z=1/x^2)
 !    S1(z) = degree 8 poly in z
 !
@@ -237,84 +238,84 @@ contains
 !
 ! 7. Special case:
 !    erf(0)  = 0, erf(inf)  = 1, erf(-inf) = -1,
-!    erfc(0) = 1, erfc(inf) = 0, erfc(-inf) = 2, 
+!    erfc(0) = 1, erfc(inf) = 0, erfc(-inf) = 2,
 !    erfc/erf(NaN) is NaN
 !-------------------------------------------------------------------------------
 
   function erfc04(x) result(erfc)
 
     real(wp),         intent(in)    :: x
-    real(wp)                        :: erfc
-    real(wp)                        :: ax,p,q,r,s,y,z
+    real(dp)                        :: erfc
+    real(dp)                        :: ax,p,q,r,s,y,z
 
-    real(wp),         parameter     :: zero1=  0.0_wp
-    real(wp),         parameter     :: half1=  0.5_wp
-    real(wp),         parameter     :: one1 =  1.0_wp
-    real(wp),         parameter     :: two1 =  2.0_wp
-    real(wp),         parameter     :: erx  =  8.45062911510467529297e-01_wp
+    real(dp),         parameter     :: zero1=  0.0_wp
+    real(dp),         parameter     :: half1=  0.5_wp
+    real(dp),         parameter     :: one1 =  1.0_wp
+    real(dp),         parameter     :: two1 =  2.0_wp
+    real(dp),         parameter     :: erx  =  8.45062911510467529297e-01_dp
     ! Coefficients for approximation to  erf on [0,0.84375]
-    real(wp),         parameter     :: efx  =  1.28379167095512586316e-01_wp
-    real(wp),         parameter     :: efx8 =  1.02703333676410069053e+00_wp
-    real(wp),         parameter     :: pp0  =  1.28379167095512558561e-01_wp
-    real(wp),         parameter     :: pp1  = -3.25042107247001499370e-01_wp
-    real(wp),         parameter     :: pp2  = -2.84817495755985104766e-02_wp
-    real(wp),         parameter     :: pp3  = -5.77027029648944159157e-03_wp
-    real(wp),         parameter     :: pp4  = -2.37630166566501626084e-05_wp
-    real(wp),         parameter     :: qq1  =  3.97917223959155352819e-01_wp
-    real(wp),         parameter     :: qq2  =  6.50222499887672944485e-02_wp
-    real(wp),         parameter     :: qq3  =  5.08130628187576562776e-03_wp
-    real(wp),         parameter     :: qq4  =  1.32494738004321644526e-04_wp
-    real(wp),         parameter     :: qq5  = -3.96022827877536812320e-06_wp
-    ! Coefficients for approximation to  erf  in [0.84375,1.25] 
-    real(wp),         parameter     :: pa0  = -2.36211856075265944077e-03_wp
-    real(wp),         parameter     :: pa1  =  4.14856118683748331666e-01_wp
-    real(wp),         parameter     :: pa2  = -3.72207876035701323847e-01_wp
-    real(wp),         parameter     :: pa3  =  3.18346619901161753674e-01_wp
-    real(wp),         parameter     :: pa4  = -1.10894694282396677476e-01_wp
-    real(wp),         parameter     :: pa5  =  3.54783043256182359371e-02_wp
-    real(wp),         parameter     :: pa6  = -2.16637559486879084300e-03_wp
-    real(wp),         parameter     :: qa1  =  1.06420880400844228286e-01_wp
-    real(wp),         parameter     :: qa2  =  5.40397917702171048937e-01_wp
-    real(wp),         parameter     :: qa3  =  7.18286544141962662868e-02_wp
-    real(wp),         parameter     :: qa4  =  1.26171219808761642112e-01_wp
-    real(wp),         parameter     :: qa5  =  1.36370839120290507362e-02_wp
-    real(wp),         parameter     :: qa6  =  1.19844998467991074170e-02_wp
+    real(dp),         parameter     :: efx  =  1.28379167095512586316e-01_dp
+    real(dp),         parameter     :: efx8 =  1.02703333676410069053e+00_dp
+    real(dp),         parameter     :: pp0  =  1.28379167095512558561e-01_dp
+    real(dp),         parameter     :: pp1  = -3.25042107247001499370e-01_dp
+    real(dp),         parameter     :: pp2  = -2.84817495755985104766e-02_dp
+    real(dp),         parameter     :: pp3  = -5.77027029648944159157e-03_dp
+    real(dp),         parameter     :: pp4  = -2.37630166566501626084e-05_dp
+    real(dp),         parameter     :: qq1  =  3.97917223959155352819e-01_dp
+    real(dp),         parameter     :: qq2  =  6.50222499887672944485e-02_dp
+    real(dp),         parameter     :: qq3  =  5.08130628187576562776e-03_dp
+    real(dp),         parameter     :: qq4  =  1.32494738004321644526e-04_dp
+    real(dp),         parameter     :: qq5  = -3.96022827877536812320e-06_dp
+    ! Coefficients for approximation to  erf  in [0.84375,1.25]
+    real(dp),         parameter     :: pa0  = -2.36211856075265944077e-03_dp
+    real(dp),         parameter     :: pa1  =  4.14856118683748331666e-01_dp
+    real(dp),         parameter     :: pa2  = -3.72207876035701323847e-01_dp
+    real(dp),         parameter     :: pa3  =  3.18346619901161753674e-01_dp
+    real(dp),         parameter     :: pa4  = -1.10894694282396677476e-01_dp
+    real(dp),         parameter     :: pa5  =  3.54783043256182359371e-02_dp
+    real(dp),         parameter     :: pa6  = -2.16637559486879084300e-03_dp
+    real(dp),         parameter     :: qa1  =  1.06420880400844228286e-01_dp
+    real(dp),         parameter     :: qa2  =  5.40397917702171048937e-01_dp
+    real(dp),         parameter     :: qa3  =  7.18286544141962662868e-02_dp
+    real(dp),         parameter     :: qa4  =  1.26171219808761642112e-01_dp
+    real(dp),         parameter     :: qa5  =  1.36370839120290507362e-02_dp
+    real(dp),         parameter     :: qa6  =  1.19844998467991074170e-02_dp
     ! Coefficients for approximation to  erfc in [1.25,1/0.35]
-    real(wp),         parameter     :: ra0  = -9.86494403484714822705e-03_wp
-    real(wp),         parameter     :: ra1  = -6.93858572707181764372e-01_wp
-    real(wp),         parameter     :: ra2  = -1.05586262253232909814e+01_wp
-    real(wp),         parameter     :: ra3  = -6.23753324503260060396e+01_wp
-    real(wp),         parameter     :: ra4  = -1.62396669462573470355e+02_wp
-    real(wp),         parameter     :: ra5  = -1.84605092906711035994e+02_wp
-    real(wp),         parameter     :: ra6  = -8.12874355063065934246e+01_wp
-    real(wp),         parameter     :: ra7  = -9.81432934416914548592e+00_wp
-    real(wp),         parameter     :: sa1  =  1.96512716674392571292e+01_wp
-    real(wp),         parameter     :: sa2  =  1.37657754143519042600e+02_wp
-    real(wp),         parameter     :: sa3  =  4.34565877475229228821e+02_wp
-    real(wp),         parameter     :: sa4  =  6.45387271733267880336e+02_wp
-    real(wp),         parameter     :: sa5  =  4.29008140027567833386e+02_wp
-    real(wp),         parameter     :: sa6  =  1.08635005541779435134e+02_wp
-    real(wp),         parameter     :: sa7  =  6.57024977031928170135e+00_wp
-    real(wp),         parameter     :: sa8  = -6.04244152148580987438e-02_wp
+    real(dp),         parameter     :: ra0  = -9.86494403484714822705e-03_dp
+    real(dp),         parameter     :: ra1  = -6.93858572707181764372e-01_dp
+    real(dp),         parameter     :: ra2  = -1.05586262253232909814e+01_dp
+    real(dp),         parameter     :: ra3  = -6.23753324503260060396e+01_dp
+    real(dp),         parameter     :: ra4  = -1.62396669462573470355e+02_dp
+    real(dp),         parameter     :: ra5  = -1.84605092906711035994e+02_dp
+    real(dp),         parameter     :: ra6  = -8.12874355063065934246e+01_dp
+    real(dp),         parameter     :: ra7  = -9.81432934416914548592e+00_dp
+    real(dp),         parameter     :: sa1  =  1.96512716674392571292e+01_dp
+    real(dp),         parameter     :: sa2  =  1.37657754143519042600e+02_dp
+    real(dp),         parameter     :: sa3  =  4.34565877475229228821e+02_dp
+    real(dp),         parameter     :: sa4  =  6.45387271733267880336e+02_dp
+    real(dp),         parameter     :: sa5  =  4.29008140027567833386e+02_dp
+    real(dp),         parameter     :: sa6  =  1.08635005541779435134e+02_dp
+    real(dp),         parameter     :: sa7  =  6.57024977031928170135e+00_dp
+    real(dp),         parameter     :: sa8  = -6.04244152148580987438e-02_dp
     ! Coefficients for approximation to  erfc in [1/.35,28]
-    real(wp),         parameter     :: rb0  = -9.86494292470009928597e-03_wp
-    real(wp),         parameter     :: rb1  = -7.99283237680523006574e-01_wp
-    real(wp),         parameter     :: rb2  = -1.77579549177547519889e+01_wp
-    real(wp),         parameter     :: rb3  = -1.60636384855821916062e+02_wp
-    real(wp),         parameter     :: rb4  = -6.37566443368389627722e+02_wp
-    real(wp),         parameter     :: rb5  = -1.02509513161107724954e+03_wp
-    real(wp),         parameter     :: rb6  = -4.83519191608651397019e+02_wp
-    real(wp),         parameter     :: sb1  =  3.03380607434824582924e+01_wp
-    real(wp),         parameter     :: sb2  =  3.25792512996573918826e+02_wp
-    real(wp),         parameter     :: sb3  =  1.53672958608443695994e+03_wp
-    real(wp),         parameter     :: sb4  =  3.19985821950859553908e+03_wp
-    real(wp),         parameter     :: sb5  =  2.55305040643316442583e+03_wp
-    real(wp),         parameter     :: sb6  =  4.74528541206955367215e+02_wp
-    real(wp),         parameter     :: sb7  = -2.24409524465858183362e+01_wp
+    real(dp),         parameter     :: rb0  = -9.86494292470009928597e-03_dp
+    real(dp),         parameter     :: rb1  = -7.99283237680523006574e-01_dp
+    real(dp),         parameter     :: rb2  = -1.77579549177547519889e+01_dp
+    real(dp),         parameter     :: rb3  = -1.60636384855821916062e+02_dp
+    real(dp),         parameter     :: rb4  = -6.37566443368389627722e+02_dp
+    real(dp),         parameter     :: rb5  = -1.02509513161107724954e+03_dp
+    real(dp),         parameter     :: rb6  = -4.83519191608651397019e+02_dp
+    real(dp),         parameter     :: sb1  =  3.03380607434824582924e+01_dp
+    real(dp),         parameter     :: sb2  =  3.25792512996573918826e+02_dp
+    real(dp),         parameter     :: sb3  =  1.53672958608443695994e+03_dp
+    real(dp),         parameter     :: sb4  =  3.19985821950859553908e+03_dp
+    real(dp),         parameter     :: sb5  =  2.55305040643316442583e+03_dp
+    real(dp),         parameter     :: sb6  =  4.74528541206955367215e+02_dp
+    real(dp),         parameter     :: sb7  = -2.24409524465858183362e+01_dp
 
     ax = abs(x)
 
-    if (ax < 0.84375_wp) then
+    if (ax < 0.84375_dp) then
 
       if (ax < epsilon(x)) then
         erfc = one1 - x
@@ -325,17 +326,17 @@ contains
         s = one1 + z*(qq1 + z*(qq2 + z*(qq3 + z*(qq4 + z*qq5))))
         y = r/s
 
-        if (x < 0.25_wp) then
+        if (x < 0.25_dp) then
           erfc =  one1 - (x + x*y)
         else
           r = x*y
           r = r + (x - half1)
-          erfc = half1 - r 
+          erfc = half1 - r
         end if
 
       end if
 
-    else if (ax < 1.25_wp) then
+    else if (ax < 1.25_dp) then
 
       s = ax - one1
       p = pa0 + s*(pa1 + s*(pa2 + s*(pa3 + s*(pa4 + s*(pa5 + s*pa6)))))
@@ -349,18 +350,18 @@ contains
         erfc = one1 + z
       end if
 
-    else if (ax < 28.0_wp) then
+    else if (ax < 28.0_dp) then
 
       s = one1/(ax**2)
 
-      if (ax < 2.857143_wp) then
+      if (ax < 2.857143_dp) then
         p = ra0 + s*(ra1 + s*(ra2 + s*(ra3 + s*(ra4 +   &
              s*(ra5 + s*(ra6 + s*ra7))))))
         q = one1 + s*(sa1 + s*(sa2 + s*(sa3 + s*(sa4 +   &
              s*(sa5 + s*(sa6 + s*(sa7 + s*sa8)))))))
       else
 
-        if (x < -6.0_wp) then
+        if (x < -6.0_dp) then
 
           erfc = two1
           return
@@ -374,7 +375,7 @@ contains
       end if
 
       z = ax
-      r = exp(-z**2-0.5625_wp+(z-ax)*(z+ax)+p/q)
+      r = exp(-z**2-0.5625_dp+(z-ax)*(z+ax)+p/q)
 
       if (x > zero1) then
         erfc = r/x
@@ -415,7 +416,8 @@ contains
     integer   :: i,j
     real(wp)  :: u_3, u_2
 
-    if (n .eq. 4) then
+
+    if (n == 4) then
 
       u_3 = u*u*u
       u_2 = u*u
@@ -465,7 +467,7 @@ contains
     real(wp)                 :: u_5, u_4, u_3, u_2, v_1, v_2, v_4, v_5
 
 
-    if (n .eq. 4) then
+    if (n == 4) then
 
       u_3 = u*u*u
       u_2 = u*u
@@ -478,7 +480,7 @@ contains
       dM(3) = 3.0_wp*u_2 - 4.0_wp*u
       dM(4) = -(1.0_wp-u)*(1.0_wp-u)
 
-    else if (n .eq. 6) then
+    else if (n == 6) then
 
       u_2 = u*u
       u_3 = u_2*u
@@ -548,13 +550,14 @@ contains
   subroutine compute_inverse_matrix(n, m, inv_m)
 
     ! formal arguments
-    integer,      intent(in)  :: n
-    real(wp),     intent(in)  :: m(n,n)
-    real(wp),     intent(out) :: inv_m(n,n)
+    integer,      intent(in)    :: n
+    real(wp),     intent(in)    :: m(n,n)
+    real(wp),     intent(out)   :: inv_m(n,n)
 
     ! local variables
-    integer                   :: i, j, k, imax
-    real(wp)                  :: a(n,2*n), amax, swap, coef, pivot
+    integer                     :: i, j, k, imax
+    real(wp)                    :: a(n,2*n), amax, swap, coef, pivot
+
 
     do i = 1, n
       do j = 1, n
@@ -614,7 +617,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  function get_ewald_alpha( cutoff, tol ) result(alpha)
+  function get_ewald_alpha(cutoff, tol) result(alpha)
 
     real(wp), intent(in)  :: cutoff
     real(wp), intent(in)  :: tol
@@ -623,6 +626,7 @@ contains
     integer, parameter :: maxit = 100
     integer :: i
     real(wp) :: ew_lo, ew_hi
+
 
     alpha = 1.0_wp
     do while( erfc04( alpha * cutoff ) / cutoff >= tol )
@@ -641,6 +645,7 @@ contains
     end do
 
     return
+
   end function get_ewald_alpha
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -652,20 +657,21 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  function factorization_235( int_number ) result(prime_flag)
+  function factorization_235(int_number) result(prime_flag)
 
     integer, intent(in)   :: int_number
     logical               :: prime_flag
 
     integer               :: itmp
 
+
     itmp = int_number
     prime_flag=.false.
-    call factorization_prime(5, itmp, prime_flag) 
+    call factorization_prime(5, itmp, prime_flag)
     if (prime_flag) return
-    call factorization_prime(3, itmp, prime_flag) 
+    call factorization_prime(3, itmp, prime_flag)
     if (prime_flag) return
-    call factorization_prime(2, itmp, prime_flag) 
+    call factorization_prime(2, itmp, prime_flag)
 
     return
 
@@ -678,21 +684,23 @@ contains
   !! @authors      CK
   !! @param[in]    prime_number : prime_number
   !! @param[inout] int_number   : int_number
-  !! @param[out]   end_flag     : end_flag 
+  !! @param[out]   end_flag     : end_flag
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine factorization_prime(prime_number, int_number, end_flag) 
+  subroutine factorization_prime(prime_number, int_number, end_flag)
 
     ! formal arguments
     integer, intent(in)      :: prime_number
     integer, intent(inout)   :: int_number
     logical, intent(inout)   :: end_flag
 
+    ! local variables
     integer                  :: mod_num
     logical                  :: run_factorization
 
-    run_factorization=.true.
+
+    run_factorization = .true.
 
     do while(run_factorization)
 
@@ -703,10 +711,10 @@ contains
        if (int_number == 1) then
          end_flag=.true.
          run_factorization=.false.
-       endif
+       end if
      else
        run_factorization=.false.
-     endif
+     end if
 
     end do
 
@@ -728,15 +736,56 @@ contains
   function powersinh(x) result(y)
 
     ! return values
-    real(wip)              :: y(3)
+    real(wip)               :: y(3)
 
     ! formal arguments
-    real(wip),  intent(in) :: x(3)
-
+    real(wip),   intent(in) :: x(3)
 
     ! local variables
-    integer                :: j, k
+    integer                 :: j, k
     real(wip)               :: a(0:5)
+
+
+    a(0)  = 1.0_wip
+    a(1)  = a(0) / (2.0_wip*3.0_wip)
+    a(2)  = a(1) / (4.0_wip*5.0_wip)
+    a(3)  = a(2) / (6.0_wip*7.0_wip)
+    a(4)  = a(3) / (8.0_wip*9.0_wip)
+    a(5)  = a(4) / (10.0_wip*11.0_wip)
+
+    y(1:3) = 0.0_wip
+    do j = 0, 5
+      do k = 1, 3
+        if (real(2*j,wp)*log(abs(x(k))) > -15.0_wp) &
+        y(k) = a(j)*x(k)**(2*j) + y(k)
+      end do
+    end do
+
+  end function powersinh
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      powersinh_double
+  !> @brief        Power seriesa expansion of sinh(x)/x up to tenth order
+  !! @authors      TA, JJ
+  !! @param[in]    x : value x, which is vector
+  !! @param[in]    n : size of x
+  !! @return       y : approx. value of sinh(x)/x
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function powersinh_double(x) result(y)
+
+    ! return values
+    real(dp)                :: y(3)
+
+    ! formal arguments
+    real(dp),    intent(in) :: x(3)
+
+    ! local variables
+    integer                 :: j, k
+    real(dp)                :: a(0:5)
+
 
     a(0)  = 1.0_wip
     a(1)  = a(0) / (2.0_wip*3.0_wip)
@@ -752,7 +801,7 @@ contains
       end do
     end do
 
-  end function powersinh
+  end function powersinh_double
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -773,7 +822,8 @@ contains
     integer(iintegers),  intent(in) :: n
     real(wip)               :: random_temp1, random_temp
 
-    if( mod(n,2) .eq. 0 ) then
+
+    if( mod(n,2) == 0 ) then
       sum_gauss = 2.0_wip*gamma_distr(n/2)
     else
       random_temp1 = 2.0_wip*gamma_distr((n-1)/2)
@@ -800,28 +850,36 @@ contains
 
     ! formal arguments
     integer(iintegers), intent(in)   :: n
+
     ! local variables
     integer                  :: j
     real(wip)                :: random1, random2, random3
     real(wip)                :: a, b, c, d, m
 
+
     do while(.true.)
 
       random1 = 2.0_wip*random_get() - 1.0_wip
       random2 = 2.0_wip*random_get() - 1.0_wip
-      if (random1*random1 + random2*random2 .gt. 1.0_wip) cycle
+      if (random1*random1 + random2*random2 > 1.0_wip) cycle
 
       a = random2 / random1
       m = real(n-1,wip)
       b = sqrt(2.0_wip*m + 1.0_wip)
       c = b*a + m
-    
-      if ( c .le. 0.0_wip ) cycle
 
-      d = (1.0_wip+a*a)*exp(m*log(c/m)-b*a)
+      if (c <= 0.0_wip) cycle
+
+      d = m*log(c/m)-b*a
+      if (d > 80.0_wp) exit
+      if (d < -80.0_wp) then
+        d = 0.0_wp
+      else
+        d = (1.0_wip+a*a)*exp(d)
+      end if
 
       random3 = random_get()
-      if (random3 .le. d) exit
+      if (random3 <= d) exit
 
     end do
 
@@ -834,12 +892,11 @@ contains
   !  Subroutine    cubic_spline
   !> @brief        natrual cubic spline function
   !! @authors      KY
-  !! @param[in]    init    : initialize if true
   !! @param[in]    nn      : size of data
   !! @param[in]    xx(nn)  : x values
   !! @param[in]    yy(nn)  : y values
   !! @param[inout] coeff(4,nn-1) : coefficients of cubic functions
-  !! @param[in]    xin     : x value 
+  !! @param[in]    xin     : x value
   !! @param[out]   yout    : y value at xin
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -857,6 +914,7 @@ contains
     ! local arguments
     integer :: i, idx
     real(8) :: dx, dxi
+
 
     idx = nn-2
     do i = 1, nn-1
@@ -891,9 +949,9 @@ contains
   subroutine cubic_spline_coeff(nn, xx, yy, coeff)
 
     ! formal arguments
-    integer, intent(in) :: nn
-    real(8), intent(in) :: xx(0:nn-1)
-    real(8), intent(in) :: yy(0:nn-1)
+    integer, intent(in)  :: nn
+    real(8), intent(in)  :: xx(0:nn-1)
+    real(8), intent(in)  :: yy(0:nn-1)
     real(8), intent(out) :: coeff(0:3,0:nn-2)
 
     ! local arguments
@@ -901,6 +959,7 @@ contains
     real(8) :: hh(0:nn-2), gg(0:nn-2)
     real(8) :: vii(1:nn-2), aii(1:nn-2), aij(1:nn-3), aji(2:nn-2)
     real(8) :: uii(0:nn-1)
+
 
     do i = 0, nn-2
       hh(i) = xx(i+1) - xx(i)
@@ -954,10 +1013,10 @@ contains
     gcd = 1
     i = 2
     if (a <= b) then
-      num_small = a 
+      num_small = a
       num_big   = b
     else
-      num_small = b 
+      num_small = b
       num_big   = a
     end if
 

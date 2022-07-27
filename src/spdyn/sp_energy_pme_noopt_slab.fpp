@@ -23,7 +23,7 @@ module sp_energy_pme_noopt_slab_mod
   use mpi_parallel_mod
   use constants_mod
   use fft3d_slab_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -119,7 +119,8 @@ contains
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
   !! @param[in]    boundary : boundary information
-  !! @param[inout] enefunc  : energy function
+  !! @param[in]    enefunc  : energy function
+  !! @param[inout] calc     : flag of whether calculated
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -141,6 +142,7 @@ contains
     integer                  :: nix, niy, niz
 
     real(wp),    allocatable :: bs(:)
+
 
     ncell    =  domain%num_cell_local + domain%num_cell_boundary
 
@@ -476,6 +478,7 @@ contains
     integer                  :: i, j, k, is, js, ks, ix, iy
     real(wp)                 :: fact, gfact(3), g2
 
+
     box(1) = boundary%box_size_x
     box(2) = boundary%box_size_y
     box(3) = boundary%box_size_z
@@ -524,7 +527,12 @@ contains
           g2 = gx(ix)*gx(ix) + gy(j)*gy(j) + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,j,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,j,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,j,ix) = 0.0_wp
+            else
+              theta(k,j,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            end if
+            if (abs(theta(k,j,ix)) < 1.0e-15) theta(k,j,ix) = 0.0_wp
           else
             vir_fact(k,j,ix) = 0.0_wp
             theta(k,j,ix) = 0.0_wp
@@ -556,7 +564,12 @@ contains
         g2 = gx1*gx1 + gy1(iy)*gy1(iy) + gz(k)*gz(k)
         if (g2 > EPS) then
           vir_fact1(k,iy) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-          theta1(k,iy) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+          if (g2*fact < -80.0_wp) then
+            theta1(k,iy) = 0.0_wp
+          else
+            theta1(k,iy) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+          end if
+          if (abs(theta1(k,iy)) < 1.0e-15) theta1(k,iy) = 0.0_wp
         else
           vir_fact1(k,iy) = 0.0_wp
           theta1(k,iy) = 0.0_wp
@@ -627,6 +640,7 @@ contains
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -641,7 +655,7 @@ contains
     !$omp parallel default(shared)                                             &
     !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
     !$omp         iz_start, iz_end, ix_start, ix_end, iorg, k_f, k_t,          &
-    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr, &
+    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr,           &
     !$omp         work1, work2, elec_temp, force_local, ixyz, vx_tmp, vy_tmp,  &
     !$omp         vz_tmp, nix, nix1, niy, niz, bsc_tmp, bscd_tmp, kk, iprocx,  &
     !$omp         iprocy, qtmp, grid, half_grid, is, start, end, nizx, nizy,   &
@@ -916,7 +930,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commxy, ierror)
@@ -1018,14 +1032,14 @@ contains
     !$omp barrier
     call bfft3d_slab(qdf_work, ftqdf, ftqdf, ftqdf_work,       &
                      ftqdf_work, ftqdf2, ftqdf2, ftqdf_work2,  &
-                     work1, work2,                                       &
-                     nlocalx, nlocaly, nix, niy, niz,           &
-                     ngrid(1), ngrid(2), ngrid(3),                       &
-                     nprocx, nprocy, id,                         &
-                     nthread,  nproc_city,                  &
+                     work1, work2,                             &
+                     nlocalx, nlocaly, nix, niy, niz,          &
+                     ngrid(1), ngrid(2), ngrid(3),             &
+                     nprocx, nprocy, id,                       &
+                     nthread,  nproc_city,                     &
                      mpi_comm_city)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     !$omp barrier
     !$omp master
     call mpi_alltoall(qdf_work, nlocalx*nlocaly*niz, mpi_wp_real,        &
@@ -1199,6 +1213,5 @@ contains
     return
 
   end subroutine pme_recip_noopt_slab
-
 
 end module sp_energy_pme_noopt_slab_mod

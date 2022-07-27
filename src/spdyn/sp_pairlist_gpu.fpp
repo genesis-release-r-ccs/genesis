@@ -20,7 +20,7 @@ module sp_pairlist_gpu_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -40,7 +40,7 @@ contains
   !!               condition for GPU
   !! @authors      JJ, Naruse, NT
   !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    domain   : domain information
+  !! @param[inout] domain   : domain information
   !! @param[inout] pairlist : pair-list information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -106,6 +106,7 @@ contains
 
     integer                   :: pack_univ_mask2_size
     integer                   :: return_size
+
 
     ncell               => domain%num_cell_local
     nboundary           => domain%num_cell_boundary
@@ -316,7 +317,7 @@ contains
   !!               condition for GPU
   !! @authors      JJ, Naruse, NT
   !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    domain   : domain information
+  !! @param[inout] domain   : domain information
   !! @param[inout] pairlist : pair-list information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -342,9 +343,9 @@ contains
   !! @authors      JJ, Sakamoto
   !! @param[in]    univ_mask2           : mask data
   !! @param[in]    univ_mask2_size      : size of mask data
-  !! @param[inout] pack_univ_mask2      : compressed mask2 data
   !! @param[in]    pack_univ_mask2_size : size of compressed mask2 data
   !! @param[in]    univ_ncell_near      : univ_ncell_near
+  !! @param[inout] pack_univ_mask2      : compressed mask2 data
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -361,6 +362,7 @@ contains
     integer                   :: all_size
     integer                   :: div_index
 
+
     all_size = univ_mask2_size*univ_ncell_near
     div_index = int(all_size/2/8)*8
 
@@ -374,6 +376,8 @@ contains
                         div_index/8, pack_univ_mask2_size-1, 2)
 #endif
 
+    return
+
   end subroutine send_mask_data
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -384,7 +388,6 @@ contains
   !! @param[in]    mask2       : mask data
   !! @param[in]    start_index : Start index
   !! @param[in]    end_index   : End index
-  !! @param[in]    masksize    : size of mask data
   !! @param[inout] pack_mask   : Compressed mask2 data
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -408,6 +411,7 @@ contains
     integer                        :: base_index
     integer(kind=1)                :: setval
 
+
     ! Size of data to pack
     masksize = end_index - start_index + 1
     ! Size of data after packing
@@ -430,12 +434,12 @@ contains
 
     ! Check if there is a remainder
     mod_size = mod(masksize, 8)
-    if( mod_size > 0 ) then
+    if (mod_size > 0) then
       setval = 1
       packed = 0
       do j = 0, mod_size - 1
         offset_index = packblock_size * 8 + j + start_index
-        if( mask2(offset_index) == 1 ) packed = IOR(packed, setval)
+        if (mask2(offset_index) == 1) packed = IOR(packed, setval)
         setval = ISHFT(setval, 1)
       end do
       pack_mask(packblock_offset + packblock_size + 1) = packed

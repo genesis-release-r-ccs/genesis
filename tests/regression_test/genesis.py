@@ -4,7 +4,7 @@
 #
 # A parser script for GENESIS output style
 #
-# (c) Copyright 2014 RIKEN. All rights reserved.
+# (c) Copyright 2022 RIKEN. All rights reserved.
 #
 
 import re
@@ -26,12 +26,12 @@ class Genesis(object):
         self.is_gpu    = False
 
     def delete_last(self):
-        for key in self.dict_data.keys():
+        for key in list(self.dict_data.keys()):
             self.dict_text[key].pop()
             self.dict_data[key].pop()
 
     def delete_first(self):
-        for key in self.dict_data.keys():
+        for key in list(self.dict_data.keys()):
             self.dict_text[key].pop(0)
             self.dict_data[key].pop(0)
 
@@ -56,6 +56,7 @@ class Genesis(object):
         patternFUGAKU = re.compile('Fugaku')
         patternPRECISION = re.compile('^  precision')
         patternSINGLE = re.compile('single')
+        patternMIXED = re.compile('mixed')
         patternGPU = re.compile('GPU')
         patternSTEP0 = re.compile('^\[STEP0')
         patternSTEP1 = re.compile('^\[STEP1')
@@ -73,7 +74,14 @@ class Genesis(object):
                     text.append(data_each)
                     tmp = []
                     for i in range(len(data_each)):
-                        if data_each[i].replace('.','',1).isdigit(): # positive number
+                        result = False
+                        if len(data_each[i]) >= 2 :
+                            if data_each[i][-1].isdigit() & data_each[i][0].isalpha() :
+                                result = True
+
+                        if result is True : # number ?
+                            tmp = tmp + [(float(999999))] 
+                        elif data_each[i].replace('.','',1).isdigit(): # positive number
 #                            print "test-posi %s" % data_each[i]
                             tmp = tmp + [(float(data_each[i]))]
                         elif data_each[i][0]=="-" and data_each[i][1:].replace('.','',1).isdigit(): # negative number 
@@ -106,6 +114,8 @@ class Genesis(object):
                 result = patternPRECISION.search(line)
                 if result is not None:
                     self.is_single = patternSINGLE.search(line)
+                    if not self.is_single:
+                        self.is_single = patternMIXED.search(line)
                 result = patternNONBOND.search(line)
                 if result is not None:
                     self.is_gpu = patternGPU.search(line)
@@ -122,8 +132,8 @@ class Genesis(object):
             self.dict_text = dict.fromkeys(title, [])
         if len(self.dict_data) == 0:
             self.dict_data = dict.fromkeys(title, [])
-        text_transpose = map(list, zip(*text))
-        data_transpose = map(list, zip(*data))
+        text_transpose = list(map(list, list(zip(*text))))
+        data_transpose = list(map(list, list(zip(*data))))
         for i in range(len(title)):
             self.dict_text[title[i]] = self.dict_text[title[i]] + text_transpose[i]
             self.dict_data[title[i]] = self.dict_data[title[i]] + data_transpose[i]
@@ -162,10 +172,10 @@ class Genesis(object):
 
         if is_failure:
             self.is_passed = False
-            print "Failure at step %d (tolerance = %4.2e(ene), %4.2e(virial))" % (self.dict_data['STEP'][nstep_failure], tolerance,tolerance_virial)
+            print("Failure at step %d (tolerance = %4.2e(ene), %4.2e(virial))" % (self.dict_data['STEP'][nstep_failure], tolerance,tolerance_virial))
             nstep_max = min([nstep_failure + 3, nstep])
             for istep in range(nstep_failure, nstep_max):
-                print "Step %d" % (self.dict_data['STEP'][istep])
+                print("Step %d" % (self.dict_data['STEP'][istep]))
 
                 sys.stdout.write("  ")
                 for key in keys:
@@ -186,7 +196,73 @@ class Genesis(object):
                 sys.stdout.write("\n\n")
         else:
             self.is_passed = True
-            print "Passed (tolerance = %4.2e(ene), %4.2e(virial))" % (tolerance, tolerance_virial)
+            print("Passed (tolerance = %4.2e(ene), %4.2e(virial))" % (tolerance, tolerance_virial))
+
+    def test_diff_TMD(self, obj, tolerance, tolerance_virial): # compare energies for TMD
+        # test MD steps
+        keys = set(self.dict_data.keys()) & set(obj.dict_data.keys())
+        is_failure = False
+        dict_failure = dict.fromkeys(keys, False)
+        nstep_failure = 0
+        patternPRESS = re.compile('PRESS')
+
+        nstep = len(self.dict_data['STEP'])
+        for istep in range(nstep):
+            for key in keys:
+                d = abs(self.dict_data[key][istep] - obj.dict_data[key][istep])
+                if abs(self.dict_data[key][istep]) < 1e4: #min log is 1e-4
+                    ratio=d
+                else:
+                    ebase=max(abs(self.dict_data[key][istep]),1.0)
+                    ratio = d/ebase
+                if (key == "RESTRAINT_TOTAL"):
+                    continue
+                if (key == "TOTAL_ENE"):
+                    continue
+                if (key == "POTENTIAL_ENE"):
+                    continue
+                elif (key == "VIRIAL"):
+                    tolerance2 = tolerance_virial
+                elif (patternPRESS.search(key)):
+                    tolerance2 = tolerance_virial
+                else:
+                    tolerance2 = tolerance
+                if abs(self.dict_data[key][istep]) < 1e4:
+                    tolerance2 = tolerance2*1e4
+                if ratio > tolerance2:
+                    is_failure = True
+                    dict_failure[key] = True
+                    nstep_failure = istep
+            if is_failure:
+                break
+
+        if is_failure:
+            self.is_passed = False
+            print("Failure at step %d (tolerance = %4.2e(ene), %4.2e(virial))" % (self.dict_data['STEP'][nstep_failure], tolerance,tolerance_virial))
+            nstep_max = min([nstep_failure + 3, nstep])
+            for istep in range(nstep_failure, nstep_max):
+                print("Step %d" % (self.dict_data['STEP'][istep]))
+
+                sys.stdout.write("  ")
+                for key in keys:
+                    if dict_failure[key]:
+                        sys.stdout.write("%14s" % key.rjust(14))
+                sys.stdout.write("\n")
+
+                sys.stdout.write("< ")
+                for key in keys:
+                    if dict_failure[key]:
+                        sys.stdout.write("%14s" % self.dict_text[key][istep].rjust(14))
+                sys.stdout.write("\n")
+                
+                sys.stdout.write("> ")
+                for key in keys:
+                    if dict_failure[key]:
+                        sys.stdout.write("%14s" % obj.dict_text[key][istep].rjust(14))
+                sys.stdout.write("\n\n")
+        else:
+            self.is_passed = True
+            print("Passed (tolerance = %4.2e(ene), %4.2e(virial))" % (tolerance, tolerance_virial))
 
 ############### TEST ##########################################################
 if __name__ == '__main__':
@@ -257,7 +333,7 @@ Output_Time> Averaged timer profile
     ene2 = copy.deepcopy(ene)
     ene2.dict_text['ELECT'][0] = "-39052.0293"
     ene2.dict_data['ELECT'][0] = -39052.0293
-    ene.test_diff(ene2, 0.0001)
+    ene.test_diff(ene2, 0.0001, 0.001)
     ene.delete_last()
 
 

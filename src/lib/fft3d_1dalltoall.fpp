@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   fft3d_mod
+!  Module   fft3d_1dalltoall_mod
 !> @brief   routines for fast fourier transform
 !! @authors Jaewoon Jung (JJ)
 !
@@ -16,7 +16,7 @@ module fft3d_1dalltoall_mod
 
   use constants_mod
   use timers_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
   use, intrinsic :: iso_c_binding
@@ -44,9 +44,6 @@ contains
 #ifdef FFTW
     include 'fftw3.f03'
 #endif
-#ifdef PKTIMER
-    use Ctim
-#endif
 
     ! formal arguments
     real(wp),          intent(inout) :: qdf(nlocalx,nlocaly,nizx,*)
@@ -68,7 +65,7 @@ contains
     integer,           intent(in)    :: grid_commx, grid_commy, grid_commz
 
     ! local variables
-    integer(8)         :: plan
+    integer(kind=8)    :: plan
     type(C_PTR)        :: p1, p2
     integer            :: ix, iy, iz, ixs, ixe, iys, izs, niz, niy, iyss
     integer            :: nlocalx_half
@@ -77,28 +74,8 @@ contains
     integer            :: nmax
     integer, parameter :: csize = 8
 
-#ifdef PKTIMER
-    real(dp)           :: st,et
-#endif
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(131)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_fft3d_1d_alltoall_1",131,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     nmax = max(nx, ny, nz)
 #ifdef FFTW
@@ -212,68 +189,24 @@ contains
 #endif
 #endif
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(131)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_fft3d_1d_alltoall_1",131,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commx,ierror)
-    call gettod(et)
-    mpi_bari(1)=mpi_bari(1)+(et-st)
-    call gettod(st)
-#endif
+#ifdef HAVE_MPI_GENESIS
 
     call mpi_alltoall(qdfyxz1_work, &
                       nlocalx1*nlocaly*niz, mpi_wp_complex, &
                       qdfyxz, &
                       nlocalx1*nlocaly*niz, mpi_wp_complex, &
                       grid_commx, ierror)
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(1,2)=mpi_tran(1,2)+(et-st)
-#endif
 
 #endif
 
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commy,ierror)
-    call gettod(et)
-    mpi_bari(2)=mpi_bari(2)+(et-st)
-    call gettod(st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz, &
                       nlocalx1*nlocaly*nlocalz/nprocy, mpi_wp_complex, &
                       qdfyxz_work, &
                       nlocalx1*nlocaly*nlocalz/nprocy, mpi_wp_complex, &
                       grid_commy, ierror)
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(2,2)=mpi_tran(2,2)+(et-st)
-#endif
-
 #endif
 
     !$omp end master
@@ -282,35 +215,17 @@ contains
     ! y direction
     !
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(132)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_fft3d_1d_alltoall_2",132,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
-
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, ny, 0, work2)
 #endif
 
-    niz   = nlocalz/nprocy
+    niz = nlocalz/nprocy
 
     do izs = id+1, niz*x_local1, nthread
 
@@ -356,68 +271,18 @@ contains
 #endif
 #endif
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(132)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_fft3d_1d_alltoall_2",132,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
 
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commy,ierror)
-    call gettod(et)
-    mpi_bari(3)=mpi_bari(3)+(et-st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz2, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz2_work,  &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       grid_commy, ierror)
-
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(3,2)=mpi_tran(3,2)+(et-st)
-#endif
-
 #endif
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(133)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_fft3d_1d_alltoall_3",133,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     do iy = id+1, nlocaly, nthread
       do ix = 1, nlocalx1
@@ -427,43 +292,14 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(133)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_fft3d_1d_alltoall_3",133,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
     !$omp barrier
     !$omp master
-#ifdef MPI
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commz,ierror)
-    call gettod(et)
-    mpi_bari(4)=mpi_bari(4)+(et-st)
-#endif
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy, &
                       nlocalx1*nlocaly*nlocalz/nprocz,mpi_wp_complex, &
                       qdfzxy_work, &
                       nlocalx1*nlocaly*nlocalz/nprocz,mpi_wp_complex, &
                       grid_commz, ierror)
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(4,2)=mpi_tran(4,2)+(et-st)
-#endif
-
 #endif
     !$omp end master
     !$omp barrier
@@ -471,35 +307,17 @@ contains
     ! z direction
     !
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(134)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_fft3d_1d_alltoall_4",134,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
-
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nz, 0, work2)
 #endif
 
-    niy   = nlocaly/nprocz
+    niy = nlocaly/nprocz
     do iys = id+1, niy*x_local1, nthread
 
       iy = mod(iys-1,niy) + 1
@@ -547,28 +365,9 @@ contains
 #endif
 #endif
 
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(134)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_fft3d_1d_alltoall_4",134,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
     return
 
   end subroutine fft3d_1d_alltoall
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -584,7 +383,7 @@ contains
                          ldf, ldfyxz, ldfzxy, ldfyxz2, ldfyxz2_work,           &
                          ldfyxz_work, ldfyxz1_work, ldfzxy_work, ldfzxy_work2, &
                          work1, work2, work3, work4,                           &
-                         nlocalx, nlocaly, nlocalz, nizx, nizy,                & 
+                         nlocalx, nlocaly, nlocalz, nizx, nizy,                &
                          nlocalx1, x_local1, nx, ny, nz, nprocx, nprocy,       &
                          nprocz, id, nthread, grid_commx, grid_commy,          &
                          grid_commz)
@@ -623,7 +422,7 @@ contains
     integer,          intent(in)    :: grid_commx, grid_commy, grid_commz
 
     ! local variables
-    integer(8)        :: plan1, plan2
+    integer(kind=8)   :: plan1, plan2
     type(C_PTR)       :: p1, p2
     integer           :: ix, iy, iz, ixs, ixe, iys, izs, niz, niy, iyss
     integer           :: nlocalx_half
@@ -631,6 +430,7 @@ contains
     integer           :: k, iproc, ierror
     integer           :: nmax
     integer, parameter :: csize = 8
+
 
     nmax = max(nx, ny, nz)
 #ifdef FFTW
@@ -650,18 +450,18 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,nx,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, nx, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,nx,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, nx, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nx, 0, work2)
     call zfft1d(work3, nx, 0, work4)
 #endif
 
-    niz      = nlocalz/nprocx
+    niz = nlocalz/nprocx
     ixe = nlocalx/2 + 1
     nlocalx_half = nlocalx/2
 
@@ -768,7 +568,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz1_work, &
                       nlocalx1*nlocaly*niz, mpi_wp_complex, &
                       qdfyxz, &
@@ -797,18 +597,18 @@ contains
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,ny,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, ny, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,ny,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, ny, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, ny, 0, work2)
     call zfft1d(work3, ny, 0, work4)
 #endif
 
-    niz   = nlocalz/nprocy
+    niz = nlocalz/nprocy
 
     do izs = id+1, niz*x_local1, nthread
 
@@ -865,7 +665,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz2, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz2_work,  &
@@ -891,7 +691,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy, &
                       nlocalx1*nlocaly*nlocalz/nprocz,mpi_wp_complex, &
                       qdfzxy_work, &
@@ -910,11 +710,11 @@ contains
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,nz,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, nz, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,nz,work3,work4,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, nz, work3, work4, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nz, 0, work2)
@@ -998,10 +798,6 @@ contains
                           id, nthread, my_x_rank, grid_commx, grid_commy,      &
                           grid_commz, niy, nizy, nizx)
 
-#ifdef PKTIMER
-    use Ctim
-#endif
-
 #ifdef FFTW
     include 'fftw3.f03'
 #endif
@@ -1028,7 +824,7 @@ contains
 
     ! local variables
     complex(wp)        :: temp
-    integer(8)         :: plan
+    integer(kind=8)    :: plan
     type(C_PTR)        :: p1, p2
     integer            :: ix, iy, iz, iys, izs, k1
     integer            :: niz, iz_start, iz_end
@@ -1036,9 +832,6 @@ contains
     integer            :: nmax
     integer, parameter :: csize = 8
 
-#ifdef PKTIMER
-    real(dp)           :: st,et
-#endif
 
     nmax = max(nx, ny, nz)
 #ifdef FFTW
@@ -1054,31 +847,14 @@ contains
 #endif
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(135)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_bfft3d_1d_alltoall_1",135,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     ! z direction
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nz, 0, work2)
@@ -1123,66 +899,16 @@ contains
 #endif
 
     !$omp barrier
-#ifdef PKTIMER
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(135)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_bfft3d_1d_alltoall_1",135,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     !$omp barrier
     !$omp master
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commz,ierror)
-    call gettod(et)
-    mpi_bari(5)=mpi_bari(5)+(et-st)
-    call gettod(st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy, nlocalz*nlocalx1*niy, mpi_wp_complex,      &
                       qdfzxy_work, nlocalz*nlocalx1*niy, mpi_wp_complex, &
                       grid_commz, ierror)
-
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(5,2)=mpi_tran(5,2)+(et-st)
-#endif
-
 #endif
     !$omp end master
     !$omp barrier
-
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(136)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_bfft3d_1d_alltoall_2",136,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
     do iz = id+1, nlocalz, nthread
       do ix = 1, nlocalx1
@@ -1192,47 +918,14 @@ contains
       end do
     end do
 
-#ifdef PKTIMER
-    !$omp barrier
-    !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(136)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_bfft3d_1d_alltoall_2",136,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
     niz      = nlocalz/nprocy
 
     !$omp barrier
     !$omp master
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commy,ierror)
-    call gettod(et)
-    mpi_bari(6)=mpi_bari(6)+(et-st)
-    call gettod(st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz, nlocalx1*nlocaly*niz, mpi_wp_complex,      &
                       qdfyxz_work, nlocalx1*nlocaly*niz, mpi_wp_complex, &
                       grid_commy, ierror)
-
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(6,2)=mpi_tran(6,2)+(et-st)
-#endif
 
 #endif
     !$omp end master
@@ -1240,29 +933,12 @@ contains
 
     ! y direction
     !
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(137)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_bfft3d_1d_alltoall_3",137,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
 
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, ny, 0, work2)
@@ -1311,99 +987,31 @@ contains
 #endif
 #endif
 
-#ifdef PKTIMER
     !$omp barrier
     !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(137)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_bfft3d_1d_alltoall_3",137,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
-    !$omp barrier
-    !$omp master
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commy,ierror)
-    call gettod(et)
-    mpi_bari(7)=mpi_bari(7)+(et-st)
-    call gettod(st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz_work, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       grid_commy, ierror)
 
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(7,2)=mpi_tran(7,2)+(et-st)
-#endif
-
-#endif
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commx,ierror)
-    call gettod(et)
-    mpi_bari(8)=mpi_bari(8)+(et-st)
-    call gettod(st)
-#endif
-
     call mpi_alltoall(qdfyxz, &
                       nlocalx1*nlocaly*nlocalz/nprocx, mpi_wp_complex, &
                       qdfyxz1_work, &
                       nlocalx1*nlocaly*nlocalz/nprocx, mpi_wp_complex, &
                       grid_commx, ierror)
-
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(8,2)=mpi_tran(8,2)+(et-st)
-#endif
-
 #endif
     !$omp end master
     !$omp barrier
 
     ! x direction
     !
-#ifdef PKTIMER
-    !$omp master
-    call timer_sta(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_sta(138)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D_bfft3d_1d_alltoall_4",138,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_start("FFT3D",23,0)
-#endif
-#endif
-#endif
-
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nx, 0, work2)
@@ -1416,8 +1024,8 @@ contains
     do iz = 1, niz
       do iy = 2*id+1, nlocaly, 2*nthread
 
-        work1(1) = cmplx(real(qdfyxz1_work(iy,1,iz,1),wp),  &
-                         real(qdfyxz1_work(iy+1,1,iz,1),wp),&
+        work1(1) = cmplx(real(qdfyxz1_work(iy,1,iz,1),wp),   &
+                         real(qdfyxz1_work(iy+1,1,iz,1),wp), &
                          kind=wp)
         do ix = 2, nlocalx1-1
           temp = (0.0_wp,1.0_wp)*qdfyxz1_work(iy+1,ix,iz,1)
@@ -1473,45 +1081,12 @@ contains
 #endif
 #endif
 
-#ifdef PKTIMER
     !$omp barrier
     !$omp master
-    call timer_end(23)
-    !$omp end master
-#ifdef FJ_TIMER_DETAIL
-    !$omp master
-    call timer_end(138)
-    !$omp end master
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D_bfft3d_1d_alltoall_4",138,0)
-#endif
-#else
-#ifdef FJ_PROF_FAPP
-    call fapp_stop("FFT3D",23,0)
-#endif
-#endif
-#endif
-
-    !$omp barrier
-    !$omp master
-#ifdef MPI
-
-#ifdef PKTIMER
-    call gettod(st)
-    call mpi_barrier(grid_commx,ierror)
-    call gettod(et)
-    mpi_bari(9)=mpi_bari(9)+(et-st)
-    call gettod(st)
-#endif
-
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf, nlocalx*nlocaly*niz, mpi_wp_real,      &
                       qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commx, ierror)
-
-#ifdef PKTIMER
-    call gettod(et)
-    mpi_tran(9,2)=mpi_tran(9,2)+(et-st)
-#endif
 
 #endif
     !$omp end master
@@ -1584,7 +1159,7 @@ contains
 
     ! local variables
     complex(wp)       :: temp
-    integer(8)        :: plan1, plan2
+    integer(kind=8)   :: plan1, plan2
     type(C_PTR)       :: p1, p2
     integer           :: ix, iy, iz, iys, izs, k1
     integer           :: niz, iz_start, iz_end
@@ -1609,11 +1184,11 @@ contains
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,nz,work3,work4,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, nz, work3, work4, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,nz,work3,work4,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, nz, work3, work4, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nz, 0, work2)
@@ -1669,7 +1244,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy, nlocalz*nlocalx1*niy, mpi_wp_complex,      &
                       qdfzxy_work, nlocalz*nlocalx1*niy, mpi_wp_complex, &
                       grid_commz, ierror)
@@ -1693,7 +1268,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz, nlocalx1*nlocaly*niz, mpi_wp_complex,      &
                       qdfyxz_work, nlocalx1*nlocaly*niz, mpi_wp_complex, &
                       grid_commy, ierror)
@@ -1708,11 +1283,11 @@ contains
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, ny, 0, work2)
@@ -1771,7 +1346,7 @@ contains
 #endif
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz_work, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz, &
@@ -1800,11 +1375,11 @@ contains
     !
 #ifdef FFTW
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan1,nx,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call sfftw_plan_dft_1d(plan2,nx,work3,work4,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan1, nx, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan2, nx, work3, work4, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan1,nx,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
-    call dfftw_plan_dft_1d(plan2,nx,work3,work4,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan1, nx, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan2, nx, work3, work4, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 #else
     call zfft1d(work1, nx, 0, work2)
@@ -1818,11 +1393,11 @@ contains
     do iz = 1, niz
       do iy = 2*id+1, nlocaly, 2*nthread
 
-        work1(1) = cmplx(real(qdfyxz1_work(iy,1,iz,1),wp),  &
-                         real(qdfyxz1_work(iy+1,1,iz,1),wp),&
+        work1(1) = cmplx(real(qdfyxz1_work(iy,1,iz,1),wp),   &
+                         real(qdfyxz1_work(iy+1,1,iz,1),wp), &
                          kind=wp)
-        work3(1) = cmplx(real(ldfyxz1_work(iy,1,iz,1),wp),  &
-                         real(ldfyxz1_work(iy+1,1,iz,1),wp),&
+        work3(1) = cmplx(real(ldfyxz1_work(iy,1,iz,1),wp),   &
+                         real(ldfyxz1_work(iy+1,1,iz,1),wp), &
                          kind=wp)
         do ix = 2, nlocalx1-1
           temp = (0.0_wp,1.0_wp)*qdfyxz1_work(iy+1,ix,iz,1)
@@ -1897,7 +1472,7 @@ contains
 #endif
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf, nlocalx*nlocaly*niz, mpi_wp_real,      &
                       qdf_real, nlocalx*nlocaly*niz, mpi_wp_real, &
                       grid_commx, ierror)

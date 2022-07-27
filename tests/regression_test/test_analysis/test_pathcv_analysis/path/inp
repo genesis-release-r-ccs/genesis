@@ -1,0 +1,12 @@
+# control parameters in pathcv_analysis
+ 
+[INPUT]
+pathfile       = ../../trajectories/path/path.dat
+cvfile         = ../../trajectories/path/{}.dat
+ 
+[OUTPUT]
+pathcvfile     = {}.pathcv
+ 
+[OPTION]
+nreplica       = 4
+

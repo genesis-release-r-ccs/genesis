@@ -25,37 +25,52 @@ module fileio_gropp_mod
   ! parameters
   integer, parameter                 :: MaxGroPPFile = 10
   integer, parameter                 :: MaxIncDepth  = 30
+  integer, parameter                 :: MaxNstDepth  = 20
 
   ! structures
-  type s_gropp_file
-     integer                         :: unit_no            = InvalidUnitNo
-     character(MaxLine)              :: filename           = ''
-     character(MaxLine)              :: paths(MaxIncDepth) = '.'
-     integer                         :: depth              = 1
-  end type s_gropp_file
-
   type s_gro_macro
-     character(50)                   :: def = ''
-     character(MaxLine)              :: val = ''
-     integer                         :: def_len = 0
-     integer                         :: val_len = 0
-     type(s_gro_macro), pointer      :: next => null()
+    character(50)                   :: def = ''
+    character(MaxLine)              :: val = ''
+    integer                         :: def_len = 0
+    integer                         :: val_len = 0
+    type(s_gro_macro), pointer      :: next => null()
   end type s_gro_macro
 
+  type s_gropp_file
+    logical                         :: opened             = .false.
+    integer                         :: depth              = 0
+    integer                         :: units(MaxIncDepth) = InvalidUnitNo
+    character(MaxLine)              :: paths(MaxIncDepth) = '.'
+    logical                         :: skips(MaxIncDepth,MaxNstDepth) = .false.
+    integer                         :: nstNo(MaxIncDepth) = 1
+
+    integer                         :: restorable_depth   = 0
+    integer                         :: rest_reads(MaxIncDepth) = 0
+    integer                         :: rest_units(MaxIncDepth) = 0
+    logical                         :: rest_flags(MaxIncDepth) = .false.
+
+    type(s_gro_macro), pointer      :: macro_head => null()
+    type(s_gro_macro), pointer      :: macro_cur => null()
+  end type s_gropp_file
+
   ! variables
-  type(s_gropp_file),  private, save :: g_gropp_file(MaxGroPPFile)
+  type(s_gropp_file),  private, save, target :: g_gropp_file(MaxGroPPFile)
 
   ! subroutines
   public  :: gro_pp_open_file
   public  :: gro_pp_close_file
-  private :: pp_body
+  public  :: gro_pp_next_line
+  public  :: gro_pp_next_line_s
+  public  :: gro_pp_record_pos
+  public  :: gro_pp_restore_pos
   private :: pp_ifdef
+  private :: pp_else
+  private :: pp_endif
   private :: dealloc_macro
-  private :: print_macro
   private :: predef_macro
   private :: expand_macro
   private :: open_include
-  private :: close_include
+  private :: check_skip
   private :: read_line
   private :: is_delimit
 
@@ -74,17 +89,6 @@ contains
 
   function gro_pp_open_file(filename, predefs, error)
 
-#if defined(INTEL)
-    use ifport, only:getpid
-
-#elif defined(KCOMP) || defined(RICC)
-    use service_routines, only:getpid
-
-#else
-    integer :: getpid
-
-#endif
-
     ! return value
     integer :: gro_pp_open_file
 
@@ -94,122 +98,66 @@ contains
     character(*),            intent(inout) :: error
 
     ! local variables
-    integer                  :: ifile, file_in, file_out, alloc_stat
-    integer                  :: depth
-    character(MaxLine)       :: pp_filename
-
-    type(s_gro_macro), pointer :: macro_head
-    type(s_gro_macro), pointer :: macro_cur
-
-    
-    file_in  = InvalidUnitNo
-    file_out = InvalidUnitNo
+    integer                  :: file_no, alloc_stat
+    type(s_gropp_file), pointer :: file
 
 
     ! check file handle
     !
-    do ifile = 1, MaxGroPPFile
-      if (g_gropp_file(ifile)%unit_no == InvalidUnitNo) then
-        g_gropp_file(ifile)%paths(1:MaxIncDepth) = '.'
-        g_gropp_file(ifile)%depth                = 1
+    do file_no = 1, MaxGroPPFile
+      if (.not. g_gropp_file(file_no)%opened) then
         exit
       end if
     end do
-    if (ifile > MaxGroPPFile) then
+    if (file_no > MaxGroPPFile) then
       error = 'file open error. [open file > MaxFile]'
       return
     end if
 
+    file => g_gropp_file(file_no)
+    file%units(1:MaxIncDepth) = InvalidUnitNo
+    file%paths(1:MaxIncDepth) = '.'
+    file%skips(1:MaxIncDepth,1:MaxNstDepth) = .false.
+    file%nstNo(1:MaxIncDepth) = 1
+
+    file%restorable_depth = 0
+    file%rest_reads(1:MaxIncDepth) = 0
+    file%rest_units(1:MaxIncDepth) = InvalidUnitNo
+    file%rest_flags(1:MaxIncDepth) = .false.
+
 
     ! allocate head macro
     !
-    allocate(macro_head, stat = alloc_stat)
+    allocate(file%macro_head, stat = alloc_stat)
     if (alloc_stat /= 0) then
       error = 'memory allocation error.'
       goto 900
     end if
 
-    macro_cur => macro_head
-    macro_cur%def = 'M_A_C_R_O_H_E_A_D'
+    file%macro_cur => file%macro_head
+    file%macro_cur%def = 'M_A_C_R_O_H_E_A_D'
 
 
     ! allocate pre-defined macro
     !
-    call predef_macro(predefs, macro_cur)
+    call predef_macro(predefs, file%macro_cur)
 
 
-    ! open include file (read)
+    ! open main file
     !
-    call open_include(file_in, filename, ifile)
-    if (file_in == InvalidUnitNo) then
-      error = 'file open error. ['//trim(filename)//']'
-      goto 900
+    call open_include(file, filename)
+    if (file%units(1) == InvalidUnitNo) then
+        error = 'file open error. ['//trim(filename)//']'
+        goto 900
     end if
 
+    file%opened = .true.
 
-    ! open preprocessed file (write)
-    !
-    write(pp_filename,'(a,a,i0)') &
-         trim(filename),      &
-         '__gro_pp_file_pid', &
-         getpid()
-
-    call open_file(file_out, pp_filename, IOFileOutputReplace)
-    if (file_out == InvalidUnitNo) then
-      error = 'file open error. [Temporary-file]'
-      goto 900
-    end if
-
-
-    ! preprocessing recursively
-    !
-    depth = 0
-    error = ''
-
-    call pp_body(ifile, file_in, file_out, macro_cur, macro_head, &
-                 .true., depth, error)
-    if (depth /= 0) then
-      error = 'Bad pre-processor command state.'
-      goto 900
-    end if
-    if (error /= '') &
-      goto 900
-
-    !DEBUG
-    !call print_macro(macro_head)
-
-
-    ! close file
-    !
-    call close_file(file_out)
-    call close_include(file_in, ifile)
-
-
-    ! deallocate all macro
-    !
-    call dealloc_macro(macro_head)
-
-
-    ! open preprocessed file (read)
-    !
-    call open_file(gro_pp_open_file, pp_filename, IOFileInput)
-    if (gro_pp_open_file == InvalidUnitNo) then
-      error = 'file open error. [Preprocessed-file]'
-      goto 910
-    end if
-
-    g_gropp_file(ifile)%unit_no  = gro_pp_open_file
-    g_gropp_file(ifile)%filename = pp_filename
-
+    gro_pp_open_file = file_no
     return
 
-900 call close_file(file_out)
-    call close_file(file_in)
-    call dealloc_macro(macro_head)
-910 call unlink(pp_filename)
-
-    gro_pp_open_file = InvalidUnitNo
-
+900 call dealloc_macro(file%macro_head)
+    gro_pp_open_file = 0
     return
 
   end function gro_pp_open_file
@@ -219,32 +167,50 @@ contains
   !  Subroutine    gro_pp_close_file
   !> @brief        close gromacs file
   !! @authors      NT
-  !! @param[in]    unit_no : file unit number
+  !! @param[in]    file_no : file serial number
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine gro_pp_close_file(unit_no)
+  subroutine gro_pp_close_file(file_no)
 
     ! formal arguments
-    integer,                 intent(in)    :: unit_no
+    integer,                 intent(in)    :: file_no
 
     ! local variables
     integer                  :: i
+    type(s_gropp_file), pointer :: file
 
 
-    if (unit_no == InvalidUnitNo) &
+    if (file_no < 1 .or. file_no > MaxGroPPFile) &
       return
 
-    call close_file(unit_no)
+    file => g_gropp_file(file_no)
 
-    do i = 1, MaxGroPPFile
-      if (unit_no == g_gropp_file(i)%unit_no) then
-        call unlink(g_gropp_file(i)%filename)
-        g_gropp_file(i)%unit_no = InvalidUnitNo
-        g_gropp_file(i)%filename = ''
-        exit
-      end if
+    if (.not. file%opened) &
+      return
+
+    call dealloc_macro(file%macro_head)
+    file%macro_head => null()
+    file%macro_cur => null()
+
+    do i = 1, MaxIncDepth
+      if (file%units(i) > InvalidUnitNo) &
+        call close_file(file%units(i))
+      if (file%rest_units(i) > InvalidUnitNo) &
+        call close_file(file%rest_units(i))
     end do
+
+    file%rest_flags(1:MaxIncDepth) = .false.
+    file%rest_units(1:MaxIncDepth) = InvalidUnitNo
+    file%rest_reads(1:MaxIncDepth) = 0
+    file%restorable_depth = 0
+
+    file%nstNo(1:MaxIncDepth) = 1
+    file%skips(1:MaxIncDepth,1:MaxNstDepth) = .false.
+    file%paths(1:MaxIncDepth) = ''
+    file%units(1:MaxIncDepth) = InvalidUnitNo
+    file%depth = 0
+    file%opened = .false.
 
     return
 
@@ -252,41 +218,90 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    pp_body
-  !> @brief        preprocess file body
+  !  Function      gro_pp_next_line
+  !> @brief        read line from gromacs file
   !! @authors      NT
+  !! @param[in]    file_no : file serial number
+  !! @param[inout] line    : line strings
+  !! @param[inout] error   : error message
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  recursive subroutine pp_body(ifile, file_in, file_out, &
-                               macro_cur, macro_head, read_on, depth, error)
+  function gro_pp_next_line(file_no, line, error)
+
+    ! return value
+    logical                  :: gro_pp_next_line
 
     ! formal arguments
-    integer,                    intent(in)    :: ifile
-    integer,                    intent(in)    :: file_in
-    integer,                    intent(in)    :: file_out
-    type(s_gro_macro), pointer                :: macro_cur
-    type(s_gro_macro), pointer, intent(in)    :: macro_head
-    logical,                    intent(in)    :: read_on
-    integer,                    intent(inout) :: depth
-    character(*),               intent(inout) :: error
+    integer,                 intent(in)    :: file_no
+    character(*),            intent(inout) :: line
+    character(*),            intent(inout) :: error
 
     ! local variables
-    integer                     :: file_in_inc, alloc_stat
-    character(MaxLine)          :: str, str1, str2, str3, str4
+    integer                  :: alloc_stat, depth
+    character(MaxLine)       :: str, str1, str2, str3, str4
+    logical                  :: skip
 
-    type(s_gro_macro), pointer  :: macro, macro2
+    type(s_gropp_file), pointer :: file
+    type(s_gro_macro),  pointer :: macro, macro2
 
+
+    gro_pp_next_line = .false.
+    error = "end of file."
+
+    if (file_no < 1 .or. file_no > MaxGroPPFile) then
+      error = "bad file no."
+      return
+    end if
+
+    file => g_gropp_file(file_no)
+    if (.not. file%opened) then
+      error = "file is not opened."
+      return
+    end if
+
+    if (file%depth < 1) then
+      return
+    end if
 
     do while(.true.)
 
       ! read line without comment
       !
-100   if (.not.read_line(file_in, str)) &
-        exit
+100   if (.not. read_line(file, str)) then
+
+        depth = file%depth
+        if (file%nstNo(depth) /= 1) &
+          goto 900
+
+        if (file%rest_flags(depth)) then
+
+          if (file%rest_units(depth) /= InvalidUnitNo) &
+            call error_msg('Gro_pp_next_line> Unexpected error')
+          file%rest_units(depth) = file%units(depth)
+          file%rest_flags(depth) = .false.
+          file%units(depth) = InvalidUnitNo
+
+        else
+
+          call close_file(file%units(depth))
+          file%units(depth) = InvalidUnitNo
+
+        end if
+
+        file%depth = file%depth - 1
+        if (file%depth == 0) then
+          return
+        else
+          cycle
+        end if
+
+      end if
 
       str1 = ''
       read(str,*,err=100,end=100) str1
+
+      skip = check_skip(file)
 
       ! process #ifdef
       !
@@ -296,69 +311,63 @@ contains
         str3 = ''
         read(str,*,err=900,end=900) str2, str3
 
-        call pp_ifdef(ifile, file_in, file_out, macro_cur, macro_head, &
-             str3, read_on, .true., depth, error)
-        if (error /= '') &
-             return
+        call pp_ifdef(file, .true., str3)
+        cycle
+
 
       ! process #ifndef
       !
-
       else if (str1 == '#ifndef') then
 
         str2 = ''
         str3 = ''
         read(str,*,err=900,end=900) str2, str3
 
-        call pp_ifdef(ifile, file_in, file_out, macro_cur, macro_head, &
-             str3, read_on, .false., depth, error)
-        if (error /= '') &
-             return
+        call pp_ifdef(file, .false., str3)
+        cycle
+
 
       ! process #else
       !
       else if (str1 == '#else') then
 
-        depth = depth - 1
-        return
+        call pp_else(file)
+        cycle
+
 
       ! process #endif
       !
       else if (str1 == '#endif') then
 
-        depth = depth - 1
-        return
+        call pp_endif(file)
+        cycle
+
 
       ! process #include
       !
-      else if (read_on .and. str1 == '#include') then
+      else if (.not. skip .and. str1 == '#include') then
 
         str2 = ''
         str3 = ''
         read(str,*,err=900,end=900) str2, str3
 
-        call open_include(file_in_inc, str3, ifile)
-        if (file_in_inc == InvalidUnitNo) &
+        call open_include(file, str3)
+        if (file%units(file%depth) == InvalidUnitNo) &
           goto 920
 
-        call pp_body(ifile, file_in_inc, file_out, macro_cur, macro_head, &
-                     read_on, depth, error)
+        cycle
 
-        call close_include(file_in_inc, ifile)
-
-        if (error /= '') &
-          return
 
       ! process #define
       !
-      else if (read_on .and. str1 == '#define') then
+      else if (.not. skip .and. str1 == '#define') then
 
         str2 = ''
         str3 = ''
         read(str,*,err=900,end=900) str2, str3
         str4 = adjustl(str((index(str, trim(str3)) + len_trim(str3)):))
 
-        macro => macro_head
+        macro => file%macro_head
         do while(associated(macro))
           if (str3 == macro%def) then
             exit
@@ -367,7 +376,7 @@ contains
         end do
 
         ! macro expansion in macro
-        macro2 => macro_head
+        macro2 => file%macro_head
         do while(associated(macro2))
           call expand_macro(macro2, str4)
           macro2 => macro2%next
@@ -392,15 +401,15 @@ contains
           macro%val = str4
           macro%def_len = len_trim(str3)
           macro%val_len = len_trim(str4)
-          macro_cur%next => macro
-          macro_cur => macro
+          file%macro_cur%next => macro
+          file%macro_cur => macro
 
         end if
 
 
       ! unknown pre-processor command
       !
-      else if (read_on .and. str1(1:1) == '#') then
+      else if (.not. skip .and. str1(1:1) == '#') then
 
         if (main_rank) &
           write(MsgOut,*) &
@@ -410,22 +419,23 @@ contains
 
       ! process non pre-processor line
       !
-      else if (read_on) then
+      else if (.not. skip) then
 
         ! macro expansion
-        macro => macro_head
-        do while(associated(macro)) 
+        macro => file%macro_head
+        do while(associated(macro))
           call expand_macro(macro, str)
           macro => macro%next
         end do
 
-        write(file_out,'(A)') trim(str)
+        line = str
+        gro_pp_next_line = .true.
+        error = ''
+        return
 
       end if
 
     end do
-
-800 continue
 
     return
 
@@ -436,7 +446,137 @@ contains
 920 error = 'file open error. include file['//trim(str3)//']'
     return
 
-  end subroutine pp_body
+  end function gro_pp_next_line
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    gro_pp_next_line_s
+  !> @brief        read line from gromacs file
+  !! @authors      NT
+  !! @param[in]    file_no : file serial number
+  !! @param[inout] line    : line strings
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine gro_pp_next_line_s(file_no, line)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file_no
+    character(*),            intent(inout) :: line
+
+    ! local variables
+    character(100)           :: error
+
+
+    if (.not. gro_pp_next_line(file_no, line, error)) &
+       call error_msg('Gro_pp_next_line_s> '//error)
+
+    return
+
+  end subroutine gro_pp_next_line_s
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    gro_pp_record_pos
+  !> @brief        record current position for backspace
+  !! @authors      NT
+  !! @param[in]    file_no : file serial number
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine gro_pp_record_pos(file_no)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file_no
+
+    ! local variables
+    integer                  :: i
+    type(s_gropp_file), pointer :: file
+
+
+    if (file_no < 1 .or. file_no > MaxGroPPFile) &
+      return
+
+    file => g_gropp_file(file_no)
+    if (.not. file%opened) then
+      return
+    end if
+
+    if (file%restorable_depth > 0) &
+      call error_msg('Gro_pp_record_pos> Position recording is not possible repeatedly.')
+
+    file%restorable_depth = file%depth
+    file%rest_reads(1:MaxIncDepth) = 0
+    file%rest_units(1:MaxIncDepth) = InvalidUnitNo
+    file%rest_flags(1:file%depth) = .true.
+
+    return
+
+  end subroutine gro_pp_record_pos
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    gro_pp_restore_pos
+  !> @brief        restore recorded position for backspace
+  !! @authors      NT
+  !! @param[in]    file_no : file serial number
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine gro_pp_restore_pos(file_no)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file_no
+
+    ! local variables
+    integer                  :: i, j
+    type(s_gropp_file), pointer :: file
+
+
+    if (file_no < 1 .or. file_no > MaxGroPPFile) &
+      return
+
+    file => g_gropp_file(file_no)
+    if (.not. file%opened) then
+      return
+    end if
+
+    if (file%restorable_depth == 0) &
+      call error_msg('Gro_pp_restore_pos> There is no position to restore.')
+
+    if (file%depth == 0) &
+       file%depth = 1
+
+    do i = 1, file%restorable_depth
+      if (file%rest_reads(i) == 0) &
+        cycle
+      if (file%rest_units(i) > InvalidUnitNo) then
+        if (file%units(i) > InvalidUnitNo) then
+          call close_file(file%units(i))
+        end if
+        file%units(i) = file%rest_units(i)
+        file%rest_units(i) = InvalidUnitNo
+      end if
+      do j = 1, file%rest_reads(i)
+        backspace(file%units(i))
+      end do
+    end do
+
+    file%depth = file%restorable_depth
+
+    do i = file%depth + 1, MaxIncDepth
+      call close_file(file%units(i))
+      file%units(i) = InvalidUnitNo
+    end do
+
+    file%restorable_depth = 0
+    file%rest_reads(1:MaxIncDepth) = 0
+    file%rest_units(1:MaxIncDepth) = 0
+    file%rest_flags(1:MaxIncDepth) = .false.
+
+    return
+
+  end subroutine gro_pp_restore_pos
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -446,25 +586,16 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  recursive subroutine pp_ifdef(ifile, file_in, file_out, &
-                                 macro_cur, macro_head,   &
-                                 def_str, read_on, positive, depth, error)
+  subroutine pp_ifdef(file, positive, def_str)
 
     ! formal arguments
-    integer,                    intent(in)    :: ifile
-    integer,                    intent(in)    :: file_in
-    integer,                    intent(in)    :: file_out
-    type(s_gro_macro), pointer                :: macro_cur
-    type(s_gro_macro), pointer, intent(in)    :: macro_head
-    character(*),               intent(in)    :: def_str
-    logical,                    intent(in)    :: read_on
+    type(s_gropp_file),         intent(inout) :: file
     logical,                    intent(in)    :: positive
-    integer,                    intent(inout) :: depth
-    character(*),               intent(inout) :: error
+    character(*),               intent(in)    :: def_str
 
     ! local variables
+    integer                     :: nst_no
     logical                     :: defined, is_true
-    character(MaxLine)          :: str, str1
     type(s_gro_macro), pointer  :: macro
 
 
@@ -472,7 +603,7 @@ contains
     !
     defined = .false.
 
-    macro => macro_head
+    macro => file%macro_head
     do while(associated(macro))
       if (def_str == macro%def) then
         defined = .true.
@@ -484,42 +615,65 @@ contains
     is_true = (      positive .and.       defined .or. &
                .not. positive .and. .not. defined)
 
-
-    ! TRUE block
-    !
-    depth = depth + 1
-    call pp_body(ifile, file_in, file_out, macro_cur, macro_head, &
-                 is_true .and. read_on, depth, error)
-    if (error /= '') &
-      return
-
-    backspace(file_in)
-
-    if (.not. read_line(file_in, str)) &
-      goto 900
-
-    str1 = ''
-    read(str,*,err=900,end=900) str1
-
-    if (str1 == '#endif') &
-      return
-
-    if (str1 /= '#else') &
-      goto 900
-
-
-    ! FALSE block
-    !
-    depth = depth + 1
-    call pp_body(ifile, file_in, file_out, macro_cur, macro_head, &
-                 (.not. is_true) .and. read_on, depth, error)
-
-    return
-
-900 error = 'format error.'
+    file%nstNo(file%depth) = file%nstNo(file%depth) + 1
+    nst_no = file%nstNo(file%depth)
+    if (0 < nst_no .and. nst_no <= MaxNstDepth) &
+      file%skips(file%depth, nst_no) = .not. is_true
     return
 
   end subroutine pp_ifdef
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    pp_else
+  !> @brief        preprocess else
+  !! @authors      NT
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pp_else(file)
+
+    ! formal arguments
+    type(s_gropp_file),         intent(inout) :: file
+
+    ! local variables
+    integer                     :: nst_no
+
+
+    nst_no = file%nstNo(file%depth)
+    if (0 < nst_no .and. nst_no <= MaxNstDepth) &
+      file%skips(file%depth, nst_no) = .not. file%skips(file%depth, nst_no)
+
+    return
+
+  end subroutine pp_else
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    pp_endif
+  !> @brief        preprocess endif
+  !! @authors      NT
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pp_endif(file)
+
+    ! formal arguments
+    type(s_gropp_file),         intent(inout) :: file
+
+    ! local variables
+    integer                     :: nst_no
+
+
+    nst_no = file%nstNo(file%depth)
+    if (0 < nst_no .and. nst_no <= MaxNstDepth) &
+      file%skips(file%depth, nst_no) = .false.
+
+    file%nstNo(file%depth) = file%nstNo(file%depth) - 1
+
+    return
+
+  end subroutine pp_endif
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -551,40 +705,6 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    print_macro
-  !> @brief        print macro list
-  !! @authors      NT
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine print_macro(macro_head)
-
-    ! formal arguments
-    type(s_gro_macro), pointer, intent(in)    :: macro_head
-
-    ! local variables
-    integer                     :: i
-
-    type(s_gro_macro), pointer  :: macro_cur
-
-
-    i = 1
-    write(MsgOut,*) '----------------------------------------------'
-    macro_cur => macro_head
-    do while(associated(macro_cur))
-      write(MsgOut,'(i4,a,a)') &
-            i,' ['//trim(macro_cur%def)//']:"', trim(macro_cur%val)//'"'
-      macro_cur => macro_cur%next
-      i = i + 1
-    end do
-    write(MsgOut,*) '----------------------------------------------'
-
-    return
-
-  end subroutine print_macro
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
   !  Subroutine    predef_macro
   !> @brief        setup pre-defined macro
   !! @authors      NT
@@ -600,7 +720,7 @@ contains
     ! local variables
     integer                     :: i, ic, alloc_stat
     character(MaxLine)          :: str1, str2
-    
+
     type(s_gro_macro), pointer  :: macro
 
 
@@ -691,36 +811,38 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Function      open_include
+  !  Subroutine    open_include
   !> @brief        open include file
   !! @authors      NT
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine open_include(unit_no, filename, ifile)
+  subroutine open_include(file, filename)
 
     ! formal arguments
-    integer,                 intent(out)   :: unit_no
+    type(s_gropp_file),      intent(inout) :: file
     character(*),            intent(in)    :: filename
-    integer,                 intent(in)    :: ifile
 
     ! local variables
     integer                  :: i, depth, idx
     character(MaxLine)       :: path, path0
 
 
-    depth = g_gropp_file(ifile)%depth
+    depth = file%depth
     if (depth + 1 > MaxIncDepth) then
-      unit_no = InvalidUnitNo
+      file%units(depth) = InvalidUnitNo
       return
     end if
 
+    depth = depth + 1
+
     if (filename(1:1) == '/') then
-      call open_file(unit_no, filename, IOFileInput)
+      call open_file(file%units(depth), filename, IOFileInput)
 
     else
-      do i = 1, depth
-        path0 = g_gropp_file(ifile)%paths(i)
+      path = ""
+      do i = 1, depth - 1
+        path0 = file%paths(i)
         if (path0(1:1) == '/' .or. i == 1) then
           path = path0
         else
@@ -728,13 +850,15 @@ contains
         end if
       end do
 
-      path = trim(path)//'/'//filename
-      call open_file(unit_no, path, IOFileInput)
+      if (len_trim(path) > 0) then
+        path = trim(path)//'/'//filename
+      else
+        path = filename
+      end if
+      call open_file(file%units(depth), path, IOFileInput)
 
     end if
 
-    depth = depth + 1
-    
     idx = scan(filename, '/', .true.)
     if (idx == 0) then
       path = '.'
@@ -744,8 +868,8 @@ contains
         path = '/'
     end if
 
-    g_gropp_file(ifile)%depth = depth
-    g_gropp_file(ifile)%paths(depth) = path
+    file%depth = depth
+    file%paths(depth) = path
 
     return
 
@@ -753,26 +877,38 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Function      close_include
-  !> @brief        close include file
+  !  Function      check skip
+  !> @brief        check skip or not
   !! @authors      NT
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine close_include(unit_no, ifile)
+  function check_skip(file)
+
+    ! return value
+    logical :: check_skip
 
     ! formal arguments
-    integer,                 intent(in)    :: unit_no
-    integer,                 intent(in)    :: ifile
+    type(s_gropp_file),      intent(inout) :: file
+
+    ! local variables
+    integer                  :: i, nst_no
 
 
-    call close_file(unit_no)
+    nst_no = file%nstNo(file%depth)
 
-    g_gropp_file(ifile)%depth = g_gropp_file(ifile)%depth - 1
+    check_skip = .true.
+    if (nst_no <= 0 .or. MaxNstDepth < nst_no) &
+         return
+    
+    do i = 1, nst_no
+      if (file%skips(file%depth, i)) return
+    end do
 
+    check_skip = .false.
     return
 
-  end subroutine close_include
+  end function check_skip
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -782,24 +918,31 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  function read_line(unit_no, str)
+  function read_line(file, str)
 
     ! return value
     logical :: read_line
 
     ! formal arguments
-    integer,                 intent(in)    :: unit_no
+    type(s_gropp_file),      intent(inout) :: file
     character(*),            intent(inout) :: str
 
     ! local variables
-    integer                  :: i, idx
+    integer                  :: i, idx, unit_no, depth
     character(MaxLine)       :: str1
     logical                  :: bs
 
 
+    depth = file%depth
+    unit_no = file%units(depth)
+
     str = ''
-    
+
 100 read(unit_no,'(A)',end=900,err=900) str1
+
+    if (file%rest_flags(depth)) &
+      file%rest_reads(depth) = file%rest_reads(depth) + 1
+
     idx = index(str1,';')
     if (idx /= 0) &
       str1(idx:) = ' '
@@ -830,6 +973,8 @@ contains
     return
 
 900 read_line = .false.
+    if (file%rest_flags(depth)) &
+      file%rest_reads(depth) = file%rest_reads(depth) + 1
     return
 
   end function read_line

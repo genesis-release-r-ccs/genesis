@@ -1,0 +1,11 @@
+rc_control.o: rc_control.fpp rc_option_mod.mod 
+rc_control_mod.mod: rc_control.fpp rc_control.o
+rc_convert.o: rc_convert.fpp rc_option_str_mod.mod 
+rc_convert_mod.mod: rc_convert.fpp rc_convert.o
+rc_main.o: rc_main.fpp rc_setup_mod.mod rc_convert_mod.mod rc_control_mod.mod rc_option_str_mod.mod 
+rc_option.o: rc_option.fpp rc_option_str_mod.mod 
+rc_option_mod.mod: rc_option.fpp rc_option.o
+rc_option_str.o: rc_option_str.fpp  
+rc_option_str_mod.mod: rc_option_str.fpp rc_option_str.o
+rc_setup.o: rc_setup.fpp rc_control_mod.mod rc_option_str_mod.mod rc_option_mod.mod 
+rc_setup_mod.mod: rc_setup.fpp rc_setup.o

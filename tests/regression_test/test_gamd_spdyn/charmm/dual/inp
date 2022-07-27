@@ -16,14 +16,14 @@ thresh_type   = LOWER
 sigma0_pot    = 6.0
 sigma0_dih    = 6.0
 update_period = 10
-pot_max       = -89931.7103
-pot_min       = -90729.1646
-pot_ave       = -90355.3749
-pot_dev       = 114.2043
-dih_max       = 8.1351
-dih_min       = -1.6350
-dih_ave       = 2.6025
-dih_dev       = 1.2736
+pot_max       = -89917.0538
+pot_min       = -90740.5296
+pot_ave       = -90353.1852
+pot_dev       = 115.5907
+dih_max       = 9.1716
+dih_min       = -1.4541
+dih_ave       = 2.8288
+dih_dev       = 1.2448
 
 [ENERGY]
 forcefield       = CHARMM
@@ -36,6 +36,8 @@ pme_alpha        = 0.34
 pme_ngrid_x      = 64
 pme_ngrid_y      = 64
 pme_ngrid_z      = 64
+pme_nspline      = 4
+pme_scheme       = NOOPT_2DALLTOALL
 table_density    = 20.000
 
 [DYNAMICS]

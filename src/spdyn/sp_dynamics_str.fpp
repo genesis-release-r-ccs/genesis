@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   sp_dynamics_str
+!  Module   sp_dynamics_str_mod
 !> @brief   structure of dynamics information
 !! @authors Takaharu Mori (TM)
 !

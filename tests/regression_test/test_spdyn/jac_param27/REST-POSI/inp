@@ -1,10 +1,10 @@
 [INPUT]
-topfile = ../../../param/top_all27_prot_lipid.rtf
-parfile = ../../../param/par_all27_prot_lipid.prm
-rstfile = ../../../build//jac_param27//rst
-psffile = ../../../build//jac_param27/jac_param27.psf
-pdbfile = ../../../build//jac_param27/jac_param27.pdb
-reffile = ../../../build//jac_param27/jac_param27.pdb
+topfile         = ../../../param/top_all27_prot_lipid.rtf
+parfile         = ../../../param/par_all27_prot_lipid.prm
+rstfile         = ../../../build/jac_param27/rst
+psffile         = ../../../build/jac_param27/jac_param27.psf
+pdbfile         = ../../../build/jac_param27/jac_param27.pdb
+reffile         = ../../../build/jac_param27/jac_param27.pdb
 
 [OUTPUT]
  
@@ -30,7 +30,6 @@ nsteps          = 20
 timestep        = 0.001
 eneout_period   = 2
 nbupdate_period = 5
-iseed           = 314159
 verbose         = yes
 
 [CONSTRAINTS]
@@ -42,19 +41,20 @@ shake_tolerance = 1.0e-10
 ensemble        = NVE
 tpcontrol       = NO
 temperature     = 0
+group_tp        = NO   # This option is used only for regression tests.
  
 [BOUNDARY]
-type  = PBC
+type            = PBC
 box_size_x      = 65.5
 box_size_y      = 65.5
 box_size_z      = 65.5
 
  
 [SELECTION]
-group1  = an:CA
+group1          = an:CA
  
 [RESTRAINTS]
-nfunctions  = 1 
-function1  = POSI
-constant1  = 10.0
-select_index1  = 1
+nfunctions      = 1 
+function1       = POSI
+constant1       = 10.0
+select_index1   = 1

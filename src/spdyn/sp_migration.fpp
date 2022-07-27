@@ -32,6 +32,7 @@ module sp_migration_mod
   public :: update_incoming_atom
   public :: update_incoming_water
   public :: update_incoming_HGr
+  public :: update_enefunc_enm
   public :: update_outgoing_enefunc_bond
   public :: update_incoming_enefunc_bond
   public :: update_outgoing_enefunc_angl
@@ -208,8 +209,9 @@ contains
   !  Subroutine    update_outgoing_water
   !> @brief        check water particles going/remaining cells
   !! @authors      JJ
-  !! @param[in]    boundary : boundary condition information
-  !! @param[inout] domain   : domain information
+  !! @param[in]    water_atom : number of water atoms
+  !! @param[in]    boundary   : boundary condition information
+  !! @param[inout] domain     : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -746,7 +748,8 @@ contains
   !  Subroutine    update_incoming_water
   !> @brief        check water particles incoming cells
   !! @authors      JJ
-  !! @param[inout] domain   : domain information
+  !! @param[in]    water_atom : number of water atoms
+  !! @param[inout] domain     : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -980,6 +983,92 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    update_enefunc_enm
+  !> @brief        update ENM term for each cell in potential energy
+  !function
+  !! @authors      JJ
+  !! @param[in]    domain  : domain information
+  !! @param[inout] enefunc : energy potential functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_enefunc_enm(domain, enefunc)
+
+    ! formal arguments
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(inout) :: enefunc
+
+    ! local variable
+    integer                  :: i, ix, icel_local, k
+    integer                  :: icel1, icel2
+    integer                  :: list1, list2
+
+    real(wp),        pointer :: dist(:,:), force(:,:)
+    real(wp),        pointer :: buf_real(:,:,:)
+    integer,         pointer :: ncel_local, nboundary
+    integer(int2),   pointer :: cell_pair(:,:), id_g2l(:,:)
+    integer,         pointer :: enm(:), list(:,:,:)
+    integer,         pointer :: enm_add(:), buf_int(:,:,:)
+
+
+    ncel_local  => domain%num_cell_local
+    nboundary   => domain%num_cell_boundary
+    cell_pair   => domain%cell_pair
+    id_g2l      => domain%id_g2l
+
+    enm         => enefunc%num_enm
+    list        => enefunc%enm_list
+    force       => enefunc%enm_force_const
+    dist        => enefunc%enm_dist_min
+    enm_add     => enefunc%enm_add
+    buf_int     => enefunc%buf_enm_integer
+    buf_real    => enefunc%buf_enm_real
+
+    !$omp parallel do private(i, ix)
+    do i = 1, ncel_local+nboundary
+      do ix = 1, enm(i)
+        buf_int (1,ix,i) = list(1,ix,i)
+        buf_int (2,ix,i) = list(2,ix,i)
+        buf_real(1,ix,i) = force(ix,i)
+        buf_real(2,ix,i) = dist(ix,i)
+      end do
+      enm_add(i) = enm(i)
+    end do
+    !$omp end parallel do
+
+    enm(1:ncel_local+nboundary) = 0
+
+    do i = 1, ncel_local+nboundary
+
+      do ix = 1, enm_add(i)
+
+        icel1 = id_g2l(1,buf_int(1,ix,i))
+        icel2 = id_g2l(1,buf_int(2,ix,i))
+
+        if (icel1 /= 0 .and. icel2 /= 0) then
+
+          icel_local = cell_pair(icel1,icel2)
+
+          if (icel_local > 0 .and. icel_local <= ncel_local) then
+            enm(icel_local) = enm(icel_local) + 1
+            k = enm(icel_local)
+            force(k,icel_local)  = buf_real(1,ix,i)
+            dist (k,icel_local)  = buf_real(2,ix,i)
+            list(1,k,icel_local) = buf_int(1,ix,i)
+            list(2,k,icel_local) = buf_int(2,ix,i)
+          end if
+
+        end if
+
+      end do
+    end do
+
+    return
+
+  end subroutine update_enefunc_enm
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    update_outgoing_enefunc_bond
   !> @brief        update BOND term for each cell in potential energy function
   !! @authors      JJ
@@ -1004,7 +1093,8 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: nbond(:), bondlist(:,:,:)
-    integer(1),      pointer :: bondkind(:,:), bond_pbc(:,:)
+    integer(1),      pointer :: bondkind(:,:)
+    integer,         pointer :: bond_pbc(:,:)
     integer,         pointer :: bond_exit(:), index(:,:)
     integer,         pointer :: bond_add(:), buf_int(:,:,:)
 
@@ -1088,7 +1178,8 @@ contains
     integer,         pointer :: bond_add(:), bond_exit(:), bond_exit_index(:,:)
     integer,         pointer :: buf_int(:,:,:), nbond(:)
     integer,         pointer :: bondlist(:,:,:)
-    integer(1),      pointer :: bondkind(:,:), bond_pbc(:,:)
+    integer(1),      pointer :: bondkind(:,:)
+    integer,         pointer :: bond_pbc(:,:)
 
 
     ncel_local      => domain%num_cell_local
@@ -1223,8 +1314,8 @@ contains
     integer(int2),   pointer :: cell_g2l(:), cell_g2b(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nangle(:), anglelist(:,:,:)
-    integer(1),      pointer :: anglekind(:,:), angl_pbc(:,:,:)
+    integer,         pointer :: nangle(:), anglelist(:,:,:), angl_pbc(:,:,:)
+    integer(1),      pointer :: anglekind(:,:)
     integer,         pointer :: angle_add(:), angle_exit(:)
     integer,         pointer :: angle_exit_index(:,:), buf_int(:,:,:)
 
@@ -1282,6 +1373,7 @@ contains
           buf_int (5,angle_add(icel_local),icel_local) = angl_pbc(1,ix,i)
           buf_int (6,angle_add(icel_local),icel_local) = angl_pbc(2,ix,i)
           buf_int (7,angle_add(icel_local),icel_local) = angl_pbc(3,ix,i)
+         
 
         end if
 
@@ -1320,9 +1412,9 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: angle_add(:), angle_exit(:)
     integer,         pointer :: angle_exit_index(:,:)
-    integer(1),      pointer :: anglekind(:,:), angl_pbc(:,:,:)
+    integer(1),      pointer :: anglekind(:,:)
     integer,         pointer :: buf_int(:,:,:), nangle(:), anglelist(:,:,:)
-
+    integer,         pointer :: angl_pbc(:,:,:)
 
     ncel_local       => domain%num_cell_local
     nboundary        => domain%num_cell_boundary
@@ -1479,8 +1571,8 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:)
-    integer,         pointer :: ndihe(:), dihelist(:,:,:)
-    integer(1),      pointer :: dihekind(:,:), dihe_pbc(:,:,:)
+    integer,         pointer :: ndihe(:), dihelist(:,:,:), dihe_pbc(:,:,:)
+    integer(1),      pointer :: dihekind(:,:)
     integer,         pointer :: nperiod(:,:), buf_int(:,:,:)
 
 
@@ -1577,7 +1669,8 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:), buf_int(:,:,:)
     integer,         pointer :: ndihedral(:), dihelist(:,:,:), diheperio(:,:)
-    integer(1),      pointer :: dihekind(:,:), dihe_pbc(:,:,:)
+    integer(1),      pointer :: dihekind(:,:)
+    integer,         pointer :: dihe_pbc(:,:,:)
 
 
     ncel_local       => domain%num_cell_local
@@ -1707,7 +1800,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    update_outgoing_enefunc_dihe
+  !  Subroutine    update_outgoing_enefunc_rb_dihe
   !> @brief        update Ryckaert-Bellemans DIHEDRAL term for each cell in
   !!               potential energy function
   !! @authors      NT
@@ -1735,7 +1828,7 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:)
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
-    integer(1),      pointer :: dihe_pbc(:,:,:)
+    integer,         pointer :: dihe_pbc(:,:,:)
     integer,         pointer :: buf_int(:,:,:)
 
 
@@ -1831,7 +1924,9 @@ contains
     integer,         pointer :: dihed_add(:), dihed_exit(:)
     integer,         pointer :: dihed_exit_index(:,:), buf_int(:,:,:)
     integer,         pointer :: ndihedral(:), dihelist(:,:,:)
-    integer(1),      pointer :: dihe_pbc(:,:,:)
+    integer,         pointer :: dihe_pbc(:,:,:)
+
+
 
     ncel_local       => domain%num_cell_local
     nboundary        => domain%num_cell_boundary
@@ -1994,7 +2089,9 @@ contains
     integer,         pointer :: impr_add(:), impr_exit(:), impr_exit_index(:,:)
     integer,         pointer :: nperiod(:,:)
     integer,         pointer :: buf_int(:,:,:), nimproper(:), imprlist(:,:,:)
-    integer(1),      pointer :: impr_pbc(:,:,:)
+    integer,         pointer :: impr_pbc(:,:,:)
+
+
 
     ncel_local      => domain%num_cell_local
     nboundary       => domain%num_cell_boundary
@@ -2087,7 +2184,7 @@ contains
     integer,         pointer :: impr_add(:), impr_exit(:), impr_exit_index(:,:)
     integer,         pointer :: impr_nperiod(:,:)
     integer,         pointer :: buf_int(:,:,:), nimproper(:), imprlist(:,:,:)
-    integer(1),      pointer :: impr_pbc(:,:,:)
+    integer,         pointer :: impr_pbc(:,:,:)
 
 
     ncel_local       => domain%num_cell_local
@@ -2234,7 +2331,7 @@ contains
     integer,         pointer :: cmap_exit(:), cmap_add(:), cmap_exit_index(:,:)
     integer,         pointer :: ncmap(:), cmaplist(:,:,:), cmaptype(:,:)
     integer,         pointer :: buf_int(:,:,:)
-    integer(1),      pointer :: cmap_pbc(:,:,:)
+    integer,         pointer :: cmap_pbc(:,:,:)
 
 
     ncel_local      => domain%num_cell_local
@@ -2315,7 +2412,9 @@ contains
     integer,         pointer :: cmap_add(:), cmap_exit(:), cmap_exit_index(:,:)
     integer,         pointer :: buf_int(:,:,:), ncmap(:), cmap_list(:,:,:)
     integer,         pointer :: cmap_type(:,:)
-    integer(1),      pointer :: cmap_pbc(:,:,:)
+    integer,         pointer :: cmap_pbc(:,:,:)
+
+
 
     ncel_local      => domain%num_cell_local
     nboundary       => domain%num_cell_boundary
@@ -2666,6 +2765,7 @@ contains
     integer,         pointer :: fitting_exit(:), index(:,:)
     integer,         pointer :: fitting_add(:), buf_int(:,:)
 
+
     if (.not. enefunc%do_fitting) return
 
     ncel_local     => domain%num_cell_local
@@ -2736,6 +2836,7 @@ contains
     integer,         pointer :: fitting_exit_index(:,:)
     integer,         pointer :: buf_int(:,:), nfitting(:)
     integer,         pointer :: fitting_atom(:,:)
+
 
     if (.not. enefunc%do_fitting) return
 
@@ -2826,4 +2927,5 @@ contains
     return
 
   end subroutine update_incoming_enefunc_fitting
+
 end module sp_migration_mod

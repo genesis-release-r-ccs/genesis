@@ -28,11 +28,16 @@ module sp_constraints_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! structures
@@ -137,7 +142,6 @@ contains
 
     end if
 
-
     return
 
   end subroutine show_ctrl_constraints
@@ -176,7 +180,7 @@ contains
                                cons_info%shake_tolerance)
     call read_ctrlfile_string (handle, Section, 'water_model',     &
                                cons_info%water_model)
-    call read_ctrlfile_type(handle, Section, 'hydrogen_type',      &
+    call read_ctrlfile_type   (handle, Section, 'hydrogen_type',   &
                                cons_info%hydrogen_type, ConstraintAtomType)
     call read_ctrlfile_real   (handle, Section, 'hydrogen_mass_upper_bound', &
                                cons_info%hydrogen_mass_upper_bound)
@@ -241,7 +245,10 @@ contains
   !! @authors      JJ
   !! @param[in]    cons_info :CONSTRAINTS section control parameters information
   !! @param[in]    par         : PAR information
+  !! @param[in]    prmtop      : AMBER parameter topology information
+  !! @param[in]    grotop      : GROMACS parameter topology information
   !! @param[inout] molecule    : molecule information
+  !! @param[in]    domain      : domain information
   !! @param[inout] enefunc     : potential energy functions information
   !! @param[inout] constraints : constraints information
   !
@@ -282,7 +289,7 @@ contains
       !
       if (constraints%fast_water .and. enefunc%table%num_water > 0) then
 
-        if (constraints%tip4) then
+        if (constraints%water_type == TIP4) then
           call setup_fast_water_tip4(par, prmtop, grotop, &
                                      molecule, enefunc, constraints)
         else
@@ -292,14 +299,19 @@ contains
 
         ! update number of degrees of freedom
         !
-        if (constraints%tip4) then
+        if (constraints%water_type == TIP4) then
           call update_num_deg_freedom('After setup of SETTLE',    &
                                       -6*enefunc%table%num_water  &
                                         *domain%num_duplicate,    &
                                       molecule%num_deg_freedom)
-        else
+        else if (constraints%water_type == TIP3) then
           call update_num_deg_freedom('After setup of SETTLE',    &
                                       -3*enefunc%table%num_water  &
+                                        *domain%num_duplicate,    &
+                                      molecule%num_deg_freedom)
+        else if (constraints%water_type == TIP2) then
+          call update_num_deg_freedom('After setup of Water constraint',    &
+                                      -enefunc%table%num_water  &
                                         *domain%num_duplicate,    &
                                       molecule%num_deg_freedom)
         end if
@@ -319,30 +331,26 @@ contains
 
       end if
 
-    else if (constraints%fast_water .and. .not.enefunc%table%tip4 .and. &
+    else if (constraints%fast_water .and. &
+             constraints%water_type == TIP3 .and. &
              enefunc%table%num_water > 0) then
 
       call setup_fast_water(par, prmtop, grotop, &
                             molecule, enefunc, constraints)
 
-    else if (constraints%fast_water .and. enefunc%table%tip4 .and. &
+    else if (constraints%water_type == TIP4 .and. &
              enefunc%table%num_water > 0) then
 
       if (main_rank) &
-        write(MsgOut,'(A)') 'fast_water is defined as yes for TIP4 water model case'
+      write(MsgOut,'(A)') 'fast_water is defined as yes for TIP4 water model case'
       call update_num_deg_freedom('After setup of SETTLE',    &
                                   -6*enefunc%table%num_water  &
                                     *domain%num_duplicate,    &
                                   molecule%num_deg_freedom)
-
       call setup_fast_water_tip4(par, prmtop, grotop, &
                                  molecule, enefunc, constraints)
  
     end if
-    ! error check for TIP4 & not fast_water 
-    if ((enefunc%table%tip4 .or. constraints%tip4) .and. &
-         .not. constraints%fast_water) &
-         call error_msg('Setup_Constraints> fast_water should be set in TIP4')
    
     return
 
@@ -354,6 +362,8 @@ contains
   !> @brief        setup constraints for domain decomposition
   !! @authors      JJ
   !! @param[in]    cons_info :CONSTRAINTS section control parameters information
+  !! @param[in]    pio_restart : flag for parallel I/O restart
+  !! @param[inout  enefunc     : potential energy functions information
   !! @param[inout] constraints : constraints information
   !! @param[inout] domain      : domain information
   !
@@ -365,8 +375,8 @@ contains
     ! formal arguments
     type(s_cons_info),       intent(in)    :: cons_info
     logical,                 intent(in)    :: pio_restart
-    type(s_constraints),     intent(inout) :: constraints
     type(s_enefunc),         intent(inout) :: enefunc
+    type(s_constraints),     intent(inout) :: constraints
     type(s_domain),          intent(inout) :: domain
 
 
@@ -408,6 +418,15 @@ contains
 
       end if
 
+    else if (constraints%water_type == TIP4) then
+
+      if (main_rank) &
+      write(MsgOut,'(A)') 'fast_water is defined as yes for TIP4 water model case'
+      call setup_fast_water_pio(constraints)
+      call update_num_deg_freedom('After setup of SETTLE',    &
+                                  -6*enefunc%table%num_water, &
+                                  domain%num_deg_freedom)
+    
     end if
    
     return
@@ -432,9 +451,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_constraints(cons_mode, vel_update, dt, coord_ref, &
-                                 domain, constraints, coord,  &
-                                 vel, virial)
-
+                                 domain, constraints, coord, vel, virial)
 
     ! formal arguments
     integer,                 intent(in)    :: cons_mode
@@ -447,6 +464,7 @@ contains
     real(wip),               intent(inout) :: vel(:,:,:)
     real(dp ),               intent(inout) :: virial(:,:)
 
+
     call timer(TimerConstraint, TimerOn)
 
     ! constraints
@@ -457,14 +475,20 @@ contains
 
       virial(1:3,1:3) = 0.0_dp 
 
-      call compute_settle(vel_update, dt, coord_ref, domain, &
-                          constraints, coord, vel, virial)
+      if (constraints%water_type >= TIP3) then
+        if (constraints%num_water > 0) &
+        call compute_settle(vel_update, dt, coord_ref, domain, &
+                            constraints, coord, vel, virial)
+        if (constraints%water_type == TIP4) &
+          call decide_dummy(domain, constraints, coord)
 
+      else if (constraints%water_type == TIP2) then
+        call compute_settle_tip2(vel_update, dt, coord_ref, domain, &
+                            constraints, coord, vel, virial)
+      end if
+      if (constraints%water_type /= TIP2) &
       call compute_shake (vel_update, dt, coord_ref, domain, &
                           constraints, coord, vel, virial)
-
-      if (constraints%tip4) &
-        call decide_dummy(domain, constraints, coord)
 
       virial(1:3,1:3) = virial(1:3,1:3)/(dt*dt)
 
@@ -476,13 +500,17 @@ contains
       call compute_rattle_vv1     (dt, coord_ref, &
                                    domain, constraints, coord, vel)
 
-      if (constraints%tip4) &
+      if (constraints%water_type == TIP4) &
         call decide_dummy(domain, constraints, coord)
 
     case (ConstraintModeVVER2)
 
-      call compute_rattle_fast_vv2(domain, constraints, coord, vel)
-
+      if (constraints%water_type >= TIP3 .and. constraints%num_water > 0) then
+        call compute_rattle_fast_vv2(domain, constraints, coord, vel)
+      else if (constraints%water_type == TIP2) then
+        call compute_settle_TIP2_vv2(domain, constraints, coord, vel)
+      end if
+      if (constraints%water_type /= TIP2) &
       call compute_rattle_vv2     (domain, constraints, coord, vel)
 
     end select
@@ -525,9 +553,31 @@ contains
     type(s_grotop_mol), pointer :: gromol
 
 
+    if (constraints%water_type == TIP2) then
+
+      constraints%water_mass1 = enefunc%table%mass_1
+      constraints%water_mass2 = enefunc%table%mass_2
+      list(1) = enefunc%table%water_list(1,1)
+      list(2) = enefunc%table%water_list(2,1)
+
+      if (par%num_bonds > 0) then
+        ci1 = molecule%atom_cls_name(list(1))
+        ci2 = molecule%atom_cls_name(list(2))
+        do i = 1, par%num_bonds
+          if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+              ci2 .eq. par%bond_atom_cls(2,i) .or.  &
+              ci1 .eq. par%bond_atom_cls(2,i) .and. &
+              ci2 .eq. par%bond_atom_cls(1,i) ) then
+            constraints%water_r12 = par%bond_dist_min(i)
+            exit
+          end if
+        end do
+      end if
+
+    else
+
     ! mass
     !
-
     constraints%water_massO = enefunc%table%mass_O
     constraints%water_massH = enefunc%table%mass_H
 
@@ -543,10 +593,10 @@ contains
       ci3 = molecule%atom_cls_name(list(3))
 
       do i = 1, par%num_bonds
-        if (ci1 == par%bond_atom_cls(1,i) .and. &
-            ci2 == par%bond_atom_cls(2,i) .or.  &
-            ci1 == par%bond_atom_cls(2,i) .and. &
-            ci2 == par%bond_atom_cls(1,i) ) then
+        if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+            ci2 .eq. par%bond_atom_cls(2,i) .or.  &
+            ci1 .eq. par%bond_atom_cls(2,i) .and. &
+            ci2 .eq. par%bond_atom_cls(1,i) ) then
 
           constraints%water_rOH = par%bond_dist_min(i)
           exit
@@ -555,8 +605,8 @@ contains
       end do
 
       do i = 1, par%num_bonds
-        if (ci2 == par%bond_atom_cls(1,i) .and. &
-            ci3 == par%bond_atom_cls(2,i)) then
+        if (ci2 .eq. par%bond_atom_cls(1,i) .and. &
+            ci3 .eq. par%bond_atom_cls(2,i)) then
 
           constraints%water_rHH = par%bond_dist_min(i)
           exit
@@ -677,17 +727,28 @@ contains
 
     end if
 
+    end if
 
     ! write parameters to MsgOut
     !
     if (main_rank) then
-      write(MsgOut,'(A)') 'Setup_Fast_Water> Setup constraints for SETTLE'
-      write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
-           '  r0(O-H)         = ', constraints%water_rOH,  &
-           '  mass(O)         = ', constraints%water_massO
-      write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
-           '  r0(H-H)         = ', constraints%water_rHH,  &
-           '  mass(H)         = ', constraints%water_massH
+      if (constraints%water_type >= TIP3) then
+        write(MsgOut,'(A)') 'Setup_Fast_Water> Setup constraints for SETTLE'
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
+             '  r0(O-H)         = ', constraints%water_rOH,  &
+             '  mass(O)         = ', constraints%water_massO
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
+             '  r0(H-H)         = ', constraints%water_rHH,  &
+             '  mass(H)         = ', constraints%water_massH
+        write(MsgOut,'(A)') ' '
+      else if (constraints%water_type == TIP2) then
+        write(MsgOut,'(A)') 'Setup_Fast_Water> Setup constraints for WATER'
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
+             '  r0(1-2)         = ', constraints%water_r12    
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
+             '  mass(1)         = ', constraints%water_mass1,&
+             '  mass(2)         = ', constraints%water_mass2
+      end if
       write(MsgOut,'(A)') ' '
     end if
 
@@ -728,6 +789,7 @@ contains
 
     type(s_grotop_mol), pointer :: gromol
 
+
     ! mass
     !
     constraints%water_massO = enefunc%table%mass_O
@@ -746,28 +808,28 @@ contains
       ci4 = molecule%atom_cls_name(list(4))
 
       do i = 1, par%num_bonds
-        if (ci1 == par%bond_atom_cls(1,i) .and. &
-            ci2 == par%bond_atom_cls(2,i) .or.  &
-            ci1 == par%bond_atom_cls(2,i) .and. &
-            ci2 == par%bond_atom_cls(1,i) ) then
+        if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+            ci2 .eq. par%bond_atom_cls(2,i) .or.  &
+            ci1 .eq. par%bond_atom_cls(2,i) .and. &
+            ci2 .eq. par%bond_atom_cls(1,i) ) then
           constraints%water_rOH = par%bond_dist_min(i)
           exit
         end if
       end do
 
       do i = 1, par%num_bonds
-        if (ci2 == par%bond_atom_cls(1,i) .and. &
-            ci3 == par%bond_atom_cls(2,i)) then
+        if (ci2 .eq. par%bond_atom_cls(1,i) .and. &
+            ci3 .eq. par%bond_atom_cls(2,i)) then
           constraints%water_rHH = par%bond_dist_min(i)
           exit
         end if
       end do
 
       do i = 1, par%num_bonds
-        if (ci1 == par%bond_atom_cls(1,i) .and. &
-            ci4 == par%bond_atom_cls(2,i) .or.  &
-            ci1 == par%bond_atom_cls(2,i) .and. &
-            ci4 == par%bond_atom_cls(1,i) ) then
+        if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+            ci4 .eq. par%bond_atom_cls(2,i) .or.  &
+            ci1 .eq. par%bond_atom_cls(2,i) .and. &
+            ci4 .eq. par%bond_atom_cls(1,i) ) then
           constraints%water_rOD = par%bond_dist_min(i)
           exit
         end if
@@ -980,9 +1042,11 @@ contains
     type(s_constraints),     intent(inout) :: constraints
 
     ! local variables
-    integer                  :: i, i1, i2, list(4)
+    integer                  :: i, i1, i2, list(4), ioffset, j, k
+    real(wp)                 :: a, b
     character(6)             :: ci1, ci2, ci3, ci4
 
+    type(s_grotop_mol), pointer :: gromol
 
     ! min distance
     !
@@ -997,10 +1061,10 @@ contains
       ci4 = molecule%atom_cls_name(list(4))
 
       do i = 1, par%num_bonds
-        if (ci1 == par%bond_atom_cls(1,i) .and. &
-            ci4 == par%bond_atom_cls(2,i) .or.  &
-            ci1 == par%bond_atom_cls(2,i) .and. &
-            ci4 == par%bond_atom_cls(1,i) ) then
+        if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+            ci4 .eq. par%bond_atom_cls(2,i) .or.  &
+            ci1 .eq. par%bond_atom_cls(2,i) .and. &
+            ci4 .eq. par%bond_atom_cls(1,i) ) then
           constraints%water_rOD = par%bond_dist_min(i)
           exit
         end if
@@ -1024,6 +1088,113 @@ contains
         end if
 
       end do
+
+    else if (grotop%num_atomtypes > 0) then
+
+      ioffset = 0
+
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+
+        if (gromol%settles%func == 0) then
+
+          do j = 1, grotop%molss(i)%count
+
+            do k = 1, gromol%num_bonds
+
+              i1 = gromol%bonds(k)%atom_idx1 + ioffset
+              i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+              if (list(1) == i1 .and. list(2) == i2 .or.  &
+                  list(2) == i1 .and. list(1) == i2) then
+
+                constraints%water_rOH = gromol%bonds(k)%b0 * 10.0_dp
+                goto 1
+
+              end if
+            end do
+
+            ioffset = ioffset + gromol%num_atoms
+
+          end do
+
+        else
+
+          constraints%water_rOH = gromol%settles%doh * 10.0_dp
+          goto 1
+
+        end if
+
+      end do
+
+1     ioffset = 0
+
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+
+        if (gromol%settles%func == 0) then
+
+          do j = 1, grotop%molss(i)%count
+
+            do k = 1, gromol%num_bonds
+
+              i1 = gromol%bonds(k)%atom_idx1 + ioffset
+              i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+              if (list(2) == i1 .and. list(3) == i2 .or.  &
+                  list(3) == i1 .and. list(2) == i2) then
+
+                constraints%water_rHH = gromol%bonds(k)%b0 * 10.0_dp
+                goto 2
+
+              end if
+            end do
+
+            ioffset = ioffset + gromol%num_atoms
+
+          end do
+
+        else
+
+          constraints%water_rHH = gromol%settles%dhh * 10.0_dp
+          goto 2
+
+        end if
+
+      end do
+
+2     ioffset = 0
+
+      do i = 1, grotop%num_molss
+
+        gromol => grotop%molss(i)%moltype%mol
+
+        do j = 1, grotop%molss(i)%count
+
+          do k = 1, gromol%num_vsites3
+            i1 = gromol%vsites3(k)%func
+
+            if (i1 == 1) then
+
+              ioffset = 1
+              a = gromol%vsites3(k)%a
+              b = gromol%vsites3(k)%b
+              if (a /= b) call error_msg('TIP4P molecule is not symmetric')
+              constraints%water_rOD = 2.0_wp * a  &
+                                * sqrt(constraints%water_rOH**2 &
+                                       -0.25_wp*constraints%water_rHH**2)
+            end if
+            if (ioffset == 1) exit
+          end do
+
+          if (ioffset == 1) exit
+
+        end do
+
+      end do
+
+      if (ioffset /= 1) call error_msg('Virtual site should be defined &
+                                     & when using TIP4P')
 
     end if
 
@@ -1064,6 +1235,9 @@ contains
       write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
            '  r0(H-H)         = ', constraints%water_rHH,  &
            '  mass(H)         = ', constraints%water_massH
+      if (constraints%water_type == TIP4)                  &
+      write(MsgOut,'(A20,F10.4,A20)')                      &
+           '  r0(O-D)         = ', constraints%water_rOD
       write(MsgOut,'(A)') ' '
     end if
 
@@ -1077,7 +1251,6 @@ contains
   !> @brief        setup rigid bonds for SHAKE and RATTLE in domain
   !!               decomposition
   !! @authors      JJ
-  !! @param[in]    par         : PAR information
   !! @param[inout] constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1136,7 +1309,8 @@ contains
   !  Subroutine    setup_mass_repartitioning
   !> @brief        Mass repartitioning of hydrogen group
   !! @authors      JJ
-  !! @param[inout] constraints : constraints information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    constraints : constraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy function information
   !
@@ -1164,6 +1338,7 @@ contains
     integer,             pointer :: ring(:,:)
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: ncell, nwater(:), water_list(:,:,:)
+
 
     hmr_target      => dynamics%hmr_target
     ratio           => dynamics%hmr_ratio
@@ -1227,13 +1402,13 @@ contains
             total_mass = total_mass + mass(atm1,icel)
             factor = ratio
             if (j == 1 .and. ratio_xh1 > EPS) then
-                factor = ratio_xh1
+              factor = ratio_xh1
             end if
             if (j == 2 .and. ratio_xh2 > EPS) then
-                factor = ratio_xh2
+              factor = ratio_xh2
             end if
             if (j == 3 .and. ratio_xh3 > EPS) then
-                factor = ratio_xh3
+              factor = ratio_xh3
             end if
             if (ratio_ring > EPS .and. ring(atm1,icel) == 1) then
               factor = ratio_ring
@@ -1275,7 +1450,8 @@ contains
   !  Subroutine    setup_mass_repartitioning_back
   !> @brief        Mass repartitioning of hydrogen group is back to original
   !! @authors      JJ
-  !! @param[inout] constraints : constraints information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    constraints : constraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy function information
   !
@@ -1304,6 +1480,7 @@ contains
     integer,             pointer :: ring(:,:)
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: ncell, nwater(:), water_list(:,:,:)
+
 
     hmr_target      => dynamics%hmr_target
     ratio           => dynamics%hmr_ratio
@@ -1415,12 +1592,13 @@ contains
   !  Subroutine    update_vel_group
   !> @brief        Update group velocity
   !! @authors      JJ
-  !! @param[in   ] domain      : domain information
-  !! @param[in   ] constraints : constraints information
-  !! @param[in   ] coord       : coordinates
-  !! @param[in   ] vel         : velocities
-  !! @param[inout] virial      : virial
-  !! @param[inout] kin         : kinetic energy
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    scale_vel   : scale velocity
+  !! @param[in]    mass        : mass
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1438,17 +1616,20 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
 
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, ix, total_mass, vel_cm, &
     !$omp                  iatm, ih)
@@ -1487,14 +1668,14 @@ contains
       do ix = 1, nwater(icel)
         total_mass  = 0.0_wip
         vel_cm(1:3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           iatm(ih) = water_list(ih,ix,icel)
           total_mass = total_mass + mass(iatm(ih),icel)
           vel_cm(1:3) = vel_cm(1:3) &
                       + mass(iatm(ih),icel)*vel(1:3,iatm(ih),icel)
         end do
         vel_cm(1:3) = vel_cm(1:3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           iatm(ih) = water_list(ih,ix,icel)
           vel(1:3,iatm(ih),icel) = vel(1:3,iatm(ih),icel) &
                                  + (scale_vel-1.0_wip)*vel_cm(1:3)
@@ -1513,12 +1694,13 @@ contains
   !  Subroutine    update_vel_group_3d
   !> @brief        Update group velocity
   !! @authors      JJ
-  !! @param[in   ] domain      : domain information
-  !! @param[in   ] constraints : constraints information
-  !! @param[in   ] coord       : coordinates
-  !! @param[in   ] vel         : velocities
-  !! @param[inout] virial      : virial
-  !! @param[inout] kin         : kinetic energy
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    scale_vel   : scale velocity
+  !! @param[in]    mass        : mass
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1536,17 +1718,20 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
 
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, ix, total_mass, vel_cm, &
     !$omp                  iatm, ih)
@@ -1585,14 +1770,14 @@ contains
       do ix = 1, nwater(icel)
         total_mass  = 0.0_wip
         vel_cm(1:3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           iatm(ih) = water_list(ih,ix,icel)
           total_mass = total_mass + mass(iatm(ih),icel)
           vel_cm(1:3) = vel_cm(1:3) &
                       + mass(iatm(ih),icel)*vel(1:3,iatm(ih),icel)
         end do
         vel_cm(1:3) = vel_cm(1:3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           iatm(ih) = water_list(ih,ix,icel)
           vel(1:3,iatm(ih),icel) = vel(1:3,iatm(ih),icel) &
                                  + (scale_vel(1:3)-1.0_wip)*vel_cm(1:3)
@@ -1611,12 +1796,14 @@ contains
   !  Subroutine    compute_kin_group
   !> @brief        Compute Group kinetic energy
   !! @authors      JJ
-  !! @param[in   ] domain      : domain information
-  !! @param[in   ] constraints : constraints information
-  !! @param[in   ] coord       : coordinates
-  !! @param[in   ] vel         : velocities
-  !! @param[inout] virial      : virial
-  !! @param[inout] kin         : kinetic energy
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    vel         : velocities
+  !! @param[inout] kin         : component of kinetic energy
+  !! @param[inout] ekin        : kinetic energy
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1634,13 +1821,14 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
     real(dp)                     :: kinetic_omp(1:3,1:nthread)
 
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
+
 
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
@@ -1649,6 +1837,8 @@ contains
 
     kinetic_omp(1:3,1:nthread) = 0.0_dp
     kin(1:3) = 0.0_dp
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, ix, total_mass, vel_cm, &
     !$omp                  iatm, ih) 
@@ -1683,10 +1873,10 @@ contains
 
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1:3) = water_list(1:3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         vel_cm(1:3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           vel_cm(1:3) = vel_cm(1:3)  &
                       + mass(iatm(ih),icel)*vel(1:3,iatm(ih),icel)
@@ -1704,13 +1894,12 @@ contains
       kin(3)      = kin(3)      + kinetic_omp(3,id)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, kin, 3, mpi_real8, mpi_sum, &
                        mpi_comm_country, ierror)
 #endif
 
     ekin = 0.5_dp*(kin(1)+kin(2)+kin(3))
-
 
     return
 
@@ -1741,6 +1930,7 @@ contains
     integer,             pointer :: nsolute(:), nwater(:)
     integer,             pointer :: degree
 
+
     degree          => domain%num_group_freedom
     nwater          => domain%num_water
     HGr_local       => constraints%HGr_local
@@ -1762,8 +1952,10 @@ contains
 
     end do
 
+#ifdef HAVE_MPI_GENESIS      
     call mpi_allreduce(mpi_in_place, degree, 1, mpi_integer, mpi_sum, &
                        mpi_comm_country, ierror)
+#endif
 
     degree = degree * 3 - 3
 
@@ -1779,16 +1971,18 @@ contains
 
   end subroutine compute_group_deg_freedom
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_gpress
+  !  Subroutine    compute_virial_group
   !> @brief        Compute Group virial
   !! @authors      JJ
-  !! @param[in   ] domain      : domain information
-  !! @param[in   ] constraints : constraints information
-  !! @param[in   ] coord       : coordinates
-  !! @param[in   ] vel         : velocities
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    coord       : coordinates
+  !! @param[in]    force       : force
   !! @param[inout] virial      : virial
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1808,13 +2002,14 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
-    real(wip)                     :: total_mass
-    real(wip)                     :: r_cm(1:3), f_tot(1:3)
+    integer                      :: iatm(1:8), water_atom
+    real(wip)                    :: total_mass
+    real(wip)                    :: r_cm(1:3), f_tot(1:3)
     real(dp)                     :: virial_omp(1:3,1:nthread)
 
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
+
 
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
@@ -1822,6 +2017,8 @@ contains
     connect         =  constraints%connect
 
     virial_omp(1:3,1:nthread)  = 0.0_dp
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, ix, total_mass, r_cm, &
     !$omp                  f_tot, iatm, ih)
@@ -1860,18 +2057,18 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1:3) = water_list(1:3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         r_cm(1:3)   = 0.0_wip
         f_tot(1:3)  = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1:3)   = r_cm(1:3)  &
                       + mass(iatm(ih),icel)*coord(1:3,iatm(ih),icel)
           f_tot(1:3)  = f_tot(1:3) + force(1:3,iatm(ih),icel)
         end do
         r_cm(1:3)  = r_cm(1:3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           virial_omp(1:3,id+1) = virial_omp(1:3,id+1) &
                              + (coord(1:3,iatm(ih),icel)-r_cm(1:3)) &
                                *force(1:3,iatm(ih),icel)
@@ -1890,13 +2087,26 @@ contains
 
   end subroutine compute_virial_group
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_vv1_group
   !> @brief        VV1 with group pressures
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    inv_mass    : inverse mass
+  !! @param[in]    force       : force
+  !! @param[in]    coord_ref   : reference coordinates
+  !! @param[in]    size_scale  : size scale
+  !! @param[in]    vel_scale   : velocity scale
+  !! @param[in]    dt          : time step
+  !! @param[in]    half_dt     : half time step
+  !! @param[inout] coord       : coordinates
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1920,7 +2130,7 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
     real(wip)                    :: r_cm(1:3), vel_cm(1:3)
@@ -1929,10 +2139,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, r_cm, vel_cm, &
     !$omp                  iatm, ih, r, v, ix, factor)
@@ -2008,9 +2221,7 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         r_cm(1)   = 0.0_wip
         r_cm(2)   = 0.0_wip
@@ -2018,7 +2229,7 @@ contains
         vel_cm(1) = 0.0_wip
         vel_cm(2) = 0.0_wip
         vel_cm(3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1)   = r_cm(1)  &
                     + mass(iatm(ih),icel)*coord_ref(1,iatm(ih),icel)
@@ -2039,7 +2250,7 @@ contains
         vel_cm(1) = vel_cm(1) / total_mass
         vel_cm(2) = vel_cm(2) / total_mass
         vel_cm(3) = vel_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           coord(1,iatm(ih),icel) = coord_ref(1,iatm(ih),icel) &
                                  + (size_scale(1)-1.0_wip)*r_cm(1)
           coord(2,iatm(ih),icel) = coord_ref(2,iatm(ih),icel) &
@@ -2069,7 +2280,7 @@ contains
       end do
     end do
 
-   !$omp end parallel
+    !$omp end parallel
 
     return
 
@@ -2080,7 +2291,19 @@ contains
   !  Subroutine    compute_vv1_coord_group
   !> @brief        VV1 with group T/P (coordinate only)
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    inv_mass    : inverse mass
+  !! @param[in]    force       : force
+  !! @param[in]    coord_ref   : reference coordinates
+  !! @param[in]    vel         : velocities
+  !! @param[in]    size_scale  : size scale
+  !! @param[in]    dt          : time step
+  !! @param[inout] coord       : coordinates
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2104,7 +2327,7 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
     real(wip)                    :: r_cm(1:3), vel_cm(1:3)
@@ -2113,10 +2336,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, r_cm, vel_cm, &
     !$omp                  iatm, ih, r, v, ix, factor)
@@ -2189,9 +2415,7 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         r_cm(1)   = 0.0_wip
         r_cm(2)   = 0.0_wip
@@ -2199,7 +2423,7 @@ contains
         vel_cm(1) = 0.0_wip
         vel_cm(2) = 0.0_wip
         vel_cm(3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1)   = r_cm(1)  &
                     + mass(iatm(ih),icel)*coord_ref(1,iatm(ih),icel)
@@ -2220,7 +2444,7 @@ contains
         vel_cm(1) = vel_cm(1) / total_mass
         vel_cm(2) = vel_cm(2) / total_mass
         vel_cm(3) = vel_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom 
           coord(1,iatm(ih),icel) = coord_ref(1,iatm(ih),icel) &
                                  + (size_scale(1)-1.0_wip)*r_cm(1)
           coord(2,iatm(ih),icel) = coord_ref(2,iatm(ih),icel) &
@@ -2291,14 +2515,12 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         r_cm(1)   = 0.0_wip
         r_cm(2)   = 0.0_wip
         r_cm(3)   = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1)   = r_cm(1)  &
                     + mass(iatm(ih),icel)*coord(1,iatm(ih),icel)
@@ -2310,7 +2532,7 @@ contains
         r_cm(1)  = r_cm(1) / total_mass
         r_cm(2)  = r_cm(2) / total_mass
         r_cm(3)  = r_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           coord(1,iatm(ih),icel) = coord(1,iatm(ih),icel) &
                                  + (size_scale(1)-1.0_wip)*r_cm(1)
           coord(2,iatm(ih),icel) = coord(2,iatm(ih),icel) &
@@ -2332,28 +2554,38 @@ contains
   !  Subroutine    compute_vv2_group
   !> @brief        VV2 with group pressures
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    force       : force
+  !! @param[in]    vel_scale   : velocity scale
+  !! @param[in]    half_dt     : half time step
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_vv2_group(constraints, ncell, natom, nwater,    &
-                               water_list, mass, force, vel_scale,   &
-                               half_dt, vel)
+                               water_list, mass, imass, force,       &
+                               vel_scale, half_dt, vel)
 
     ! formal arguments
     type(s_constraints), target, intent(in)    :: constraints
     integer,                     intent(in)    :: ncell, natom(:)
     integer,                     intent(in)    :: nwater(:), water_list(:,:,:)
-    real(wip),                    intent(in)    :: mass(:,:)
-    real(wip),                    intent(in)    :: force(:,:,:)
-    real(wip),                    intent(in)    :: vel_scale(:)
-    real(wip),                    intent(in)    :: half_dt
-    real(wip),                    intent(inout) :: vel(:,:,:)
+    real(wip),                   intent(in)    :: mass(:,:)
+    real(wip),                   intent(in)    :: imass(:,:)
+    real(wip),                   intent(in)    :: force(:,:,:)
+    real(wip),                   intent(in)    :: vel_scale(:)
+    real(wip),                   intent(in)    :: half_dt
+    real(wip),                   intent(inout) :: vel(:,:,:)
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
@@ -2362,10 +2594,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, vel_cm, &
     !$omp                  iatm, ih, v, ix, factor)
@@ -2376,7 +2611,7 @@ contains
 #endif
     do icel = id+1, ncell, nthread
       do ix = 1, natom(icel)
-        factor = half_dt / mass(ix,icel)
+        factor = half_dt * imass(ix,icel)
         vel(1,ix,icel) = vel(1,ix,icel) + factor*force(1,ix,icel)
         vel(2,ix,icel) = vel(2,ix,icel) + factor*force(2,ix,icel)
         vel(3,ix,icel) = vel(3,ix,icel) + factor*force(3,ix,icel)
@@ -2431,14 +2666,12 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         vel_cm(1) = 0.0_wip
         vel_cm(2) = 0.0_wip
         vel_cm(3) = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           vel_cm(1)   = vel_cm(1)  &
                       + mass(iatm(ih),icel)*vel(1,iatm(ih),icel)
@@ -2450,7 +2683,7 @@ contains
         vel_cm(1) = vel_cm(1) / total_mass
         vel_cm(2) = vel_cm(2) / total_mass
         vel_cm(3) = vel_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           vel(1,iatm(ih),icel) = vel(1,iatm(ih),icel)   &
                                + (vel_scale(1)-1.0_wip)*vel_cm(1)
           vel(2,iatm(ih),icel) = vel(2,iatm(ih),icel)   &
@@ -2473,19 +2706,29 @@ contains
   !  Subroutine    update_vel_vv1_group
   !> @brief        VV2 with group pressures
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    force       : force
+  !! @param[in]    vel_scale   : velocity scale
+  !! @param[in]    half_dt     : half time step
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine update_vel_vv1_group(constraints, ncell, natom, nwater,    &
-                                  water_list, mass, force, vel_scale,   &
-                                  half_dt, vel)
+                                  water_list, mass, imass, force,       &
+                                  vel_scale, half_dt, vel)
 
     ! formal arguments
     type(s_constraints), target, intent(in)    :: constraints
     integer,                     intent(in)    :: ncell, natom(:)
     integer,                     intent(in)    :: nwater(:), water_list(:,:,:)
     real(wip),                   intent(in)    :: mass(:,:)
+    real(wip),                   intent(in)    :: imass(:,:)
     real(wip),                   intent(in)    :: force(:,:,:)
     real(wip),                   intent(in)    :: vel_scale(:)
     real(wip),                   intent(in)    :: half_dt
@@ -2494,7 +2737,7 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
@@ -2503,10 +2746,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, vel_cm, &
     !$omp                  iatm, ih, v, ix, factor)
@@ -2561,14 +2807,12 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_wip
         vel_cm(1)   = 0.0_wip
         vel_cm(2)   = 0.0_wip
         vel_cm(3)   = 0.0_wip
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           vel_cm(1) = vel_cm(1)  &
                     + mass(iatm(ih),icel)*vel(1,iatm(ih),icel)
@@ -2580,7 +2824,7 @@ contains
         vel_cm(1) = vel_cm(1) / total_mass
         vel_cm(2) = vel_cm(2) / total_mass
         vel_cm(3) = vel_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           vel(1,iatm(ih),icel) = vel(1,iatm(ih),icel)   &
                                + (vel_scale(1)-1.0_wp)*vel_cm(1)
           vel(2,iatm(ih),icel) = vel(2,iatm(ih),icel)   &
@@ -2593,7 +2837,7 @@ contains
 
     do icel = id+1, ncell, nthread
       do ix = 1, natom(icel)
-        factor = half_dt / mass(ix,icel)
+        factor = half_dt * imass(ix,icel)
         vel(1,ix,icel) = vel(1,ix,icel) + factor*force(1,ix,icel)
         vel(2,ix,icel) = vel(2,ix,icel) + factor*force(2,ix,icel)
         vel(3,ix,icel) = vel(3,ix,icel) + factor*force(3,ix,icel)
@@ -2611,14 +2855,28 @@ contains
   !  Subroutine    update_coord_vv1_group
   !> @brief        VV1 with group pressures
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    force       : force
+  !! @param[in]    coord_ref   : reference coordinates
+  !! @param[in]    vel_ref     : reference velocities
+  !! @param[in]    size_scale  : size scale
+  !! @param[in]    vel_scale   : velocity scale
+  !! @param[in]    dt          : time step
+  !! @param[in]    half_dt     : half time step
+  !! @param[inout] coord       : coordinates
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine update_coord_vv1_group(constraints, ncell, natom, nwater,    &
-                               water_list, mass, force, coord_ref,   &
-                               vel_ref, size_scale, vel_scale,       &
-                               dt, half_dt, coord, vel)
+                                    water_list, mass, force, coord_ref,   &
+                                    vel_ref, size_scale, vel_scale,       &
+                                    dt, half_dt, coord, vel)
 
     ! formal arguments
     type(s_constraints), target, intent(in)    :: constraints
@@ -2637,7 +2895,7 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
     real(wip)                    :: r_cm(1:3), vel_cm(1:3)
@@ -2646,10 +2904,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, r_cm, vel_cm, &
     !$omp                  iatm, ih, r, v, ix, factor)
@@ -2706,14 +2967,12 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_dp
         r_cm(1)     = 0.0_dp
         r_cm(2)     = 0.0_dp
         r_cm(3)     = 0.0_dp
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1)     = r_cm(1)  &
                       + mass(iatm(ih),icel)*coord_ref(1,iatm(ih),icel)
@@ -2725,7 +2984,7 @@ contains
         r_cm(1)  = r_cm(1) / total_mass
         r_cm(2)  = r_cm(2) / total_mass
         r_cm(3)  = r_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           coord(1,iatm(ih),icel) = coord_ref(1,iatm(ih),icel) &
                                  + (size_scale(1)-1.0_wp)*r_cm(1)
           coord(2,iatm(ih),icel) = coord_ref(2,iatm(ih),icel) &
@@ -2744,7 +3003,7 @@ contains
       end do
     end do
 
-   !$omp end parallel
+    !$omp end parallel
 
     return
 
@@ -2755,14 +3014,28 @@ contains
   !  Subroutine    update_coord_vv2_group
   !> @brief        VV1 with group pressures
   !! @authors      JJ
-  !! @param[in   ] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    ncell       : number of cells
+  !! @param[in]    natom       : number of atoms
+  !! @param[in]    nwater      : number of water
+  !! @param[in]    water_list  : water molecule list
+  !! @param[in]    mass        : mass
+  !! @param[in]    force       : force
+  !! @param[in]    coord_ref   : reference coordinates
+  !! @param[in]    vel_ref     : reference velocities
+  !! @param[in]    size_scale  : size scale
+  !! @param[in]    vel_scale   : velocity scale
+  !! @param[in]    dt          : time step
+  !! @param[in]    half_dt     : half time step
+  !! @param[inout] coord       : coordinates
+  !! @param[inout] vel         : velocities
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine update_coord_vv2_group(constraints, ncell, natom, nwater,    &
-                               water_list, mass, force, coord_ref,   &
-                               vel_ref, size_scale, vel_scale,       &
-                               dt, half_dt, coord, vel)
+                                    water_list, mass, force, coord_ref,   &
+                                    vel_ref, size_scale, vel_scale,       &
+                                    dt, half_dt, coord, vel)
 
     ! formal arguments
     type(s_constraints), target, intent(in)    :: constraints
@@ -2781,7 +3054,7 @@ contains
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
     integer                      :: id, omp_get_thread_num
-    integer                      :: iatm(1:8)
+    integer                      :: iatm(1:8), water_atom
     real(wp)                     :: factor
     real(wp)                     :: total_mass
     real(wp)                     :: r_cm(1:3), vel_cm(1:3)
@@ -2790,10 +3063,13 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: nsolute(:)
 
+
     HGr_local       => constraints%HGr_local
     HGr_bond_list   => constraints%HGr_bond_list
     nsolute         => constraints%No_HGr
     connect         =  constraints%connect
+
+    water_atom = constraints%water_type
 
     !$omp parallel private(id, icel, j, k, total_mass, r_cm, vel_cm, &
     !$omp                  iatm, ih, r, v, ix, factor)
@@ -2856,14 +3132,12 @@ contains
       !
 !ocl nosimd
       do ix = 1, nwater(icel)
-        iatm(1) = water_list(1,ix,icel)
-        iatm(2) = water_list(2,ix,icel)
-        iatm(3) = water_list(3,ix,icel)
+        iatm(1:water_atom) = water_list(1:water_atom,ix,icel)
         total_mass  = 0.0_dp
         r_cm(1)     = 0.0_dp
         r_cm(2)     = 0.0_dp
         r_cm(3)     = 0.0_dp
-        do ih = 1, 3
+        do ih = 1, water_atom
           total_mass  = total_mass + mass(iatm(ih),icel)
           r_cm(1)     = r_cm(1)  &
                       + mass(iatm(ih),icel)*coord(1,iatm(ih),icel)
@@ -2875,7 +3149,7 @@ contains
         r_cm(1)  = r_cm(1) / total_mass
         r_cm(2)  = r_cm(2) / total_mass
         r_cm(3)  = r_cm(3) / total_mass
-        do ih = 1, 3
+        do ih = 1, water_atom
           coord(1,iatm(ih),icel) = coord(1,iatm(ih),icel) &
                                  + (size_scale(1)-1.0_wp)*r_cm(1)
           coord(2,iatm(ih),icel) = coord(2,iatm(ih),icel) &
@@ -3145,8 +3419,8 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_settle_min
-  !> @brief        SETTLE for three-site water (only coordinaets)
+  !  Subroutine    compute_settle_TIP2
+  !> @brief        bond constraints for two-site water
   !! @authors      JJ
   !! @param[in]    vel_update  : flag for update velocity or not
   !! @param[in]    dt          : time step
@@ -3156,6 +3430,189 @@ contains
   !! @param[inout] coord       : coordinates
   !! @param[inout] vel         : velocities
   !! @param[inout] virial      : virial of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_settle_TIP2(vel_update, dt, coord_old, domain, &
+                                 constraints, coord, vel, virial)
+
+    ! formal arguments
+    logical,                 intent(in)    :: vel_update
+    real(wip),               intent(in)    :: dt
+    real(wip),               intent(in)    :: coord_old(:,:,:)
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_constraints),     intent(inout) :: constraints
+    real(wip),               intent(inout) :: coord(:,:,:)
+    real(wip),               intent(inout) :: vel(:,:,:)
+    real(dp ),               intent(inout) :: virial(3,3)
+
+    ! local variables
+    real(dp)                 :: x0(3), x1(3), A, B, C, lambda
+    real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
+    real(dp)                 :: dcoord(3,2), dvel(3,2)
+    real(dp)                 :: virial_omp(3,nthread)
+    integer                  :: i, ix, list1, list2, id, omp_get_thread_num
+
+    integer,         pointer :: nwater(:), water_list(:,:,:), ncell
+
+
+    nwater     => domain%num_water
+    water_list => domain%water_list
+    ncell      => domain%num_cell_local
+
+    r12        =  constraints%water_r12
+    mass1      =  constraints%water_mass1
+    mass2      =  constraints%water_mass2
+    imass1     =  1.0_wp / mass1
+    imass2     =  1.0_wp / mass2
+    imass      = imass1 + imass2
+
+    virial_omp(1:3,1:nthread) = 0.0_dp
+
+    !$omp parallel default(shared)                                             &
+    !$omp private(i, ix, list1, list2, x0, x1, A, B, C, lambda, dcoord, dvel,  &
+    !$omp         id)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    do i = id+1, ncell, nthread
+
+!ocl nosimd
+      do ix = 1, nwater(i)
+
+        list1 = water_list(1,ix,i)
+        list2 = water_list(2,ix,i)
+        x0(1:3) = coord_old(1:3,list1,i) - coord_old(1:3,list2,i)
+        x1(1:3) = coord(1:3,list1,i) - coord(1:3,list2,i)
+        A = imass*imass*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
+        B = imass      *(x0(1)*x1(1)+x0(2)*x1(2)+x0(3)*x1(3))
+        C = x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3) - r12*r12
+        lambda = -B + sqrt(B*B-A*C)
+        lambda = lambda / A
+
+        dcoord(1:3,1) = lambda*x0(1:3)*imass1
+        dcoord(1:3,2) = lambda*x0(1:3)*imass2 
+        dvel  (1:3,1) = dcoord(1:3,1) / real(dt,dp)
+        dvel  (1:3,2) = dcoord(1:3,2) / real(dt,dp)
+        coord(1:3,list1,i) = coord(1:3,list1,i) + dcoord(1:3,1)
+        coord(1:3,list2,i) = coord(1:3,list2,i) - dcoord(1:3,2)
+
+        if (vel_update) then
+          vel(1:3,list1,i) = vel(1:3,list1,i) + dvel(1:3,1)
+          vel(1:3,list2,i) = vel(1:3,list2,i) - dvel(1:3,2)
+        end if
+
+        virial_omp(1,id+1) = virial_omp(1,id+1) + lambda*x0(1)*x0(1)
+        virial_omp(2,id+1) = virial_omp(2,id+1) + lambda*x0(2)*x0(2)
+        virial_omp(3,id+1) = virial_omp(3,id+1) + lambda*x0(3)*x0(3)
+      end do
+    end do
+
+    !$omp end parallel
+
+    do i = 1, nthread
+      virial(1,1) = virial(1,1) + virial_omp(1,i)
+      virial(2,2) = virial(2,2) + virial_omp(2,i)
+      virial(3,3) = virial(3,3) + virial_omp(3,i)
+    end do
+
+    return
+
+  end subroutine compute_settle_TIP2
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_settle_TIP2_vv2
+  !> @brief        bond constraints for two-site water
+  !! @authors      JJ
+  !! @param[in]    domain      : domain information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] coord       : coordinates
+  !! @param[inout] vel         : velocities
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_settle_TIP2_vv2(domain, constraints, coord, vel)
+
+    ! formal arguments
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_constraints),     intent(inout) :: constraints
+    real(wip),               intent(inout) :: coord(:,:,:)
+    real(wip),               intent(inout) :: vel(:,:,:)
+
+    ! local variables
+    real(dp)                 :: x0(3), x1(3), A, B, lambda
+    real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
+    real(dp)                 :: dcoord(3,2), dvel(3,2)
+    real(dp)                 :: virial_omp(3,nthread)
+    integer                  :: i, ix, list1, list2, id, omp_get_thread_num
+
+    integer,         pointer :: nwater(:), water_list(:,:,:), ncell
+
+
+    nwater     => domain%num_water
+    water_list => domain%water_list
+    ncell      => domain%num_cell_local
+
+    mass1      =  constraints%water_mass1
+    mass2      =  constraints%water_mass2
+    imass1     =  1.0_wp / mass1
+    imass2     =  1.0_wp / mass2
+    imass      = imass1 + imass2
+
+    virial_omp(1:3,1:nthread) = 0.0_dp
+
+    !$omp parallel default(shared)                                             &
+    !$omp private(i, ix, list1, list2, x0, x1, A, B, lambda, dcoord, dvel,  &
+    !$omp         id)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    do i = id+1, ncell, nthread
+
+!ocl nosimd
+      do ix = 1, nwater(i)
+
+        list1 = water_list(1,ix,i)
+        list2 = water_list(2,ix,i)
+        x0(1:3) = coord(1:3,list1,i) - coord(1:3,list2,i)
+        x1(1:3) = vel  (1:3,list1,i) - vel  (1:3,list2,i)
+        A = x0(1)*x1(1) + x0(2)*x1(2) + x0(3)*x1(3)
+        B = imass*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
+        lambda = -A/B
+
+        dvel(1:3,1) =  lambda*x0(1:3)*imass1
+        dvel(1:3,2) =  lambda*x0(1:3)*imass2
+
+        vel(1:3,list1,i) = vel(1:3,list1,i) + dvel(1:3,1)
+        vel(1:3,list2,i) = vel(1:3,list2,i) - dvel(1:3,2)
+
+      end do
+    end do
+
+    !$omp end parallel
+
+    return
+
+  end subroutine compute_settle_TIP2_vv2
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_settle_min
+  !> @brief        SETTLE for three-site water (only coordinaets)
+  !! @authors      JJ
+  !! @param[in]    coord_old   : reference coordinates
+  !! @param[in]    domain      : domain information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] coord       : coordinates
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -3531,7 +3988,7 @@ contains
               'Compute_Shake> SHAKE algorithm failed to converge: indexes', &
               domain%id_l2g(iatm(1:j+1), icel)
             call error_msg('')
-          endif
+          end if
 
           coord(1:3,iatm(1:j+1),icel) = &
                real(coord_dtmp(1:3,1:j+1),wip)
@@ -4249,8 +4706,9 @@ contains
   !  Subroutine    decide_dummy
   !> @brief        Decide Dummy atom posiion
   !! @authors      JJ
+  !! @param[in]    domain      : domain information
   !! @param[in]    constraints : constraints information
-  !! @param[inout] domain      : domain information
+  !! @param[inout] coord       : coordinates
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4268,6 +4726,7 @@ contains
     integer                :: id, omp_get_thread_num
     real(wip)              :: rOD, dist_rijk, rij(3), rjk(3)
     real(wip)              :: rijk(3), uijk(3)
+
 
     ncell          => domain%num_cell_local
     nwater         => domain%num_water
@@ -4307,8 +4766,10 @@ contains
   !  Subroutine    water_force_redistribution
   !> @brief        Dummy atom force is redistributed to other OH2 atoms
   !! @authors      JJ
-  !! @param[inout] domain      : domain information
-  !! @param[inout] constraints : constraints information
+  !! @param[in]    constraints : constraints information
+  !! @param[in]    domain      : domain information
+  !! @param[inout] force       : forces
+  !! @param[inout] virial      : virial
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4330,6 +4791,7 @@ contains
     real(wip)              :: rid(3), rij(3), rjk(3), rijk(3)
     real(wip)              :: Fd(3), F1(3), rid_Fd
     real(dp )              :: virial_sub(3), virial_add(3)
+
 
     ncell          => domain%num_cell_local
     nwater         => domain%num_water
@@ -4390,6 +4852,8 @@ contains
    virial(2,2) = virial(2,2) - virial_sub(2) + virial_add(2)
    virial(3,3) = virial(3,3) - virial_sub(3) + virial_add(3)
 
-   end subroutine water_force_redistribution
+   return
+
+ end subroutine water_force_redistribution
 
 end module sp_constraints_mod

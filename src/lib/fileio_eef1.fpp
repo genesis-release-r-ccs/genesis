@@ -67,6 +67,7 @@ contains
     ! local variables
     integer                  :: unit_no
 
+
     ! open eef1file
     !
     call open_file(unit_no, eef1_filename, IOFileInput)
@@ -168,7 +169,6 @@ contains
   !> @brief        deallocate CHARMM EEF1 information
   !! @authors      TM
   !! @param[inout] eef1     : CHARMM EEF1 information
-  !! @param[in]    variable : an variable to be allocated 
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -224,6 +224,7 @@ contains
     character(6)  :: an
     logical       :: chex_on, water_on, first_end
 
+
     ichex      = 0
     iwater     = 0
     chex_on    = .false.
@@ -243,18 +244,18 @@ contains
 
       call read_ndata(line, nsta, nend, ndata)
 
-      if (ndata == 1 .and. line(1:4) == 'CHEX') then
+      if (ndata == 1 .and. line(1:4) .eq. 'CHEX') then
         chex_on    = .true.
         water_on   = .false.
       end if
-      if (ndata == 1 .and. line(1:5) == 'WATER') then
+      if (ndata == 1 .and. line(1:5) .eq. 'WATER') then
         chex_on    = .false.
         water_on   = .true.
       end if
-      if (ndata == 1 .and. line(1:3) == 'END' .and. first_end) then
+      if (ndata == 1 .and. line(1:3) .eq. 'END' .and. first_end) then
         exit
       end if
-      if (ndata == 1 .and. line(1:3) == 'END') then
+      if (ndata == 1 .and. line(1:3) .eq. 'END') then
         first_end  = .true.
       end if
 
@@ -301,18 +302,18 @@ contains
 
       call read_ndata(line, nsta, nend, ndata)
 
-      if (ndata == 1 .and. line(1:4) == 'CHEX') then
+      if (ndata == 1 .and. line(1:4) .eq. 'CHEX') then
         chex_on    = .true.
         water_on   = .false.
       end if
-      if (ndata == 1 .and. line(1:5) == 'WATER') then
+      if (ndata == 1 .and. line(1:5) .eq. 'WATER') then
         chex_on    = .false.
         water_on   = .true.
       end if
-      if (ndata == 1 .and. line(1:3) == 'END' .and. first_end) then
+      if (ndata == 1 .and. line(1:3) .eq. 'END' .and. first_end) then
         exit
       end if
-      if (ndata == 1 .and. line(1:3) == 'END') then
+      if (ndata == 1 .and. line(1:3) .eq. 'END') then
         first_end  = .true.
       end if
 

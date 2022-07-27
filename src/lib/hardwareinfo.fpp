@@ -21,9 +21,9 @@ module hardwareinfo_mod
   use messages_mod
 
 #ifdef USE_GPU
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
-#endif /* MPI */
+#endif /* HAVE_MPI_GENESIS */
   use mpi_parallel_mod
   use, intrinsic :: iso_c_binding
 #endif /* USE_GPU */
@@ -165,9 +165,13 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine runtime_information
+
+    ! local variables
     character(MaxLine)       :: ldlibrary,  rt_user, rt_host
+    character(MaxLine)       :: mpiversion
     character(80)            :: cpuname
     integer                  :: tval(8)
+    integer                  :: leng, ierr
     integer(8)               :: year, month, day, hour, minute, sec
 #ifdef USE_GPU
     type(f_cudaDeviceProp)   :: gpu
@@ -177,6 +181,8 @@ contains
     logical                  :: gpu_ecc
 #endif /* USE_GPU */
 
+
+#ifndef KCOMP
     write(MsgOut,'(A)') 'Runtime_Information> Machine and Library Information'
 
     call date_and_time(values=tval)
@@ -192,12 +198,13 @@ contains
 
     call get_cpu_information(cpuname)
     write(MsgOut,*) ' cpu model    = ',trim(cpuname)
+#endif
 #ifdef USE_GPU
     call get_gpu_information(gpu)
     gpu_modelname(1:256) = ' '
-    gpu_ecc = ( gpu%ECCEnabled > 0 )
+    gpu_ecc = (gpu%ECCEnabled > 0)
     do itmp = 1, 256
-      if ( gpu%name(itmp) == CHAR(0) ) then
+      if (gpu%name(itmp) == CHAR(0)) then
         exit
       end if
       gpu_modelname(itmp:itmp) = gpu%name(itmp)
@@ -212,6 +219,13 @@ contains
     call get_env_information(ldlibrary,rt_host,rt_user)
     write(MsgOut,*) ' exec. host   = ',trim(rt_user),'@',trim(rt_host)
     write(MsgOut,*) ' LD library   = ',trim(ldlibrary)
+
+#ifdef HAVE_MPI_GENESIS
+    call MPI_GET_LIBRARY_VERSION(mpiversion, leng, ierr)
+    if (trim(mpiversion) .ne. "") then
+      write(MsgOut,*) 'MPI Runtime = ',trim(mpiversion)
+    endif
+#endif
     write(MsgOut,'(A)')
 
     return
@@ -243,7 +257,6 @@ contains
 
   end subroutine genesis_information
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    build_information
@@ -262,6 +275,9 @@ contains
     write(MsgOut,*) ' option       = ',COMPILE_CFLAGS
     write(MsgOut,*) ' defined var. = ',COMPILE_DEFINED_VARIABLES
     write(MsgOut,*) ' link option  = ',COMPILE_LDFLAGS
+#ifdef HAVE_MPI_GENESIS
+    write(MsgOut,*) ' MPI Compiler = ',MPITYPE,' MPI'
+#endif
 #ifdef CUDAGPU
     write(MsgOut,*) ' CUDA         = ',COMPILE_NVCC_VER
 #endif
@@ -270,7 +286,6 @@ contains
     return
 
   end subroutine build_information
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -293,6 +308,7 @@ contains
 
 #endif
 
+    ! formal arguments
     character(*),            intent(out)    :: ldlibrary
     character(*),            intent(out)    :: rt_host
     character(*),            intent(out)    :: rt_user
@@ -324,13 +340,13 @@ contains
     character(80) :: line
     logical       :: exists
 
+
     exists=.false.
 
 #ifdef KCOMP
     cpuname="Fugaku"
     return
 #endif
-
     inquire(file=cpuinfo, EXIST=exists)
     if (.not. exists) then
       cpuname="N/A"
@@ -430,78 +446,83 @@ contains
 
   subroutine assign_gpu(my_device_id)
 
+    ! formal arguments
     integer, intent(out) :: my_device_id
 
+    ! local variables
     integer :: ret, mycount
     integer :: counter, i, not_avail
     type(f_cudaDeviceProp) :: gpu
     logical, allocatable :: avail_gpus(:)
 
-#ifndef MPI
+
+    my_device_id = 0
+#ifndef HAVE_MPI_GENESIS
     ! do nothing if MPI is not available
     return
 #else
 
     ret = cudaGetDeviceCount(mycount)
-    if ( ret /= 0 ) then
+    if (ret /= 0) then
       call error_msg('get_gpu_info> Error: cannot get gpu device count.')
     end if
 
     not_avail = 0
-    if ( mycount > 0 ) then
-      allocate( avail_gpus(mycount) )
+    if (mycount > 0) then
+      allocate(avail_gpus(mycount))
       avail_gpus(:) = .true.
       do i = 1, mycount
-        ret = cudaGetDeviceProperties( gpu, i-1 )
-        if ( ret /= 0 ) then
+        ret = cudaGetDeviceProperties(gpu, i-1)
+        if (ret /= 0) then
           call error_msg('get_gpu_info > Error: cannot get gpu device info.')
         end if
-        ! whether compute capability is >= 3.5
-        if ( gpu%major < 3 .or. &
-             ( gpu%major == 3 .and. gpu%minor < 5 ) ) then
+        ! check compute capability (is >= 3.5 or not)
+        if (gpu%major < 3 .or. &
+             (gpu%major == 3 .and. gpu%minor < 5)) then
           not_avail = not_avail + 1
           avail_gpus(i) = .false.
         end if
       end do
       mycount = mycount - not_avail
-      if ( not_avail > 0 ) then
-        if ( main_rank ) then
+      if (not_avail > 0) then
+        if (main_rank) then
           write(MsgOut,'(a,i5)') "  ignored GPUs =", not_avail
         end if
       end if
     end if
 
-    if ( main_rank ) then
+    if (main_rank) then
       write(MsgOut,'(a,i5)') "  # of GPUs    =", mycount
     end if
+    ! if only 1 GPU is found, do nothing
+    if (mycount == 1) return
 
-    ! if only 1 GPU (or less) is found, do nothing
-    if ( mycount <= 1 ) then
-      my_device_id = 0
-      return
-    end if
+    ! put error if no gpu found
+    if (mycount == 0) then
+      call error_msg('get_gpu_info> CUDA enabled GPU is not available')
+    endif
 
     call get_local_rank()
     my_device_id = mod(my_node_local_rank,mycount)
 
     counter = -1
-    do i = 1, mycount
-      if ( avail_gpus(i) ) counter = counter + 1
-      if ( counter == my_device_id ) then
+    do i = 1, mycount + not_avail
+      if (avail_gpus(i)) counter = counter + 1
+      if (counter == my_device_id) then
         my_device_id = i - 1
         exit
       end if
-      if ( i == mycount ) then
-        call error_msg('get_gpu_unfo> Error: unexpected error')
+      if (i == (mycount + not_avail)) then
+        call error_msg('get_gpu_info> Error: unexpected error')
       end if
     end do
 
     ! assign device
     ret = cudaSetDevice(my_device_id)
-    if ( ret /= 0 ) then
+    if (ret /= 0) then
       call error_msg('get_gpu_info> Error: cannot set gpu device.')
     end if
-#endif /* MPI */
+#endif /* HAVE_MPI_GENESIS */
 
     return
 
@@ -524,17 +545,19 @@ contains
 
 #endif
 
+    ! local variables
     character(MaxLine) :: myname
     integer            :: len_myname, i, ierr
 
     character(MaxLine), allocatable :: nodenames(:)
     integer,            allocatable :: ranks(:)
 
-#ifdef MPI
+
+#ifdef HAVE_MPI_GENESIS
     ! check OpenMPI
     call getenv("OMPI_COMM_WORLD_LOCAL_RANK", myname)
-    if ( len_trim(myname) /= 0 ) then
-      if ( main_rank ) then
+    if (len_trim(myname) /= 0) then
+      if (main_rank) then
         write(MsgOut,'(a)') &
           "get_local_rank> OpenMPI environment variable found."
         write(MsgOut,*)
@@ -562,15 +585,15 @@ contains
 
     my_node_local_rank = 0
     do i = 0, nproc_world - 1
-      if ( trim(nodenames(my_world_rank+1)) == trim(nodenames(i+1)) ) then
-        if ( my_world_rank > ranks(i+1) ) then
+      if (trim(nodenames(my_world_rank+1)) == trim(nodenames(i+1))) then
+        if (my_world_rank > ranks(i+1)) then
           my_node_local_rank = my_node_local_rank + 1
         end if
       end if
     end do
 
     deallocate(nodenames,ranks)
-#endif /* MPI */
+#endif /* HAVE_MPI_GENESIS */
 
     return
 
@@ -586,9 +609,12 @@ contains
 
   subroutine get_gpu_information(gpu)
 
+    ! formal arguments
     type(f_cudaDeviceProp), intent(out) :: gpu
 
+    ! local variables
     integer :: ret, my_device_id
+
 
     call assign_gpu(my_device_id)
     ret = cudaGetDeviceProperties( gpu, my_device_id )
@@ -599,6 +625,7 @@ contains
     return
 
   end subroutine get_gpu_information
+
 #endif /* USE_GPU */
 
 end module hardwareinfo_mod

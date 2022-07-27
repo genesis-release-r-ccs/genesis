@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 ! 
-!  Module   sp_domain_str
+!  Module   sp_domain_str_mod
 !> @brief   structure of domain
 !! @authors Jaewoon Jung (JJ) 
 !
@@ -57,6 +57,7 @@ module sp_domain_str_mod
     integer                       :: neighbor(-1:1,-1:1,-1:1)
 
     ! system size
+    real(wp)                      :: system_size_ini(3)
     real(wp)                      :: system_size(3)
     real(wp)                      :: cell_size(3)
 
@@ -1146,7 +1147,6 @@ contains
     return
 
   end subroutine dealloc_domain
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

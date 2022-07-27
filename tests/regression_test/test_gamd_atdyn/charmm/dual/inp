@@ -1,0 +1,64 @@
+[INPUT]
+topfile  =  top
+parfile  =  par
+psffile  =  psf
+pdbfile  =  pdb
+rstfile  =  rst
+ 
+[OUTPUT]
+gamdfile = out.gamd
+
+[GAMD]
+gamd          = yes
+boost         = yes
+boost_type    = DUAL
+thresh_type   = LOWER
+sigma0_pot    = 6.0
+sigma0_dih    = 6.0
+update_period = 10
+pot_max       = -89354.3516
+pot_min       = -90871.0391
+pot_ave       = -90446.4844
+pot_dev       = 120.0399
+dih_max       = 10.2682
+dih_min       = -1.3196
+dih_ave       = 2.7572
+dih_dev       = 1.2770
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = PME       # [CUTOFF,PME]
+switchdist       = 10.0      # switch distance
+cutoffdist       = 12.0      # cutoff distance
+pairlistdist     = 13.5      # pair-list distance
+output_style     = GENESIS
+pme_alpha        = 0.34
+pme_ngrid_x      = 64
+pme_ngrid_y      = 64
+pme_ngrid_z      = 64
+table_density    = 20.000
+
+[DYNAMICS]
+integrator      = VVER
+nsteps          = 100
+timestep        = 0.002
+eneout_period   = 5
+nbupdate_period = 10
+stoptr_period   = 0
+iseed           = 11
+   
+[CONSTRAINTS]
+rigid_bond  = YES
+ 
+[ENSEMBLE]
+ensemble      = NVT
+tpcontrol     = BUSSI
+temperature   = 300.0
+pressure      = 1.0
+   
+[BOUNDARY]
+type       = PBC
+ 
+[SELECTION]
+
+[RESTRAINTS]

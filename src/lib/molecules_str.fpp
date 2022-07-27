@@ -27,6 +27,7 @@ module molecules_str_mod
 
     integer           :: num_atoms     = 0
     integer           :: num_bonds     = 0
+    integer           :: num_enm_bonds = 0
     integer           :: num_angles    = 0
     integer           :: num_dihedrals = 0
     integer           :: num_impropers = 0
@@ -56,6 +57,8 @@ module molecules_str_mod
     real(wp),         allocatable :: mass(:)
     real(wp),         allocatable :: inv_mass(:)
     integer,          allocatable :: imove(:)
+    real(wp),         allocatable :: stokes_radius(:)
+    real(wp),         allocatable :: inv_stokes_radius(:)
 
     character(1),     allocatable :: chain_id(:)
     real(wp),         allocatable :: atom_coord(:,:)
@@ -69,6 +72,9 @@ module molecules_str_mod
 
     ! bond
     integer,          allocatable :: bond_list(:,:)
+
+    ! enm
+    integer,          allocatable :: enm_list(:,:)
 
     ! angle
     integer,          allocatable :: angl_list(:,:)
@@ -97,6 +103,58 @@ module molecules_str_mod
     integer                       :: num_pc_modes
     real(wp),         allocatable :: pc_mode(:)
 
+    ! FEP
+    integer                       :: fep_topology       = 1
+    integer                       :: num_hbonds_singleA = 0
+    integer                       :: num_hbonds_singleB = 0
+    integer                       :: num_atoms_fep(5)
+    integer                       :: num_bonds_fep(5)
+    integer                       :: num_angles_fep(5)
+    integer                       :: num_dihedrals_fep(5)
+    integer                       :: num_impropers_fep(5)
+    integer                       :: num_cmaps_fep(5)
+    integer,          allocatable :: bond_list_fep(:,:,:)
+    integer,          allocatable :: angl_list_fep(:,:,:)
+    integer,          allocatable :: dihe_list_fep(:,:,:)
+    integer,          allocatable :: impr_list_fep(:,:,:)
+    integer,          allocatable :: cmap_list_fep(:,:,:)
+    integer,          allocatable :: id_singleA(:)
+    integer,          allocatable :: id_singleB(:)
+    integer,          allocatable :: fepgrp(:)
+    integer                       :: fepgrp_bond(5,5)
+    integer                       :: fepgrp_angl(5,5,5)
+    integer                       :: fepgrp_dihe(5,5,5,5)
+    integer                       :: fepgrp_cmap(5*5*5*5*5*5*5*5)
+    ! FEP for atdyn
+!    logical                       :: key_fep_hybrid     = .false.
+!    integer,          allocatable :: atom_group_factor(:)
+!    integer,          allocatable :: atom_group_idx(:)
+!    integer,          allocatable :: tr_bndlist_preserve(:)
+!    integer,          allocatable :: tr_bndlist_singleA(:)
+!    integer,          allocatable :: tr_bndlist_singleB(:)
+!    integer,          allocatable :: tr_bndlist_dualA(:)
+!    integer,          allocatable :: tr_bndlist_dualB(:)
+!    integer,          allocatable :: tr_angllist_preserve(:)
+!    integer,          allocatable :: tr_angllist_singleA(:)
+!    integer,          allocatable :: tr_angllist_singleB(:)
+!    integer,          allocatable :: tr_angllist_dualA(:)
+!    integer,          allocatable :: tr_angllist_dualB(:)
+!    integer,          allocatable :: tr_dihelist_preserve(:)
+!    integer,          allocatable :: tr_dihelist_singleA(:)
+!    integer,          allocatable :: tr_dihelist_singleB(:)
+!    integer,          allocatable :: tr_dihelist_dualA(:)
+!    integer,          allocatable :: tr_dihelist_dualB(:)
+!    integer,          allocatable :: tr_imprlist_preserve(:)
+!    integer,          allocatable :: tr_imprlist_singleA(:)
+!    integer,          allocatable :: tr_imprlist_singleB(:)
+!    integer,          allocatable :: tr_imprlist_dualA(:)
+!    integer,          allocatable :: tr_imprlist_dualB(:)
+!    integer,          allocatable :: tr_cmaplist_preserve(:)
+!    integer,          allocatable :: tr_cmaplist_singleA(:)
+!    integer,          allocatable :: tr_cmaplist_singleB(:)
+!    integer,          allocatable :: tr_cmaplist_dualA(:)
+!    integer,          allocatable :: tr_cmaplist_dualB(:)
+
   end type s_molecule
 
   ! parameters for allocatable variables
@@ -110,6 +168,7 @@ module molecules_str_mod
   integer,      public, parameter :: MoleculeRefc = 8
   integer,      public, parameter :: MoleculeMode = 9
   integer,      public, parameter :: MoleculeFitc = 10
+  integer,      public, parameter :: MoleculeEnm  = 11
 
   ! subroutines
   public :: init_molecules
@@ -198,6 +257,8 @@ contains
                    molecule%mass,             &
                    molecule%inv_mass,         &
                    molecule%imove,            &
+                   molecule%stokes_radius,    &
+                   molecule%inv_stokes_radius,&
                    molecule%chain_id,         &
                    molecule%atom_coord,       &
                    molecule%atom_occupancy,   &
@@ -222,6 +283,8 @@ contains
                molecule%mass(var_size),              &
                molecule%inv_mass(var_size),          &
                molecule%imove(var_size),             &
+               molecule%stokes_radius(var_size),     &
+               molecule%inv_stokes_radius(var_size), &
                molecule%chain_id(var_size),          &
                molecule%atom_coord(3,var_size),      &
                molecule%atom_occupancy(var_size),    &
@@ -245,6 +308,8 @@ contains
       molecule%mass              (1:var_size) = 0.0_wp
       molecule%inv_mass          (1:var_size) = 0.0_wp
       molecule%imove             (1:var_size) = 0
+      molecule%stokes_radius     (1:var_size) = 0.0_wp
+      molecule%inv_stokes_radius (1:var_size) = 0.0_wp
       molecule%chain_id          (1:var_size) = ''
       molecule%atom_coord    (1:3,1:var_size) = 0.0_wp
       molecule%atom_occupancy    (1:var_size) = 0.0_wp
@@ -267,6 +332,20 @@ contains
                stat = alloc_stat)
 
       molecule%bond_list(1:2,1:var_size) = 0
+
+    case (MoleculeEnm)
+
+      if (allocated(molecule%enm_list)) then
+        if (size(molecule%enm_list) == var_size) &
+          return
+        deallocate(molecule%enm_list, &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(molecule%enm_list(2, var_size), &
+               stat = alloc_stat)
+
+      molecule%enm_list(1:2,1:var_size) = 0
 
     case (MoleculeAngl)
 
@@ -297,7 +376,7 @@ contains
       molecule%dihe_list(1:4,1:var_size) = 0
 
     case (MoleculeImpr)
-      
+
       if (allocated(molecule%impr_list)) then
         if (size(molecule%impr_list) == var_size) &
           return
@@ -311,7 +390,7 @@ contains
       molecule%impr_list(1:4,1:var_size) = 0
 
     case (MoleculeCmap)
-      
+
       if (allocated(molecule%cmap_list)) then
         if (size(molecule%cmap_list(1,:)) == var_size) &
           return
@@ -441,6 +520,8 @@ contains
                     molecule%mass,             &
                     molecule%inv_mass,         &
                     molecule%imove,            &
+                    molecule%stokes_radius,    &
+                    molecule%inv_stokes_radius,&
                     molecule%chain_id,         &
                     molecule%atom_coord,       &
                     molecule%atom_occupancy,   &
@@ -456,6 +537,13 @@ contains
 
       if (allocated(molecule%bond_list)) then
         deallocate (molecule%bond_list, &
+                    stat = dealloc_stat)
+      end if
+
+    case (MoleculeEnm)
+
+      if (allocated(molecule%enm_list)) then
+        deallocate (molecule%enm_list, &
                     stat = dealloc_stat)
       end if
 
@@ -546,6 +634,7 @@ contains
 
     call dealloc_molecules(molecule, MoleculeAtom)
     call dealloc_molecules(molecule, MoleculeBond)
+    call dealloc_molecules(molecule, MoleculeEnm)
     call dealloc_molecules(molecule, MoleculeAngl)
     call dealloc_molecules(molecule, MoleculeDihe)
     call dealloc_molecules(molecule, MoleculeImpr)

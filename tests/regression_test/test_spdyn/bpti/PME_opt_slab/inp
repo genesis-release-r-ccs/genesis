@@ -1,7 +1,7 @@
 [INPUT]
-grotopfile      = ../../../build//bpti//bpti.top
-grocrdfile      = ../../../build//bpti//bpti.gro
-rstfile         = ../../../build//bpti//rst
+grotopfile      = ../../../build/bpti/bpti.top
+grocrdfile      = ../../../build/bpti/bpti.gro
+rstfile         = ../../../build/bpti/rst
  
 [OUTPUT]
  
@@ -26,7 +26,6 @@ nsteps          = 20
 timestep        = 0.001
 eneout_period   = 2
 nbupdate_period = 5
-iseed           = 314159
 verbose         = yes
  
 [CONSTRAINTS]
@@ -39,6 +38,7 @@ water_model     = SOL
 ensemble        = NVE
 tpcontrol       = NO
 temperature     = 0
+group_tp        = NO   # This option is used only for regression tests.
  
 [BOUNDARY]
 type            = PBC

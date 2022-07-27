@@ -35,13 +35,14 @@ contains
   !  Subroutine    compute_energy_nonbond_table_water_linear
   !> @brief        calculate nonbonded energy among water molecules
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -360,11 +361,12 @@ contains
   !> @brief        calculate nonbonded force among water molecules using lookup 
   !!               table (linear interpolation)
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 

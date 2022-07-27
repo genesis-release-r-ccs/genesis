@@ -26,12 +26,13 @@ module sp_energy_dihedrals_mod
   private
 
   ! subroutines
-  public :: compute_energy_dihed
-  public :: compute_energy_dihed_localres
-  public :: compute_energy_rb_dihed
-  public :: compute_energy_improp
-  public :: compute_energy_improp_cos
-  public :: compute_energy_cmap
+  public  :: compute_energy_dihed
+  public  :: compute_energy_dihed_localres
+  public  :: compute_energy_rb_dihed
+  public  :: compute_energy_improp
+  public  :: compute_energy_improp_cos
+  public  :: compute_energy_cmap
+  private :: calculate_dihedral_2
 
 contains
 
@@ -44,6 +45,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] edihe   : dihedral energy of target systems
   !! @note         Blondel and Karplus, J. Comput. Chem., 17, 1132-1141 (1996)
   !
@@ -77,7 +79,8 @@ contains
     integer,         pointer :: nperiod(:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: dihe_pbc(:,:,:)
+    integer,         pointer :: dihe_pbc(:,:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -107,7 +110,7 @@ contains
     do i = id+1, ncell_local, nthread
 
       edihe_temp = 0.0_wp
-      viri(1:3) = 0.0_wp
+      viri(1:3)  = 0.0_wp
 
       do ix = 1, ndihe(i)
 
@@ -228,6 +231,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] edihe   : dihedral energy of target systems
   !! @note         Blondel and Karplus, J. Comput. Chem., 17, 1132-1141 (1996)
   !
@@ -264,6 +268,7 @@ contains
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
     integer(1),      pointer :: dkind(:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -362,11 +367,11 @@ contains
             diffphi = asin(sindif)
           else
             diffphi = sign(1.0_wp,sindif)*acos(cosdif)
-          endif
+          end if
           edihe_temp = edihe_temp + fc(ix,i)*diffphi*diffphi
           grad_coef = 2.0_wp * fc(ix, i)*diffphi
 
-        endif
+        end if
 
         work(1) = grad_coef*grad(1)
         work(2) = grad_coef*grad(2)
@@ -415,6 +420,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] edihe   : dihedral energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -446,7 +452,8 @@ contains
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: dihe_pbc(:,:,:)
+    integer,         pointer :: dihe_pbc(:,:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -468,7 +475,6 @@ contains
 #else
     id  = 0
 #endif
-
 
     do i = id+1, ncell_local, nthread
 
@@ -571,6 +577,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eimprop : improper dihedral energy of target systems
   !! @note         Blondel and Karplus, J. Comput. Chem., 17, 1132-1141 (1996)
   !
@@ -603,7 +610,8 @@ contains
     integer,         pointer :: nimp(:), imprlist(:,:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: impr_pbc(:,:,:)
+    integer,         pointer :: impr_pbc(:,:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -680,7 +688,7 @@ contains
           diffphi = asin(sindif)
         else
           diffphi = sign(1.0_wp,sindif)*acos(cosdif)
-        endif
+        end if
         eimp_temp = eimp_temp + fc(ix, i)*diffphi*diffphi
         grad_coef = 2.0_wp*fc(ix, i)*diffphi
 
@@ -737,6 +745,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eimprop : improper dihedral energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -769,7 +778,8 @@ contains
     integer,         pointer :: nperiod(:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: impr_pbc(:,:,:)
+    integer,         pointer :: impr_pbc(:,:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -900,9 +910,6 @@ contains
 
     return
 
-
-    return
-
   end subroutine compute_energy_improp_cos
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -914,7 +921,8 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
-  !! @param[inout] eimprop : improper dihedral energy of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] ecmap   : improper dihedral energy of target systems
   !! @note         A.D.MacKerell et al., J.Comput.Chem., 25, 1400-1415 (2004).
   !! @note         Blondel and Karplus, J. Comput. Chem., 17, 1132-1141 (1996)
   !
@@ -950,7 +958,8 @@ contains
     integer,         pointer :: resol(:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: cmap_pbc(:,:,:)
+    integer,         pointer :: cmap_pbc(:,:,:)
+
 
     call timer(TimerDihedral, TimerOn)
 
@@ -1015,17 +1024,17 @@ contains
               dihed=180.0_wp-dihed
             else
               dihed=-180.0_wp-dihed
-            endif
-          endif
+            end if
+          end if
         else
           dihed = sign(1.0_wp,sin_dih)*acos(cos_dih)/RAD
-        endif
+        end if
 
         if (dihed < -180.0_wp) then
           dihed = dihed + 360.0_wp
         else if (dihed > 180.0_wp) then
           dihed = dihed - 360.0_wp
-        endif
+        end if
 
         igr      = int((dihed+180.0_wp)*inv_delta)
         dgrid(1) = (dihed - (delta*real(igr,wp) - 180.0_wp))*inv_delta
@@ -1047,17 +1056,17 @@ contains
               dihed=180.0_wp-dihed
             else
               dihed=-180.0_wp-dihed
-            endif
-          endif
+            end if
+          end if
         else
           dihed = sign(1.0_wp,sin_dih)*acos(cos_dih)/RAD
-        endif
+        end if
 
         if (dihed < -180.0_wp) then
           dihed = dihed + 360.0_wp
         else if (dihed > 180.0_wp) then
           dihed = dihed - 360.0_wp
-        endif
+        end if
 
         igr      = int((dihed+180.0_wp)*inv_delta)
         dgrid(2) = (dihed - (delta*real(igr,wp) - 180.0_wp))*inv_delta
@@ -1141,6 +1150,8 @@ contains
 
   end subroutine compute_energy_cmap
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
   subroutine calculate_dihedral_2(aindex, pbc_index, coord, box_size, &
                                   cos_dih, sin_dih, grad, v)
 
@@ -1162,6 +1173,7 @@ contains
     real(wp)                 :: raijk2, rajkl2, vtmp
     real(wp)                 :: inv_raijk2, inv_rajkl2, inv_raijkl
     real(wp)                 :: rjk, inv_rjk, dotpro_ijk, dotpro_jkl
+
 
     pbc_int = pbc_index(1)
     k3 = pbc_int / 9

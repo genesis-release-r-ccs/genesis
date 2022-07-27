@@ -1,0 +1,41 @@
+[INPUT]
+parfile          = ../../../build/nano_material/toppar/par_interface.prm
+psffile          = ../../../build/nano_material/step3_pbcsetup_imc.psf
+pdbfile          = ../../../build/nano_material/step3_input.pdb
+topfile          = ../../../build/nano_material/toppar/top_interface.rtf
+rstfile          = ../../../build/nano_material/restart1.rst
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = PME
+switchdist       = 10.0
+cutoffdist       = 12.0
+pairlistdist     = 13.5
+pme_ngrid_x      = 48
+pme_ngrid_y      = 48
+pme_ngrid_z      = 48
+pme_nspline      =  4
+vdw_force_switch = YES
+output_style     = GENESIS
+
+[DYNAMICS]
+integrator       = VVER
+nsteps           = 20    
+timestep         = 0.001
+nbupdate_period  =  4
+eneout_period    =  2
+verbose          = yes
+
+[ENSEMBLE]
+ensemble         = NPT
+group_tp         = YES
+tpcontrol        = BUSSI
+temperature      = 298.15
+pressure         = 1.0
+
+[CONSTRAINTS]
+rigid_bond       = yes
+shake_iteration  = 500
+
+[BOUNDARY]
+type             = PBC

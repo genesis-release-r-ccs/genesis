@@ -91,9 +91,11 @@ contains
       call update_pairlist_pbc_check(enefunc, domain, pairlist)
     else
       call update_pairlist_pbc(enefunc, domain, pairlist)
-    endif
+    end if
 
     call timer(TimerPairList, TimerOff)
+
+    return
 
   end subroutine setup_pairlist
 
@@ -116,7 +118,6 @@ contains
     type(s_domain),   target, intent(inout) :: domain
     type(s_pairlist), target, intent(inout) :: pairlist
 
- 
     if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
       call update_pairlist_pbc_generic(enefunc, domain, pairlist)
 

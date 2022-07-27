@@ -1,0 +1,11 @@
+pd_control.o: pd_control.fpp pd_option_mod.mod 
+pd_control_mod.mod: pd_control.fpp pd_control.o
+pd_draw.o: pd_draw.fpp pd_option_str_mod.mod 
+pd_draw_mod.mod: pd_draw.fpp pd_draw.o
+pd_main.o: pd_main.fpp pd_draw_mod.mod pd_control_mod.mod pd_option_str_mod.mod pd_setup_mod.mod 
+pd_option.o: pd_option.fpp pd_option_str_mod.mod 
+pd_option_mod.mod: pd_option.fpp pd_option.o
+pd_option_str.o: pd_option_str.fpp  
+pd_option_str_mod.mod: pd_option_str.fpp pd_option_str.o
+pd_setup.o: pd_setup.fpp pd_option_mod.mod pd_control_mod.mod pd_option_str_mod.mod 
+pd_setup_mod.mod: pd_setup.fpp pd_setup.o

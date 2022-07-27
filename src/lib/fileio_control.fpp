@@ -32,9 +32,15 @@ module fileio_control_mod
     type(s_keyval),       pointer :: next         => null()
   end type s_keyval
 
+  type s_val
+    character(MaxLine)            :: val
+    type(s_val),          pointer :: next         => null()
+  end type s_val
+
   type s_section
     character(MaxLineLong)        :: name
     type(s_keyval),       pointer :: keyval_head  => null()
+    type(s_val),          pointer :: val_head     => null()
     type(s_section),      pointer :: next         => null()
   end type s_section
 
@@ -68,6 +74,7 @@ module fileio_control_mod
   public  :: read_ctrlfile_real
   public  :: read_ctrlfile_logical
   public  :: read_ctrlfile_type
+  public  :: read_ctrlfile_section_values
   public  :: find_ctrlfile_section
   public  :: begin_ctrlfile_section
   public  :: end_ctrlfile_section
@@ -77,6 +84,7 @@ module fileio_control_mod
   private :: append_section
   private :: append_keyval
   private :: search_keyval
+  private :: append_val
   private :: append_read_key
   private :: search_read_key
   private :: free_read_keys
@@ -318,8 +326,8 @@ contains
     character(*),            intent(in)    :: typeStrs(:)
 
     ! local variables
-    integer                      :: i
-    character(MaxLinelong)       :: cval, cstr1, cstr2
+    integer                                :: i
+    character(MaxLinelong)                 :: cval, cstr1, cstr2
 
 
     if (handle <= 0 .or. handle > MaxControls) &
@@ -352,6 +360,68 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    read_ctrlfile_section_values
+  !> @brief        read section values from control file
+  !! @authors      NT
+  !! @param[in]    handle  : unit number
+  !! @param[in]    section : section string
+  !! @param[inout] values  : value list
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_ctrlfile_section_values(handle, section, values)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: section
+    character(MaxLine),      allocatable   :: values(:)
+
+    ! local variables
+    integer                  :: count
+    character(MaxLine)       :: lsection
+
+    type(s_section), pointer :: cur_sec
+    type(s_val),     pointer :: cur_v
+
+
+    if (handle <= 0 .or. handle > MaxControls) &
+      return
+
+    lsection = section
+    call tolower(lsection)
+
+    cur_sec => g_controls(handle)%section_head
+    do while(associated(cur_sec))
+      if (cur_sec%name == lsection) &
+        exit
+      cur_sec => cur_sec%next
+    end do
+    if (.not. associated(cur_sec)) &
+      return
+
+    count = 0
+    cur_v => cur_sec%val_head
+    do while(associated(cur_v))
+      count = count + 1
+      cur_v => cur_v%next
+    end do
+
+    allocate(values(count))
+
+    count = 0
+    cur_v => cur_sec%val_head
+    do while(associated(cur_v))
+      count = count + 1
+      values(count) = cur_v%val
+      cur_v => cur_v%next
+    end do
+
+    return
+
+  end subroutine read_ctrlfile_section_values
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Function      find_ctrlfile_section
   !> @brief        check whether a control file has indicated section
   !! @authors      NT
@@ -378,6 +448,7 @@ contains
     character(MaxLineLong)   :: sec_target, sec_control
     character(LineBuffer)    :: chara
     character(1)             :: c
+
 
     find_ctrlfile_section = .false.
 
@@ -636,10 +707,11 @@ contains
 
         cur_sec => append_section(control, sec)
 
-      ! key-value statement
       else
 
         equal = scan(line_pp, '=')
+
+        ! key-value statement
         if (equal /= 0) then
 
           key = adjustl(line_pp(:equal-1))
@@ -648,6 +720,13 @@ contains
           call tolower(key)
 
           call append_keyval(cur_sec, key, val)
+
+        ! value statement
+        else
+
+          val = adjustl(line_pp)
+
+          call append_val(cur_sec, val)
 
         end if
 
@@ -907,6 +986,52 @@ contains
     return
 
   end function search_keyval
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    append_val
+  !> @brief        append new value to section
+  !! @authors      NT
+  !! @param[inout] section : section information
+  !! @param[in]    val     : value string
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine append_val(section, val)
+
+    ! formal arguments
+    type(s_section),         intent(inout) :: section
+    character(*),            intent(in)    :: val
+
+    ! local variables
+    type(s_val),     pointer :: cur_v, prv_v
+
+
+    if (val == '') &
+      return
+
+    prv_v => section%val_head
+    cur_v => section%val_head
+
+    do while(associated(cur_v))
+
+      prv_v => cur_v
+      cur_v => cur_v%next
+
+    end do
+
+    if (.not. associated(prv_v)) then
+      allocate(section%val_head)
+      section%val_head%val = val
+    else
+      allocate(cur_v)
+      cur_v%val = val
+      prv_v%next => cur_v
+    end if
+
+    return
+
+  end subroutine append_val
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

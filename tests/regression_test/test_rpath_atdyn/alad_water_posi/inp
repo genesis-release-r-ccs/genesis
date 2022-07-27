@@ -1,0 +1,60 @@
+[INPUT]
+topfile             = ./top
+parfile             = ./par
+strfile             = ./str
+psffile             = ./psf
+pdbfile             = ./fitpdb
+reffile             = ./{}.pdb
+fitfile             = ./fitpdb
+rstfile             = ./rst{}
+
+[OUTPUT]
+logfile             = ./test{}
+
+[ENERGY]
+forcefield          = CHARMM
+electrostatic       = PME
+switchdist          = 10.0
+cutoffdist          = 12.0
+pairlistdist        = 13.5
+vdw_force_switch    = YES
+pme_nspline         = 4
+pme_max_spacing     = 1.2
+
+[DYNAMICS]
+integrator          = VVER      # [LEAP,VVER,VRES]
+nsteps              = 40
+timestep            = 0.002     # timestep (ps) 
+eneout_period       = 2
+nbupdate_period     = 10        # pairlist update period
+
+[ENSEMBLE]
+ensemble            = NVT
+tpcontrol           = BERENDSEN
+temperature         = 300.0
+
+[CONSTRAINTS]
+rigid_bond          = YES
+
+[BOUNDARY]
+type                = PBC
+
+[RPATH]
+nreplica            = 8
+rpath_period        = 10
+delta               = 0.2
+smooth              = 0
+rest_function       = 1
+fix_terminal        = YES
+
+[SELECTION]
+group1           = (ai:1 | ai:5 | ai:6 | ai:7 | ai:9 | \
+                   ai:11 | ai:15 | ai:16 | ai:17 | ai:19 |\
+                   ai:21 | ai:25 | ai:26 | ai:27 | ai:29 |\
+                   ai:31 | ai:35 | ai:36 | ai:37 | ai:39)
+
+[RESTRAINTS]
+nfunctions          = 1
+function1           = POSI
+constant1           = 10.0 10.0 10.0 10.0 10.0 10.0 10.0 10.0
+select_index1       = 1

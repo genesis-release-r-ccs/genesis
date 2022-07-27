@@ -128,6 +128,7 @@ contains
     ! formal arguments
     type(s_mode),             intent(inout) :: mode
 
+
     mode%num_pc_modes         = 0
 
     return
@@ -140,7 +141,6 @@ contains
   !> @brief        allocate MODE information
   !! @authors      YS, YK
   !! @param[inout] mode     : structure of MODE information
-  !! @param[in]    variable : selected variable
   !! @param[in]    var_size : size of the selected variable
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -149,12 +149,13 @@ contains
 
     ! formal arguments
     type(s_mode),            intent(inout) :: mode
-    integer,                     intent(in)    :: var_size
+    integer,                 intent(in)    :: var_size
   
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
   
+
     ! initialize
     !
     alloc_stat   = 0
@@ -185,7 +186,6 @@ contains
   !> @brief        deallocate MODE information
   !! @authors      YS
   !! @param[inout] mode     : structure of MODE information
-  !! @param[in]    variable : selected variable
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -196,6 +196,7 @@ contains
 
     ! local variables
     integer                  :: dealloc_stat
+
 
     ! initialize
     !
@@ -342,7 +343,8 @@ contains
     integer,                 intent(out)   :: num_read_pcs
  
     ! local variables
-    character(100)            :: line
+    character(100)           :: line
+
 
     ! initialize
     !

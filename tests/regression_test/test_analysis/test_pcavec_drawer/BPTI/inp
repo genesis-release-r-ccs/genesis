@@ -1,0 +1,21 @@
+# control parameters in pcavec_drawer
+ 
+[INPUT]
+pdb_avefile    = input_ave.pdb   # PDB file (Average coordinates)
+vecfile        = input.vec       # VEC file
+ 
+[OUTPUT]
+vmdfile        = out              # VMD visualization state file
+#pmlfile        = output.pml      # PyMol script file
+ 
+[OPTION]
+check_only       = no           # (YES/NO)
+mode_no          = 1
+expand_vector    = 25.0
+arrow_length     = 1.5
+cylinder_radius  = 0.15
+cone_radius      = 0.45
+arrow_reverse    = NO            # (YES/NO)
+vector_color_vmd = yellow        # color name for [VMD]
+vector_color_pml = 0, 1, 1       # RGB color (0.0-1.0) for [PyMOL]
+ 

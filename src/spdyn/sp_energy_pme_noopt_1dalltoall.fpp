@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   sp_energy_pme
+!  Module   sp_energy_pme_noopt_1dalltoall_mod
 !> @brief   Smooth particle mesh ewald method
 !! @authors Jaewoon Jung (JJ)
 !
@@ -24,7 +24,7 @@ module sp_energy_pme_noopt_1dalltoall_mod
   use mpi_parallel_mod
   use constants_mod
   use fft3d_1dalltoall_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -151,6 +151,7 @@ contains
     integer                  :: nix, niy, niz
 
     real(wp),    allocatable :: bs(:)
+
 
     ncell    =  domain%num_cell_local + domain%num_cell_boundary
 
@@ -480,6 +481,7 @@ contains
   !  Subroutine    dealloc_pme_noopt_1dalltoall
   !> @brief        deallocate all arrays used in PME
   !! @authors      JJ, NT
+  !! @param[in]    enefunc : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -490,6 +492,7 @@ contains
     ! local variables
     integer :: dealloc_stat, ierr
 
+
     if (.not. allocated(f)) &
       return 
 
@@ -499,9 +502,11 @@ contains
     !$omp end parallel
 
     if (enefunc%vdw == VDWPME) then
-      deallocate(gx, gy, gz, vir_fact, vi, qdf, qdf_real,       &
-                 theta, theta_lj, qdf_work, ftqdf, ftqdf_work,  &
-                 ftqdf_work2, stat = dealloc_stat)
+      deallocate(gx, gy, gz, vir_fact, vir_fact_lj, vi,         &
+                 qdf, qdf_real, ldf, ldf_real, theta, theta_lj, &
+                 qdf_work, ftqdf, ftqdf_work, ftqdf_work2,      &
+                 ldf_work, ftldf, ftldf_work, ftldf_work2,      &
+                 stat = dealloc_stat)
     else
       deallocate(gx, gy, gz, vir_fact, vi, qdf, qdf_real, &
                  theta, qdf_work, ftqdf, ftqdf_work,      &
@@ -518,7 +523,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    pme_pre_pme_noopt_1dalltoall
+  !  Subroutine    pme_pre_noopt_1dalltoall
   !> @brief        Prepare functions for PME calculation
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
@@ -593,7 +598,12 @@ contains
           g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact) / g2
+            end if
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -629,7 +639,12 @@ contains
           g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact) / g2
+            end if 
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -663,7 +678,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    pme_pre_pme_noopt_1dalltoall_lj
+  !  Subroutine    pme_pre_noopt_1dalltoall_lj
   !> @brief        Prepare functions for PME calculation (Elec and LJ)
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
@@ -775,6 +790,7 @@ contains
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp-fact1)/g2
             theta(k,iy,ix) = fact5 * fact2/g2
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix)    = 0.0_wp
             theta(k,iy,ix)       = 0.0_wp
@@ -843,6 +859,7 @@ contains
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp-fact1)/g2
             theta(k,iy,ix) = fact5 * fact2/g2
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix)    = 0.0_wp
             theta(k,iy,ix)       = 0.0_wp
@@ -919,6 +936,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1219,7 +1237,7 @@ contains
     !
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -1251,8 +1269,8 @@ contains
         vyy = 0.0_wp
         vzz = 0.0_wp
         do iz = 1, ngrid(3)
-          tqq = real(ftqdf_work2(iz,ix,iy),wp)**2 + &
-                imag(ftqdf_work2(iz,ix,iy))**2
+          tqq = real(ftqdf_work2(iz,ix,iy),wp)**2 &
+              + imag(ftqdf_work2(iz,ix,iy))**2
           tqq = tqq * theta(iz,iy,ix) * vol_fact4
           elec_temp = elec_temp + tqq
 
@@ -1510,10 +1528,12 @@ contains
   !  Subroutine    pme_recip_noopt_1dalltoall_lj
   !> @brief        Calculate PME reciprocal part (Elec+LJ)
   !! @authors      JJ, NT
-  !! @param[in]    domain : domain information
-  !! @param[inout] force  : forces of target systems
-  !! @param[inout] virial : virial term of target systems
-  !! @param[inout] eelec  : electrostatic energy of target systems
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy function information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1557,6 +1577,7 @@ contains
     integer,         pointer :: natom(:)
     integer,         pointer :: atmcls(:,:)
 
+
     coord           => domain%coord
     charge          => domain%charge
     natom           => domain%num_atom
@@ -1579,7 +1600,7 @@ contains
     !$omp         vx_tmp, vy_tmp, vz_tmp, nix, nix1, niy, niz, bsc_tmp,        &
     !$omp         bscd_tmp, kk, iprocx, iprocy, qtmp, grid, half_grid, is,     &
     !$omp         start, end, nizx, nizy, iatmcls, ltmp, efft_real, efft_imag, &
-    !$omp         vfft_real, vfft_imag, force_local_lj)
+    !$omp         vfft_real, vfft_imag, force_local_lj, evdw_temp)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -1862,7 +1883,7 @@ contains
     !
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)

@@ -99,6 +99,7 @@ contains
     type(s_dynamics),        intent(inout) :: dynamics
     type(s_dynvars),         intent(inout) :: dynvars
 
+
     if (rst%rstfile_type == RstfileTypeMin) then
 
       dynamics%restart = .false.
@@ -115,20 +116,20 @@ contains
       !
       if (dynamics%iseed_read) then
         dynamics%iseed_init_velocity = rst%iseed
-      endif
+      end if
 
       if (allocated(rst%random) .and. dynamics%iseed_read)  then
         if (main_rank) then
           write(MsgOut,'(A)') 'Setup_Restart_Post> Read random seed '//&
                               ' from RST file and Overwrite it'
           write(MsgOut,'(A)') ''
-        endif
+        end if
         call random_stock_mpi_frombyte(mpi_comm_country, rst%random)
         call random_pull_stock
       else
         call random_term
         call random_init(dynamics%iseed)
-      endif
+      end if
 
       if (main_rank) then
         write(MsgOut,'(A)') 'Setup_Restart_Post> Parameters were replaced'

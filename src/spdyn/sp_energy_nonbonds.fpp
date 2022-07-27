@@ -111,10 +111,11 @@ contains
   !! @param[in]    npt          : flag for NPT or not
   !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
   !! @param[in]    nonb_limiter : flag for contact checker
-  !! @param[inout] coord_pbc    : !TODO
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force_long   : forces of target systems in long range
   !! @param[inout] force        : forces of target systems
-  !! @param[inout] force_pbc    : !TODO
-  !! @param[inout] virial_cell  : !TODO
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
   !! @param[inout] virial       : virial term of target systems
   !! @param[inout] eelec        : electrostatic energy of target systems
   !! @param[inout] evdw         : van der Waals energy of target systems
@@ -244,8 +245,9 @@ contains
         end if
       end if
 
-
+#ifdef HAVE_MPI_GENESIS
       call mpi_barrier(mpi_comm_city, ierror)
+#endif
 
       if (enefunc%vdw == VDWPME) then
         call pme_recip_lj(domain, enefunc, force_long, virial, eelec, evdw)
@@ -255,10 +257,10 @@ contains
 
       call timer(TimerPmeRecip, TimerOff)
 
-   end if
+    end if
 
-  ! Add self energy
-  !
+    ! Add self energy
+    !
     eelec(1) = eelec(1) + u_self
 
     if (domain%nonbond_kernel /= NBK_GPU) &
@@ -273,17 +275,16 @@ contains
   !  Subroutine    compute_energy_nonbond_pme_short
   !> @brief        Calculate nonbond energy (real part) by PME
   !! @authors      JJ
-  !! @param[in]    domain      : domain information
-  !! @param[in]    enefunc     : potential energy functions information
-  !! @param[in]    pairlist    : pair-list information
-  !! @param[in]    boundary    : boundary information
-  !! @param[inout] coord_pbc   : !TODO
-  !! @param[inout] force       : forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
-  !! @param[inout] virial      : virial term of target systems
-  !! @param[inout] eelec       : electrostatic energy of target systems
-  !! @param[inout] evdw        : van der Waals energy of target systems
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair-list information
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
+  !! @param[inout] virial       : virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -307,6 +308,7 @@ contains
 
     ! local variables
     real(dp)                 :: ene_virial(5), eelec(nthread), evdw(nthread)
+
 
     call timer(TimerNonBond, TimerOn)
  
@@ -380,6 +382,7 @@ contains
   !! @param[inout] force    : forces of target systems
   !! @param[inout] virial   : virial term of target systems
   !! @param[inout] eelec    : electrostatic energy of target systems
+  !! @param[inout] evdw     : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 

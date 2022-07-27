@@ -47,11 +47,15 @@ contains
   !  Subroutine    pme_bond_corr_linear
   !> @brief        calculate pme bond correction with linear lookup table
   !  @authors      JJ
-  !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions
-  !! @param[inout] force   : forces for each cell
-  !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    atmcls    : atom class number
+  !! @param[in]    coord     : coordinates for each cell
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] force_pbc : force for each cell
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -68,6 +72,7 @@ contains
     real(dp),                intent(inout) :: virial(:,:,:)
     real(dp),                intent(inout) :: evdw (nthread)
     real(dp),                intent(inout) :: eelec(nthread)
+
 
     if (enefunc%vdw == VDWPME) then 
 
@@ -134,6 +139,7 @@ contains
     if (enefunc%forcefield /= ForcefieldCHARMM) then
 
       if (enefunc%nonb_limiter) then
+
         call pme_bond_corr_gro_amber_check( &
                               domain, enefunc, coord, force, virial, &
                               eelec)
@@ -159,7 +165,7 @@ contains
 
       end if
 
-    endif
+    end if
 
     return
 
@@ -172,7 +178,9 @@ contains
   !! @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -299,13 +307,15 @@ contains
   !! @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine pme_bond_corr_general_fugaku(domain, enefunc, coord, force,&
-                                                 virial, eelec)
+  subroutine pme_bond_corr_general_fugaku(domain, enefunc, coord, force, &
+                                          virial, eelec)
 
     ! formal arguments 
     type(s_domain),  target, intent(in)    :: domain
@@ -426,7 +436,9 @@ contains
   !! @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -568,13 +580,15 @@ contains
   !! @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine pme_bond_corr_general_generic(domain, enefunc, coord,  &
-                                                  force, virial, eelec)
+                                           force, virial, eelec)
 
     ! formal arguments 
     type(s_domain),  target, intent(in)    :: domain
@@ -598,6 +612,7 @@ contains
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -700,9 +715,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -730,6 +746,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -827,9 +844,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -857,6 +875,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -954,9 +973,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -986,6 +1006,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1095,9 +1116,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1126,6 +1148,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -1227,14 +1250,16 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ, CK
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine pme_bond_corr_general_check(domain, enefunc, coord, force, &
-                                                virial, eelec)
+                                         virial, eelec)
 
     ! formal arguments 
     type(s_domain),  target, intent(in)    :: domain
@@ -1259,6 +1284,7 @@ contains
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1353,9 +1379,10 @@ contains
   !  @authors      JJ, CK
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1384,6 +1411,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -1475,8 +1503,12 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1511,6 +1543,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1623,8 +1656,12 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1659,6 +1696,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1771,8 +1809,12 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1810,6 +1852,7 @@ contains
     integer,         pointer :: start_atom(:)
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1934,8 +1977,11 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1972,6 +2018,7 @@ contains
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
     integer,         pointer :: atmcls(:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -2091,8 +2138,11 @@ contains
   !> @brief        calculate bond correction term in PME (general)
   !! @authors      JJ
   !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions information
-  !! @param[inout] force   : forces of target systems
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -2130,6 +2180,7 @@ contains
     integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
     integer,         pointer :: atmcls(:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom

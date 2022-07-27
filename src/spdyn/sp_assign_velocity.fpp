@@ -19,11 +19,16 @@ module sp_assign_velocity_mod
   use mpi_parallel_mod
   use constants_mod
   use sp_dynvars_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -38,13 +43,14 @@ contains
   !  Subroutine    initial_velocity
   !> @brief        generate initial velocities
   !! @authors      JJ
-  !! @param[in]    firstt   : initial temperature
-  !! @param[in]    natom    : number of atom
-  !! @param[in]    ncell    : total number of cells in each domain
-  !! @param[in]    id_g2l   : map of atom index (global -> local)
-  !! @param[in]    mass     : mass in each domain
-  !! @param[inout] iseed    : random number seed
-  !! @param[inout] velocity : velocities generated
+  !! @param[in]    firstt     : initial temperature
+  !! @param[in]    natom      : number of atom
+  !! @param[in]    num_degree : degree of freedom
+  !! @param[in]    ncell      : total number of cells in each domain
+  !! @param[in]    id_g2l     : map of atom index (global -> local)
+  !! @param[in]    inv_mass   : inverse mass in each domain
+  !! @param[inout] iseed      : random number seed
+  !! @param[inout] velocity   : velocities generated
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -140,6 +146,7 @@ contains
     real(wip)                :: xx, xy, xz, yy, yz, zz
     integer                  :: i, ix
 
+
     ! calculate the center of mass of coordinates and velocities
     !
     ccom(1:3)  = 0.0_dp 
@@ -171,7 +178,7 @@ contains
       end do
     end do
  
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, l_angular, 3, mpi_wip_real, &
                        mpi_sum, mpi_comm_country, ierror)
 #endif
@@ -207,7 +214,7 @@ contains
     inertia(3,2) = - yz
     inertia(3,3) =   xx + yy
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, inertia, 9, mpi_wip_real, &
                        mpi_sum, mpi_comm_country, ierror)
 #endif
@@ -273,7 +280,7 @@ contains
     before_reduce(4:6) = val2(1:3)
     before_reduce(7)   = val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(before_reduce, after_reduce, 7, mpi_real8, &
                        mpi_sum, mpi_comm_city, ierror)
 #else
@@ -287,7 +294,6 @@ contains
     return
 
   end subroutine reduce_com
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -310,6 +316,7 @@ contains
     ! local variables
     integer                   :: i, j, k, imax
     real(wip)                 :: a(n,2*n), amax, swap, coef, pivot
+
 
     do i = 1, n
       do j = 1, n

@@ -1,0 +1,56 @@
+[INPUT]
+topfile = ../../../param/top_all27_prot_lipid.rtf
+parfile = ../../../param/par_all27_prot_lipid.prm
+psffile = ../../../build/bpti_charmm/bpti.psf
+pdbfile = ../../../build/bpti_charmm/bpti.pdb
+
+[OUTPUT]
+
+[ENERGY]
+forcefield      = CHARMM     # [CHARMM]
+electrostatic   = CUTOFF     # [CUTOFF,PME]
+switchdist      =  8.0       # switch distance
+cutoffdist      =  9.5       # cutoff distance
+pairlistdist    = 11.0       # pair-list distance
+water_model     = NONE
+vdw_force_switch = NO
+ 
+[DYNAMICS]
+integrator      = VVER       # [LEAP,VVER]
+nsteps          =    10      # number of MD steps
+timestep        = 0.002      # timestep (ps)
+eneout_period   =     1      # output energy
+nbupdate_period =    10      # update nonbond list
+ 
+[CONSTRAINTS]
+rigid_bond      = YES           # constraints all bonds involving hydrogen
+fast_water      = YES         
+shake_tolerance = 1.0D-10
+
+[ENSEMBLE]
+ensemble        = NVE            # [NVE,NVT,NPT]
+tpcontrol       = NO             # thermostat and barostat
+temperature     = 0
+group_tp        = NO
+ 
+[BOUNDARY]
+type            = PBC 
+box_size_x      = 54
+box_size_y      = 41
+box_size_z      = 40
+
+[SELECTION]
+group1          = sid:PROT and heavy
+
+[RESTRAINTS]
+nfunctions      = 1
+function1       = EM
+constant1       = 1000.0
+select_index1   = 1
+
+[EXPERIMENTS]
+emfit           = YES
+emfit_target    = ../../../build/cryoEM/all_atom/bpti.sit
+emfit_sigma     = 2.5               # Sigma in simulated map definition
+emfit_tolerance = 0.01              # Tolerance for simulated map calculation
+emfit_period    = 1

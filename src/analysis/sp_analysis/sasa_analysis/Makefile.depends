@@ -1,0 +1,9 @@
+sasa_analyze.o: sasa_analyze.fpp sasa_option_str_mod.mod 
+sasa_analyze_mod.mod: sasa_analyze.fpp sasa_analyze.o
+sasa_control.o: sasa_control.fpp sasa_option_mod.mod 
+sasa_control_mod.mod: sasa_control.fpp sasa_control.o
+sasa_main.o: sasa_main.fpp sasa_option_str_mod.mod sasa_analyze_mod.mod sasa_control_mod.mod sasa_option_mod.mod 
+sasa_option.o: sasa_option.fpp sasa_option_str_mod.mod 
+sasa_option_mod.mod: sasa_option.fpp sasa_option.o
+sasa_option_str.o: sasa_option_str.fpp  
+sasa_option_str_mod.mod: sasa_option_str.fpp sasa_option_str.o

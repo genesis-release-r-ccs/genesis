@@ -22,7 +22,7 @@ module sp_enefunc_restraints_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -30,20 +30,20 @@ module sp_enefunc_restraints_mod
   private
 
   ! subroutines
-  public   :: setup_enefunc_restraints
-  public   :: setup_enefunc_restraints_pio
-  public   :: setup_restraint_mode
-  private  :: setup_enefunc_rest_group
-  private  :: setup_enefunc_rest_func
-  private  :: setup_enefunc_rest_domain
-  public   :: setup_restraints_grouplist
-  public   :: setup_restraints_exponent_func
-  public   :: setup_restraints_constants
-  public   :: setup_restraints_reference
-  public   :: setup_restraints_exponent_dist
-  public   :: setup_restraints_weight_dist
-  private  :: setup_enefunc_rest_refcoord
-  private  :: setup_enefunc_rest_mode
+  public  :: setup_enefunc_restraints
+  public  :: setup_enefunc_restraints_pio
+  public  :: setup_restraint_mode
+  private :: setup_enefunc_rest_group
+  private :: setup_enefunc_rest_func
+  private :: setup_enefunc_rest_domain
+  public  :: setup_restraints_grouplist
+  public  :: setup_restraints_exponent_func
+  public  :: setup_restraints_constants
+  public  :: setup_restraints_reference
+  public  :: setup_restraints_exponent_dist
+  public  :: setup_restraints_weight_dist
+  private :: setup_enefunc_rest_refcoord
+  private :: setup_enefunc_rest_mode
 
 contains
 
@@ -54,6 +54,7 @@ contains
   !! @authors      CK, TM
   !! @param[in]    molecule   : molecule information
   !! @param[in]    restraints : restraints information
+  !! @param[in]    domain     : domain information
   !! @param[inout] enefunc    : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -116,6 +117,7 @@ contains
         end do
         write(MsgOut,'(A)') ''
       end do
+      write(MsgOut,'(A)') ''
 
       write(MsgOut,'(A)') 'Setup_Enefunc_Restraints> Setup restraint functions'
 
@@ -129,22 +131,25 @@ contains
         if (enefunc%restraint_kind(i) == RestraintsFuncPOSI) then
           write(MsgOut,'(A,4F8.3)') &
             ' const(total, x, y, z) = ', enefunc%restraint_const(1:4,i) 
-        else if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .or. &
+          write(MsgOut,'(A,I5)') ' exponent of function = ',              &
+                                 enefunc%restraint_exponent_func(i)
+        else if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .or.     &
                  enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM) then
           write(MsgOut,'(A,F8.3)') &
             ' force constant        = ', enefunc%restraint_const(1,i)
           write(MsgOut,'(A,F8.3)') &
             ' target RMSD           = ', enefunc%restraint_ref(1,i)
+          write(MsgOut,'(A,I5)') ' exponent of function = ',              &
+                                 enefunc%restraint_exponent_func(i)
         else
           write(MsgOut,'(A,F8.3)') &
             ' const                 = ',   enefunc%restraint_const(1,i)
           write(MsgOut,'(A,F8.3)') &
             ' ref                   = ',   enefunc%restraint_ref(1,i)
+          write(MsgOut,'(A,I5)') ' exponent of function = ',              &
+                                 enefunc%restraint_exponent_func(i)
         end if
  
-        write(MsgOut,'(A,I5)') ' exponend of function = ',                &
-                               enefunc%restraint_exponent_func(i)
-
         ! summary for distance restraint
         !
         if (enefunc%restraint_kind(i) == RestraintsFuncDIST .or.          &
@@ -244,7 +249,7 @@ contains
         write(MsgOut,'(A)') ''
 
       end do
-    endif
+    end if
 
     ! error message when both position and rmsd restraints are assigned
     !
@@ -260,8 +265,9 @@ contains
   !  Subroutine    setup_enefunc_restraints_pio
   !> @brief        setup restraint information about domain
   !! @authors      JJ
-  !! @param[in]    domain  : domain information
-  !! @param[inout] enefunc : energy potential functions information
+  !! @param[in]    restraints : restraints information
+  !! @param[in]    domain     : domain information
+  !! @param[inout] enefunc    : energy potential functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -288,6 +294,7 @@ contains
     integer,         pointer :: nrestraint(:), nrestraint_pio(:,:)
     integer,         pointer :: restraint_atom_pio(:,:,:)
 
+
     ncell               => domain%num_cell_local
     ncell_pio           => domain%ncell_local_pio
     cell_l2g_pio        => domain%cell_l2g_pio
@@ -299,11 +306,17 @@ contains
     restraint_force_pio => enefunc%restraint_force_pio
     restraint_coord_pio => enefunc%restraint_coord_pio
 
+    k = 0
+    do i = 1, restraints%num_groups
+      k = k + restraints%num_atoms(i)
+    end do
+    enefunc%num_atoms_bonds_restraint = k
+
     ! memory allocation for restraint
     !
     if (restraints%nfunctions > 0) then
       call alloc_enefunc(enefunc, EneFuncReff, 1, 0)
-      call alloc_enefunc(enefunc, EneFuncRest, ncell, 0, 0)
+      call alloc_enefunc(enefunc, EneFuncRest, ncell, k, 0)
     end if
 
     position_flag=.false.
@@ -311,50 +324,53 @@ contains
     ! position/rmsd/pc restraint
     !
     if (restraints%nfunctions > 0) then
-      enefunc%restraint_kind(1) = restraints%function(1)
       enefunc%num_restraintfuncs = restraints%nfunctions
+      do i = 1, enefunc%num_restraintfuncs
+        enefunc%restraint_kind(i) = restraints%function(i)
+      end do
     end if
 
-    if (restraints%nfunctions > 0 .and. &
-        enefunc%restraint_kind(1) == RestraintsFuncPOSI) then
+    if (restraints%nfunctions > 0) then
+      if (enefunc%restraint_kind(1) == RestraintsFuncPOSI) then
 
-      enefunc%restraint_posi = .true.
-      position_flag=.true.
+        enefunc%restraint_posi = .true.
+        position_flag=.true.
 
-      call setup_restraints_constants(1, restraints, enefunc)
+        call setup_restraints_constants(1, restraints, enefunc)
 
-      do file_num = 1, domain%file_tot_num
-
-        do icel = 1, ncell_pio
-
-          ic = cell_l2g_pio(icel,file_num)
-          i  = cell_g2l(ic)
-
-          if (i /= 0) then
-
-            nrestraint(i) = nrestraint_pio(icel,file_num)
-
-            do ix = 1, nrestraint(i)
-
-              enefunc%restraint_atom(ix,i)      = &
-                      restraint_atom_pio(ix,icel,file_num)
-              enefunc%restraint_force(1:4,ix,i) = &
-                      enefunc%restraint_const(1:4,1)
-              enefunc%restraint_coord(1:3,ix,i) = &
-                      restraint_coord_pio(1:3,ix,icel,file_num)
+        do file_num = 1, domain%file_tot_num
   
-            end do
+          do icel = 1, ncell_pio
   
-          end if
+            ic = cell_l2g_pio(icel,file_num)
+            i  = cell_g2l(ic)
   
+            if (i /= 0) then
+  
+              nrestraint(i) = nrestraint_pio(icel,file_num)
+  
+              do ix = 1, nrestraint(i)
+  
+                enefunc%restraint_atom(ix,i)      = &
+                        restraint_atom_pio(ix,icel,file_num)
+                enefunc%restraint_force(1:4,ix,i) = &
+                        enefunc%restraint_const(1:4,1)
+                enefunc%restraint_coord(1:3,ix,i) = &
+                        restraint_coord_pio(1:3,ix,icel,file_num)
+    
+              end do
+    
+            end if
+  
+          end do
         end do
-      end do
 
+      end if
     end if
 
     if (position_flag) then
       call alloc_enefunc(enefunc, EneFuncRestDomain, ncell)
-    endif
+    end if
 
     return
 
@@ -488,7 +504,7 @@ contains
 
       case default
         if (ndata /= 1) & 
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for POSI or RMSD or RG')
+          call error_msg('Setup_Enefunc_Rest_Func> Error in index for POSI/RMSD')
 
       end select
 
@@ -624,8 +640,8 @@ contains
     nrestraint      => enefunc%num_restraint
     restraint_g2pc  => enefunc%restraint_g2pc
 
-    position_flag=.false.
-    rmsd_flag=.false.
+    position_flag   = .false.
+    rmsd_flag       = .false.
 
     ! check the size for distance restraint
     !
@@ -640,7 +656,7 @@ contains
           enefunc%restraint_kind(i) == RestraintsFuncREPUL    .or. &
           enefunc%restraint_kind(i) == RestraintsFuncREPULCOM .or. &
           enefunc%restraint_kind(i) == RestraintsFuncFB       .or. &
-          enefunc%restraint_kind(i) == RestraintsFuncFBCOM ) then
+          enefunc%restraint_kind(i) == RestraintsFuncFBCOM) then
         do ig = 1, enefunc%restraint_funcgrp(i)
           do ix = 1, num_atoms(grouplist(ig,i))
             k = k + 1
@@ -697,7 +713,7 @@ contains
           end if
 
         end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
         call mpi_allreduce(k, enefunc%nrmsd, 1, mpi_integer, mpi_sum, &
                            mpi_comm_country, ierror)
 #else
@@ -706,7 +722,7 @@ contains
         enefunc%rmsd_force  = const(1,i)
         enefunc%rmsd_target = ref(1,i)
         enefunc%rmsd_withmass =  &
-          (enefunc%restraint_kind(i) == REstraintsFuncRMSDCOM )
+          (enefunc%restraint_kind(i) == REstraintsFuncRMSDCOM)
 
       end if
 
@@ -760,7 +776,7 @@ contains
           enefunc%restraint_kind(i) == RestraintsFuncREPUL    .or. &
           enefunc%restraint_kind(i) == RestraintsFuncREPULCOM .or. &
           enefunc%restraint_kind(i) == RestraintsFuncFB       .or. &
-          enefunc%restraint_kind(i) == RestraintsFuncFBCOM ) then
+          enefunc%restraint_kind(i) == RestraintsFuncFBCOM) then
  
         do ig = 1, enefunc%restraint_funcgrp(i)
           do ix = 1, num_atoms(grouplist(ig,i))
@@ -777,7 +793,7 @@ contains
 
     if (position_flag .or. rmsd_flag) then
       call alloc_enefunc(enefunc, EneFuncRestDomain, ncell)
-    endif
+    end if
 
     return
 
@@ -931,7 +947,7 @@ contains
       else
         enefunc%restraint_const(2:4,ifunc) = 0.0_wp
         enefunc%restraint_const(restraints%direction(ifunc),ifunc) = 1.0_wp
-      endif
+      end if
 
     else
 
@@ -1000,10 +1016,11 @@ contains
       if (enefunc%restraint_kind(ifunc) ==  RestraintsFuncEM) then
         call error_msg('Setup_Restraint_Reference> reference of EM is not needed')
       end if
+
     end if
 
     if (ndata == 0) then
-      if  (enefunc%restraint_kind(ifunc) /= RestraintsFuncPOSI .and. &
+      if  (enefunc%restraint_kind(ifunc) /= RestraintsFuncPOSI    .and. &
            enefunc%restraint_kind(ifunc) /= RestraintsFuncEM) then
         call error_msg('Setup_Restraint_Reference> reference is not given')
       end if
@@ -1233,6 +1250,7 @@ contains
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
     type(s_enefunc),         intent(inout) :: enefunc
+
 
     if (size(molecule%pc_mode(:)) /= molecule%num_pc_modes) &
       call error_msg('Setup_Enefunc_Rest_Modes> bad modefile in [INPUT]')

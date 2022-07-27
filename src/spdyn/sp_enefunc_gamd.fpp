@@ -98,6 +98,7 @@ contains
     ncell = domain%num_cell_local + domain%num_cell_boundary
     natom = domain%max_num_atom
 
+
     if (gamd%boost_pot) then
 
       call alloc_enefunc(enefunc, EneFuncGamdRest, MaxAtom, maxcell, nthread)
@@ -129,6 +130,7 @@ contains
     ! formal arguments
     type(s_enefunc_gamd), intent(inout) :: gamd
 
+
     if (gamd%boost_pot) then
 
       if (gamd%thresh_lower) then
@@ -183,6 +185,8 @@ contains
 
     end if
 
+    return
+
   end subroutine setup_enefunc_gamd
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -202,17 +206,18 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine setup_enefunc_gamd_lower(E_th, k, k0, E_max, E_min, E_ave, &
-      E_dev, sigma0)
+                                      E_dev, sigma0)
 
     ! formal arguments
     real(dp),                 intent(inout) :: E_th
     real(dp),                 intent(inout) :: k
     real(dp),                 intent(inout) :: k0
-    real(dp),                    intent(in) :: E_max
-    real(dp),                    intent(in) :: E_min
-    real(dp),                    intent(in) :: E_ave
-    real(dp),                    intent(in) :: E_dev
-    real(dp),                    intent(in) :: sigma0
+    real(dp),                 intent(in)    :: E_max
+    real(dp),                 intent(in)    :: E_min
+    real(dp),                 intent(in)    :: E_ave
+    real(dp),                 intent(in)    :: E_dev
+    real(dp),                 intent(in)    :: sigma0
+
 
     E_th = E_max
     if (abs(E_max-E_ave) > EPS) then
@@ -248,17 +253,18 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine setup_enefunc_gamd_upper(E_th, k, k0, E_max, E_min, E_ave, &
-      E_dev, sigma0)
+                                      E_dev, sigma0)
 
     ! formal arguments
     real(dp),                 intent(inout) :: E_th
     real(dp),                 intent(inout) :: k
     real(dp),                 intent(inout) :: k0
-    real(dp),                    intent(in) :: E_max
-    real(dp),                    intent(in) :: E_min
-    real(dp),                    intent(in) :: E_ave
-    real(dp),                    intent(in) :: E_dev
-    real(dp),                    intent(in) :: sigma0
+    real(dp),                 intent(in)    :: E_max
+    real(dp),                 intent(in)    :: E_min
+    real(dp),                 intent(in)    :: E_ave
+    real(dp),                 intent(in)    :: E_dev
+    real(dp),                 intent(in)    :: sigma0
+
 
     k0   = (1.0_dp - sigma0/E_dev) * (E_max-E_min) / (E_ave-E_min)
     if ((k0 > 0.0_dp) .and. (k0 <= 1.0_dp)) then
@@ -269,6 +275,8 @@ contains
       k0   = min(1.0, k0)
     end if
     k = k0 / (E_max-E_min)
+
+    return
 
   end subroutine setup_enefunc_gamd_upper
 

@@ -7,6 +7,16 @@
 #
 #--------1---------2---------3---------4---------5---------6---------7---------8
 
+if QSIMULATE
+  QSIMULATE_DIR=qsimulate
+  JSON_FORTRAN_DIR=json-fortran
+else
+  QSIMULATE_DIR=
+  JSON_FORTRAN_DIR=
+endif
+
+SUBDIRS = $(LAPACK_DIR) $(SCALAPACK_DIR) $(QSIMULATE_DIR) $(JSON_FORTRAN_DIR)
+
 noinst_LIBRARIES = lib.a
 
 lib_a_SOURCES = \
@@ -14,6 +24,7 @@ lib_a_SOURCES = \
 	mpi_parallel.fpp \
 	messages.fpp \
 	random.fpp \
+	atom_libs.fpp \
 	math_libs.fpp \
 	string.fpp \
 	table_libs.fpp \
@@ -25,6 +36,8 @@ lib_a_SOURCES = \
 	ffte_pzfft3dv.fpp \
 	ffte_pdzfft3d.fpp \
 	ffte_pzdfft3d.fpp \
+	ffte_dzfft3d.fpp \
+	ffte_zdfft3d.fpp \
 	fft3d.fpp \
 	fft3d_1dalltoall.fpp \
 	fft3d_2dalltoall.fpp \
@@ -49,8 +62,12 @@ lib_a_SOURCES = \
 	fileio_mode.fpp \
 	fileio_eef1.fpp \
 	fileio_sit.fpp \
+	fileio_mrc.fpp \
 	fileio_localres.fpp \
 	fileio_rstmep.fpp \
+	fileio_morph.fpp \
+	fileio_table.fpp \
+	fileio_spot.fpp \
 	hardwareinfo.fpp \
 	dSFMT/dSFMT.c \
 	dSFMT/dSFMT_if.c \
@@ -67,6 +84,7 @@ lib_a_SOURCES = \
 	dSFMT/dSFMT-params521.h \
 	dSFMT/dSFMT-params86243.h \
 	dSFMT/dSFMT.h \
+	Lbfgsb.3.0/lbfgsb.f \
 	molecules_str.fpp \
 	select_atoms_str.fpp \
 	fitting_str.fpp \
@@ -77,7 +95,10 @@ lib_a_SOURCES = \
 	select_contacts.fpp \
 	select_atoms.fpp \
 	select.fpp \
+	getopt.fpp \
 	fitting.fpp \
+	fileio_minfo.fpp \
+	structure_check.fpp \
 	ffte_param.h
 
 EXTRA_DIST = \
@@ -85,6 +106,8 @@ EXTRA_DIST = \
 
 SUFFIXES = .fpp .c .f
 DEPENDS	= Makefile.depends
+
+CLEANFILES = $(noinst_LIBRARIES) $(lib_a_OBJECTS) *.f90 *~ *.mod
 
 ffte_kernel.o : ffte_kernel.fpp
 if USEKCOMP
@@ -113,9 +136,6 @@ endif
 
 lib.a : $(lib_a_OBJECTS)
 	$(AR) $(ARFLAGS) cr $(noinst_LIBRARIES) $(lib_a_OBJECTS)
-
-clean:
-	rm -f $(noinst_LIBRARIES) $(lib_a_OBJECTS) *.f90 *~ *.mod
 
 depend: clean_depend
 	python ../../fortdep.py *.fpp > $(DEPENDS)

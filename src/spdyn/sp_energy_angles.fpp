@@ -38,6 +38,7 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eangle  : angle energy of target systems
   !! @param[inout] eurey   : urey-b energy of target systems
   !
@@ -73,7 +74,8 @@ contains
     integer,         pointer :: nangle(:), anglelist(:,:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: angl_pbc(:,:,:)
+    integer,         pointer :: angl_pbc(:,:,:)
+
 
     call timer(TimerAngle, TimerOn)
 
@@ -155,15 +157,15 @@ contains
                + system_size(3)*real(k3,wp)
         r12_2    = d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3)
         r32_2    = d32(1)*d32(1) + d32(2)*d32(2) + d32(3)*d32(3)
-        r12r32   = sqrt( r12_2*r32_2 )
+        r12r32   = sqrt(r12_2*r32_2)
 
         inv_r12r32 = 1.0_wp / r12r32
         inv_r12_2  = 1.0_wp / r12_2
         inv_r32_2  = 1.0_wp / r32_2
 
-        cos_t  = ( d12(1)*d32(1) + d12(2)*d32(2) + d12(3)*d32(3) ) * inv_r12r32
-        cos_t  = min(  1.0_wp, cos_t ) 
-        cos_t  = max( -1.0_wp, cos_t ) 
+        cos_t  = (d12(1)*d32(1) + d12(2)*d32(2) + d12(3)*d32(3)) * inv_r12r32
+        cos_t  = min(1.0_wp, cos_t) 
+        cos_t  = max(-1.0_wp, cos_t) 
         t123   = acos(cos_t)
         t_dif  = t123 - theta0(ix,i)
         eangle_temp = eangle_temp + fc(ix,i) * t_dif * t_dif
@@ -171,16 +173,16 @@ contains
         ! gradient: dE/dX
         !
         sin_t  = sin(t123)
-        sin_t  = max ( EPS, sin_t )
-        cc_frc = - ( 2.0_wp * fc(ix,i) * t_dif ) / sin_t
+        sin_t  = max (EPS, sin_t)
+        cc_frc = - (2.0_wp * fc(ix,i) * t_dif) / sin_t
         cc_frc2 = cos_t * inv_r12_2
         cc_frc3 = cos_t * inv_r32_2
-        work(1) = cc_frc * ( d32(1) * inv_r12r32 - d12(1) * cc_frc2 )
-        work(2) = cc_frc * ( d32(2) * inv_r12r32 - d12(2) * cc_frc2 )
-        work(3) = cc_frc * ( d32(3) * inv_r12r32 - d12(3) * cc_frc2 )
-        work(4) = cc_frc * ( d12(1) * inv_r12r32 - d32(1) * cc_frc3 )
-        work(5) = cc_frc * ( d12(2) * inv_r12r32 - d32(2) * cc_frc3 )
-        work(6) = cc_frc * ( d12(3) * inv_r12r32 - d32(3) * cc_frc3 )
+        work(1) = cc_frc * (d32(1) * inv_r12r32 - d12(1) * cc_frc2)
+        work(2) = cc_frc * (d32(2) * inv_r12r32 - d12(2) * cc_frc2)
+        work(3) = cc_frc * (d32(3) * inv_r12r32 - d12(3) * cc_frc2)
+        work(4) = cc_frc * (d12(1) * inv_r12r32 - d32(1) * cc_frc3)
+        work(5) = cc_frc * (d12(2) * inv_r12r32 - d32(2) * cc_frc3)
+        work(6) = cc_frc * (d12(3) * inv_r12r32 - d32(3) * cc_frc3)
 
         viri(1) = viri(1) + d12(1)*work(1) + d32(1)*work(4)
         viri(2) = viri(2) + d12(2)*work(2) + d32(2)*work(5)
@@ -204,13 +206,13 @@ contains
                  + system_size(2)*real(k2,wp)
           d13(3) = coord(3,i1,icel1) - coord(3,i3,icel3) &
                  + system_size(3)*real(k3,wp)
-          r13    = sqrt( d13(1)*d13(1) + d13(2)*d13(2) + d13(3)*d13(3) )
+          r13    = sqrt(d13(1)*d13(1) + d13(2)*d13(2) + d13(3)*d13(3))
           ub_dif = r13 - r0_ub(ix,i)
           eurey_temp = eurey_temp + fc_ub(ix,i) * ub_dif * ub_dif
 
           ! gradient: dE/dx
           !
-          cc_frc_ub = ( 2.0_wp * fc_ub(ix,i) * ub_dif ) / r13
+          cc_frc_ub = (2.0_wp * fc_ub(ix,i) * ub_dif) / r13
           work(7) = cc_frc_ub * d13(1)
           work(8) = cc_frc_ub * d13(2)
           work(9) = cc_frc_ub * d13(3)
@@ -274,15 +276,15 @@ contains
           d32(3) = coord(3,i3,i) - coord(3,i2,i)
           r12_2    = d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3)
           r32_2    = d32(1)*d32(1) + d32(2)*d32(2) + d32(3)*d32(3)
-          r12r32   = sqrt( r12_2*r32_2 )
+          r12r32   = sqrt(r12_2*r32_2)
 
           inv_r12r32 = 1.0_wp / r12r32
           inv_r12_2  = 1.0_wp / r12_2
           inv_r32_2  = 1.0_wp / r32_2
 
-          cos_t  = ( d12(1)*d32(1) + d12(2)*d32(2) + d12(3)*d32(3) ) * inv_r12r32
-          cos_t  = min(  1.0_wp, cos_t )
-          cos_t  = max( -1.0_wp, cos_t )
+          cos_t  = (d12(1)*d32(1) + d12(2)*d32(2) + d12(3)*d32(3))*inv_r12r32
+          cos_t  = min( 1.0_wp, cos_t)
+          cos_t  = max(-1.0_wp, cos_t)
           t123   = acos(cos_t)
           t_dif  = t123 - enefunc%table%HOH_angle
 
@@ -291,16 +293,16 @@ contains
           ! gradient: dE/dX
           !
           sin_t  = sin(t123)
-          sin_t  = max ( EPS, sin_t )
+          sin_t  = max (EPS, sin_t)
           cc_frc = - (2.0_wp*enefunc%table%HOH_force*t_dif) / sin_t
           cc_frc2 = cos_t * inv_r12_2
           cc_frc3 = cos_t * inv_r32_2
-          work(1) = cc_frc * ( d32(1) * inv_r12r32 - d12(1) * cc_frc2 )
-          work(2) = cc_frc * ( d32(2) * inv_r12r32 - d12(2) * cc_frc2 )
-          work(3) = cc_frc * ( d32(3) * inv_r12r32 - d12(3) * cc_frc2 )
-          work(4) = cc_frc * ( d12(1) * inv_r12r32 - d32(1) * cc_frc3 )
-          work(5) = cc_frc * ( d12(2) * inv_r12r32 - d32(2) * cc_frc3 )
-          work(6) = cc_frc * ( d12(3) * inv_r12r32 - d32(3) * cc_frc3 )
+          work(1) = cc_frc * (d32(1) * inv_r12r32 - d12(1) * cc_frc2)
+          work(2) = cc_frc * (d32(2) * inv_r12r32 - d12(2) * cc_frc2)
+          work(3) = cc_frc * (d32(3) * inv_r12r32 - d12(3) * cc_frc2)
+          work(4) = cc_frc * (d12(1) * inv_r12r32 - d32(1) * cc_frc3)
+          work(5) = cc_frc * (d12(2) * inv_r12r32 - d32(2) * cc_frc3)
+          work(6) = cc_frc * (d12(3) * inv_r12r32 - d32(3) * cc_frc3)
           work(7) = 0.0_wp
           work(8) = 0.0_wp
           work(9) = 0.0_wp
@@ -339,7 +341,6 @@ contains
 
   end subroutine compute_energy_angle
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   ! 
   !  Subroutine    compute_energy_angle_g96
@@ -349,8 +350,8 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eangle  : angle energy of target systems
-  !! @param[inout] eurey   : urey-b energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -380,7 +381,7 @@ contains
     integer,         pointer :: nangle(:), anglelist(:,:,:)
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
-    integer(1),      pointer :: angl_pbc(:,:,:)
+    integer,         pointer :: angl_pbc(:,:,:)
 
 
     call timer(TimerAngle, TimerOn)
@@ -457,7 +458,7 @@ contains
 
         r12_2    = d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3)
         r32_2    = d32(1)*d32(1) + d32(2)*d32(2) + d32(3)*d32(3)
-        r12r32   = sqrt( r12_2*r32_2 )
+        r12r32   = sqrt(r12_2*r32_2)
 
         inv_r12r32 = 1.0_wp / r12r32
         inv_r12_2  = 1.0_wp / r12_2
@@ -469,8 +470,7 @@ contains
         dif    = cos_t - cos(theta0(ix, i))
         coef   = fc(ix,i) * dif
 
-!       if (.not.(abs(coef*dif)<1000.0_wp)) write(*,*) 'test',my_country_rank,d12(1:3),d32(1:3),angl_pbc(1:2,ix,i)
-        eangle_temp = eangle_temp + ( coef * dif )
+        eangle_temp = eangle_temp + (coef * dif)
 
         ! gradient: dE/dX
         !

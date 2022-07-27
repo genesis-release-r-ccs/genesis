@@ -20,7 +20,7 @@ module sp_enefunc_localres_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -107,7 +107,8 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: bond(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: bkind(:,:), bond_pbc(:,:)
+    integer(1),       pointer :: bkind(:,:)
+    integer,          pointer :: bond_pbc(:,:)
 
 
     num_funcs   => localres%num_funcs
@@ -182,7 +183,7 @@ contains
         call error_msg('Setup_Enefunc_Localres_Bond> Too many bonds.') 
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_bond_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -236,7 +237,9 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: angle(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: akind(:,:), angl_pbc(:,:,:)
+    integer(1),       pointer :: akind(:,:)
+    integer,          pointer :: angl_pbc(:,:,:)
+
 
     num_funcs   => localres%num_funcs
     func        => localres%func
@@ -324,7 +327,7 @@ contains
         call error_msg('Setup_Enefunc_Localres_Angle> Too many angles.') 
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -377,7 +380,9 @@ contains
     integer,          pointer :: func(:)
     integer,          pointer :: dihed(:), list(:,:,:)
     integer(int2),    pointer :: cell_pair(:,:)
-    integer(1),       pointer :: dkind(:,:), dihe_pbc(:,:,:)
+    integer(1),       pointer :: dkind(:,:)
+    integer,          pointer :: dihe_pbc(:,:,:)
+
 
     num_funcs   => localres%num_funcs
     func        => localres%func
@@ -465,7 +470,7 @@ contains
              'Setup_Enefunc_Localres_Dihed> Too many dihedral angles.') 
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_dihe_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -480,13 +485,18 @@ contains
 
   end subroutine setup_enefunc_localres_dihed
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
   subroutine check_pbc(box_size, dij, pbc_int)
 
+    ! formal arguments
     real(wp),         intent(in)    :: box_size(:)
     real(wp),         intent(inout) :: dij(:)
     integer,          intent(inout) :: pbc_int
 
+    ! local variables
     integer                  :: i, j, k
+
 
     if (dij(1) > box_size(1)/2.0_dp) then
       i = 0

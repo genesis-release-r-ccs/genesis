@@ -121,7 +121,6 @@ contains
 
     end if
 
-
     return
 
   end subroutine show_ctrl_boundary
@@ -267,9 +266,9 @@ contains
   !! @pmara[in]    water_model  : water model
   !! @param[in]    ensemble     : type of ensemble 
   !! @param[in]    rigid_bond   : flag for rigid-bond
-  !! @param[in]    rst          : restart file information
   !! @param[in]    dsize_cg     : flag for reset domain size for CG-model
   !! @param[in]    dmin_size_cg : minimum domain size for CG-model
+  !! @param[in]    rst          : restart file information
   !! @param[inout] boundary     : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -381,13 +380,6 @@ contains
   !> @brief        set essential variables for boundary condition
   !! @authors      NT
   !! @param[in]    bound_info  : BOUNDARY section control parameters information
-  !! @param[in]    table        : flag for use table or not
-  !! @param[in]    pairlistdist : pair-list distance
-  !! @pmara[in]    water_model  : water model
-  !! @param[in]    ensemble     : type of ensemble 
-  !! @param[in]    rigid_bond   : flag for rigid-bond
-  !! @param[in]    dsize_cg     : flag for reset domain size for CG-model
-  !! @param[in]    dmin_size_cg : minimum domain size for CG-model
   !! @param[inout] boundary     : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -397,6 +389,7 @@ contains
     ! formal arguments
     type(s_boundary_info),   intent(in)    :: bound_info
     type(s_boundary),        intent(inout) :: boundary
+
 
     call init_boundary(boundary)
 
@@ -461,6 +454,7 @@ contains
     integer                  :: nx, ny, nz, nx1, ny1,nz1, i, j, k, itype
     integer                  :: nc(3,100), cell_size(3,100)
     logical                  :: defined_proc
+
 
     buffer  = bound_info%pbc_info%cell_size_buffer
     if (buffer < 0.0_wp) then
@@ -648,7 +642,7 @@ contains
   !> @brief        define the processor number in each dimension (parallel I/O)
   !! @authors      JJ
   !! @param[in]    bound_info : BOUNDARY section control parameters information
-  !! @param[inout] boundary     : boundary information
+  !! @param[inout] boundary   : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -669,6 +663,7 @@ contains
     integer,         pointer :: num_domain(:), num_pio_domain(:)
     integer,         pointer :: domain_x, domain_y, domain_z
     integer,         pointer :: pio_domain_x, pio_domain_y, pio_domain_z
+
 
     num_domain     => boundary%num_domain
     num_pio_domain => boundary%num_pio_domain
@@ -782,11 +777,14 @@ contains
   !  Subroutine    setup_boundary_cell
   !> @brief        setup boundary cell information
   !! @authors      NT
+  !! @param[in]    buffer       : cell size buffer
   !! @param[in]    table        : flag for use table or not
   !! @param[in]    pairlistdist : pair-list distance
   !! @pmara[in]    water_model  : water model
   !! @param[in]    ensemble     : type of ensemble 
   !! @param[in]    rigid_bond   : flag for rigid-bond
+  !! @param[in]    dsize_cg     : flag for reset domain size for CG-model
+  !! @param[in]    dmin_size_cg : minimum domain size for CG-model
   !! @param[inout] boundary     : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -816,6 +814,7 @@ contains
 
     integer, pointer         :: num_domain(:), num_domain_max(:)
 
+
     num_domain     => boundary%num_domain
     num_domain_max => boundary%num_domain_max
 
@@ -834,15 +833,15 @@ contains
 
     if (dsize_cg) then
       cutoff=max(dmin_size_cg,pairlistdist)
-    endif
+    end if
 
     bsize_x = boundary%box_size_x
     bsize_y = boundary%box_size_y
     bsize_z = boundary%box_size_z
 
-    if ( (boundary%num_cells_x /= 0) .and. &
-         (boundary%num_cells_y /= 0) .and. &
-         (boundary%num_cells_z /= 0)) then
+    if ((boundary%num_cells_x /= 0) .and. &
+        (boundary%num_cells_y /= 0) .and. &
+        (boundary%num_cells_z /= 0)) then
       ncell_x = boundary%num_cells_x
       ncell_y = boundary%num_cells_y
       ncell_z = boundary%num_cells_z
@@ -911,6 +910,7 @@ contains
           'Setup_Boundary_Cell> ncell_[x,y,z] should be greater than or equal to '//&
           '2*domain_[x,y,z]. Please reduce MPI and increase OpenMP to use the '//   &
           'same number of processors.')
+
     return
 
   end subroutine setup_boundary_cell

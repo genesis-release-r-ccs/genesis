@@ -24,7 +24,7 @@ module sp_energy_pme_opt_1dalltoall_mod
   use mpi_parallel_mod
   use constants_mod
   use fft3d_1dalltoall_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -132,7 +132,8 @@ contains
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
   !! @param[in]    boundary : boundary information
-  !! @param[inout] enefunc  : energy function
+  !! @param[in]    enefunc  : energy function
+  !! @param[inout] calc     : flag of whether calculated
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -153,6 +154,7 @@ contains
     integer                  :: alloc_stat
 
     real(wp),    allocatable :: bs(:)
+
 
     ncell  =  domain%num_cell_local + domain%num_cell_boundary
 
@@ -593,6 +595,7 @@ contains
   !  Subroutine    dealloc_pme_opt_1dalltoall
   !> @brief        deallocate all arrays used in PME
   !! @authors      JJ, NT
+  !! @param[in]    enefunc  : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -621,7 +624,6 @@ contains
                  stat = dealloc_stat)
     end if
     if (dealloc_stat /= 0) call error_msg_dealloc
-
 
     return
 
@@ -703,7 +705,12 @@ contains
           g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact)/g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact)/g2
+            end if
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -739,7 +746,12 @@ contains
           g2 = gx(ix)**2 + gy(iy)**2 + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1) * b2(j,2) * b2(k,3) * exp(g2 * fact)/g2
+            end if
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -980,7 +992,6 @@ contains
 
   end subroutine pme_pre_opt_1dalltoall_lj
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    pme_recip_opt_1dalltoall_4
@@ -1026,6 +1037,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1210,7 +1222,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -1427,10 +1439,12 @@ contains
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !                (B spline order 4)                                     
   !! @authors      JJ, NT
-  !! @param[in]    domain : domain information
-  !! @param[inout] force  : forces of target systems
-  !! @param[inout] virial : virial term of target systems
-  !! @param[inout] eelec  : electrostatic energy of target systems
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1476,6 +1490,7 @@ contains
     integer,         pointer :: natom(:)
     integer,         pointer :: atmcls(:,:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -1498,7 +1513,7 @@ contains
     !$omp         bscx, bscy, bscz, bscdx, bscdy, bscdz, kk, iprocx, iprocy,   &
     !$omp         qtmp, grid, half_grid, start, end, nizx, nizy, iix, iiy,     &
     !$omp         iiz, u_2, u_3, vyyd, vzzd, iatmcls, ltmp, efft_real,         &
-    !$omp         efft_imag, vfft_real, vfft_imag)
+    !$omp         efft_imag, vfft_real, vfft_imag, tll, work3, work4)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -1524,6 +1539,7 @@ contains
       do iy = 1, nlocaly+8
         do ix = 1, nlocalx+8
           qdf(ix,iy,iz,id+1) = 0.0_wp
+          ldf(ix,iy,iz,id+1) = 0.0_wp
         end do
       end do
     end do
@@ -1666,7 +1682,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -1715,7 +1731,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact4
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact4
+          tll = tll * vol_fact4_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           ! virial
@@ -1726,9 +1742,9 @@ contains
           vxx = vxx  &
               - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gx(ix)*gx(ix))
           vyy = vyy  &
-              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(ix)*gy(ix))
+              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(iy)*gy(iy))
           vzz = vzz  &
-              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(ix)*gz(ix))
+              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(iz)*gz(iz))
         end do
 
         eelec(id+1) = eelec(id+1) + elec_temp
@@ -1759,18 +1775,18 @@ contains
           tqq = tqq * theta(iz,iy,1) * vol_fact2
           elec_temp = elec_temp - tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp + tll*theta_lj(iz,iy,1)
 
           vxx = vxx - tqq * (1.0_wp + vir_fact(iz,iy,1) * gx(1) * gx(1))
           vyy = vyy - tqq * (1.0_wp + vir_fact(iz,iy,1) * gy(iy) * gy(iy))
           vzz = vzz - tqq * (1.0_wp + vir_fact(iz,iy,1) * gz(iz) * gz(iz))
           vxx = vxx  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gx(1 )*gx(1 ))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gx(1 )*gx(1 ))
           vyy = vyy  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gy(iy)*gy(iy))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gy(iy)*gy(iy))
           vzz = vzz  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gz(iz)*gz(iz))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gz(iz)*gz(iz))
 
         end do
         eelec(id+1) = eelec(id+1) + elec_temp
@@ -1800,7 +1816,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact2
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           vxx = vxx + tqq * (1.0_wp + vir_fact(iz,iy,ix) * gx(ix) * gx(ix))
@@ -1892,7 +1908,7 @@ contains
         force_local_lj(1:3) = 0.0_wp
         qtmp = charge(i,icel)*vol_fact4*bs_fact3d
         iatmcls = atmcls(i,icel)
-        ltmp = nonb_lj6_factor(iatmcls)
+        ltmp = nonb_lj6_factor(iatmcls)*vol_fact4_lj*bs_fact3d
 
         do izz = 1, 4
           izs = vii(izz,3,i,icel)
@@ -1936,7 +1952,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    pme_recip_opt_1dalltoall
+  !  Subroutine    pme_recip_opt_1dalltoall_6
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !                (B spline order 6)                                     
   !! @authors      JJ, NT
@@ -1981,6 +1997,7 @@ contains
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -1995,11 +2012,11 @@ contains
     !$omp parallel default(shared)                                             &
     !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
     !$omp         iz_start, iz_end, ix_start, ix_end, iorg, k_f, k_t,          &
-    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr, &
-    !$omp         work1, work2, elec_temp, force_local, ixyz, tqq1, tqq2, &
-    !$omp         nix, nix1, niy, niz, bscx, bscy, bscz, bscdx, bscdy, &
-    !$omp         bscdz, kk, iprocx, iprocy, qtmp, grid, half_grid, start, &
-    !$omp         end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd,    &
+    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr,           &
+    !$omp         work1, work2, elec_temp, force_local, ixyz, tqq1, tqq2,      &
+    !$omp         nix, nix1, niy, niz, bscx, bscy, bscz, bscdx, bscdy,         &
+    !$omp         bscdz, kk, iprocx, iprocy, qtmp, grid, half_grid, start,     &
+    !$omp         end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd,        &
     !$omp         u_4, u_5, v_1, v_4, v_5)
     !
 #ifdef OMP
@@ -2206,7 +2223,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -2389,10 +2406,12 @@ contains
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !                (B spline order 6)                                     
   !! @authors      JJ, NT
-  !! @param[in]    domain : domain information
-  !! @param[inout] force  : forces of target systems
-  !! @param[inout] virial : virial term of target systems
-  !! @param[inout] eelec  : electrostatic energy of target systems
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2439,6 +2458,7 @@ contains
     integer,         pointer :: natom(:)
     integer,         pointer :: atmcls(:,:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -2461,7 +2481,8 @@ contains
     !$omp         bscx, bscy, bscz, bscdx, bscdy, bscdz, kk, iprocx, iprocy,   &
     !$omp         qtmp, grid, half_grid, start, end, nizx, nizy, iix, iiy,     &
     !$omp         iiz, u_2, u_3, vyyd, vzzd, iatmcls, ltmp, efft_real,         &
-    !$omp         efft_imag, vfft_real, vfft_imag, u_4, u_5, v_1, v_4, v_5)
+    !$omp         efft_imag, vfft_real, vfft_imag, u_4, u_5, v_1, v_4, v_5,    &
+    !$omp         work3, work4, tll)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -2487,6 +2508,7 @@ contains
       do iy = 1, nlocaly+12
         do ix = 1, nlocalx+12
           qdf(ix,iy,iz,id+1) = 0.0_wp
+          ldf(ix,iy,iz,id+1) = 0.0_wp
         end do
       end do
     end do
@@ -2674,7 +2696,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -2723,7 +2745,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact4
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact4
+          tll = tll * vol_fact4_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           ! virial
@@ -2767,18 +2789,18 @@ contains
           tqq = tqq * theta(iz,iy,1) * vol_fact2
           elec_temp = elec_temp - tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp + tll*theta_lj(iz,iy,1)
 
           vxx = vxx - tqq * (1.0_wp + vir_fact(iz,iy,1) * gx(1) * gx(1))
           vyy = vyy - tqq * (1.0_wp + vir_fact(iz,iy,1) * gy(iy) * gy(iy))
           vzz = vzz - tqq * (1.0_wp + vir_fact(iz,iy,1) * gz(iz) * gz(iz))
           vxx = vxx  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gx(1 )*gx(1 ))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gx(1 )*gx(1 ))
           vyy = vyy  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gy(iy)*gy(iy))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gy(iy)*gy(iy))
           vzz = vzz  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gz(iz)*gz(iz))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gz(iz)*gz(iz))
 
         end do
         eelec(id+1) = eelec(id+1) + elec_temp
@@ -2808,7 +2830,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact2
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           vxx = vxx + tqq * (1.0_wp + vir_fact(iz,iy,ix) * gx(ix) * gx(ix))
@@ -2900,7 +2922,7 @@ contains
         force_local_lj(1:3) = 0.0_wp
         qtmp = charge(i,icel)*vol_fact4*bs_fact3d
         iatmcls = atmcls(i,icel)
-        ltmp = nonb_lj6_factor(iatmcls)
+        ltmp = nonb_lj6_factor(iatmcls)*vol_fact4_lj*bs_fact3d
 
         do izz = 1, 6
           izs = vii(izz,3,i,icel)
@@ -2941,7 +2963,6 @@ contains
     return
 
   end subroutine pme_recip_opt_1dalltoall_lj_6
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2991,6 +3012,7 @@ contains
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -3005,11 +3027,11 @@ contains
     !$omp parallel default(shared)                                             &
     !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
     !$omp         iz_start, iz_end, ix_start, ix_end, iorg, k_f, k_t,          &
-    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr, &
-    !$omp         work1, work2, elec_temp, force_local, ixyz, tqq1, tqq2, &
-    !$omp         nix, nix1, niy, niz, bscx, bscy, bscz, bscdx, bscdy, &
-    !$omp         bscdz, kk, iprocx, iprocy, qtmp, grid, half_grid, start, &
-    !$omp         end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd,    &
+    !$omp         ixx, ixs, vxx, vyy, vzz, iproc, tqq, k1, temp, vr,           &
+    !$omp         work1, work2, elec_temp, force_local, ixyz, tqq1, tqq2,      &
+    !$omp         nix, nix1, niy, niz, bscx, bscy, bscz, bscdx, bscdy,         &
+    !$omp         bscdz, kk, iprocx, iprocy, qtmp, grid, half_grid, start,     &
+    !$omp         end, nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd,        &
     !$omp         u_4, u_5, u_6, u_7, v_1, v_4, v_6, v_7)
     !
 #ifdef OMP
@@ -3276,7 +3298,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -3459,10 +3481,12 @@ contains
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !                (B spline order 8)                                     
   !! @authors      JJ, NT
-  !! @param[in]    domain : domain information
-  !! @param[inout] force  : forces of target systems
-  !! @param[inout] virial : virial term of target systems
-  !! @param[inout] eelec  : electrostatic energy of target systems
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -3533,7 +3557,7 @@ contains
     !$omp         qtmp, grid, half_grid, start, end, nizx, nizy, iix, iiy,     &
     !$omp         iiz, u_2, u_3, vyyd, vzzd, iatmcls, ltmp, efft_real,         &
     !$omp         efft_imag, vfft_real, vfft_imag, u_4, u_5, u_6, u_7,         &
-    !$omp         v_1, v_4, v_6, v_7)
+    !$omp         v_1, v_4, v_6, v_7, tll, work3, work4)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -3559,6 +3583,7 @@ contains
       do iy = 1, nlocaly+16
         do ix = 1, nlocalx+16
           qdf(ix,iy,iz,id+1) = 0.0_wp
+          ldf(ix,iy,iz,id+1) = 0.0_wp
         end do
       end do
     end do
@@ -3806,7 +3831,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -3855,7 +3880,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact4
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact4
+          tll = tll * vol_fact4_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           ! virial
@@ -3866,9 +3891,9 @@ contains
           vxx = vxx  &
               - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gx(ix)*gx(ix))
           vyy = vyy  &
-              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(ix)*gy(ix))
+              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(iy)*gy(iy))
           vzz = vzz  &
-              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(ix)*gz(ix))
+              - tll*(theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(iz)*gz(iz))
         end do
 
         eelec(id+1) = eelec(id+1) + elec_temp
@@ -3899,18 +3924,18 @@ contains
           tqq = tqq * theta(iz,iy,1) * vol_fact2
           elec_temp = elec_temp - tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp + tll*theta_lj(iz,iy,1)
 
           vxx = vxx - tqq * (1.0_wp + vir_fact(iz,iy,1) * gx(1) * gx(1))
           vyy = vyy - tqq * (1.0_wp + vir_fact(iz,iy,1) * gy(iy) * gy(iy))
           vzz = vzz - tqq * (1.0_wp + vir_fact(iz,iy,1) * gz(iz) * gz(iz))
           vxx = vxx  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gx(1 )*gx(1 ))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gx(1 )*gx(1 ))
           vyy = vyy  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gy(iy)*gy(iy))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gy(iy)*gy(iy))
           vzz = vzz  &
-              + tll*(theta_lj(iz,iy,1)+vir_fact(iz,iy,1)*gz(iz)*gz(iz))
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gz(iz)*gz(iz))
 
         end do
         eelec(id+1) = eelec(id+1) + elec_temp
@@ -3940,7 +3965,7 @@ contains
           tqq = tqq * theta(iz,iy,ix) * vol_fact2
           elec_temp = elec_temp + tqq
           tll = vfft_real*vfft_real + vfft_imag*vfft_imag
-          tll = tll * vol_fact2
+          tll = tll * vol_fact2_lj
           evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
 
           vxx = vxx + tqq * (1.0_wp + vir_fact(iz,iy,ix) * gx(ix) * gx(ix))
@@ -4032,7 +4057,7 @@ contains
         force_local_lj(1:3) = 0.0_wp
         qtmp = charge(i,icel)*vol_fact4*bs_fact3d
         iatmcls = atmcls(i,icel)
-        ltmp = nonb_lj6_factor(iatmcls)
+        ltmp = nonb_lj6_factor(iatmcls)*vol_fact4_lj*bs_fact3d
 
         do izz = 1, 8
           izs = vii(izz,3,i,icel)
@@ -4074,15 +4099,11 @@ contains
 
   end subroutine pme_recip_opt_1dalltoall_lj_8
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    communicate_pme_pre
   !> @brief        communicate boundary grid data before FFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4092,9 +4113,10 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! z direction
     !
@@ -4109,7 +4131,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -4161,7 +4183,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -4173,10 +4195,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4213,7 +4235,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -4225,10 +4247,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4261,9 +4283,6 @@ contains
   !  Subroutine    communicate_pme_post
   !> @brief        communicate boundary grid data after bFFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4273,9 +4292,10 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! x direction
     !
@@ -4290,7 +4310,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -4302,10 +4322,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4340,7 +4360,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -4352,10 +4372,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4390,7 +4410,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -4402,10 +4422,10 @@ contains
                    grid_commz, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_z_rank+2*nprocz+lower_rank,               &
+                   my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocz+my_z_rank,               &
+                   upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4436,9 +4456,6 @@ contains
   !  Subroutine    communicate_pme_pre_lj
   !> @brief        communicate boundary grid data before FFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4448,9 +4465,10 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! z direction
     !
@@ -4474,7 +4492,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -4486,10 +4504,10 @@ contains
                    grid_commz, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_z_rank+2*nprocz+lower_rank,               &
+                   my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocz+my_z_rank,               &
+                   upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4547,7 +4565,7 @@ contains
     end do
 
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -4559,10 +4577,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4619,7 +4637,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -4631,10 +4649,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4678,9 +4696,6 @@ contains
   !  Subroutine    communicate_pme_post_lj
   !> @brief        communicate boundary grid data after bFFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4690,9 +4705,10 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! x direction
     !
@@ -4716,7 +4732,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
     ! send to lower, receive from upper
@@ -4728,10 +4744,10 @@ contains
                    grid_commx, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_x_rank+2*nprocx+lower_rank,               &
+                   my_x_rank+2*nprocx+lower_rank,             &
                    grid_commx, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocx+my_x_rank,               &
+                   upper_rank+2*nprocx+my_x_rank,             &
                    grid_commx, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4784,7 +4800,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
     ! send to lower, receive from upper
@@ -4796,10 +4812,10 @@ contains
                    grid_commy, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_y_rank+2*nprocy+lower_rank,               &
+                   my_y_rank+2*nprocy+lower_rank,             &
                    grid_commy, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocy+my_y_rank,               &
+                   upper_rank+2*nprocy+my_y_rank,             &
                    grid_commy, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4853,7 +4869,7 @@ contains
     end do
 
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
     ! send to lower, receive from upper
@@ -4865,10 +4881,10 @@ contains
                    grid_commz, irequest2, ierror)
     ! send to upper, receive from lower
     call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
-                   my_z_rank+2*nprocz+lower_rank,               &
+                   my_z_rank+2*nprocz+lower_rank,             &
                    grid_commz, irequest3, ierror)
     call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
-                   upper_rank+2*nprocz+my_z_rank,               &
+                   upper_rank+2*nprocz+my_z_rank,             &
                    grid_commz, irequest4, ierror)
     call mpi_wait(irequest1, istatus, ierror)
     call mpi_wait(irequest2, istatus, ierror)
@@ -4898,7 +4914,6 @@ contains
         k = k + n_bs
       end do
     end do
-
 
     return
 

@@ -26,6 +26,7 @@ module sp_energy_str_mod
     real(dp)         :: total
     ! charmm
     real(dp)         :: bond
+    real(dp)         :: enm 
     real(dp)         :: angle
     real(dp)         :: urey_bradley
     real(dp)         :: dihedral
@@ -99,6 +100,7 @@ contains
 
     energy%total              = 0.0_dp
     energy%bond               = 0.0_dp
+    energy%enm                = 0.0_dp
     energy%angle              = 0.0_dp
     energy%urey_bradley       = 0.0_dp
     energy%dihedral           = 0.0_dp

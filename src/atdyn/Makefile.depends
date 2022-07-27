@@ -1,0 +1,137 @@
+at_boundary.o: at_boundary.fpp at_boundary_str_mod.mod 
+at_boundary_mod.mod: at_boundary.fpp at_boundary.o
+at_boundary_str.o: at_boundary_str.fpp  
+at_boundary_str_mod.mod: at_boundary_str.fpp at_boundary_str.o
+at_constraints.o: at_constraints.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_dynamics_str_mod.mod 
+at_constraints_mod.mod: at_constraints.fpp at_constraints.o
+at_constraints_str.o: at_constraints_str.fpp  
+at_constraints_str_mod.mod: at_constraints_str.fpp at_constraints_str.o
+at_control.o: at_control.fpp at_dynamics_mod.mod at_minimize_mod.mod at_output_mod.mod at_constraints_mod.mod at_boundary_mod.mod at_restraints_mod.mod at_ensemble_mod.mod at_rpath_str_mod.mod at_gamd_mod.mod at_rpath_mod.mod at_input_mod.mod at_vibration_mod.mod at_energy_mod.mod at_morph_mod.mod at_experiments_mod.mod at_remd_mod.mod at_qmmm_mod.mod 
+at_control_mod.mod: at_control.fpp at_control.o
+at_dynamics.o: at_dynamics.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod at_restraints_mod.mod at_energy_str_mod.mod at_ensemble_str_mod.mod at_boundary_mod.mod at_restraints_str_mod.mod at_energy_mod.mod at_qmmm_mod.mod at_md_leapfrog_mod.mod at_md_vverlet_cg_mod.mod at_md_vverlet_mod.mod 
+at_dynamics_mod.mod: at_dynamics.fpp at_dynamics.o
+at_dynamics_str.o: at_dynamics_str.fpp  
+at_dynamics_str_mod.mod: at_dynamics_str.fpp at_dynamics_str.o
+at_dynvars.o: at_dynvars.fpp at_restraints_str_mod.mod at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_boundary_str_mod.mod at_ensemble_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod 
+at_dynvars_mod.mod: at_dynvars.fpp at_dynvars.o
+at_dynvars_str.o: at_dynvars_str.fpp at_energy_str_mod.mod 
+at_dynvars_str_mod.mod: at_dynvars_str.fpp at_dynvars_str.o
+at_enefunc.o: at_enefunc.fpp at_enefunc_go_mod.mod at_enefunc_str_mod.mod at_boundary_mod.mod at_enefunc_charmm_mod.mod at_enefunc_gromacs_mod.mod at_energy_str_mod.mod at_enefunc_amber_mod.mod at_restraints_str_mod.mod at_energy_mod.mod at_boundary_str_mod.mod 
+at_enefunc_mod.mod: at_enefunc.fpp at_enefunc.o
+at_enefunc_amber.o: at_enefunc_amber.fpp at_enefunc_table_mod.mod at_energy_mod.mod at_enefunc_str_mod.mod at_enefunc_pme_mod.mod at_boundary_str_mod.mod at_enefunc_restraints_mod.mod at_restraints_str_mod.mod at_enefunc_gbsa_mod.mod at_energy_str_mod.mod 
+at_enefunc_amber_mod.mod: at_enefunc_amber.fpp at_enefunc_amber.o
+at_enefunc_charmm.o: at_enefunc_charmm.fpp at_enefunc_table_mod.mod at_energy_mod.mod at_enefunc_str_mod.mod at_enefunc_pme_mod.mod at_boundary_str_mod.mod at_enefunc_restraints_mod.mod at_restraints_str_mod.mod at_enefunc_gbsa_mod.mod 
+at_enefunc_charmm_mod.mod: at_enefunc_charmm.fpp at_enefunc_charmm.o
+at_enefunc_gamd.o: at_enefunc_gamd.fpp at_enefunc_str_mod.mod 
+at_enefunc_gamd_mod.mod: at_enefunc_gamd.fpp at_enefunc_gamd.o
+at_enefunc_gbsa.o: at_enefunc_gbsa.fpp at_energy_mod.mod at_energy_str_mod.mod at_enefunc_str_mod.mod at_boundary_str_mod.mod 
+at_enefunc_gbsa_mod.mod: at_enefunc_gbsa.fpp at_enefunc_gbsa.o
+at_enefunc_go.o: at_enefunc_go.fpp at_energy_mod.mod at_restraints_str_mod.mod at_enefunc_str_mod.mod at_enefunc_restraints_mod.mod 
+at_enefunc_go_mod.mod: at_enefunc_go.fpp at_enefunc_go.o
+at_enefunc_gromacs.o: at_enefunc_gromacs.fpp at_enefunc_table_mod.mod at_energy_mod.mod at_enefunc_str_mod.mod at_enefunc_pme_mod.mod at_boundary_str_mod.mod at_enefunc_restraints_mod.mod at_restraints_str_mod.mod at_energy_str_mod.mod 
+at_enefunc_gromacs_mod.mod: at_enefunc_gromacs.fpp at_enefunc_gromacs.o
+at_enefunc_pme.o: at_enefunc_pme.fpp at_energy_str_mod.mod at_energy_mod.mod at_enefunc_str_mod.mod at_boundary_str_mod.mod at_energy_pme_mod.mod at_boundary_mod.mod 
+at_enefunc_pme_mod.mod: at_enefunc_pme.fpp at_enefunc_pme.o
+at_enefunc_restraints.o: at_enefunc_restraints.fpp at_enefunc_str_mod.mod at_restraints_str_mod.mod 
+at_enefunc_restraints_mod.mod: at_enefunc_restraints.fpp at_enefunc_restraints.o
+at_enefunc_str.o: at_enefunc_str.fpp  
+at_enefunc_str_mod.mod: at_enefunc_str.fpp at_enefunc_str.o
+at_enefunc_table.o: at_enefunc_table.fpp at_energy_mod.mod at_energy_str_mod.mod at_enefunc_str_mod.mod 
+at_enefunc_table_mod.mod: at_enefunc_table.fpp at_enefunc_table.o
+at_energy.o: at_energy.fpp at_energy_gamd_mod.mod at_enefunc_str_mod.mod at_boundary_mod.mod at_constraints_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_energy_go_mod.mod at_energy_nonbonds_mod.mod at_energy_gbsa_mod.mod at_energy_morph_mod.mod at_energy_pme_mod.mod at_energy_str_mod.mod at_energy_angles_mod.mod at_energy_soft_mod.mod at_energy_dihedrals_mod.mod at_restraints_str_mod.mod at_energy_bonds_mod.mod at_energy_cg_nonlocal_mod.mod at_energy_eef1_mod.mod at_energy_restraints_mod.mod at_constraints_str_mod.mod at_qmmm_mod.mod 
+at_energy_mod.mod: at_energy.fpp at_energy.o
+at_energy_angles.o: at_energy_angles.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod 
+at_energy_angles_mod.mod: at_energy_angles.fpp at_energy_angles.o
+at_energy_bonds.o: at_energy_bonds.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod 
+at_energy_bonds_mod.mod: at_energy_bonds.fpp at_energy_bonds.o
+at_energy_cg_nonlocal.o: at_energy_cg_nonlocal.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_energy_cg_nonlocal_mod.mod: at_energy_cg_nonlocal.fpp at_energy_cg_nonlocal.o
+at_energy_dihedrals.o: at_energy_dihedrals.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod 
+at_energy_dihedrals_mod.mod: at_energy_dihedrals.fpp at_energy_dihedrals.o
+at_energy_eef1.o: at_energy_eef1.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_energy_eef1_mod.mod: at_energy_eef1.fpp at_energy_eef1.o
+at_energy_gamd.o: at_energy_gamd.fpp at_energy_str_mod.mod at_enefunc_str_mod.mod at_energy_restraints_mod.mod at_boundary_str_mod.mod at_energy_dihedrals_mod.mod 
+at_energy_gamd_mod.mod: at_energy_gamd.fpp at_energy_gamd.o
+at_energy_gbsa.o: at_energy_gbsa.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_energy_gbsa_mod.mod: at_energy_gbsa.fpp at_energy_gbsa.o
+at_energy_go.o: at_energy_go.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_energy_go_mod.mod: at_energy_go.fpp at_energy_go.o
+at_energy_morph.o: at_energy_morph.fpp at_enefunc_str_mod.mod 
+at_energy_morph_mod.mod: at_energy_morph.fpp at_energy_morph.o
+at_energy_nonbonds.o: at_energy_nonbonds.fpp at_energy_table_linear_mod.mod at_enefunc_str_mod.mod at_energy_table_cubic_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_energy_pme_mod.mod at_energy_table_linear_bondcorr_mod.mod 
+at_energy_nonbonds_mod.mod: at_energy_nonbonds.fpp at_energy_nonbonds.o
+at_energy_pme.o: at_energy_pme.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_boundary_mod.mod 
+at_energy_pme_mod.mod: at_energy_pme.fpp at_energy_pme.o
+at_energy_restraints.o: at_energy_restraints.fpp at_energy_str_mod.mod at_experiments_mod.mod at_enefunc_str_mod.mod at_boundary_str_mod.mod at_rpath_str_mod.mod at_restraints_str_mod.mod 
+at_energy_restraints_mod.mod: at_energy_restraints.fpp at_energy_restraints.o
+at_energy_soft.o: at_energy_soft.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_energy_soft_mod.mod: at_energy_soft.fpp at_energy_soft.o
+at_energy_str.o: at_energy_str.fpp  
+at_energy_str_mod.mod: at_energy_str.fpp at_energy_str.o
+at_energy_table_cubic.o: at_energy_table_cubic.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_pairlist_mod.mod 
+at_energy_table_cubic_mod.mod: at_energy_table_cubic.fpp at_energy_table_cubic.o
+at_energy_table_linear.o: at_energy_table_linear.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_pairlist_mod.mod 
+at_energy_table_linear_mod.mod: at_energy_table_linear.fpp at_energy_table_linear.o
+at_energy_table_linear_bondcorr.o: at_energy_table_linear_bondcorr.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_boundary_mod.mod 
+at_energy_table_linear_bondcorr_mod.mod: at_energy_table_linear_bondcorr.fpp at_energy_table_linear_bondcorr.o
+at_ensemble.o: at_ensemble.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_ensemble_str_mod.mod at_enefunc_gbsa_mod.mod 
+at_ensemble_mod.mod: at_ensemble.fpp at_ensemble.o
+at_ensemble_str.o: at_ensemble_str.fpp  
+at_ensemble_str_mod.mod: at_ensemble_str.fpp at_ensemble_str.o
+at_experiments.o: at_experiments.fpp at_enefunc_str_mod.mod at_experiments_str_mod.mod at_restraints_str_mod.mod 
+at_experiments_mod.mod: at_experiments.fpp at_experiments.o
+at_experiments_str.o: at_experiments_str.fpp  
+at_experiments_str_mod.mod: at_experiments_str.fpp at_experiments_str.o
+at_gamd.o: at_gamd.fpp at_remd_str_mod.mod at_enefunc_str_mod.mod at_enefunc_gamd_mod.mod at_dynamics_str_mod.mod 
+at_gamd_mod.mod: at_gamd.fpp at_gamd.o
+at_input.o: at_input.fpp at_rpath_str_mod.mod at_remd_str_mod.mod 
+at_input_mod.mod: at_input.fpp at_input.o
+at_md_leapfrog.o: at_md_leapfrog.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod at_enefunc_gbsa_mod.mod at_dynvars_mod.mod at_enefunc_gamd_mod.mod at_ensemble_mod.mod at_energy_str_mod.mod at_ensemble_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_constraints_mod.mod 
+at_md_leapfrog_mod.mod: at_md_leapfrog.fpp at_md_leapfrog.o
+at_md_vverlet.o: at_md_vverlet.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod at_enefunc_gbsa_mod.mod at_dynvars_mod.mod at_enefunc_gamd_mod.mod at_ensemble_mod.mod at_rpath_str_mod.mod at_energy_str_mod.mod at_ensemble_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_constraints_mod.mod 
+at_md_vverlet_mod.mod: at_md_vverlet.fpp at_md_vverlet.o
+at_md_vverlet_cg.o: at_md_vverlet_cg.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod at_enefunc_gbsa_mod.mod at_dynvars_mod.mod at_enefunc_gamd_mod.mod at_ensemble_mod.mod at_rpath_str_mod.mod at_ensemble_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_constraints_mod.mod 
+at_md_vverlet_cg_mod.mod: at_md_vverlet_cg.fpp at_md_vverlet_cg.o
+at_minimize.o: at_minimize.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_dynvars_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_qmmm_mod.mod 
+at_minimize_mod.mod: at_minimize.fpp at_minimize.o
+at_minimize_str.o: at_minimize_str.fpp  
+at_minimize_str_mod.mod: at_minimize_str.fpp at_minimize_str.o
+at_morph.o: at_morph.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_output_str_mod.mod at_dynvars_mod.mod at_morph_str_mod.mod at_energy_str_mod.mod at_ensemble_str_mod.mod at_restraints_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_energy_restraints_mod.mod at_enefunc_restraints_mod.mod 
+at_morph_mod.mod: at_morph.fpp at_morph.o
+at_morph_str.o: at_morph_str.fpp at_output_str_mod.mod 
+at_morph_str_mod.mod: at_morph_str.fpp at_morph_str.o
+at_output.o: at_output.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_boundary_mod.mod at_boundary_str_mod.mod at_dynamics_str_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_vibration_str_mod.mod at_dynvars_mod.mod at_rpath_str_mod.mod at_morph_str_mod.mod at_ensemble_str_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_qmmm_mod.mod 
+at_output_mod.mod: at_output.fpp at_output.o
+at_output_str.o: at_output_str.fpp  
+at_output_str_mod.mod: at_output_str.fpp at_output_str.o
+at_pairlist.o: at_pairlist.fpp at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod 
+at_pairlist_mod.mod: at_pairlist.fpp at_pairlist.o
+at_pairlist_str.o: at_pairlist_str.fpp  
+at_pairlist_str_mod.mod: at_pairlist_str.fpp at_pairlist_str.o
+at_qmmm.o: at_qmmm.fpp at_energy_str_mod.mod at_enefunc_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_output_str_mod.mod 
+at_qmmm_mod.mod: at_qmmm.fpp at_qmmm.o
+at_remd.o: at_remd.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_constraints_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_output_str_mod.mod at_enefunc_gbsa_mod.mod at_dynvars_mod.mod at_energy_str_mod.mod at_ensemble_str_mod.mod at_restraints_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_energy_restraints_mod.mod at_constraints_str_mod.mod at_enefunc_restraints_mod.mod at_md_leapfrog_mod.mod at_md_vverlet_cg_mod.mod at_md_vverlet_mod.mod 
+at_remd_mod.mod: at_remd.fpp at_remd.o
+at_remd_str.o: at_remd_str.fpp  
+at_remd_str_mod.mod: at_remd_str.fpp at_remd_str.o
+at_restraints.o: at_restraints.fpp at_restraints_str_mod.mod 
+at_restraints_mod.mod: at_restraints.fpp at_restraints.o
+at_restraints_str.o: at_restraints_str.fpp  
+at_restraints_str_mod.mod: at_restraints_str.fpp at_restraints_str.o
+at_rpath.o: at_rpath.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_rpath_fep_mod.mod at_output_mod.mod at_dynamics_str_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_boundary_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_dynvars_mod.mod at_rpath_str_mod.mod at_rpath_mep_mod.mod at_input_mod.mod at_ensemble_str_mod.mod at_restraints_str_mod.mod at_pairlist_mod.mod at_qmmm_mod.mod at_enefunc_restraints_mod.mod at_md_leapfrog_mod.mod at_md_vverlet_mod.mod 
+at_rpath_mod.mod: at_rpath.fpp at_rpath.o
+at_rpath_fep.o: at_rpath_fep.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_dynamics_str_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_boundary_mod.mod at_output_str_mod.mod at_dynvars_mod.mod at_rpath_str_mod.mod at_rpath_mep_mod.mod at_md_leapfrog_mod.mod at_ensemble_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_md_vverlet_mod.mod 
+at_rpath_fep_mod.mod: at_rpath_fep.fpp at_rpath_fep.o
+at_rpath_mep.o: at_rpath_mep.fpp at_minimize_mod.mod at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_dynvars_mod.mod at_rpath_str_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_dynamics_str_mod.mod 
+at_rpath_mep_mod.mod: at_rpath_mep.fpp at_rpath_mep.o
+at_rpath_str.o: at_rpath_str.fpp at_output_str_mod.mod 
+at_rpath_str_mod.mod: at_rpath_str.fpp at_rpath_str.o
+at_setup_atdyn.o: at_setup_atdyn.fpp at_control_mod.mod at_dynamics_mod.mod at_minimize_mod.mod at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_mod.mod at_constraints_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_enefunc_table_mod.mod at_vibration_str_mod.mod at_dynvars_mod.mod at_ensemble_mod.mod at_rpath_str_mod.mod at_morph_str_mod.mod at_energy_str_mod.mod at_gamd_mod.mod at_rpath_mod.mod at_input_mod.mod at_vibration_mod.mod at_ensemble_str_mod.mod at_restraints_str_mod.mod at_experiments_mod.mod at_pairlist_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_morph_mod.mod at_restraints_mod.mod at_remd_mod.mod at_constraints_str_mod.mod at_qmmm_mod.mod at_enefunc_mod.mod 
+at_setup_atdyn_mod.mod: at_setup_atdyn.fpp at_setup_atdyn.o
+at_setup_mpi.o: at_setup_mpi.fpp at_energy_mod.mod at_energy_str_mod.mod at_rpath_mod.mod at_remd_mod.mod at_vibration_mod.mod 
+at_setup_mpi_mod.mod: at_setup_mpi.fpp at_setup_mpi.o
+at_vibration.o: at_vibration.fpp at_enefunc_str_mod.mod at_dynvars_str_mod.mod at_output_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_output_str_mod.mod at_vibration_str_mod.mod at_input_mod.mod at_energy_mod.mod at_qmmm_mod.mod 
+at_vibration_mod.mod: at_vibration.fpp at_vibration.o
+at_vibration_str.o: at_vibration_str.fpp  
+at_vibration_str_mod.mod: at_vibration_str.fpp at_vibration_str.o
+atdyn.o: atdyn.fpp at_control_mod.mod at_dynamics_mod.mod at_minimize_mod.mod at_energy_pme_mod.mod at_dynvars_str_mod.mod at_constraints_str_mod.mod at_boundary_str_mod.mod at_pairlist_str_mod.mod at_dynamics_str_mod.mod at_minimize_str_mod.mod at_output_str_mod.mod at_setup_atdyn_mod.mod at_vibration_str_mod.mod at_rpath_str_mod.mod at_morph_str_mod.mod at_energy_str_mod.mod at_rpath_mod.mod at_enefunc_str_mod.mod at_vibration_mod.mod at_ensemble_str_mod.mod at_energy_mod.mod at_remd_str_mod.mod at_setup_mpi_mod.mod at_morph_mod.mod at_remd_mod.mod at_qmmm_mod.mod 

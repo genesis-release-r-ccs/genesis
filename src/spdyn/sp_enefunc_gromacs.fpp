@@ -30,7 +30,7 @@ module sp_enefunc_gromacs_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -112,11 +112,13 @@ contains
 
       ! bond
       !
-      call setup_enefunc_bond_constraint(molecule, grotop, domain, constraints, enefunc)
+      call setup_enefunc_bond_constraint(molecule, grotop, domain, &
+                                         constraints, enefunc)
 
       ! angle
       !
-      call setup_enefunc_angl_constraint(molecule, grotop, domain, constraints, enefunc)
+      call setup_enefunc_angl_constraint(molecule, grotop, domain, &
+                                         constraints, enefunc)
 
     end if
 
@@ -182,9 +184,11 @@ contains
   !  Subroutine    setup_enefunc_bond
   !> @brief        define BOND term for each cell in potential energy function
   !! @authors      NT
-  !! @param[in]    grotop   : GROMACS TOP information
-  !! @param[in]    domain   : domain information
-  !! @param[inout] enefunc  : potential energy functions information
+  !! @param[in]    molecule    : molecule information
+  !! @param[in]    grotop      : GROMACS TOP information
+  !! @param[in]    domain      : domain information
+  !! @param[in]    constraints : constraints information
+  !! @param[inout] enefunc     : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -213,7 +217,8 @@ contains
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-    integer(1),         pointer :: bond_pbc(:,:)
+    integer,            pointer :: bond_pbc(:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -249,9 +254,9 @@ contains
               res1 = gromol%atoms(idx1)%residue_name
               res2 = gromol%atoms(idx2)%residue_name
   
-              if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
-                  res1(1:3) /= 'SOL' .and. res2(1:3) /= 'TIP' .and. &
-                  res2(1:3) /= 'WAT' .and. res2(1:3) /= 'SOL') then
+              if (res1(1:3) .ne. 'TIP' .and. res1(1:3) .ne. 'WAT' .and. &
+                  res1(1:3) .ne. 'SOL' .and. res2(1:3) .ne. 'TIP' .and. &
+                  res2(1:3) .ne. 'WAT' .and. res2(1:3) .ne. 'SOL') then
 
                 idx1 = idx1 + ioffset  
                 idx2 = idx2 + ioffset  
@@ -319,8 +324,8 @@ contains
             m1   = gromol%atoms(idx1)%mass
             m2   = gromol%atoms(idx2)%mass
 
-            if (res1(1:3) == 'TIP' .or. res1(1:3) == 'WAT' .or. &
-                res1(1:3) == 'SOL') then
+            if (res1(1:3) .eq. 'TIP' .or. res1(1:3) .eq. 'WAT' .or. &
+                res1(1:3) .eq. 'SOL') then
  
               if (m1 /= m2) then
                 nbond_a = nbond_a + domain%num_duplicate
@@ -331,10 +336,11 @@ contains
                     gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
               else if (m1 == m2 .and. m1 < LIGHT_ATOM_MASS_LIMIT) then
                 nbond_a = nbond_a + domain%num_duplicate
-                enefunc%table%water_bond_calc_HH = .true.
                 enefunc%table%HH_bond = gromol%bonds(k)%b0 * 10.0_wp
                 enefunc%table%HH_force = &
                     gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+                if (enefunc%table%HH_force > EPS) &
+                  enefunc%table%water_bond_calc_HH = .true.
               end if
             end if
 
@@ -343,7 +349,7 @@ contains
       end do
     end do
 
-    if (.not. enefunc%table%water_bond_calc_OH) then
+    if (.not. enefunc%table%water_bond_calc) then
       do i = 1, grotop%num_molss
         gromol => grotop%molss(i)%moltype%mol
         do j = 1, grotop%molss(i)%count
@@ -356,13 +362,16 @@ contains
             enefunc%table%OH_force = 0.0_wp
             enefunc%table%HH_bond  = water_dist(3)
             enefunc%table%HH_force = 0.0_wp
+            enefunc%table%water_bond_calc = .true.
+            enefunc%table%water_bond_calc_OH = .true.
+            enefunc%table%water_bond_calc_HH = .true.
             nbond_a = nbond_a + 3*domain%num_duplicate
           end if
         end do
       end do
     end if
     
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(nbond_a, enefunc%num_bond_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -378,6 +387,7 @@ contains
   !  Subroutine    setup_enefunc_bond_constraint
   !> @brief        define BOND term between heavy atoms
   !! @authors      NT
+  !! @param[in]    molecule    : molecule information
   !! @param[in]    grotop      : CHARMM grotop information
   !! @param[in]    domain      : domain information
   !! @param[in]    constraints : constraints information
@@ -418,7 +428,8 @@ contains
     integer,            pointer :: id_l2g(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
-    integer(1),         pointer :: bond_pbc(:,:)
+    integer,            pointer :: bond_pbc(:,:)
+
 
     coord         => molecule%atom_coord
 
@@ -465,8 +476,8 @@ contains
               atm1 = gromol%atoms(i1)%atom_type
               atm2 = gromol%atoms(i2)%atom_type
 
-              cl1 = (atm1(1:1) /= 'H' .and. atm1(1:1) /= 'h')
-              cl2 = (atm2(1:1) /= 'H' .and. atm2(1:1) /= 'h')
+              cl1 = (atm1(1:1) .ne. 'H' .and. atm1(1:1) .ne. 'h')
+              cl2 = (atm2(1:1) .ne. 'H' .and. atm2(1:1) .ne. 'h')
               if (constraints%hydrogen_type == ConstraintAtomMass) then
                 cl1 = (gromol%atoms(i1)%mass > LIGHT_ATOM_MASS_LIMIT) 
                 cl2 = (gromol%atoms(i2)%mass > LIGHT_ATOM_MASS_LIMIT) 
@@ -475,7 +486,7 @@ contains
                     gromol%atoms(i1)%mass > LIGHT_ATOM_MASS_LIMIT) 
                 cl2 = (cl2 .and. &
                    gromol%atoms(i2)%mass > LIGHT_ATOM_MASS_LIMIT) 
-              endif
+              end if
               idx1 = i1 + ioffset
               idx2 = i2 + ioffset
               ia   = sollist(idx1) + ioffset_dupl
@@ -595,8 +606,8 @@ contains
               res1 = gromol%atoms(i1)%residue_name
               res2 = gromol%atoms(i2)%residue_name
 
-              if (res1 == constraints%water_model .and. &
-                  res2 == constraints%water_model) then
+              if (res1 .eq. constraints%water_model .and. &
+                  res2 .eq. constraints%water_model) then
 
                 wat_bonds = wat_bonds+1
 
@@ -623,7 +634,7 @@ contains
 
     end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(nbond_a, enefunc%num_bond_all,  1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 
@@ -661,6 +672,7 @@ contains
   !  Subroutine    setup_enefunc_angl
   !> @brief        define ANGLE term for each cell in potential energy function
   !! @authors      NT
+  !! @param[in]    molecule : molecule information
   !! @param[in]    grotop   : GROMACS topology informaiton
   !! @param[in]    domain   : domain information
   !! @param[inout] enefunc  : potential energy functions information
@@ -690,7 +702,8 @@ contains
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-    integer(1),         pointer :: angl_pbc(:,:,:)
+    integer,            pointer :: angl_pbc(:,:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -729,8 +742,8 @@ contains
               res2 = gromol%atoms(idx2)%residue_name
               res3 = gromol%atoms(idx3)%residue_name
 
-              if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
-                  res1(1:3) /= 'SOL') then
+              if (res1(1:3) .ne. 'TIP' .and. res1(1:3) .ne. 'WAT' .and. &
+                  res1(1:3) .ne. 'SOL') then
 
                 idx1 = idx1 + ioffset 
                 idx2 = idx2 + ioffset 
@@ -806,8 +819,8 @@ contains
             res2 = gromol%atoms(idx2)%residue_name
             res3 = gromol%atoms(idx3)%residue_name
 
-            if (res1(1:3) == 'TIP' .or. res1(1:3) == 'WAT' .or. &
-                res1(1:3) == 'SOL') then
+            if (res1(1:3) .eq. 'TIP' .or. res1(1:3) .eq. 'WAT' .or. &
+                res1(1:3) .eq. 'SOL') then
 
               nangl_a = nangl_a + domain%num_duplicate
               enefunc%table%water_angle_calc = .true.
@@ -821,7 +834,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(nangl_a, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -838,6 +851,7 @@ contains
   !> @brief        define ANGLE term for each cell in potential energy function
   !                with SETTLE constraint
   !! @authors      NT
+  !! @param[in]    molecule    : molecule information
   !! @param[in]    grotop      : GROMACS topology information
   !! @param[in]    domain      : domain information
   !! @param[in]    constraints : constraints information
@@ -871,7 +885,8 @@ contains
     integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-    integer(1),         pointer :: angl_pbc(:,:,:)
+    integer,            pointer :: angl_pbc(:,:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -912,9 +927,9 @@ contains
               res2 = gromol%atoms(i2)%residue_name
               res3 = gromol%atoms(i3)%residue_name
 
-              if (res1(1:4) /= constraints%water_model .and. &
-                  res2(1:4) /= constraints%water_model .and. &
-                  res3(1:4) /= constraints%water_model) then
+              if (res1(1:4) .ne. constraints%water_model .and. &
+                  res2(1:4) .ne. constraints%water_model .and. &
+                  res3(1:4) .ne. constraints%water_model) then
 
                 idx1 = i1 + ioffset
                 idx2 = i2 + ioffset
@@ -980,7 +995,7 @@ contains
 
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(nangl_a, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -991,7 +1006,6 @@ contains
       call error_msg( &
         'Setup_Enefunc_Angl_Constraint> Some angle paremeters are missing.')
 
-
     return
 
   end subroutine setup_enefunc_angl_constraint
@@ -1001,6 +1015,7 @@ contains
   !  Subroutine    setup_enefunc_dihe
   !> @brief        define DIHEDRAL term in potential energy function
   !! @authors      NT
+  !! @param[in]    molecule : molecule information
   !! @param[in]    grotop   : GROMACS TOP information
   !! @param[in]    domain   : domain information
   !! @param[inout] enefunc  : potential energy functions information
@@ -1031,7 +1046,8 @@ contains
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
     integer,            pointer :: notation
-    integer(1),         pointer :: dihe_pbc(:,:,:)
+    integer,            pointer :: dihe_pbc(:,:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -1128,7 +1144,7 @@ contains
       found = found + dihe(i)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_dihe_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -1145,6 +1161,7 @@ contains
   !> @brief        define Ryckaert-Bellemans DIHEDRAL term in potential energy
   !                function
   !! @authors      NT
+  !! @param[in]    molecule : molecule information
   !! @param[in]    grotop   : GROMACS TOP information
   !! @param[in]    domain   : domain information
   !! @param[inout] enefunc  : potential energy functions information
@@ -1174,7 +1191,8 @@ contains
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
-    integer(1),         pointer :: dihe_pbc(:,:,:)
+    integer,            pointer :: dihe_pbc(:,:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -1260,7 +1278,7 @@ contains
       found = found + dihe(i)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_rb_dihe_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -1276,6 +1294,7 @@ contains
   !  Subroutine    setup_enefunc_impr
   !> @brief        define improper DIHEDRAL term in potential energy function
   !! @authors      NT
+  !! @param[in]    molecule : molecule information
   !! @param[in]    grotop   : GROMACS TOP information
   !! @param[in]    domain   : domain information
   !! @param[inout] enefunc  : potential energy functions information
@@ -1306,7 +1325,8 @@ contains
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
-    integer(1),         pointer :: impr_pbc(:,:,:)
+    integer,            pointer :: impr_pbc(:,:,:)
+
 
     coord     => molecule%atom_coord
 
@@ -1398,7 +1418,7 @@ contains
       found = found + impr(i)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_impr_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -1414,6 +1434,7 @@ contains
   !  Subroutine    setup_enefunc_nonb
   !> @brief        define NON-BOND term in potential energy function
   !! @authors      NT
+  !! @param[in]    molecule    : molecule information
   !! @param[in]    grotop      : GROMACS information
   !! @param[in]    constraints : constraints information
   !! @param[inout] domain      : domain information
@@ -1442,6 +1463,7 @@ contains
     integer,    allocatable  :: atmcls_map_g2l(:), atmcls_map_l2g(:)
     real(wp),   allocatable  :: nb14_lj6(:,:), nb14_lj12(:,:)
     real(wp),   allocatable  :: nonb_lj6(:,:), nonb_lj12(:,:)
+
 
     enefunc%num_atom_cls = grotop%num_atomtypes
     enefunc%fudge_lj     = grotop%defaults%fudge_lj
@@ -1513,13 +1535,13 @@ contains
           wij = 0.0_wp
 
           do k = 1, grotop%num_nbonparms
-            if (grotop%atomtypes(i)%type_name == &
+            if (grotop%atomtypes(i)%type_name .eq. &
                   grotop%nbonparms(k)%atom_type1 .and. &
-                grotop%atomtypes(j)%type_name == &
+                grotop%atomtypes(j)%type_name .eq. &
                   grotop%nbonparms(k)%atom_type2 .or.  &
-                grotop%atomtypes(j)%type_name == &
+                grotop%atomtypes(j)%type_name .eq. &
                   grotop%nbonparms(k)%atom_type1 .and. &
-                grotop%atomtypes(i)%type_name == &
+                grotop%atomtypes(i)%type_name .eq. &
                   grotop%nbonparms(k)%atom_type2) then
 
               vij = grotop%nbonparms(k)%v
@@ -1590,7 +1612,7 @@ contains
         call error_msg( &
         'Setup_Enefunc_Nonb> atom class is not defined: "'&
         //trim(molecule%atom_cls_name(i))//'"')
-      endif
+      end if
       check_cls(k) = 1
     end do
 
@@ -1631,9 +1653,9 @@ contains
         = atmcls_map_g2l(domain%water%atom_cls_no(1:3))
       enefunc%table%atom_cls_no_O = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
       enefunc%table%atom_cls_no_H = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
-      if (constraints%tip4 .or. enefunc%table%tip4) then
-        enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
-        domain%water%atom_cls_no(4) = atmcls_map_g2l(domain%water%atom_cls_no(4))
+      if (constraints%water_type == TIP4) then
+        enefunc%table%atom_cls_no_D =atmcls_map_g2l(enefunc%table%atom_cls_no_D)
+        domain%water%atom_cls_no(4) =atmcls_map_g2l(domain%water%atom_cls_no(4))
       end if
     end if
  

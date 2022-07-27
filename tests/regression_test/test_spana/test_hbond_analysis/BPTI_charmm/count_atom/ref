@@ -1,0 +1,126 @@
+# This file was created with hbond_analysis
+# output type is "count_atom"
+#
+# Column 1: count of H-bonds formed between the two atoms in the trajectory
+# Column 2: "|"
+# Column 3: atom name of the analysis atom
+# Column 4: residue name of the analysis atom
+# Column 5: residue number of the analysis atom
+# Column 6: segment name of the analysis atom
+# Column 7: ".."
+# Column 8: atom name of the target atom
+# Column 9: segment name of the target atom
+# Column10: residue number of the target atom (not output for "solvent_list")
+# Column11: segment name of the target atom (not output for "solvent_list")
+
+        20 | N    ARG          1 BPTI ..  OH2  TIP3  
+         4 | NE   ARG          1 BPTI ..  OH2  TIP3  
+        16 | NH1  ARG          1 BPTI ..  OH2  TIP3  
+        13 | NH2  ARG          1 BPTI ..  OH2  TIP3  
+         9 | O    ARG          1 BPTI ..  OH2  TIP3  
+         1 | O    PRO          2 BPTI ..  OH2  TIP3  
+         7 | N    ASP          3 BPTI ..  OH2  TIP3  
+        34 | OD1  ASP          3 BPTI ..  OH2  TIP3  
+        34 | OD2  ASP          3 BPTI ..  OH2  TIP3  
+         8 | O    ASP          3 BPTI ..  OH2  TIP3  
+         6 | O    PHE          4 BPTI ..  OH2  TIP3  
+         3 | O    CYS          5 BPTI ..  OH2  TIP3  
+        15 | O    LEU          6 BPTI ..  OH2  TIP3  
+        28 | OE1  GLU          7 BPTI ..  OH2  TIP3  
+        24 | OE2  GLU          7 BPTI ..  OH2  TIP3  
+         6 | O    GLU          7 BPTI ..  OH2  TIP3  
+        13 | O    PRO          8 BPTI ..  OH2  TIP3  
+        13 | O    PRO          9 BPTI ..  OH2  TIP3  
+         1 | N    TYR         10 BPTI ..  OH2  TIP3  
+        17 | OH   TYR         10 BPTI ..  OH2  TIP3  
+         6 | N    THR         11 BPTI ..  OH2  TIP3  
+        17 | OG1  THR         11 BPTI ..  OH2  TIP3  
+         1 | O    THR         11 BPTI ..  OH2  TIP3  
+        11 | O    GLY         12 BPTI ..  OH2  TIP3  
+        14 | O    PRO         13 BPTI ..  OH2  TIP3  
+         8 | O    CYS         14 BPTI ..  OH2  TIP3  
+         8 | N    LYS         15 BPTI ..  OH2  TIP3  
+        25 | NZ   LYS         15 BPTI ..  OH2  TIP3  
+        12 | O    LYS         15 BPTI ..  OH2  TIP3  
+         3 | N    ALA         16 BPTI ..  OH2  TIP3  
+         4 | O    ALA         16 BPTI ..  OH2  TIP3  
+        10 | N    ARG         17 BPTI ..  OH2  TIP3  
+         3 | NE   ARG         17 BPTI ..  OH2  TIP3  
+        22 | NH1  ARG         17 BPTI ..  OH2  TIP3  
+         9 | NH2  ARG         17 BPTI ..  OH2  TIP3  
+        14 | O    ARG         17 BPTI ..  OH2  TIP3  
+         8 | N    ILE         19 BPTI ..  OH2  TIP3  
+        13 | O    ILE         19 BPTI ..  OH2  TIP3  
+         8 | NE   ARG         20 BPTI ..  OH2  TIP3  
+        11 | NH1  ARG         20 BPTI ..  OH2  TIP3  
+        17 | NH2  ARG         20 BPTI ..  OH2  TIP3  
+        19 | OH   TYR         21 BPTI ..  OH2  TIP3  
+        12 | OH   TYR         23 BPTI ..  OH2  TIP3  
+         7 | O    TYR         23 BPTI ..  OH2  TIP3  
+         7 | OD1  ASN         24 BPTI ..  OH2  TIP3  
+         6 | ND2  ASN         24 BPTI ..  OH2  TIP3  
+         5 | N    ALA         25 BPTI ..  OH2  TIP3  
+        16 | O    ALA         25 BPTI ..  OH2  TIP3  
+         5 | N    LYS         26 BPTI ..  OH2  TIP3  
+        26 | NZ   LYS         26 BPTI ..  OH2  TIP3  
+        14 | O    LYS         26 BPTI ..  OH2  TIP3  
+        16 | O    ALA         27 BPTI ..  OH2  TIP3  
+        14 | O    GLY         28 BPTI ..  OH2  TIP3  
+         8 | N    CYS         30 BPTI ..  OH2  TIP3  
+         8 | O    CYS         30 BPTI ..  OH2  TIP3  
+        13 | OE1  GLN         31 BPTI ..  OH2  TIP3  
+        12 | NE2  GLN         31 BPTI ..  OH2  TIP3  
+         4 | N    THR         32 BPTI ..  OH2  TIP3  
+        14 | OG1  THR         32 BPTI ..  OH2  TIP3  
+        11 | O    THR         32 BPTI ..  OH2  TIP3  
+         7 | N    VAL         34 BPTI ..  OH2  TIP3  
+         5 | O    VAL         34 BPTI ..  OH2  TIP3  
+        15 | OH   TYR         35 BPTI ..  OH2  TIP3  
+         1 | N    GLY         36 BPTI ..  OH2  TIP3  
+         6 | O    GLY         36 BPTI ..  OH2  TIP3  
+        14 | O    GLY         37 BPTI ..  OH2  TIP3  
+         9 | N    ARG         39 BPTI ..  OH2  TIP3  
+        10 | NE   ARG         39 BPTI ..  OH2  TIP3  
+        20 | NH1  ARG         39 BPTI ..  OH2  TIP3  
+        18 | NH2  ARG         39 BPTI ..  OH2  TIP3  
+         8 | O    ARG         39 BPTI ..  OH2  TIP3  
+         9 | N    ALA         40 BPTI ..  OH2  TIP3  
+         9 | O    ALA         40 BPTI ..  OH2  TIP3  
+         2 | N    LYS         41 BPTI ..  OH2  TIP3  
+        20 | NZ   LYS         41 BPTI ..  OH2  TIP3  
+        11 | O    LYS         41 BPTI ..  OH2  TIP3  
+         6 | N    ARG         42 BPTI ..  OH2  TIP3  
+         9 | NE   ARG         42 BPTI ..  OH2  TIP3  
+        19 | NH1  ARG         42 BPTI ..  OH2  TIP3  
+        17 | NH2  ARG         42 BPTI ..  OH2  TIP3  
+         6 | O    ARG         42 BPTI ..  OH2  TIP3  
+         5 | N    ASN         43 BPTI ..  OH2  TIP3  
+         1 | O    ASN         43 BPTI ..  OH2  TIP3  
+         1 | OD1  ASN         44 BPTI ..  OH2  TIP3  
+         6 | ND2  ASN         44 BPTI ..  OH2  TIP3  
+        13 | O    ASN         44 BPTI ..  OH2  TIP3  
+         6 | N    LYS         46 BPTI ..  OH2  TIP3  
+        29 | NZ   LYS         46 BPTI ..  OH2  TIP3  
+         9 | O    LYS         46 BPTI ..  OH2  TIP3  
+         7 | OG   SER         47 BPTI ..  OH2  TIP3  
+         8 | N    ALA         48 BPTI ..  OH2  TIP3  
+         5 | N    GLU         49 BPTI ..  OH2  TIP3  
+        30 | OE1  GLU         49 BPTI ..  OH2  TIP3  
+        31 | OE2  GLU         49 BPTI ..  OH2  TIP3  
+         3 | O    GLU         49 BPTI ..  OH2  TIP3  
+        20 | OD1  ASP         50 BPTI ..  OH2  TIP3  
+        22 | OD2  ASP         50 BPTI ..  OH2  TIP3  
+         6 | O    MET         52 BPTI ..  OH2  TIP3  
+         9 | NE   ARG         53 BPTI ..  OH2  TIP3  
+        15 | NH1  ARG         53 BPTI ..  OH2  TIP3  
+         7 | NH2  ARG         53 BPTI ..  OH2  TIP3  
+        12 | O    ARG         53 BPTI ..  OH2  TIP3  
+        15 | OG1  THR         54 BPTI ..  OH2  TIP3  
+         7 | O    THR         54 BPTI ..  OH2  TIP3  
+         6 | O    CYS         55 BPTI ..  OH2  TIP3  
+         9 | O    GLY         56 BPTI ..  OH2  TIP3  
+         6 | N    GLY         57 BPTI ..  OH2  TIP3  
+        11 | O    GLY         57 BPTI ..  OH2  TIP3  
+         6 | N    ALA         58 BPTI ..  OH2  TIP3  
+        28 | OT1  ALA         58 BPTI ..  OH2  TIP3  
+        20 | OT2  ALA         58 BPTI ..  OH2  TIP3  

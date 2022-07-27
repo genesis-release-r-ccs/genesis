@@ -22,17 +22,18 @@ module fitting_mod
   use fileio_control_mod
   use mpi_parallel_mod
   use constants_mod
+  use mpi_parallel_mod
 
   implicit none
   private
 
   ! structures
   type, public :: s_fit_info
-    real(wp)   :: grid_size      = 1.0_wp
-    integer    :: fitting_method = FittingMethodNO
-    integer    :: fitting_atom   = 1
-    integer    :: num_grids      = 10
-    logical    :: mass_weight    = .false.
+    real(wp)   :: grid_size         = 1.0_wp
+    integer    :: fitting_method    = FittingMethodNO
+    integer    :: fitting_atom      = 1
+    integer    :: num_grids         = 10
+    logical    :: mass_weight       = .false.
     logical    :: force_no_fitting  = .false.
   end type s_fit_info
 
@@ -56,18 +57,46 @@ contains
   !  Subroutine    show_ctrl_fitting
   !> @brief        show control parameters in FITTING section
   !! @authors      NT
+  !! @param [in]   tool_name : tool name
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
   
-  subroutine show_ctrl_fitting
+  subroutine show_ctrl_fitting(tool_name)
+
+    ! formal arguments
+    character(len=*), optional, intent(in) :: tool_name
+
 
     if (main_rank) then
-      write(MsgOut,'(A)') '[FITTING]'
-      write(MsgOut,'(A)') 'fitting_method = NO              # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT'
-      write(MsgOut,'(A)') 'fitting_atom   = 1               # atom group'
-      write(MsgOut,'(A)') 'zrot_ngrid     = 10              # number of z-rot grids'
-      write(MsgOut,'(A)') 'zrot_grid_size = 1.0             # z-rot grid size'
-      write(MsgOut,'(A)') 'mass_weight    = NO              # mass-weight is not applied'
+      if (.not.present(tool_name)) then
+        write(MsgOut,'(A)') '[FITTING]'
+        write(MsgOut,'(A)') 'fitting_method = NO              # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT'
+        write(MsgOut,'(A)') 'fitting_atom   = 1               # atom group'
+        write(MsgOut,'(A)') 'zrot_ngrid     = 10              # number of z-rot grids'
+        write(MsgOut,'(A)') 'zrot_grid_size = 1.0             # z-rot grid size'
+        write(MsgOut,'(A)') 'mass_weight    = NO              # mass-weight is not applied'
+
+      else
+        select case (tool_name)
+
+        case ('qg') 
+          write(MsgOut,'(A)') '# [FITTING]'
+          write(MsgOut,'(A)') '# fitting_method = TR+ROT          # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT'
+          write(MsgOut,'(A)') '# fitting_atom   = 5               # atom group'
+          write(MsgOut,'(A)') '# zrot_ngrid     = 10              # number of z-rot (ZROT) grids'
+          write(MsgOut,'(A)') '# zrot_grid_size = 1.0             # z-rot (ZROT) grid size'
+          write(MsgOut,'(A)') '# mass_weight    = NO              # mass-weight is not applied'
+
+        case default
+          write(MsgOut,'(A)') '[FITTING]'
+          write(MsgOut,'(A)') 'fitting_method = NO              # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT'
+          write(MsgOut,'(A)') 'fitting_atom   = 1               # atom group'
+          write(MsgOut,'(A)') 'zrot_ngrid     = 10              # number of z-rot grids'
+          write(MsgOut,'(A)') 'zrot_grid_size = 1.0             # z-rot grid size'
+          write(MsgOut,'(A)') 'mass_weight    = NO              # mass-weight is not applied'
+
+        end select
+      end if
       write(MsgOut,'(A)') ' '
     endif
 
@@ -138,7 +167,7 @@ contains
                       '  mass_weight     =         no'
       end if
       write(MsgOut,'(A)') ' '
-    endif
+    end if
 
     return
 
@@ -153,9 +182,9 @@ contains
   !! @param[out]   fit_info : FITTING section control parameters information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
-
+  
   subroutine read_ctrl_fitting_md(handle, fit_info)
-
+  
     ! parameters
     character(*),            parameter     :: Section = 'Fitting'
 
@@ -206,12 +235,11 @@ contains
                       ' force_no_fitting =        yes'
       end if
       write(MsgOut,'(A)') ' '
-    endif
+    end if
 
     return
 
   end subroutine read_ctrl_fitting_md
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -282,10 +310,10 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine run_fitting(fitting,  &
-                         coord_ref,  &
-                         coord_mov,  &
-                         coord_fit,  &
+  subroutine run_fitting(fitting,   &
+                         coord_ref, &
+                         coord_mov, &
+                         coord_fit, &
                          mass_ref)
 
     ! formal arguments
@@ -306,7 +334,7 @@ contains
     num_fit_atom = size(fitting%fitting_atom%idx)
     num_mov_atom = size(coord_fit(1,:))
 
-    if (size(coord_fit(1,:)) .ne. num_mov_atom) &
+    if (size(coord_fit(1,:)) /= num_mov_atom) &
         call error_msg('Run_Fitting> coord_ref, coord_fit : different size')
       
     coord_fit(1:3,1:num_mov_atom) = coord_mov(1:3,1:num_mov_atom)
@@ -996,7 +1024,7 @@ contains
     if (det1*det2 < 0.0_wp) then
       eval(2) = -eval(2)
       U(1:2,2) = -U(1:2,2)
-    endif
+    end if
     rot_matrix(1,1) = U(1,1)*VT(1,1)+U(1,2)*VT(2,1)
     rot_matrix(2,1) = U(2,1)*VT(1,1)+U(2,2)*VT(2,1)
     rot_matrix(1,2) = U(1,1)*VT(1,2)+U(1,2)*VT(2,2)

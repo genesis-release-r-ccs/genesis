@@ -149,7 +149,7 @@ contains
   !! @param[inout] restraints : structure of restraints information
   !! @param[in]    variable   : selected variable
   !! @param[in]    var_size   : size of the selected variable
-  !! @param[in]    var_size2  : 2nd size of the selected variable
+  !! @param[in]    var_size2  : 2nd size of the selected variable (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -189,7 +189,7 @@ contains
                      stat = dealloc_stat)
       end if
 
-      if (.not. allocated(restraints%function)) &
+      if (.not. allocated(restraints%function))      &
         allocate(restraints%function(var_size),      &
                  restraints%constant(var_size),      &
                  restraints%reference(var_size),     &

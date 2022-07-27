@@ -1,10 +1,10 @@
 [INPUT]
-topfile = ../../../param/top_all36_lipid.rtf
-parfile = ../../../param/par_all36_lipid.prm
-strfile = ../../../param/toppar_water_ions.str
-rstfile = ../../../build//dppc//rst
-psffile = ../../../build//dppc/dppc.psf
-pdbfile = ../../../build//dppc/dppc.pdb
+topfile           = ../../../param/top_all36_lipid.rtf
+parfile           = ../../../param/par_all36_lipid.prm
+strfile           = ../../../param/toppar_water_ions.str
+rstfile           = ../../../build/dppc/rst
+psffile           = ../../../build/dppc/dppc.psf
+pdbfile           = ../../../build/dppc/dppc.pdb
 
 [OUTPUT]
  
@@ -30,7 +30,6 @@ nsteps            = 20
 timestep          = 0.001
 eneout_period     = 2
 nbupdate_period   = 4
-iseed             = 314159
 verbose           = yes
 elec_long_period  = 2
 thermostat_period = 2
@@ -49,7 +48,7 @@ pressure          = 1.0
 group_tp          = YES
  
 [BOUNDARY]
-type  = PBC
+type              = PBC
 box_size_x        = 69.4792
 box_size_y        = 69.4792
 box_size_z        = 71.6508

@@ -1,0 +1,43 @@
+[INPUT]
+psffile = ../../../trajectories/BPTI_charmm/BPTI_ionize.psf
+pdbfile = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+reffile = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+
+[OUTPUT]
+txtfile        = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+
+[ENSEMBLE]
+ensemble       = NPT
+
+[BOUNDARY]
+type           = PBC
+domain_x       = 1 
+domain_y       = 1
+domain_z       = 1
+
+[SELECTION]
+group1 = resno:1-58 & sid:BPTI
+group2 = resname:TIP3
+
+[SPANA_OPTION]
+buffer      = 5.0
+wrap        = yes 
+box_size    = TRAJECTORY
+
+[HBOND_OPTION]
+recenter      = 1
+output_type   = count_atom
+solvent_list  = TIP3
+analysis_atom = 1
+target_atom   = 2
+HB_distance   = 3.4
+dha_angle     = 120.0
+hda_angle     = 30.0

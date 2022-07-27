@@ -1,0 +1,37 @@
+[INPUT]
+grotopfile            = ../../../build/cg_systems/top/fus_HPS_100.top
+grocrdfile            = ../../../build/cg_systems/crd/fus_100.gro
+
+[ENERGY]
+forcefield            = RESIDCG
+electrostatic         = CUTOFF
+
+cg_cutoffdist_ele     = 50.0
+cg_cutoffdist_126     = 39.0
+cg_pairlistdist_ele   = 55.0
+cg_pairlistdist_126   = 44.0
+cg_sol_ionic_strength = 0.15
+cg_IDR_HPS_epsilon    = 0.2
+
+[DYNAMICS]
+integrator            = LEAP
+nsteps                = 200
+timestep              = 0.020
+eneout_period         = 20
+nbupdate_period       = 20
+stoptr_period         = 20
+
+[CONSTRAINTS]
+rigid_bond            = NO 
+
+[ENSEMBLE]
+ensemble              = NVE
+tpcontrol             = NO
+temperature           = 0
+pressure              = 0.1
+                             
+[BOUNDARY]
+type                  = PBC   
+box_size_x            = 300.0
+box_size_y            = 300.0
+box_size_z            = 800.0

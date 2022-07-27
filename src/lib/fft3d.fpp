@@ -16,7 +16,7 @@ module fft3d_mod
 
   use constants_mod
   use timers_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -76,9 +76,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -113,7 +113,7 @@ contains
           do ix = 2, x_local1
             qdfyxz(iy,ix,iz) = 0.5_wp                 &
                              *(work2(ix)+conjg(work2(nx-ix+2)))
-            qdfyxz(iy+1,ix,iz) = (0.0_wp,-0.5_wp)      &
+            qdfyxz(iy+1,ix,iz) = (0.0_wp,-0.5_wp)     &
                              *(work2(ix)-conjg(work2(nx-ix+2)))
           end do
         else
@@ -121,7 +121,7 @@ contains
             ixs = ix - x_start1 + 1
             qdfyxz(iy,ixs,iz) = 0.5_wp                &
                              *(work2(ix)+conjg(work2(nx-ix+2)))
-            qdfyxz(iy+1,ixs,iz) = (0.0_wp,-0.5_wp)     &
+            qdfyxz(iy+1,ixs,iz) = (0.0_wp,-0.5_wp)    &
                              *(work2(ix)-conjg(work2(nx-ix+2)))
           end do
         end if
@@ -134,7 +134,7 @@ contains
           do ix = 2, x_local1
             qdfyxz(iy,ix,iz) = 0.5_wp                 &
                              *(work1(ix)+conjg(work1(nx-ix+2)))
-            qdfyxz(iy+1,ix,iz) = (0.0_wp,-0.5_wp)      &
+            qdfyxz(iy+1,ix,iz) = (0.0_wp,-0.5_wp)     &
                              *(work1(ix)-conjg(work1(nx-ix+2)))
           end do
         else
@@ -142,7 +142,7 @@ contains
             ixs = ix - x_start1 + 1
             qdfyxz(iy,ixs,iz) = 0.5_wp                &
                              *(work1(ix)+conjg(work1(nx-ix+2)))
-            qdfyxz(iy+1,ixs,iz) = (0.0_wp,-0.5_wp)     &
+            qdfyxz(iy+1,ixs,iz) = (0.0_wp,-0.5_wp)    &
                              *(work1(ix)-conjg(work1(nx-ix+2)))
           end do
         end if
@@ -163,7 +163,7 @@ contains
     !$omp barrier
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(qdfyxz, nlocalx1*nlocaly*nlocalz,         &
                        mpi_wp_complex, qdfyxz_work,              &
                        nlocalx1*nlocaly*nlocalz, mpi_wp_complex, &
@@ -181,9 +181,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -242,7 +242,7 @@ contains
     !$omp barrier
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(qdfzyx, nlocalx1*nlocaly*nlocalz,         &
                        mpi_wp_complex, qdfzyx_work,              &
                        nlocalx1*nlocaly*nlocalz, mpi_wp_complex, &
@@ -261,9 +261,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -371,9 +371,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -427,7 +427,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(qdfzyx, nlocalx1*nlocaly*nlocalz,         &
                        mpi_wp_complex, qdfzyx_work,              &
                        nlocalx1*nlocaly*nlocalz, mpi_wp_complex, &
@@ -446,9 +446,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -502,7 +502,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(qdfyxz, nlocalx1*nlocaly*nlocalz,         &
                        mpi_wp_complex, qdfyxz_work,              &
                        nlocalx1*nlocaly*nlocalz, mpi_wp_complex, &
@@ -583,7 +583,6 @@ contains
 
   end subroutine bfft3d
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    fft3d_2d_alltoall
@@ -636,14 +635,15 @@ contains
     integer           :: ix_start, ix_end
     complex(wp)       :: work1m(nprocx*nlocalx+nprocy*nlocaly+6,4)
 
+
     ! x direction
     !
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nx,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nx, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -665,8 +665,8 @@ contains
           k = (iproc-1)*nlocalx
           izss = (iproc-1)*niz + izs
           do ix = 1, nlocalx
-            work1(k+ix) = cmplx(qdf(ix,iy,izss,1),  &
-                                qdf(ix,iy+1,izss,1),&
+            work1(k+ix) = cmplx(qdf(ix,iy,izss,1),   &
+                                qdf(ix,iy+1,izss,1), &
                                 kind=wp) 
           end do
         end do
@@ -682,7 +682,7 @@ contains
         qdfyxz_work(iy+1,1,izs,1) = imag(work2(1))
 
         do ix = 2, ixe
-          qdfyxz_work(iy,ix,izs,1)   = 0.5_wp          &
+          qdfyxz_work(iy,ix,izs,1)   = 0.5_wp           &
                              *(work2(ix)+conjg(work2(nx-ix+2)))
           qdfyxz_work(iy+1,ix,izs,1) = (0.0_wp,-0.5_wp) &
                              *(work2(ix)-conjg(work2(nx-ix+2)))
@@ -696,7 +696,7 @@ contains
 
           do ix = ix_start1, ix_end1
             ixs = ix - ix_start1 + 1
-            qdfyxz_work(iy,ixs,izss,1) = 0.5_wp            &
+            qdfyxz_work(iy,ixs,izss,1) = 0.5_wp             &
                              *(work2(ix)+conjg(work2(nx-ix+2)))
             qdfyxz_work(iy+1,ixs,izss,1) = (0.0_wp,-0.5_wp) &
                              *(work2(ix)-conjg(work2(nx-ix+2)))
@@ -711,7 +711,7 @@ contains
         qdfyxz_work(iy+1,1,izs,1) = imag(work1(1))
 
         do ix = 2, ixe
-          qdfyxz_work(iy,ix,izs,1)   = 0.5_wp          &
+          qdfyxz_work(iy,ix,izs,1)   = 0.5_wp           &
                              *(work1(ix)+conjg(work1(nx-ix+2)))
           qdfyxz_work(iy+1,ix,izs,1) = (0.0_wp,-0.5_wp) &
                              *(work1(ix)-conjg(work1(nx-ix+2)))
@@ -725,7 +725,7 @@ contains
 
           do ix = ix_start1, ix_end1
             ixs = ix - ix_start1 + 1
-            qdfyxz_work(iy,ixs,izss,1) = 0.5_wp            &
+            qdfyxz_work(iy,ixs,izss,1) = 0.5_wp             &
                              *(work1(ix)+conjg(work1(nx-ix+2)))
             qdfyxz_work(iy+1,ixs,izss,1) = (0.0_wp,-0.5_wp) &
                              *(work1(ix)-conjg(work1(nx-ix+2)))
@@ -766,15 +766,15 @@ contains
             k = iorg+nlocaly*ixs+nlocaly*nix1*izs
             do iy = 1, nlocaly
               c_work1(k+iy) = qdfyxz_work(iy,ix,iz,1)
-            enddo
-          enddo
-        enddo
-      enddo
-    enddo
+            end do
+          end do
+        end do
+      end do
+    end do
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(c_work1, nlocaly*nix1*niz, mpi_wp_complex, &
                       c_work2, nlocaly*nix1*niz, mpi_wp_complex, &
                       grid_commxy, ierror)
@@ -797,11 +797,11 @@ contains
             k = iorg+nlocaly*ixs+nlocaly*nix1*izs
             do iy = 1, nlocaly
               c_work3(iy,ix,iz) = c_work2(k+iy)
-            enddo
-          enddo
-        enddo
-      enddo
-    enddo
+            end do
+          end do
+        end do
+      end do
+    end do
     !$omp barrier
 
 
@@ -810,9 +810,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -906,7 +906,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(c_work2, &
                       nix1*nprocy*nlocaly*nlocalz/nprocz, &
                       mpi_wp_complex, &
@@ -924,9 +924,9 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_FORWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_FORWARD, FFTW_MEASURE)
 #endif
 
 #else
@@ -936,7 +936,7 @@ contains
     niy = nlocaly/nprocz
     do iy = 1, niy
 
-    !$omp do
+      !$omp do
       do ix = 1, nix1*nprocy
         do iproc = 1, nprocz
           k = (iproc-1)*nlocalz
@@ -1019,16 +1019,16 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,nz,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, nz, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 
 #else
     call zfft1d(work1, nz, 0, work2)
 #endif
 
-   !$omp barrier
+    !$omp barrier
     nix = (nlocalx1-1)/nprocy
     nix1 = nix+1
     niy = nlocaly/nprocz
@@ -1061,7 +1061,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(c_work1, &
                       nix1*nprocy*nlocaly*nlocalz/nprocz, &
                       mpi_wp_complex, &
@@ -1079,16 +1079,16 @@ contains
 #ifdef FFTW
 
 #ifdef _SINGLE
-    call sfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call sfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #else
-    call dfftw_plan_dft_1d(plan,ny,work1,work2,FFTW_BACKWARD,FFTW_MEASURE)
+    call dfftw_plan_dft_1d(plan, ny, work1, work2, FFTW_BACKWARD, FFTW_MEASURE)
 #endif
 
 #else
     call zfft1d(work1, ny, 0, work2)
 #endif
 
-    if(nlocalz.ge.4) then
+    if (nlocalz .ge. 4) then
 
       nix = (nlocalx1-1)/nprocy
       nix1 = nix+1
@@ -1119,7 +1119,7 @@ contains
         end do
       end do
 
-      if(mod(nlocalz,4).ne.0) then
+      if (mod(nlocalz,4) .ne. 0) then
 
         do iz = nlocalz-mod(nlocalz,4)+1, nlocalz
  
@@ -1193,15 +1193,15 @@ contains
             k = iorg+nlocaly*ixs+nlocaly*nix1*izs
             do iy=1, nlocaly
               c_work1(k+iy) = c_work3(iy,ix,iz)
-            enddo
-          enddo
-        enddo
-      enddo
-    enddo
+            end do
+          end do
+        end do
+      end do
+    end do
 
     !$omp barrier 
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(c_work1, nlocaly*nix1*niz, mpi_wp_complex, &
                       c_work2, nlocaly*nix1*niz, mpi_wp_complex, &
                       grid_commxy, ierror)
@@ -1226,11 +1226,11 @@ contains
             k = iorg+nlocaly*ixs+nlocaly*nix1*izs
             do iy=1, nlocaly
               qdfyxz_work(iy,ix,iz,1) = c_work2(k+iy)
-            enddo
-          enddo
-        enddo
-      enddo
-    enddo
+            end do
+          end do
+        end do
+      end do
+    end do
 
 
     ! x direction
@@ -1362,7 +1362,7 @@ contains
  
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf,                             &
                      nlocalx*nlocaly*niz, mpi_wp_real, &
                      qdf_real,                         &
@@ -1433,8 +1433,8 @@ contains
     do iz = id+1, nlocalz, nthread
       do iy = 1, nlocaly, 2
         do ix = 1, nx
-          work1(ix) = cmplx(real(qdf(ix,iy,iz),wp),  &
-                            real(qdf(ix,iy+1,iz),wp),&
+          work1(ix) = cmplx(real(qdf(ix,iy,iz),wp),   &
+                            real(qdf(ix,iy+1,iz),wp), &
                             kind=wp)
         end do
 
@@ -1464,7 +1464,7 @@ contains
     !$omp barrier
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz, &
                       nlocalx1*nlocaly*nlocalz/nprocy, mpi_wp_complex, &
                       qdfyxz_work, &
@@ -1509,14 +1509,14 @@ contains
          do iy = 1, nlocaly
            qdfyxz2(iy,ix,izss) = work2(k+iy)
          end do
-       enddo
+       end do
 
       end do
     end do
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz2, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz, &
@@ -1536,7 +1536,7 @@ contains
     end do
 
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy, &
                       nlocalx1*nlocaly*nlocalz/nprocz, mpi_wp_complex, &
                       qdfzxy_work, &
@@ -1577,7 +1577,7 @@ contains
 
         do k = 1, nz
           qdfzxy_work2(k,ix,iys) = work2(k)
-        enddo
+        end do
 
       end do
     end do
@@ -1634,6 +1634,7 @@ contains
     integer           :: niz, iy_start, iy_end, iz_start, iz_end
     integer           :: i, k, iproc, ierror
 
+
     ! z direction
     !
 
@@ -1674,7 +1675,7 @@ contains
     !$omp barrier
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfzxy_work, &
                       nlocalz*nlocalx1*niy, mpi_wp_complex, &
                       qdfzxy, &
@@ -1696,7 +1697,7 @@ contains
 
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz, &
                       nlocalx1*nlocaly*nlocalz/nprocy, mpi_wp_complex, &
                       qdfyxz_work, &
@@ -1753,7 +1754,7 @@ contains
     !$omp barrier
     !$omp master
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdfyxz_work, &
                       nlocaly*nlocalx1*niz, mpi_wp_complex, &
                       qdfyxz, &
@@ -1787,7 +1788,7 @@ contains
 
         do ix = 1, nx
           qdf(ix,iy,iz,1) = work3(ix)
-        enddo
+        end do
 
       end do
     end do

@@ -77,18 +77,14 @@ contains
     nb    = domain%num_cell_boundary
     pairlist%univ_update = 0
 
-    if (constraints%rigid_bond) then
-      if (constraints%tip4) then
-        water_atom = 4
-      else 
-        water_atom = 3
-      end if
-    else
-      if (enefunc%table%tip4) then
-        water_atom = 4
-      else
-        water_atom = 3
-      end if
+    if (constraints%water_type == TIP4) then
+      water_atom = 4
+    else if (constraints%water_type == TIP3) then
+      water_atom = 3
+    else if (constraints%water_type == TIP2) then
+      water_atom = 2
+    else if (constraints%water_type == TIP1) then
+      water_atom = 1
     end if
 
     if (mod(istep,update_period) == 0) then
@@ -161,7 +157,6 @@ contains
   !! @authors      JJ
   !! @param[inout] domain        : domain information
   !! @param[inout] enefunc       : potential energy functions information
-  !! @param[inout] pairlist      : pairlist information
   !! @param[inout] boundary      : boundary condition information
   !! @param[inout] constraints   : constraints information
   !! @param[inout] comm          : communication information
@@ -180,21 +175,18 @@ contains
     ! local variable
     integer                  :: ncell, nb, water_atom
 
+
     ncell = domain%num_cell_local
     nb    = domain%num_cell_boundary
 
-    if (constraints%rigid_bond) then
-      if (constraints%tip4) then
-        water_atom = 4
-      else
-        water_atom = 3
-      end if
-    else
-      if (enefunc%table%tip4) then
-        water_atom = 4
-      else
-        water_atom = 3
-      end if
+    if (constraints%water_type == TIP4) then
+      water_atom = 4
+    else if (constraints%water_type == TIP3) then
+      water_atom = 3
+    else if (constraints%water_type == TIP2) then
+      water_atom = 2
+    else if (constraints%water_type == TIP1) then
+      water_atom = 1
     end if
 
     call alloc_domain(domain, DomainPtlMove, ncell+nb, ncell, 1)

@@ -37,11 +37,16 @@ module sp_enefunc_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -52,7 +57,7 @@ module sp_enefunc_mod
   private :: setup_enefunc_bond_constraint_pio
   private :: setup_enefunc_angl_pio
   private :: setup_enefunc_dihe_pio
-! private :: setup_enefunc_rb_dihe_pio
+  private :: setup_enefunc_rb_dihe_pio
   private :: setup_enefunc_impr_pio
   private :: setup_enefunc_cmap_pio
   private :: setup_enefunc_nonb_pio
@@ -72,14 +77,16 @@ contains
   !! @param[in]    grotop      : GROMACS parameter topology information
   !! @param[in]    localres    : local restraint information
   !! @param[in]    molecule    : molecule information
-  !! @param[in]    constraints : constraints information
+  !! @param[inout] constraints : constraints information
+  !! @param[in]    restraints  : restraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy potential functions information
+  !! @param[inout] comm        : communication information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc(ene_info, par, prmtop, grotop, localres, molecule, &
-                            constraints, restraints, domain, enefunc)
+                            constraints, restraints, domain, enefunc, comm)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info
@@ -92,12 +99,13 @@ contains
     type(s_restraints),      intent(in)    :: restraints
     type(s_domain),          intent(inout) :: domain
     type(s_enefunc),         intent(inout) :: enefunc
+    type(s_comm),            intent(inout) :: comm   
 
 
     enefunc%forcefield        = ene_info%forcefield
     enefunc%output_style      = ene_info%output_style
     enefunc%table%water_table = ene_info%table .and. &
-                                (ene_info%water_model(1:4) /= 'NONE' .and. &
+                                (ene_info%water_model(1:4) .ne. 'NONE' .and. &
                                 (.not. ene_info%nonb_limiter))
 
     enefunc%switchdist        = ene_info%switchdist
@@ -122,9 +130,11 @@ contains
     enefunc%minimum_contact   = ene_info%minimum_contact
     enefunc%err_minimum_contact = ene_info%err_minimum_contact
 
-    enefunc%efield(1)         = ene_info%efield_x * 23.06_wp
-    enefunc%efield(2)         = ene_info%efield_y * 23.06_wp
-    enefunc%efield(3)         = ene_info%efield_z * 23.06_wp
+    enefunc%efield(1)         = ene_info%efield_x           
+    enefunc%efield(2)         = ene_info%efield_y           
+    enefunc%efield(3)         = ene_info%efield_z           
+    enefunc%efield_virial     = ene_info%efield_virial
+    enefunc%efield_normal     = ene_info%efield_normal
 
     if (abs(enefunc%efield(1)) > EPS .or. abs(enefunc%efield(2)) > EPS .or. &
         abs(enefunc%efield(3)) > EPS) then
@@ -134,8 +144,7 @@ contains
     if (ene_info%structure_check == StructureCheckDomain) then
       enefunc%pairlist_check = .true.
       enefunc%bonding_check  = .true.
-    endif
-
+    end if
 
     ! charmm
     !
@@ -180,7 +189,9 @@ contains
   !! @authors      JJ
   !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    localres    : local restraint information
+  !! @param[inout] comm        : communication information
   !! @param[inout] constraints : constraints information
+  !! @param[inout] restraints  : restraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy potential functions information
   !
@@ -201,10 +212,11 @@ contains
     ! local variables
     integer                  :: ncel, ncelb
 
+
     enefunc%forcefield        = ene_info%forcefield
     enefunc%output_style      = ene_info%output_style
     enefunc%table%water_table = ene_info%table .and. &
-                                (ene_info%water_model(1:4) /= 'NONE')
+                                (ene_info%water_model(1:4) .ne. 'NONE')
 
     enefunc%switchdist        = ene_info%switchdist
     enefunc%cutoffdist        = ene_info%cutoffdist
@@ -238,17 +250,23 @@ contains
     call alloc_enefunc(enefunc, EneFuncImpr, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
-    if (.not. constraints%rigid_bond) then
-
-      ! bond
-      !
-      call setup_enefunc_bond_pio(domain, enefunc)
-
-    else
+    if (constraints%rigid_bond) then
 
       ! bond
       !
       call setup_enefunc_bond_constraint_pio(domain, constraints, enefunc)
+
+    else
+
+      if (.not. constraints%fast_water) then
+        enefunc%table%water_bond_calc = .true.
+        if (enefunc%table%HOH_force > 0.0_wp) &
+          enefunc%table%water_angle_calc = .true.
+      end if
+
+      ! bond
+      !
+      call setup_enefunc_bond_pio(domain, enefunc)
 
     end if
 
@@ -262,7 +280,7 @@ contains
 
     ! Ryckaert-Bellemans dihedral
     !
-!   call setup_enefunc_rb_dihe_pio(domain, enefunc)
+    call setup_enefunc_rb_dihe_pio(domain, enefunc)
 
     ! improper
     !
@@ -364,6 +382,14 @@ contains
     ! bond
     !
     call update_outgoing_enefunc_bond(domain, enefunc)
+
+    ! enm
+    !
+    if (enefunc%enm_use) then
+      call update_enefunc_enm(domain, enefunc)
+      call update_cell_size_enm(domain, enefunc, comm)
+      call update_cell_boundary_enm(domain, enefunc, comm)
+    end if
 
     ! angle
     !
@@ -574,9 +600,12 @@ contains
     integer,         pointer :: bond(:), bond_list(:,:,:)
     real(wp),        pointer :: bond_force(:,:), bond_dist(:,:)
     integer,         pointer :: bond_pio(:,:), bond_list_pio(:,:,:,:)
+    integer,         pointer :: bond_pbc_pio(:,:,:)
     real(wp),        pointer :: bond_force_pio(:,:,:), bond_dist_pio(:,:,:)
     integer,         pointer :: cell_l2g_pio(:,:)
+    integer,         pointer :: bond_pbc(:,:)
     integer(int2),   pointer :: cell_g2l(:)
+
 
     cell_l2g_pio   => domain%cell_l2g_pio
     cell_g2l       => domain%cell_g2l
@@ -585,8 +614,10 @@ contains
     bond_list      => enefunc%bond_list
     bond_force     => enefunc%bond_force_const
     bond_dist      => enefunc%bond_dist_min
+    bond_pbc       => enefunc%bond_pbc
     bond_pio       => enefunc%num_bond_pio
     bond_list_pio  => enefunc%bond_list_pio
+    bond_pbc_pio   => enefunc%bond_pbc_pio
     bond_force_pio => enefunc%bond_force_const_pio
     bond_dist_pio  => enefunc%bond_dist_min_pio
     ncell          =  domain%num_cell_local
@@ -611,6 +642,7 @@ contains
             bond_list (2,ix,i) = bond_list_pio (2,ix,icel,file_num)
             bond_force(  ix,i) = bond_force_pio(  ix,icel,file_num)
             bond_dist (  ix,i) = bond_dist_pio (  ix,icel,file_num)
+            bond_pbc  (  ix,i) = bond_pbc_pio  (  ix,icel,file_num)
           end do  
           found = found + bond(i) + 2*nwater(i)  !! 2 is two O-H bond from water molecules
           if (bond(i) > MaxBond) &
@@ -620,10 +652,10 @@ contains
 
       end do
     end do
-    
+
     enefunc%table%water_bond_calc = .true.
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_bond_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -666,6 +698,7 @@ contains
     integer(int2),   pointer :: cell_g2l(:)
     real(wp),        pointer :: bond_force(:,:), bond_force_pio(:,:,:)
     real(wp),        pointer :: bond_dist(:,:), bond_dist_pio(:,:,:)
+
 
     cell_l2g_pio   => domain%cell_l2g_pio
     cell_g2l       => domain%cell_g2l
@@ -744,7 +777,7 @@ contains
 
       end do
     end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_bond_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -769,7 +802,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, constraints%num_bonds, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -801,6 +834,7 @@ contains
     integer                  :: file_num, file_tot_num
     integer,         pointer :: angle(:), angle_pio(:,:)
     integer,         pointer :: list(:,:,:), list_pio(:,:,:,:)
+    integer,         pointer :: angl_pbc(:,:,:), angl_pbc_pio(:,:,:,:)
     integer,         pointer :: nwater(:)
     integer,         pointer :: cell_l2g_pio(:,:)
     integer(int2),   pointer :: cell_g2l(:)
@@ -809,12 +843,15 @@ contains
     real(wp),        pointer :: ubforce(:,:), ubrmin(:,:)
     real(wp),        pointer :: ubforce_pio(:,:,:), ubrmin_pio(:,:,:)
 
+
     angle        => enefunc%num_angle
     list         => enefunc%angle_list
     force        => enefunc%angle_force_const
     theta        => enefunc%angle_theta_min
     ubforce      => enefunc%urey_force_const
     ubrmin       => enefunc%urey_rmin
+    angl_pbc     => enefunc%angle_pbc
+    angl_pbc_pio => enefunc%angle_pbc_pio
     angle_pio    => enefunc%num_angle_pio
     list_pio     => enefunc%angle_list_pio
     force_pio    => enefunc%angle_force_const_pio
@@ -847,7 +884,7 @@ contains
             ubrmin(ix,i)  = ubrmin_pio(ix,icel,file_num)
           end do
     
-          if (enefunc%table%water_bond_calc) then
+          if (enefunc%table%water_angle_calc) then
             found = found + angle(i) + nwater(i)  ! angle from water
           else
             found = found + angle(i)
@@ -861,7 +898,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -895,9 +932,11 @@ contains
     integer,          pointer :: list(:,:,:), list_pio(:,:,:,:)
     integer,          pointer :: period(:,:), period_pio(:,:,:)
     integer,          pointer :: cell_l2g_pio(:,:)
+    integer,          pointer :: dihe_pbc(:,:,:), dihe_pbc_pio(:,:,:,:)
     integer(int2),    pointer :: cell_g2l(:)
     real(wp),         pointer :: force(:,:), force_pio(:,:,:)
     real(wp),         pointer :: phase(:,:), phase_pio(:,:,:)
+
 
     cell_l2g_pio  => domain%cell_l2g_pio
     cell_g2l      => domain%cell_g2l
@@ -906,11 +945,13 @@ contains
     force         => enefunc%dihe_force_const
     period        => enefunc%dihe_periodicity
     phase         => enefunc%dihe_phase
+    dihe_pbc      => enefunc%dihe_pbc
     dihedral_pio  => enefunc%num_dihedral_pio
     list_pio      => enefunc%dihe_list_pio
     force_pio     => enefunc%dihe_force_const_pio
     period_pio    => enefunc%dihe_periodicity_pio
     phase_pio     => enefunc%dihe_phase_pio
+    dihe_pbc_pio  => enefunc%dihe_pbc_pio
 
     ncell         = domain%num_cell_local
     ncell_pio     = domain%ncell_local_pio
@@ -932,6 +973,7 @@ contains
             force(ix,i) = force_pio(ix,icel,file_num)
             period(ix,i) = period_pio(ix,icel,file_num)
             phase(ix,i) = phase_pio(ix,icel,file_num)
+            dihe_pbc(1:3,ix,i) = dihe_pbc_pio(1:3,ix,icel,file_num)
           end do
           found = found + dihedral(i)
           if (dihedral(i) > MaxDihe) &
@@ -941,7 +983,7 @@ contains
 
       end do
     end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_dihe_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -951,6 +993,82 @@ contains
     return
 
   end subroutine setup_enefunc_dihe_pio
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_rb_dihe_pio
+  !> @brief        define RB_DIHEDRAL term in potential energy function
+  !! @authors      JJ
+  !! @param[in]    domain  : domain information
+  !! @param[inout] enefunc : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_rb_dihe_pio(domain, enefunc)
+
+    ! formal arguments
+    type(s_domain),   target, intent(in)    :: domain
+    type(s_enefunc),  target, intent(inout) :: enefunc
+
+    ! local variables
+    integer                   :: i, ix, ic, icel, found, ncell, ncell_pio
+    integer                   :: file_num, file_tot_num
+    integer,          pointer :: dihedral(:), dihedral_pio(:,:)
+    integer,          pointer :: list(:,:,:), list_pio(:,:,:,:)
+    integer,          pointer :: cell_l2g_pio(:,:)
+    integer,          pointer :: dihe_pbc(:,:,:), dihe_pbc_pio(:,:,:,:)
+    integer(int2),    pointer :: cell_g2l(:)
+    real(wp),         pointer :: c(:,:,:), c_pio(:,:,:,:)
+
+    cell_l2g_pio  => domain%cell_l2g_pio
+    cell_g2l      => domain%cell_g2l
+    dihedral      => enefunc%num_rb_dihedral
+    list          => enefunc%rb_dihe_list
+    c             => enefunc%rb_dihe_c
+    dihe_pbc      => enefunc%rb_dihe_pbc
+    dihedral_pio  => enefunc%num_rb_dihedral_pio
+    list_pio      => enefunc%rb_dihe_list_pio
+    c_pio         => enefunc%rb_dihe_c_pio
+    dihe_pbc_pio  => enefunc%rb_dihe_pbc_pio
+
+    ncell         = domain%num_cell_local
+    ncell_pio     = domain%ncell_local_pio
+
+    found = 0
+
+    do file_num = 1, domain%file_tot_num
+
+      do icel = 1, ncell_pio
+
+        ic = cell_l2g_pio(icel,file_num)
+        i  = cell_g2l(ic)
+
+        if (i /= 0) then
+
+          dihedral(i) = dihedral_pio(icel,file_num)
+          do ix = 1, dihedral(i)
+            list(1:4,ix,i) = list_pio(1:4,ix,icel,file_num)
+            c(1:6,ix,i) = c_pio(1:6,ix,icel,file_num)
+            dihe_pbc(1:3,ix,i) = dihe_pbc_pio(1:3,ix,icel,file_num)
+          end do
+          found = found + dihedral(i)
+          if (dihedral(i) > MaxDihe) &
+            call error_msg('Setup_Enefunc_Dihe_Pio> Too many dihedral angles.')
+  
+        end if
+
+      end do
+    end do
+#ifdef HAVE_MPI_GENESIS
+    call mpi_allreduce(found, enefunc%num_rb_dihe_all, 1, mpi_integer, &
+                       mpi_sum, mpi_comm_country, ierror)
+#else
+    enefunc%num_rb_dihe_all = found
+#endif
+
+    return
+
+  end subroutine setup_enefunc_rb_dihe_pio
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -975,8 +1093,11 @@ contains
     integer(int2),    pointer :: cell_g2l(:)
     integer,          pointer :: improper(:), improper_pio(:,:)
     integer,          pointer :: list(:,:,:), list_pio(:,:,:,:)
+    integer,          pointer :: impr_pbc(:,:,:), impr_pbc_pio(:,:,:,:)
+    integer,          pointer :: period(:,:), period_pio(:,:,:)
     real(wp),         pointer :: force(:,:), force_pio(:,:,:)
     real(wp),         pointer :: phase(:,:), phase_pio(:,:,:)
+
 
     cell_l2g_pio  => domain%cell_l2g_pio
     cell_g2l      => domain%cell_g2l
@@ -984,10 +1105,14 @@ contains
     list          => enefunc%impr_list
     force         => enefunc%impr_force_const
     phase         => enefunc%impr_phase
+    period        => enefunc%impr_periodicity
+    impr_pbc      => enefunc%impr_pbc
     improper_pio  => enefunc%num_improper_pio
     list_pio      => enefunc%impr_list_pio
     force_pio     => enefunc%impr_force_const_pio
     phase_pio     => enefunc%impr_phase_pio
+    impr_pbc_pio  => enefunc%impr_pbc_pio
+    period_pio    => enefunc%impr_periodicity_pio
 
     ncell     = domain%num_cell_local
     ncell_pio = domain%ncell_local_pio
@@ -1009,6 +1134,8 @@ contains
             list(1:4,ix,i) = list_pio(1:4,ix,icel,file_num)
             force(ix,i) = force_pio(ix,icel,file_num)
             phase(ix,i) = phase_pio(ix,icel,file_num)
+            period(ix,i) = period_pio(ix,icel,file_num)
+            impr_pbc(1:3,ix,i) = impr_pbc_pio(1:3,ix,icel,file_num)
           end do
           found = found + improper(i)
           if (improper(i) > MaxImpr) &
@@ -1020,7 +1147,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_impr_all, 1, mpi_integer, mpi_sum, &
                        mpi_comm_country, ierror)
 #else
@@ -1057,8 +1184,10 @@ contains
     integer,          pointer :: cmap(:), cmap_pio(:,:)
     integer,          pointer :: list_pio(:,:,:,:)
     integer,          pointer :: ctype_pio(:,:,:) 
+    integer,          pointer :: cmap_pbc_pio(:,:,:,:) 
     integer,          pointer :: cell_l2g_pio(:,:)
     integer(int2),    pointer :: cell_g2l(:)
+
 
     cell_l2g_pio => domain%cell_l2g_pio
     cell_g2l     => domain%cell_g2l
@@ -1066,6 +1195,7 @@ contains
     cmap_pio     => enefunc%num_cmap_pio
     list_pio     => enefunc%cmap_list_pio
     ctype_pio    => enefunc%cmap_type_pio
+    cmap_pbc_pio => enefunc%cmap_pbc_pio
 
     ncell = domain%num_cell_local
     ncell_pio = domain%ncell_local_pio
@@ -1102,6 +1232,7 @@ contains
           do ix = 1, cmap(i)
             enefunc%cmap_list(1:8,ix,i) = list_pio(1:8,ix,icel,file_num)
             enefunc%cmap_type(ix,i) = ctype_pio(ix,icel,file_num)
+            enefunc%cmap_pbc (1:6,ix,i) = cmap_pbc_pio(1:6,ix,icel,file_num)
           end do
           found = found + enefunc%num_cmap(i)
           if (enefunc%num_cmap(i) > MaxCmap) &
@@ -1112,7 +1243,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_cmap_all, 1, mpi_integer, mpi_sum, &
                        mpi_comm_country, ierror)
 #else
@@ -1129,7 +1260,6 @@ contains
   !> @brief        define NON-BOND term in potential energy function
   !! @authors      NT
   !! @param[in]    ene_info    : ENERGY section control parameters information
-  !! @param[in]    molecule    : molecule information
   !! @param[in]    constraints : constraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy potential functions information
@@ -1174,9 +1304,10 @@ contains
   !  Subroutine    setup_enefunc_dispcorr
   !> @brief        define dispersion correction term
   !! @authors      CK
-  !! @param[in]    ene_info : ENERGY section control parameters information
-  !! @param[inout] domain   : domain information
-  !! @param[inout] enefunc  : energy potential functions information
+  !! @param[in]    ene_info    : ENERGY section control parameters information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : energy potential functions information
+  !! @param[inout] constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
   subroutine setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
@@ -1236,7 +1367,7 @@ contains
       num_all_atoms = num_all_atoms + domain%num_atom(i)
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, atype, ntypes, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #endif
@@ -1352,14 +1483,14 @@ contains
           lj6_ex= lj6_ex + 2.0_wp*enefunc%nb14_lj6(atmcls(i1,icel1),atmcls(i4,icel4))
         end do
 
-        nexpair = nexpair + domain%num_atom(i)        &
+        nexpair = nexpair + domain%num_atom(i)           &
                           + 2*enefunc%num_bond(i)        &
                           + 2*enefunc%num_angle(i)       &
                           + 2*enefunc%num_dihedral(i)    &
                           + 2*enefunc%num_rb_dihedral(i) &
                           + 2*enefunc%num_improper(i)
       end do
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, num_all_atoms, 1, mpi_integer, &
                          mpi_sum, mpi_comm_country, ierror)
       call mpi_allreduce(mpi_in_place, nexpair, 1, mpi_integer, &
@@ -1467,6 +1598,8 @@ contains
 !   enefunc%dispersion_energy = factor*(eswitch-vlong)
 !   enefunc%dispersion_virial = -2.0_wp*factor*(-vswitch+vlong)
 
+    return
+
   end subroutine setup_enefunc_dispcorr
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1503,7 +1636,8 @@ contains
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
     real(wip),       pointer :: coord(:,:,:)
-    integer(1),      pointer :: bond_pbc(:,:), angl_pbc(:,:,:), dihe_pbc(:,:,:)
+    integer,         pointer :: bond_pbc(:,:), angl_pbc(:,:,:), dihe_pbc(:,:,:)
+
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1583,7 +1717,7 @@ contains
           'Check_bonding> distance is grater than cellsize:', &
            bondlist(1,ix,i),bondlist(2,ix,i),r12
            call error_msg('')
-        endif
+        end if
 
       end do
 
@@ -1615,7 +1749,7 @@ contains
            'Check_bonding> distance in angle is grater than cellsize:', &
            anglelist(1,ix,i),anglelist(3,ix,i),r12
            call error_msg('')
-        endif
+        end if
 
       end do
 
@@ -1667,7 +1801,7 @@ contains
            'Check_bonding> distance in dihedral is grater than cellsize:', &
            dihelist(1,ix,i),dihelist(4,ix,i),r12
            call error_msg('')
-        endif
+        end if
 
       end do
 
@@ -1686,10 +1820,10 @@ contains
            'Check_bonding> distance in rb dihedral is grater than cellsize:', &
             rb_dihelist(1,ix,i), rb_dihelist(4,ix,i),r12
             call error_msg('')
-          endif
+          end if
        
         end do
-      endif
+      end if
 
       do ix = 1, nimpr(i)
 
@@ -1706,7 +1840,7 @@ contains
       'Check_bonding> distance in improper dihedral is grater than cellsize:', &
           imprlist(1,ix,i), imprlist(4,ix,i),r12
           call error_msg('')
-        endif
+        end if
       end do
 
     end do

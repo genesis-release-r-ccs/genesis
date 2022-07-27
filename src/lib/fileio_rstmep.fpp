@@ -26,13 +26,13 @@ module fileio_rstmep_mod
   ! structures
   type, public :: s_rstmep
 
-    logical               :: restart = .false.
-    integer               :: mep_natoms
+    logical               :: restart     = .false.
+    integer               :: mep_natoms  = 0
     real(wp), allocatable :: mep_coord(:)
-    integer               :: qm_natoms
+    integer               :: qm_natoms   = 0
     real(wp), allocatable :: qm_charge(:)
-    integer               :: num_fep = 0
-    real(wp)              :: qm_energy
+    integer               :: num_fep     = 0
+    real(wp)              :: qm_energy   = 0.0_wp
     real(wp), allocatable :: pfunc(:)
 
   end type s_rstmep
@@ -66,6 +66,7 @@ contains
     ! local variables
     integer   :: iounit
     
+
     ! open rstmep file
     !
     call open_file(iounit, filename, IOFileInput)
@@ -100,6 +101,7 @@ contains
 
     ! local
     integer     :: iounit 
+
 
     ! open rstmep file
     !
@@ -136,6 +138,7 @@ contains
     ! local variables
     integer :: i, ii
     character(20) :: line
+
 
     read(mepunit,*) 
     read(mepunit,*) rstmep%mep_natoms
@@ -175,7 +178,7 @@ contains
   !> @brief        write data into rstmep file
   !! @authors      YA, KY
   !! @param[in]    mepunit : unit number of rstmep file
-  !! @param[in]    rstmep : MEP data
+  !! @param[in]    rstmep  : MEP data
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -187,6 +190,7 @@ contains
 
     ! local variables
     integer :: i, ii
+
 
     write(mepunit, '("MEP COORD")')
     write(mepunit, '(I8)') rstmep%mep_natoms

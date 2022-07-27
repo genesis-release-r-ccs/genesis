@@ -46,12 +46,17 @@ module sp_remd_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
   use sp_energy_pme_mod
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! structures
@@ -467,7 +472,7 @@ contains
         has_rest = .true.
       end if
     end do
-    if ( .not. has_rest ) return
+    if (.not. has_rest) return
 
     if (main_rank) then
       write(MsgOut,'(a)') 'Setup_Solute_Tempering> preparation of REST'
@@ -520,7 +525,6 @@ contains
   !> @brief        presetup of replica exchange solute tempering (w/ pio)
   !! @authors      JJ
   !! @param[in]    rep_info    : REMD section control parameters information
-  !! @param[inout] molecule    : molecule information
   !! @param[inout] restraints  : restraints information
   !! @param[in]    cons_info   : constraints information
   !
@@ -544,7 +548,7 @@ contains
         has_rest = .true.
       end if
     end do
-    if ( .not. has_rest ) return
+    if (.not. has_rest) return
 
     if (main_rank) then
       write(MsgOut,'(a)') 'Setup_Solute_Tempering> preparation of REST'
@@ -585,7 +589,8 @@ contains
   !! @param[in]    rst        : Restart data
   !! @param[in]    boundary   : boundary condition information
   !! @param[in]    dynamics   : dynamics information
-  !! @param[in]    molecule   : molecule information
+  !! @param[inout] molecule   : molecule information
+  !! @param[inout] domain     : domain information
   !! @param[inout] restraints : restraints information
   !! @param[inout] ensemble   : ensemble information
   !! @param[inout] enefunc    : potential energy functions information
@@ -615,6 +620,7 @@ contains
     integer                    :: comp, dsta, dend, found, dtotal
     integer                    :: replicaid, parmsetid
     integer                    :: ncycle, icycle, nlen, ixx
+    integer                    :: iref, icomp
     character(MaxLine)         :: param
     character(10)              :: tmp, frmt, cd
     character(18)              :: frmt2
@@ -624,7 +630,7 @@ contains
     integer,       allocatable :: ndigit(:), parmid(:)
     integer                    :: funcid
     character(MaxLine)         :: ft
-
+    integer,       allocatable :: sendbuf(:), recvbuf(:,:)
 
     if (main_rank) then
       write(MsgOut,'(A)') 'Setup_Remd> Replica information'
@@ -696,6 +702,57 @@ contains
           remd%num_exchanges(i,j,1:2) = rst%num_exchanges(i,j,1:2)
         end do
       end do
+
+      ! check the restart information consistency
+      !
+#ifdef HAVE_MPI_GENESIS
+      allocate(sendbuf(remd%total_nreplicas))
+      allocate(recvbuf(remd%total_nreplicas, remd%total_nreplicas))
+
+      sendbuf(:) = remd%repid2parmsetid(:)
+      call mpi_allgather(sendbuf, remd%total_nreplicas, mpi_integer, &
+                         recvbuf, remd%total_nreplicas, mpi_integer, mpi_comm_airplane, ierror)
+      do i = 1, remd%total_nreplicas
+        iref = recvbuf(i,1)
+        do j = 2, remd%total_nreplicas
+          icomp = recvbuf(i,j)
+          if (iref /= icomp) &
+            call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+        end do
+      end do
+
+      do k = 1, remd%dimension
+        do m = 1, 2
+          sendbuf(:) = remd%num_criteria(:,k,m)
+          call mpi_allgather(sendbuf, remd%total_nreplicas, mpi_integer, &
+                             recvbuf, remd%total_nreplicas, mpi_integer, mpi_comm_airplane, ierror)
+          do i = 1, remd%total_nreplicas
+            iref = recvbuf(i,1)
+            do j = 2, remd%total_nreplicas
+              icomp = recvbuf(i,j)
+              if (iref /= icomp) &
+                call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+            end do
+          end do
+
+          sendbuf(:) = remd%num_exchanges(:,k,m)
+          call mpi_allgather(sendbuf, remd%total_nreplicas, mpi_integer, &
+                             recvbuf, remd%total_nreplicas, mpi_integer, mpi_comm_airplane, ierror)
+          do i = 1, remd%total_nreplicas
+            iref = recvbuf(i,1)
+            do j = 2, remd%total_nreplicas
+              icomp = recvbuf(i,j)
+              if (iref /= icomp) &
+                call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+            end do
+          end do
+
+        end do
+      end do
+
+      deallocate(sendbuf,recvbuf)
+#endif
+
     else
       remd%iseed = rep_info%iseed
       do i = 1, remd%total_nreplicas
@@ -757,7 +814,7 @@ contains
     if (any(remd%autoadj(:)%param_tuning)) then
       if (remd%exchange_period <= 0) then
         remd%autoadj(:)%param_tuning = .false.
-        if ( main_rank ) then
+        if (main_rank) then
           write(MsgOut,'("Warning> param_tuning is disabled &
                           &since exchange is disabled.")')
           write(MsgOut,*)
@@ -803,7 +860,7 @@ contains
     ! setup replica exchange with solute tempering (REST)
     !
     call setup_remd_solute_tempering(rep_info, molecule, domain, remd, &
-                                     restraints, enefunc )
+                                     restraints, enefunc)
 
     do i = 1, remd%dimension
       if (main_rank .and. remd%autoadj(i)%param_tuning) then
@@ -820,7 +877,7 @@ contains
                                  remd%autoadj(i)%param_grid
         write(MsgOut,'(a,f8.3)') '  max_param_shift = ', &
                                  remd%autoadj(i)%max_param_shift
-        if ( remd%autoadj(i)%fix_terminal == RemdAutoFixBottom ) then
+        if (remd%autoadj(i)%fix_terminal == RemdAutoFixBottom) then
           write(MsgOut,'(a)')    '  fix_terminal    = BOTTOM'
         else
           write(MsgOut,'(a)')    '  fix_terminal    = TOP'
@@ -951,10 +1008,9 @@ contains
   !> @brief        setup REMD
   !! @authors      TM, JJ
   !! @param[in]    rep_info   : REMD section control parameters information
-  !! @param[in]    rst        : Restart data
   !! @param[in]    boundary   : boundary condition information
   !! @param[in]    dynamics   : dynamics information
-  !! @param[in]    molecule   : molecule information
+  !! @param[inout] domain     : domain information
   !! @param[inout] restraints : restraints information
   !! @param[inout] ensemble   : ensemble information
   !! @param[inout] enefunc    : potential energy functions information
@@ -1113,7 +1169,7 @@ contains
     if (any(remd%autoadj(:)%param_tuning)) then
       if (remd%exchange_period <= 0) then
         remd%autoadj(:)%param_tuning = .false.
-        if ( main_rank ) then
+        if (main_rank) then
           write(MsgOut,'("Warning> param_tuning is disabled &
                           &since exchange is disabled.")')
           write(MsgOut,*)
@@ -1159,7 +1215,7 @@ contains
     ! setup replica exchange with solute tempering (REST)
     !
     call setup_remd_solute_tempering_pio(rep_info, domain, remd, &
-                                         restraints, enefunc )
+                                         restraints, enefunc)
 
     do i = 1, remd%dimension
       if (main_rank .and. remd%autoadj(i)%param_tuning) then
@@ -1176,7 +1232,7 @@ contains
                                  remd%autoadj(i)%param_grid
         write(MsgOut,'(a,f8.3)') '  max_param_shift = ', &
                                  remd%autoadj(i)%max_param_shift
-        if ( remd%autoadj(i)%fix_terminal == RemdAutoFixBottom ) then
+        if (remd%autoadj(i)%fix_terminal == RemdAutoFixBottom) then
           write(MsgOut,'(a)')    '  fix_terminal    = BOTTOM'
         else
           write(MsgOut,'(a)')    '  fix_terminal    = TOP'
@@ -1187,7 +1243,7 @@ contains
 
     ! generate multi-dimensional parameter sets
     !
-    allocate(ndigit(remd%dimension),parmid(remd%dimension))
+    allocate(ndigit(remd%dimension), parmid(remd%dimension))
 
     do i = 1, remd%dimension
       do j = 1, 100
@@ -1456,7 +1512,9 @@ contains
 
     ! replace rest_reference values with ones in rst (for REUS after RPATH)
     !
-    if ((remd%dimension==1) .and. (remd%types(1) == RemdRestraint) .and. allocated(rst%rest_reference)) then
+    if ((remd%dimension==1) .and. &
+        (remd%types(1) == RemdRestraint) .and. &
+        allocated(rst%rest_reference)) then
       do j = 1, remd%nreplicas(1)
         do k = 1, remd%umbrid2numfuncs(j)
           remd%rest_reference(j, k) = rst%rest_reference(1, k, j)
@@ -1502,8 +1560,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering( rep_info, molecule, domain, &
-                                          remd, restraints, enefunc )
+  subroutine setup_remd_solute_tempering(rep_info, molecule, domain, &
+                                         remd, restraints, enefunc)
 
     ! formal arguments
     type(s_rep_info),        intent(in)    :: rep_info
@@ -1520,6 +1578,7 @@ contains
     integer, parameter :: max_param_type = 20
     character(MaxLine) :: param_type_str(max_param_type)
 
+
     do i = 1, remd%dimension
       if (remd%types(i) == RemdSoluteTempering) then
 
@@ -1635,9 +1694,9 @@ contains
 
         ! bond (just count number)
         !
-        call setup_remd_solute_tempering_bonds( remd%solute_tempering(i), &
-                                                domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_bonds(remd%solute_tempering(i), &
+                                               domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_bonds, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1649,9 +1708,9 @@ contains
 
         ! angle (just count number)
         !
-        call setup_remd_solute_tempering_angles( remd%solute_tempering(i), &
-                                                 domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_angles(remd%solute_tempering(i), &
+                                                domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_angles, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1660,7 +1719,7 @@ contains
         if (main_rank) then
           write(MsgOut,'(a,i0)') '  num_solute_angles       = ', nrest
         end if
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_ureys, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1672,9 +1731,9 @@ contains
 
         ! dihedral (just count number)
         !
-        call setup_remd_solute_tempering_dihedrals( remd%solute_tempering(i), &
-                                                    domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_dihedrals(remd%solute_tempering(i), &
+                                                   domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_dihedrals, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1687,8 +1746,8 @@ contains
         ! rb_dihedral (just count number)
         !
         call setup_remd_solute_tempering_rb_dihedrals( &
-                        remd%solute_tempering(i), domain, enefunc )
-#ifdef MPI
+                        remd%solute_tempering(i), domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_rb_dihedrals, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1700,9 +1759,9 @@ contains
 
         ! improper (just count number)
         !
-        call setup_remd_solute_tempering_impropers( remd%solute_tempering(i), &
-                                                    domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_impropers(remd%solute_tempering(i), &
+                                                   domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_impropers, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1714,9 +1773,9 @@ contains
 
         ! cmap (just count number)
         !
-        call setup_remd_solute_tempering_cmaps( remd%solute_tempering(i), &
-                                                domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_cmaps(remd%solute_tempering(i), &
+                                               domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_cmaps, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1728,9 +1787,9 @@ contains
 
         ! contact (just count number)
         !
-        call setup_remd_solute_tempering_contacts( remd%solute_tempering(i), &
-                                                   domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_contacts(remd%solute_tempering(i), &
+                                                  domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_contacts, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1742,8 +1801,8 @@ contains
 
         ! LJ
         !
-        call setup_remd_solute_tempering_lj( remd%solute_tempering(i), &
-                                             domain, enefunc )
+        call setup_remd_solute_tempering_lj(remd%solute_tempering(i), &
+                                            domain, enefunc)
 
         ! charges are not modified here; to be done in assign_condition
 
@@ -1760,7 +1819,6 @@ contains
   !> @brief        main routine for setuping REST
   !! @authors      MK, JJ
   !! @param[in]    rep_info   : REMD section control parameters information
-  !! @param[inout] molecule   : molecule information
   !! @param[inout] domain     : domain information
   !! @param[inout] remd       : REMD information
   !! @param[inout] restraints : restraints information
@@ -1768,8 +1826,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_pio( rep_info, domain, remd, &
-                                              restraints, enefunc )
+  subroutine setup_remd_solute_tempering_pio(rep_info, domain, remd, &
+                                             restraints, enefunc)
 
     ! formal arguments
     type(s_rep_info),        intent(in)    :: rep_info
@@ -1784,6 +1842,7 @@ contains
 
     integer, parameter :: max_param_type = 20
     character(MaxLine) :: param_type_str(max_param_type)
+
 
     do i = 1, remd%dimension
       if (remd%types(i) == RemdSoluteTempering) then
@@ -1900,9 +1959,9 @@ contains
 
         ! bond (just count number)
         !
-        call setup_remd_solute_tempering_bonds( remd%solute_tempering(i), &
-                                                domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_bonds(remd%solute_tempering(i), &
+                                               domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_bonds, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1914,9 +1973,9 @@ contains
 
         ! angle (just count number)
         !
-        call setup_remd_solute_tempering_angles( remd%solute_tempering(i), &
-                                                 domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_angles(remd%solute_tempering(i), &
+                                                domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_angles, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1925,7 +1984,7 @@ contains
         if (main_rank) then
           write(MsgOut,'(a,i0)') '  num_solute_angles       = ', nrest
         end if
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_ureys, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1937,9 +1996,9 @@ contains
 
         ! dihedral (just count number)
         !
-        call setup_remd_solute_tempering_dihedrals( remd%solute_tempering(i), &
-                                                    domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_dihedrals(remd%solute_tempering(i), &
+                                                   domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_dihedrals, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1952,8 +2011,8 @@ contains
         ! rb_dihedral (just count number)
         !
         call setup_remd_solute_tempering_rb_dihedrals( &
-                        remd%solute_tempering(i), domain, enefunc )
-#ifdef MPI
+                        remd%solute_tempering(i), domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_rb_dihedrals, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1965,9 +2024,9 @@ contains
 
         ! improper (just count number)
         !
-        call setup_remd_solute_tempering_impropers( remd%solute_tempering(i), &
-                                                    domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_impropers(remd%solute_tempering(i), &
+                                                   domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_impropers, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1979,9 +2038,9 @@ contains
 
         ! cmap (just count number)
         !
-        call setup_remd_solute_tempering_cmaps( remd%solute_tempering(i), &
-                                                domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_cmaps(remd%solute_tempering(i), &
+                                               domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_cmaps, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -1993,9 +2052,9 @@ contains
 
         ! contact (just count number)
         !
-        call setup_remd_solute_tempering_contacts( remd%solute_tempering(i), &
-                                                   domain, enefunc )
-#ifdef MPI
+        call setup_remd_solute_tempering_contacts(remd%solute_tempering(i), &
+                                                  domain, enefunc)
+#ifdef HAVE_MPI_GENESIS
         call mpi_reduce(remd%solute_tempering(i)%num_contacts, nrest, &
                         1, mpi_integer, mpi_sum, 0, mpi_comm_country, ierror)
 #else
@@ -2007,8 +2066,8 @@ contains
 
         ! LJ
         !
-        call setup_remd_solute_tempering_lj( remd%solute_tempering(i), &
-                                             domain, enefunc )
+        call setup_remd_solute_tempering_lj(remd%solute_tempering(i), &
+                                            domain, enefunc)
 
         ! charges are not modified here; to be done in assign_condition
 
@@ -2030,7 +2089,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_bonds( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_bonds(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2041,9 +2100,10 @@ contains
     integer, parameter :: num_unit = 2
     integer            :: alist(num_unit), i, ix, j, num
 
+
     soltemp%num_bonds = 0
 
-    if ( .not. soltemp%sw_bonds ) return
+    if (.not. soltemp%sw_bonds) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_bond(i)
@@ -2051,10 +2111,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_bonds = soltemp%num_bonds + 1
         end if
 
@@ -2076,7 +2136,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_angles( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_angles(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2087,10 +2147,11 @@ contains
     integer, parameter :: num_unit = 3
     integer            :: alist(num_unit), i, ix, j, num
 
+
     soltemp%num_angles = 0
     soltemp%num_ureys = 0
 
-    if ( .not. soltemp%sw_angles .and. .not. soltemp%sw_ureys ) return
+    if (.not. soltemp%sw_angles .and. .not. soltemp%sw_ureys) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_angle(i)
@@ -2098,20 +2159,20 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 .and. soltemp%sw_angles ) then
+        if (num > 0 .and. soltemp%sw_angles) then
           soltemp%num_angles = soltemp%num_angles + 1
         end if
 
-        if ( enefunc%urey_force_const(ix,i) > EPS .and. &
-             soltemp%sw_ureys ) then
+        if (enefunc%urey_force_const(ix,i) > EPS .and. &
+             soltemp%sw_ureys) then
           num = 0
-          if ( soltemp%is_solute(alist(1)) > 0 ) num = num + 1
-          if ( soltemp%is_solute(alist(3)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(1)) > 0) num = num + 1
+          if (soltemp%is_solute(alist(3)) > 0) num = num + 1
 
-          if ( num > 0 ) then
+          if (num > 0) then
             soltemp%num_ureys = soltemp%num_ureys + 1
           end if
         end if
@@ -2134,7 +2195,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_dihedrals( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_dihedrals(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2147,7 +2208,7 @@ contains
 
     soltemp%num_dihedrals = 0
 
-    if ( .not. soltemp%sw_dihedrals ) return
+    if (.not. soltemp%sw_dihedrals) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_dihedral(i)
@@ -2155,10 +2216,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_dihedrals = soltemp%num_dihedrals + 1
         end if
 
@@ -2180,8 +2241,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_rb_dihedrals( soltemp, domain, &
-                                                       enefunc )
+  subroutine setup_remd_solute_tempering_rb_dihedrals(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2192,9 +2252,10 @@ contains
     integer, parameter :: num_unit = 4
     integer            :: alist(num_unit), i, ix, j, num
 
+
     soltemp%num_rb_dihedrals = 0
 
-    if ( .not. soltemp%sw_rb_dihedrals ) return
+    if (.not. soltemp%sw_rb_dihedrals) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_rb_dihedral(i)
@@ -2202,10 +2263,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_rb_dihedrals = soltemp%num_rb_dihedrals + 1
         end if
 
@@ -2227,7 +2288,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_impropers( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_impropers(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2238,9 +2299,10 @@ contains
     integer, parameter :: num_unit = 4
     integer            :: alist(num_unit), i, ix, j, num
 
+
     soltemp%num_impropers = 0
 
-    if ( .not. soltemp%sw_impropers ) return
+    if (.not. soltemp%sw_impropers) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_improper(i)
@@ -2248,10 +2310,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_impropers = soltemp%num_impropers + 1
         end if
 
@@ -2273,7 +2335,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_cmaps( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_cmaps(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2289,17 +2351,18 @@ contains
     integer,  allocatable :: cmap_resolution_org(:)
     real(wp), allocatable :: cmap_coef_org(:,:,:,:,:)
 
+
     soltemp%num_cmaps = 0
     soltemp%num_cmap_type = 0
 
-    if ( .not. allocated(enefunc%cmap_coef) .or. &
-         .not. soltemp%sw_cmaps ) return
+    if (.not. allocated(enefunc%cmap_coef) .or. &
+        .not. soltemp%sw_cmaps) return
 
     ncmap_type = size(enefunc%cmap_coef(1,1,1,1,:))
     if (ncmap_type == 0) return
 
     ! need to expand cmap_coef
-    allocate( flags(ncmap_type,num_unit), gflags(ncmap_type,num_unit) )
+    allocate(flags(ncmap_type,num_unit), gflags(ncmap_type,num_unit))
     flags(1:ncmap_type,1:num_unit) = 0
     gflags(1:ncmap_type,1:num_unit) = 0
 
@@ -2310,13 +2373,13 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_cmaps = soltemp%num_cmaps + 1
           ct = enefunc%cmap_type(ix,i)
-          if ( flags(ct,num) == 0 ) then
+          if (flags(ct,num) == 0) then
             num_new_types = num_new_types + 1
             flags(ct,num) = num_new_types
           end if
@@ -2325,13 +2388,13 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(flags, gflags, ncmap_type*num_unit, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
     num_new_types = 0
     do i = 1, num_unit
       do j = 1, ncmap_type
-        if ( gflags(j,i) > 0 ) then
+        if (gflags(j,i) > 0) then
           num_new_types = num_new_types + 1
           flags(j,i) = num_new_types
         end if
@@ -2345,10 +2408,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           ct = enefunc%cmap_type(ix,i)
           enefunc%cmap_type(ix,i) = ncmap_type + flags(ct,num)
         end if
@@ -2356,7 +2419,7 @@ contains
       end do
     end do
 
-    if ( num_new_types  > 0 ) then
+    if (num_new_types  > 0) then
       allocate(cmap_coef_org(4,4,24,24,ncmap_type), &
                cmap_resolution_org(ncmap_type))
       allocate(soltemp%cmap_weight(num_new_types), &
@@ -2384,7 +2447,7 @@ contains
 
       do k = 1, 8
         do j = 1, ncmap_type
-          if ( flags(j,k) > 0 ) then
+          if (flags(j,k) > 0) then
             soltemp%cmap_weight(flags(j,k)) = real(k,wp) / real(num_unit,wp)
             soltemp%cmap_type_org(flags(j,k)) = j
             enefunc%cmap_resolution(ncmap_type+flags(j,k)) = &
@@ -2401,7 +2464,7 @@ contains
 
     end if
 
-    deallocate( flags, gflags )
+    deallocate(flags, gflags)
 
     return
 
@@ -2418,7 +2481,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_contacts( soltemp, domain, enefunc )
+  subroutine setup_remd_solute_tempering_contacts(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2429,9 +2492,10 @@ contains
     integer, parameter :: num_unit = 2
     integer            :: alist(num_unit), i, ix, j, num
 
+
     soltemp%num_contacts = 0
 
-    if ( .not. soltemp%sw_contacts ) return
+    if (.not. soltemp%sw_contacts) return
 
     do i = 1, domain%num_cell_local
       do ix = 1, enefunc%num_contact(i)
@@ -2439,10 +2503,10 @@ contains
 
         num = 0
         do j = 1, num_unit
-          if ( soltemp%is_solute(alist(j)) > 0 ) num = num + 1
+          if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
 
-        if ( num > 0 ) then
+        if (num > 0) then
           soltemp%num_contacts = soltemp%num_contacts + 1
         end if
 
@@ -2464,7 +2528,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_lj( soltemp, domain, enefunc)
+  subroutine setup_remd_solute_tempering_lj(soltemp, domain, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -2480,35 +2544,36 @@ contains
     ! local variables
     integer :: i, j, ix, localcount, oldcount, org, new, ncell
     integer :: newcount
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer :: ierror
 #endif
 
+
     soltemp%num_atom_cls = 0
-    if ( .not. soltemp%sw_lj ) return
+    if (.not. soltemp%sw_lj) return
 
     !! check solute atom types
-    allocate( check_cls(enefunc%num_atom_cls), &
-              lc_atom_cls(enefunc%num_atom_cls) )
+    allocate(check_cls(enefunc%num_atom_cls), &
+              lc_atom_cls(enefunc%num_atom_cls))
     check_cls(1:enefunc%num_atom_cls) = .false.
     lc_atom_cls(1:enefunc%num_atom_cls) = -1 ! force to cause error
 
     do i = 1, domain%num_cell_local + domain%num_cell_boundary
       do ix = 1, domain%num_solute(i)
-        if ( soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0 ) then
+        if (soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0) then
           check_cls(domain%atom_cls_no(ix,i)) = .true.
         end if
       end do
     end do
 
-#ifdef MPI
-    call mpi_allreduce( MPI_IN_PLACE, check_cls, enefunc%num_atom_cls, &
-                        MPI_LOGICAL, MPI_LOR, mpi_comm_country, ierror )
+#ifdef HAVE_MPI_GENESIS
+    call mpi_allreduce(MPI_IN_PLACE, check_cls, enefunc%num_atom_cls, &
+                       MPI_LOGICAL, MPI_LOR, mpi_comm_country, ierror)
 #endif
 
     localcount = 0
     do i = 1, enefunc%num_atom_cls
-      if ( check_cls(i) ) then
+      if (check_cls(i)) then
         localcount = localcount + 1
         lc_atom_cls(i) = localcount
         soltemp%atom_cls_no_org(localcount) = i
@@ -2522,7 +2587,7 @@ contains
     ncell = domain%num_cell_local + domain%num_cell_boundary
     do i = 1, ncell
       do ix = 1, domain%num_solute(i)
-        if ( soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0 ) then
+        if (soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0) then
           org = lc_atom_cls(domain%atom_cls_no(ix,i))
           domain%atom_cls_no(ix,i) = org + enefunc%num_atom_cls
         end if
@@ -2530,38 +2595,38 @@ contains
     end do
 
     oldcount = enefunc%num_atom_cls
-    allocate( tmp_lj(oldcount,oldcount) )
+    allocate(tmp_lj(oldcount,oldcount))
     enefunc%num_atom_cls = oldcount + localcount
     max_class = enefunc%num_atom_cls
 
     newcount = oldcount + soltemp%num_atom_cls
-    if ( allocated(enefunc%nb14_lj6) ) then
+    if (allocated(enefunc%nb14_lj6)) then
       tmp_lj(1:oldcount,1:oldcount) = enefunc%nb14_lj6(1:oldcount,1:oldcount)
       deallocate(enefunc%nb14_lj6)
       allocate(enefunc%nb14_lj6(newcount,newcount))
       call setup_remd_solute_tempering_lj_each( &
-                  oldcount, newcount, soltemp, tmp_lj, enefunc%nb14_lj6 )
+                  oldcount, newcount, soltemp, tmp_lj, enefunc%nb14_lj6)
     end if
-    if ( allocated(enefunc%nb14_lj12) ) then
+    if (allocated(enefunc%nb14_lj12)) then
       tmp_lj(1:oldcount,1:oldcount) = enefunc%nb14_lj12(1:oldcount,1:oldcount)
       deallocate(enefunc%nb14_lj12)
       allocate(enefunc%nb14_lj12(newcount,newcount))
       call setup_remd_solute_tempering_lj_each( &
-                  oldcount, newcount, soltemp, tmp_lj, enefunc%nb14_lj12 )
+                  oldcount, newcount, soltemp, tmp_lj, enefunc%nb14_lj12)
     end if
-    if ( allocated(enefunc%nonb_lj6) ) then
+    if (allocated(enefunc%nonb_lj6)) then
       tmp_lj(1:oldcount,1:oldcount) = enefunc%nonb_lj6(1:oldcount,1:oldcount)
       deallocate(enefunc%nonb_lj6)
       allocate(enefunc%nonb_lj6(newcount,newcount))
       call setup_remd_solute_tempering_lj_each( &
-                  oldcount, newcount, soltemp, tmp_lj, enefunc%nonb_lj6 )
+                  oldcount, newcount, soltemp, tmp_lj, enefunc%nonb_lj6)
     end if
-    if ( allocated(enefunc%nonb_lj12) ) then
+    if (allocated(enefunc%nonb_lj12)) then
       tmp_lj(1:oldcount,1:oldcount) = enefunc%nonb_lj12(1:oldcount,1:oldcount)
       deallocate(enefunc%nonb_lj12)
       allocate(enefunc%nonb_lj12(newcount,newcount))
       call setup_remd_solute_tempering_lj_each( &
-                  oldcount, newcount, soltemp, tmp_lj, enefunc%nonb_lj12 )
+                  oldcount, newcount, soltemp, tmp_lj, enefunc%nonb_lj12)
     end if
 
     return
@@ -2573,15 +2638,16 @@ contains
   !  Subroutine    setup_remd_solute_tempering_lj_each
   !> @brief        REST setup for each LJ term such as LJ6, LJ12
   !! @authors      MK
-  !! @param[in]    ljsize     : original array size of interaction matrix
-  !! @param[inout] soltemp    : REST information
-  !! @param[inout] tmp_lj     : work matrix
+  !! @param[in]    oldcount   : old lj array count
+  !! @@aram[in]    newcount   : new lj array count
+  !! @param[in]    soltemp    : REST information
+  !! @param[in]    tmp_lj     : work matrix
   !! @param[inout] nbcoeff    : new interaction matrix
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_remd_solute_tempering_lj_each( oldcount, newcount, soltemp, &
-                                                  tmp_lj, nbcoeff )
+  subroutine setup_remd_solute_tempering_lj_each(oldcount, newcount, soltemp, &
+                                                 tmp_lj, nbcoeff)
 
     ! formal arguments
     integer,                      intent(in)    :: oldcount
@@ -2592,6 +2658,7 @@ contains
 
     ! local variables
     integer :: i, j, orgi, orgj
+
 
     nbcoeff(1:newcount,1:newcount) = 0.0_wp
     nbcoeff(1:oldcount,1:oldcount) = tmp_lj(1:oldcount,1:oldcount)
@@ -2619,7 +2686,7 @@ contains
   !> @brief        control replica exchange
   !! @authors      TM
   !! @param[inout] output      : output information
-  !! @param[inout] molecule    : molecule information
+  !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : potential energy functions information
   !! @param[inout] dynvars     : dynamics variables information
   !! @param[inout] dynamics    : dynamics information
@@ -2627,6 +2694,7 @@ contains
   !! @param[inout] boundary    : boundary conditions information
   !! @param[inout] constraints : constraints information
   !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] comm        : communicator for domain
   !! @param[inout] remd        : REMD information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -2710,7 +2778,6 @@ contains
     !
     call close_output(output)
 
-
     return
 
   end subroutine run_remd
@@ -2720,12 +2787,15 @@ contains
   !  Subroutine    perform_replica_exchange
   !> @brief        perform replica exchange
   !! @authors      TM
-  !! @param[inout] molecule    : molecule information
+  !! @param[in]    icycle      : replica exchange cycle number
+  !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : potential energy functions information
   !! @param[inout] dynvars     : dynamics variables information
-  !! @param[inout] boundary    : boundary conditions information
   !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] boundary    : boundary conditions information
+  !! @param[inout] output      : output information
   !! @param[inout] remd        : REMD information
+  !! @param[inout] pairlist    : pair-list information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2862,7 +2932,7 @@ contains
       if (counter_tuning(dimno) >= 2 * remd%autoadj(dimno)%trial_freq) then
 
         ! in case of temperature REMD, we should remember current temp
-        if ( remd%types(dimno) == RemdTemperature ) then
+        if (remd%types(dimno) == RemdTemperature) then
           parmsetid = repid2parmsetid(my_country_no+1)
           temp_i = remd%dparameters(dimno,parmidsets(parmsetid,dimno))
         end if
@@ -2870,7 +2940,7 @@ contains
         ! check current exchange ratio
         call remd_autoadj_displacement(dimno,remd)
 
-        if ( remd%types(dimno) == RemdTemperature ) then
+        if (remd%types(dimno) == RemdTemperature) then
           temp_j = remd%dparameters(dimno,parmidsets(parmsetid,dimno))
           factor = sqrt(temp_j/temp_i)
           do j = 1, domain%num_cell_local
@@ -3014,44 +3084,44 @@ contains
 
 
     nrep = remd%nreplicas(dimno)
-    if ( allocated(disp) .and. size(disp) < nrep ) then
-      deallocate( disp )
+    if (allocated(disp) .and. size(disp) < nrep) then
+      deallocate(disp)
     end if
 
-    if ( .not. allocated(disp) ) then
-      allocate( disp(nrep) )
+    if (.not. allocated(disp)) then
+      allocate(disp(nrep))
     end if
     disp(1:nrep) = 0.0_wp
 
     ! prep stride
     !
     stride = 1
-    if ( dimno < remd%dimension ) then
+    if (dimno < remd%dimension) then
       stride = stride * product(remd%nreplicas(dimno+1:remd%dimension))
     end if
 
     ! only the lowest line will be used for multidimensional case
     !
     do i = 1, nrep - 1
-      id = 1 + stride * ( i - 1 )
+      id = 1 + stride * (i - 1)
       cr = remd%num_criteria (id,dimno,2-mod(i,2))
       ex = remd%num_exchanges(id,dimno,2-mod(i,2))
       prob = real(ex,wp) / real(cr,wp) - remd%autoadj(dimno)%tgt_exc_prob
-      if ( abs(prob) >= remd%autoadj(dimno)%mgn_exc_prob ) then
+      if (abs(prob) >= remd%autoadj(dimno)%mgn_exc_prob) then
         prob = sign(1.0_wp,prob) * (abs(prob) - remd%autoadj(dimno)%mgn_exc_prob)
         !! change parameter
-        disp(i) = floor( 100.0_wp * prob ) * remd%autoadj(dimno)%param_grid
-        if ( abs(disp(i)) > remd%autoadj(dimno)%max_param_shift ) then
+        disp(i) = floor(100.0_wp * prob) * remd%autoadj(dimno)%param_grid
+        if (abs(disp(i)) > remd%autoadj(dimno)%max_param_shift) then
           disp(i) = sign(1.0_wp,disp(i)) * remd%autoadj(dimno)%max_param_shift
         end if
       end if
     end do
 
-    if ( remd%types(dimno) == RemdRestraint ) then
+    if (remd%types(dimno) == RemdRestraint) then
       parmsetid = remd%repid2parmsetid(my_country_no+1)
       umbrid    = remd%iparameters(dimno,remd%parmidsets(parmsetid,dimno))
       numbs     = remd%umbrid2numfuncs(umbrid)
-      if ( remd%autoadj(dimno)%fix_terminal == RemdAutoFixBottom ) then
+      if (remd%autoadj(dimno)%fix_terminal == RemdAutoFixBottom) then
         ! change from the bottom
         do j = 1, numbs
           do i = 1, nrep - 1
@@ -3061,17 +3131,17 @@ contains
                  remd%rest_reference(i,j) - &
                  s * remd%autoadj(dimno)%param_grid
             s2 = sign(1.0_wp,s2)
-            if ( s /= s2 ) then
+            if (s /= s2) then
               ! have to prevent reverting
-              disp(i) = ( remd%rest_reference(i,j) + &
-                          s * remd%autoadj(dimno)%param_grid ) - &
+              disp(i) = (remd%rest_reference(i,j) + &
+                         s * remd%autoadj(dimno)%param_grid) - &
                         remd%rest_reference(i+1,j)
             end if
             remd%rest_reference(i+1:nrep,j) = &
                 remd%rest_reference(i+1:nrep,j) + s * disp(i)
           end do
         end do
-      else if ( remd%autoadj(dimno)%fix_terminal == RemdAutoFixTop ) then
+      else if (remd%autoadj(dimno)%fix_terminal == RemdAutoFixTop) then
         ! change from the top
         do j = 1, numbs
           do i = nrep - 1, 1, -1
@@ -3081,10 +3151,10 @@ contains
                  remd%rest_reference(i+1,j) - &
                  s * remd%autoadj(dimno)%param_grid
             s2 = sign(1.0_wp,s2)
-            if ( s /= s2 ) then
+            if (s /= s2) then
               ! have to prevent reverting
-              disp(i) = ( remd%rest_reference(i+1,j) - &
-                          s * remd%autoadj(dimno)%param_grid ) - &
+              disp(i) = (remd%rest_reference(i+1,j) - &
+                         s * remd%autoadj(dimno)%param_grid) - &
                         remd%rest_reference(i,j)
             end if
             remd%rest_reference(1:i,j) = &
@@ -3094,7 +3164,7 @@ contains
       end if
     else
       ! update "dparameters" according to "disp"
-      if ( remd%autoadj(dimno)%fix_terminal == RemdAutoFixBottom ) then
+      if (remd%autoadj(dimno)%fix_terminal == RemdAutoFixBottom) then
         ! change from the bottom
         do i = 1, nrep - 1
           diff = remd%dparameters(dimno,i+1) - remd%dparameters(dimno,i)
@@ -3103,16 +3173,16 @@ contains
                remd%dparameters(dimno,i) - &
                s * remd%autoadj(dimno)%param_grid
           s2 = sign(1.0_wp,s2)
-          if ( s /= s2 ) then
+          if (s /= s2) then
             ! have to prevent reverting
-            disp(i) = ( remd%dparameters(dimno,i) + &
-                        s * remd%autoadj(dimno)%param_grid ) - &
+            disp(i) = (remd%dparameters(dimno,i) + &
+                       s * remd%autoadj(dimno)%param_grid) - &
                       remd%dparameters(dimno,i+1)
           end if
           remd%dparameters(dimno,i+1:nrep) = &
               remd%dparameters(dimno,i+1:nrep) + s * disp(i)
         end do
-      else if ( remd%autoadj(dimno)%fix_terminal == RemdAutoFixTop ) then
+      else if (remd%autoadj(dimno)%fix_terminal == RemdAutoFixTop) then
         ! change from the top
         do i = nrep - 1, 1, -1
           diff = remd%dparameters(dimno,i) - remd%dparameters(dimno,i+1)
@@ -3121,10 +3191,10 @@ contains
                remd%dparameters(dimno,i+1) - &
                s * remd%autoadj(dimno)%param_grid
           s2 = sign(1.0_wp,s2)
-          if ( s /= s2 ) then
+          if (s /= s2) then
             ! have to prevent reverting
-            disp(i) = ( remd%dparameters(dimno,i+1) - &
-                        s * remd%autoadj(dimno)%param_grid ) - &
+            disp(i) = (remd%dparameters(dimno,i+1) - &
+                       s * remd%autoadj(dimno)%param_grid) - &
                       remd%dparameters(dimno,i)
           end if
           remd%dparameters(dimno,1:i) = &
@@ -3144,7 +3214,8 @@ contains
   !! @authors      TM
   !! @param[in]    dimno    : dimension number
   !! @param[in]    exptrn   : exchange pattern
-  !! @param[inout] molecule : molecule information
+  !! @param[inout] domain   : domain information
+  !! @param[inout] dynvars  : dynamics variables information
   !! @param[inout] remd     : REMD information
   !! @note         Y.Sugita & Y.Okamoto, Chem.Phys.Lett., 314, 141−151 (1999)
   !!               K.Hukushima & K.Nemoto, J.Phys.Soc.Jpn., 65, 1604-1608 (1996)
@@ -3196,7 +3267,7 @@ contains
     call mpi_bcast(eneval, 1, mpi_wp_real, 0, mpi_comm_country, ierror)
 
     before_gather = eneval
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3296,6 +3367,7 @@ contains
   !! @param[in]    dimno    : dimension number
   !! @param[in]    exptrn   : exchange pattern
   !! @param[in]    ensemble : ensemble information
+  !! @param[in]    boundary : boundary information
   !! @param[inout] remd     : REMD information
   !! @note         T.Okabe et al., Chem.Phys.Lett., 335, 435−439 (2001)
   !!               Y.Mori & Y.Okamoto, J.Phys.Soc.Jpn., 79, 074003 (2010)
@@ -3343,7 +3415,7 @@ contains
     before_gather =  boundary%box_size_x &
                    * boundary%box_size_y &
                    * boundary%box_size_z 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3423,6 +3495,7 @@ contains
   !! @param[in]    dimno    : dimension number
   !! @param[in]    exptrn   : exchange pattern
   !! @param[in]    ensemble : ensemble information
+  !! @param[in]    boundary : boundary information
   !! @param[inout] remd     : REMD information
   !! @note         T.Mori et al., J.Chem.Theory.Comput., 9, 5629−5640 (2013)
   !
@@ -3468,7 +3541,7 @@ contains
     !
     before_gather =  boundary%box_size_x &
                    * boundary%box_size_y 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3548,10 +3621,12 @@ contains
   !! @authors      TM
   !! @param[in]    dimno    : dimension number
   !! @param[in]    exptrn   : exchange pattern
+  !! @param[inout] domain   : domain information
+  !! @param[inout] boundary : boundary information
+  !! @param[in]    ensemble : ensemble information
+  !! @param[inout] dynvars  : dynamics variables information
   !! @param[inout] enefunc  : potential energy functions information
   !! @param[inout] remd     : REMD information
-  !! @param[inout] ensemble : ensemble information
-  !! @param[inout] dynvars  : dynamics variables information
   !! @note         Y.Sugita et al., J.Chem.Phys., 113, 6042-6051 (2000)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -3627,7 +3702,7 @@ contains
     call compute_energy_restraints_remd(.true., enefunc, domain, boundary, eneval)
     before_gather = eneval
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3672,7 +3747,7 @@ contains
     end if
 
     before_gather = eneval
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3739,7 +3814,6 @@ contains
       end if
     end do
 
-
     return
 
   end subroutine restraint_remd
@@ -3751,7 +3825,7 @@ contains
   !! @authors      MK
   !! @param[in]    dimno      : dimension number
   !! @param[in]    exptrn     : exchange pattern
-  !! @param[inout] molecule   : molecule information
+  !! @param[inout] domain     : domain information
   !! @param[inout] ensemble   : ensemble information
   !! @param[inout] dynvars    : dynamics variables information
   !! @param[inout] enefunc    : potential energy functions information
@@ -3808,12 +3882,31 @@ contains
     ! REST allocation
     nc = size(domain%force(3,MaxAtom,:))
     nv = size(domain%virial_cellpair(3,:))
-    if ( .not. allocated(force) ) then
+    if (.not. allocated(force)) then
       allocate(force(3,MaxAtom,nc), &
                force_long(3,MaxAtom,nc), &
                force_omp(3,MaxAtom,nc,nthread), &
-               force_pbc(3,MaxAtom,nc,nthread), &
                virial_cell(3,nv))
+    end if
+
+    if (domain%nonbond_kernel /= NBK_Fugaku .and. &
+        domain%nonbond_kernel /= NBK_Intel  .and. &
+        domain%nonbond_kernel /= NBK_GPU) then
+
+      allocate(force_pbc(MaxAtom,3, nc, nthread))
+
+    else if (domain%nonbond_kernel == NBK_Fugaku) then
+
+      allocate(force_pbc(3, MaxAtom*nc,1,nthread))
+
+    else if (domain%nonbond_kernel == NBK_Intel) then
+
+      allocate(force_pbc(MaxAtom*nc,3,1,nthread))
+
+    else if (domain%nonbond_kernel == NBK_GPU) then
+
+      allocate(force_pbc(MaxAtom*nc*4,1,1,nthread))
+
     end if
 
     total_nreplicas => remd%total_nreplicas
@@ -3827,13 +3920,12 @@ contains
     after_gather    => remd%after_gather
     random_table    => remd%random_table
 
-
     ! calculate energy at current coordinate
     call compute_energy(domain, enefunc, pairlist, boundary, domain%coord, &
                         ensemble%use_barostat, .true., .true., .true.,     &
                         enefunc%nonb_limiter,                              &
                         energy, domain%atmcls_pbc,                         &
-                        domain%translated, force, force_long,      &
+                        domain%translated, force, force_long,              &
                         force_omp, force_pbc, virial_cell, virial,         &
                         virial_long, virial_extern)
 
@@ -3843,7 +3935,7 @@ contains
     call mpi_bcast(eneval, 1, mpi_wp_real, 0, mpi_comm_country, ierror)
 
     before_gather = eneval
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3869,11 +3961,11 @@ contains
       does_exist  = .false.
     end if
 
-    if ( does_exist ) then
+    if (does_exist) then
       ! replace enefunc
       !
-      call assign_condition_rest( parmsetid_j, remd, domain, ensemble, &
-                                  enefunc )
+      call assign_condition_rest(parmsetid_j, remd, domain, ensemble, &
+                                 enefunc)
 
       ! calculate energy
       !
@@ -3881,8 +3973,8 @@ contains
                           ensemble%use_barostat, .true., .true., .true., &
                           .false.,                                       &
                           energy, domain%atmcls_pbc,                     &
-                          domain%translated, force, force_long, &
-                          force_omp, force_pbc, virial_cell, virial, &
+                          domain%translated, force, force_long,          &
+                          force_omp, force_pbc, virial_cell, virial,     &
                           virial_long, virial_extern)
       eneval = energy%total
       call mpi_bcast(eneval, 1, mpi_wp_real, 0, mpi_comm_country, ierror)
@@ -3891,7 +3983,7 @@ contains
     end if
 
     before_gather = eneval
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(before_gather, 1, mpi_wp_real, &
                        after_gather,  1, mpi_wp_real, &
                        mpi_comm_airplane, ierror)
@@ -3926,10 +4018,10 @@ contains
 
         ! compute delta
         !
-        beta     = 1.0_wp / ( KBOLTZ * ensemble%temperature )
+        beta     = 1.0_wp / (KBOLTZ * ensemble%temperature)
         energy_i = remd%potential_energy(repid_i)
         energy_j = remd%potential_energy(repid_j)
-        delta    = - beta * ( energy_i + energy_j )
+        delta    = - beta * (energy_i + energy_j)
 
         ! Metropolis criterion
         !
@@ -3944,7 +4036,7 @@ contains
         end if
 
         if (replica_main_rank .and. does_exist &
-            .and. repid_i == my_country_no + 1 ) then
+            .and. repid_i == my_country_no + 1) then
           write(output%logunit, &
                 '("  REST Exchange> Dim myID tgtID DE(my E) result:")')
           write(output%logunit,'(3(I3,1x),F10.4," (",F10.4,")",L2)') &
@@ -3962,8 +4054,8 @@ contains
         else
           ! have to put back enefunc to the original state
           !
-          call assign_condition_rest( parmsetid_i, remd, domain, ensemble, &
-                                      enefunc )
+          call assign_condition_rest(parmsetid_i, remd, domain, ensemble, &
+                                     enefunc)
         end if
 
       end if
@@ -3980,12 +4072,11 @@ contains
   !  Subroutine    assign_condition
   !> @brief        control replica exchange
   !! @authors      TM
-  !! @param[inout] molecule    : molecule information
-  !! @param[inout] enefunc     : potential energy functions information
-  !! @param[inout] dynvars     : dynamics variables information
-  !! @param[inout] boundary    : boundary conditions information
-  !! @param[inout] ensemble    : ensemble information
+  !! @param[in]    parmsetid   : parameter set id
   !! @param[inout] remd        : REMD information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] enefunc     : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4026,7 +4117,7 @@ contains
       end if
     end do
 
-    call assign_condition_rest( parmsetid, remd, domain, ensemble, enefunc )
+    call assign_condition_rest(parmsetid, remd, domain, ensemble, enefunc)
 
     return
 
@@ -4037,15 +4128,15 @@ contains
   !  Subroutine    assign_condition_rest
   !> @brief        reassign force constant involving REST
   !! @authors      MK
-  !! @param[in]    parmsetid   :
+  !! @param[in]    parmsetid   : parameter set id
   !! @param[inout] remd        : remd information
-  !! @param[inout] molecule    : molecule information
   !! @param[inout] domain      : domain information
+  !! @param[inout] ensemble    : ensemble information
   !! @param[inout] enefunc     : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_rest( parmsetid, remd, domain, ensemble, enefunc )
+  subroutine assign_condition_rest(parmsetid, remd, domain, ensemble, enefunc)
 
     ! formal arguments
     integer,                 intent(in)    :: parmsetid
@@ -4062,14 +4153,14 @@ contains
 
       if (remd%types(i) == RemdSoluteTempering) then
 
-        if ( ensemble%ensemble == EnsembleNVE ) then
+        if (ensemble%ensemble == EnsembleNVE) then
           call error_msg('Solute_Tempering> REST is not available for NVE!')
         end if
 
         rest_param = remd%dparameters(i,remd%parmidsets(parmsetid,i))
-        call assign_condition_solute_tempering( remd%solute_tempering(i), &
-                                                rest_param, domain, &
-                                                ensemble, enefunc )
+        call assign_condition_solute_tempering(remd%solute_tempering(i), &
+                                               rest_param, domain, &
+                                               ensemble, enefunc)
       end if
 
     end do
@@ -4083,16 +4174,16 @@ contains
   !  Subroutine    assign_condition_solte_tempering
   !> @brief        reassign force constant involving REST
   !! @authors      MK
-  !! @param[in]    soltemp     : REST information
+  !! @param[inout] soltemp     : REST information
   !! @param[in]    rest_param  : target temperature
   !! @param[inout] domain      : domain information
-  !! @param[inout] ensemble    : ensemble information
+  !! @param[in]    ensemble    : ensemble information
   !! @param[inout] enefunc     : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering( soltemp, rest_param, &
-                                                domain, ensemble, enefunc )
+  subroutine assign_condition_solute_tempering(soltemp, rest_param, &
+                                               domain, ensemble, enefunc)
 
     ! formal arguments
     type(s_soltemp),         intent(inout) :: soltemp
@@ -4106,10 +4197,11 @@ contains
     real(wp) :: el_fact, alpha
     real(dp) :: u_self_org
 
-    coeff_full = ensemble%temperature / rest_param
-    coeff_half = sqrt( coeff_full )
 
-    if ( soltemp%done_setup ) then
+    coeff_full = ensemble%temperature / rest_param
+    coeff_half = sqrt(coeff_full)
+
+    if (soltemp%done_setup) then
       tmp1 = coeff_full
       tmp2 = coeff_half
 
@@ -4128,11 +4220,11 @@ contains
 
     ncell = domain%num_cell_local + domain%num_cell_boundary
 
-    if ( soltemp%sw_charge ) then
+    if (soltemp%sw_charge) then
       do i = 1, ncell
         ! charge
         do ix = 1, domain%num_solute(i)
-          if ( soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0 ) then
+          if (soltemp%is_solute(domain%id_l2g_solute(ix,i)) > 0) then
             domain%charge(ix,i) = coeff_half * domain%charge(ix,i)
           end if
         end do
@@ -4153,11 +4245,11 @@ contains
     do i = 1, domain%num_cell_local
 
       ! bond
-      if ( soltemp%sw_bonds ) then
-        call assign_condition_solute_tempering_internal( soltemp, &
+      if (soltemp%sw_bonds) then
+        call assign_condition_solute_tempering_internal(soltemp, &
                   2, coeff_full, &
                   enefunc%num_bond(i), enefunc%bond_list(:,:,i), &
-                  enefunc%bond_force_const(:,i) )
+                  enefunc%bond_force_const(:,i))
       end if
 
       ! angle and urey
@@ -4167,18 +4259,18 @@ contains
         do j = 1, 3
           if (soltemp%is_solute(alist(j)) > 0) num = num + 1
         end do
-        if ( num > 0 .and. soltemp%sw_angles ) then
+        if (num > 0 .and. soltemp%sw_angles) then
           wgt = real(num,wp) / 3.0_wp
           wgt = coeff_full ** wgt
           enefunc%angle_force_const(ix,i) = &
                      wgt * enefunc%angle_force_const(ix,i)
         end if
-        if ( enefunc%urey_force_const(ix,i) > EPS .and. &
-             soltemp%sw_ureys ) then
+        if (enefunc%urey_force_const(ix,i) > EPS .and. &
+             soltemp%sw_ureys) then
           num = 0
           if (soltemp%is_solute(alist(1)) > 0) num = num + 1
           if (soltemp%is_solute(alist(3)) > 0) num = num + 1
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / 2.0_wp
             wgt = coeff_full ** wgt
             enefunc%urey_force_const(ix,i) = &
@@ -4188,22 +4280,22 @@ contains
       end do
 
       ! dihedral
-      if ( soltemp%sw_dihedrals ) then
-        call assign_condition_solute_tempering_internal( soltemp, &
+      if (soltemp%sw_dihedrals) then
+        call assign_condition_solute_tempering_internal(soltemp, &
                   4, coeff_full, &
                   enefunc%num_dihedral(i), enefunc%dihe_list(:,:,i), &
-                  enefunc%dihe_force_const(:,i) )
+                  enefunc%dihe_force_const(:,i))
       end if
 
       ! rb_dihedral
-      if ( soltemp%sw_rb_dihedrals ) then
+      if (soltemp%sw_rb_dihedrals) then
         do ix = 1, enefunc%num_rb_dihedral(i)
           alist(1:4) = enefunc%rb_dihe_list(1:4,ix,i)
           num = 0
           do j = 1, 4
             if (soltemp%is_solute(alist(j)) > 0) num = num + 1
           end do
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / real(n,wp)
             wgt = coeff_full ** wgt
             enefunc%rb_dihe_c(1:6,ix,i) = &
@@ -4213,22 +4305,22 @@ contains
       end if
 
       ! impropers
-      if ( soltemp%sw_impropers ) then
-        call assign_condition_solute_tempering_internal( soltemp, &
+      if (soltemp%sw_impropers) then
+        call assign_condition_solute_tempering_internal(soltemp, &
                   4, coeff_full, &
                   enefunc%num_improper(i), enefunc%impr_list(:,:,i), &
-                  enefunc%impr_force_const(:,i) )
+                  enefunc%impr_force_const(:,i))
       end if
 
       ! contact
-      if ( soltemp%sw_contacts ) then
+      if (soltemp%sw_contacts) then
         do ix = 1, enefunc%num_contact(i)
           alist(1:2) = enefunc%contact_list(1:2,ix,i)
           num = 0
           do j = 1, 2
             if (soltemp%is_solute(alist(j)) > 0) num = num + 1
           end do
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / 2.0_wp
             wgt = coeff_full ** wgt
             enefunc%contact_lj6(ix,i)  = wgt * enefunc%contact_lj6(ix,i)
@@ -4240,37 +4332,37 @@ contains
     end do
 
     ! lj
-    if ( soltemp%sw_lj ) then
+    if (soltemp%sw_lj) then
       n = enefunc%num_atom_cls
-      if ( allocated(enefunc%nb14_lj6) ) then
+      if (allocated(enefunc%nb14_lj6)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, enefunc%nb14_lj6 )
+                 soltemp, enefunc%nb14_lj6)
       end if
-      if ( allocated(enefunc%nb14_lj12) ) then
+      if (allocated(enefunc%nb14_lj12)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, enefunc%nb14_lj12 )
+                 soltemp, enefunc%nb14_lj12)
       end if
-      if ( allocated(enefunc%nonb_lj6) ) then
+      if (allocated(enefunc%nonb_lj6)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, enefunc%nonb_lj6 )
+                 soltemp, enefunc%nonb_lj6)
       end if
-      if ( allocated(enefunc%nonb_lj12) ) then
+      if (allocated(enefunc%nonb_lj12)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, enefunc%nonb_lj12 )
+                 soltemp, enefunc%nonb_lj12)
       end if
 #ifdef USE_GPU
-      if ( allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6) ) then
-        call gpu_upload_lj_coeffs( n, enefunc%nonb_lj12, enefunc%nonb_lj6 );
+      if (allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6)) then
+        call gpu_upload_lj_coeffs(n, enefunc%nonb_lj12, enefunc%nonb_lj6);
       end if
 #endif /* USE_GPU */
     end if
 
     ! cmap
-    if ( soltemp%num_cmap_type > 0 .and. soltemp%sw_cmaps ) then
+    if (soltemp%num_cmap_type > 0 .and. soltemp%sw_cmaps) then
       do i = 1, soltemp%num_cmap_type
         tgt = i + soltemp%istart_cmap_type - 1
         org = soltemp%cmap_type_org(i)
@@ -4297,8 +4389,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering_lj( n, coeff_half, coeff_full, &
-                                                   soltemp, nbcoeff )
+  subroutine assign_condition_solute_tempering_lj(n, coeff_half, coeff_full, &
+                                                  soltemp, nbcoeff)
 
     ! formal arguments
     integer,                 intent(in)    :: n
@@ -4309,6 +4401,7 @@ contains
 
     ! local variables
     integer :: i, j, oldcount, newcount, org, orgj
+
 
     oldcount = soltemp%istart_atom_cls - 1
     newcount = oldcount + soltemp%num_atom_cls
@@ -4335,6 +4428,7 @@ contains
   !  Subroutine    assign_condition_solte_tempering_internal
   !> @brief        reassign force constant involving REST for internal
   !! @authors      MK
+  !! @param[in]    soltemp     : REST information
   !! @param[in]    n           : number of indexes involved
   !! @param[in]    coeff_full  : coefficient
   !! @param[in]    n_internal  : number of terms
@@ -4343,8 +4437,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering_internal( soltemp, n, &
-                                  coeff_full, n_internal, aindex, fc )
+  subroutine assign_condition_solute_tempering_internal(soltemp, n, &
+                                  coeff_full, n_internal, aindex, fc)
 
     ! formal arguments
     type(s_soltemp),         intent(in)    :: soltemp
@@ -4358,13 +4452,14 @@ contains
     integer  :: alist(1:n), ix, j, num
     real(wp) :: wgt
 
+
     do ix = 1, n_internal
       alist(1:n) = aindex(1:n,ix)
       num = 0
       do j = 1, n
         if (soltemp%is_solute(alist(j)) > 0) num = num + 1
       end do
-      if ( num > 0 ) then
+      if (num > 0) then
         wgt = real(num,wp) / real(n,wp)
         wgt = coeff_full ** wgt
         fc(ix) = wgt * fc(ix)
@@ -4502,6 +4597,7 @@ contains
     ! local variables
     integer                       :: i
 
+
     temperature = ensemble%temperature
 
     do i = 1, remd%dimension
@@ -4519,9 +4615,11 @@ contains
   !  Subroutine    compute_energy_restraints_remd
   !> @brief        compute restraint potential energy in REUS routines
   !! @authors      TM
-  !! @param[in]    domain : domain information
-  !! @param[in]    enefuc : enefunc information
-  !! @param[out]   eneval : energy value
+  !! @param[in]    get_coord : flag for whether to get coordinates
+  !! @param[inout] enefunc   : enefunc information
+  !! @param[inout] domain    : domain information
+  !! @param[inout] boundary  : boundary information
+  !! @param[out]   eneval    : energy value
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 

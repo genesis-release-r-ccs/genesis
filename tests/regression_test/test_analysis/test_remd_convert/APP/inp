@@ -1,0 +1,34 @@
+# control parameters in remd_convert
+ 
+[INPUT]
+psffile        = ../../trajectories/APP_REMD/2lz3.psf
+reffile        = ../../trajectories/APP_REMD/2lz3.pdb
+remfile        = ../../trajectories/APP_REMD/rep{}.rem     # REMD parameter ID file
+dcdfile        = ../../trajectories/APP_REMD/rep{}.dcd     # DCD file
+logfile        = ../../trajectories/APP_REMD/rep{}.log     # REMD energy log file
+ 
+[OUTPUT]
+trjfile        = param{}.dcd    # trajectory file
+logfile        = param{}.log    # REMD energy log file
+ 
+[SELECTION]
+group1         = all             # selection group 1
+ 
+[FITTING]
+fitting_method = NO              # [NO,TR,TR+ROT,TR+ZROT,XYTR,XYTR+ZROT]
+ 
+[OPTION]
+check_only      = no             # (YES/NO)
+convert_type    = PARAMETER      # (REPLICA/PARAMETER)
+num_replicas    = 4              # total number of replicas used in the simulation
+convert_ids     =                # selected index (empty = all)(example: 1 2 5-10)
+nsteps          = 10000          # nsteps in [DYNAMICS]
+exchange_period =  1000          # exchange_period in [REMD]
+crdout_period   =   500          # crdout_period in [DYNAMICS]
+eneout_period   =   500          # eneout_period in [DYNAMICS]
+trjout_format   = DCD            # (PDB/DCD)
+trjout_type     = COOR+BOX       # (COOR/COOR+BOX)
+trjout_atom     = 1              # atom group
+centering       = NO             # shift center of mass (YES requres psf/prmtop/grotop)
+pbc_correct     = NO             # (NO/MOLECULE)
+ 

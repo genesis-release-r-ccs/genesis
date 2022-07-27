@@ -1,0 +1,24 @@
+$comment
+QM/MM bR opt
+$end
+
+$rem
+exchange          HF
+basis             sto-3g
+jobtype           force
+qm_mm             true
+qmmm_print        false
+scf_convergence   8
+thresh            12
+scf_algorithm     DIIS
+max_scf_cycles    500
+symmetry          off
+sym_ignore        true
+mem_static        2000
+scf_guess         read
+$end
+
+$molecule
+0 1
+$end
+

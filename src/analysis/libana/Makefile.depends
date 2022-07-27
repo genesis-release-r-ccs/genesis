@@ -1,0 +1,26 @@
+analysis_timers.o: analysis_timers.fpp  
+analysis_timers_mod.mod: analysis_timers.fpp analysis_timers.o
+fileio_atp.o: fileio_atp.fpp  
+fileio_atp_mod.mod: fileio_atp.fpp fileio_atp.o
+fileio_mt.o: fileio_mt.fpp  
+fileio_mt_mod.mod: fileio_mt.fpp fileio_mt.o
+fileio_rtp.o: fileio_rtp.fpp  
+fileio_rtp_mod.mod: fileio_rtp.fpp fileio_rtp.o
+fileio_trj.o: fileio_trj.fpp trajectory_str_mod.mod 
+fileio_trj_mod.mod: fileio_trj.fpp fileio_trj.o
+input.o: input.fpp fileio_mt_mod.mod fileio_rtp_mod.mod fileio_atp_mod.mod input_str_mod.mod 
+input_mod.mod: input.fpp input.o
+input_str.o: input_str.fpp  
+input_str_mod.mod: input_str.fpp input_str.o
+measure.o: measure.fpp  
+measure_mod.mod: measure.fpp measure.o
+output.o: output.fpp output_str_mod.mod 
+output_mod.mod: output.fpp output.o
+output_str.o: output_str.fpp  
+output_str_mod.mod: output_str.fpp output_str.o
+pbc_correct.o: pbc_correct.fpp trajectory_str_mod.mod 
+pbc_correct_mod.mod: pbc_correct.fpp pbc_correct.o
+trajectory.o: trajectory.fpp fileio_trj_mod.mod trajectory_str_mod.mod 
+trajectory_mod.mod: trajectory.fpp trajectory.o
+trajectory_str.o: trajectory_str.fpp  
+trajectory_str_mod.mod: trajectory_str.fpp trajectory_str.o

@@ -34,7 +34,7 @@ module sp_domain_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -139,6 +139,9 @@ contains
     domain%system_size(1)     = boundary%box_size_x
     domain%system_size(2)     = boundary%box_size_y
     domain%system_size(3)     = boundary%box_size_z
+    domain%system_size_ini(1) = boundary%box_size_x
+    domain%system_size_ini(2) = boundary%box_size_y
+    domain%system_size_ini(3) = boundary%box_size_z
 
     domain%cell_size(1)       = real(boundary%cell_size_x,wp)
     domain%cell_size(2)       = real(boundary%cell_size_y,wp)
@@ -212,7 +215,8 @@ contains
 
     call setup_solute_and_water(molecule, enefunc,       &
                                 constraints%water_model, &
-                                constraints%tip4)
+                                constraints%water_type,  &
+                                constraints%num_water)
 
     num_solute_all            = enefunc%table%num_solute      &
                                *boundary%num_duplicate(1)     &
@@ -220,13 +224,15 @@ contains
                                *boundary%num_duplicate(3)
     call alloc_domain(domain, DomainGlobal, num_solute_all,    1, 1)
 
-    if (constraints%tip4) then
+    if (constraints%water_type == TIP4) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
-    else
+    else if (constraints%water_type == TIP3) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
+    else if (constraints%water_type == TIP2) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 2, 1)
+    else if (constraints%water_type == TIP1) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
     end if
-    if (.not. constraints%rigid_bond) & 
-       enefunc%table%tip4 = constraints%tip4
 
     call setup_hbond_group     (molecule, enefunc, constraints)
     call setup_atom_by_HBond   (molecule, boundary, enefunc, constraints, &
@@ -264,18 +270,31 @@ contains
 
     ! setup water molecule information
     !
-    domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
-    domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
-    domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
-    domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
-    domain%water%charge(1)      = enefunc%table%charge_O
-    domain%water%charge(2)      = enefunc%table%charge_H
-    domain%water%charge(3)      = enefunc%table%charge_H
-    domain%water%charge(4)      = enefunc%table%charge_D
-    domain%water%mass(1)        = enefunc%table%mass_O
-    domain%water%mass(2)        = enefunc%table%mass_H
-    domain%water%mass(3)        = enefunc%table%mass_H
-    domain%water%mass(4)        = enefunc%table%mass_D
+    if (constraints%water_type >= TIP3) then
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
+      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
+      domain%water%charge(1)      = enefunc%table%charge_O
+      domain%water%charge(2)      = enefunc%table%charge_H
+      domain%water%charge(3)      = enefunc%table%charge_H
+      domain%water%charge(4)      = enefunc%table%charge_D
+      domain%water%mass(1)        = enefunc%table%mass_O
+      domain%water%mass(2)        = enefunc%table%mass_H
+      domain%water%mass(3)        = enefunc%table%mass_H
+      domain%water%mass(4)        = enefunc%table%mass_D
+    else if (constraints%water_type == TIP2) then
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
+      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_2
+      domain%water%charge(1)      = enefunc%table%charge_1
+      domain%water%charge(2)      = enefunc%table%charge_2
+      domain%water%mass(1)        = enefunc%table%mass_1
+      domain%water%mass(2)        = enefunc%table%mass_2
+    else
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
+      domain%water%charge(1)      = enefunc%table%charge_1
+      domain%water%mass(1)        = enefunc%table%mass_1
+    end if
 
     return
 
@@ -310,6 +329,7 @@ contains
     integer                  :: i, j, k, cell(3)
     integer                  :: icel_local, icel
     integer                  :: ncel_local, ncel_bound, ncel_all
+
 
     ! initialize structure informations
     !
@@ -383,10 +403,14 @@ contains
     call alloc_domain(domain, DomainDynvar, ncel_all, 1, 1)
     call alloc_domain(domain, DomainGlobal, enefunc%table%num_solute, 1, 1)
 
-    if (constraints%tip4) then
+    if (constraints%water_type == TIP4) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
-    else
+    else if (constraints%water_type == TIP3) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
+    else if (constraints%water_type == TIP2) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 2, 1)
+    else if (constraints%water_type == TIP1) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
     end if
 
     ! assign particles in each domain
@@ -402,18 +426,25 @@ contains
 
     ! setup water molecule information
     !
-    domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
-    domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
-    domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
-    domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
-    domain%water%charge(1)      = enefunc%table%charge_O
-    domain%water%charge(2)      = enefunc%table%charge_H
-    domain%water%charge(3)      = enefunc%table%charge_H
-    domain%water%charge(4)      = enefunc%table%charge_D
-    domain%water%mass(1)        = enefunc%table%mass_O
-    domain%water%mass(2)        = enefunc%table%mass_H
-    domain%water%mass(3)        = enefunc%table%mass_H
-    domain%water%mass(4)        = enefunc%table%mass_D
+!    if (constraints%water_type >= TIP3) then
+    if (constraints%water_type >= TIP2) then
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
+      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
+      domain%water%charge(1)      = enefunc%table%charge_O
+      domain%water%charge(2)      = enefunc%table%charge_H
+      domain%water%charge(3)      = enefunc%table%charge_H
+      domain%water%charge(4)      = enefunc%table%charge_D
+      domain%water%mass(1)        = enefunc%table%mass_O
+      domain%water%mass(2)        = enefunc%table%mass_H
+      domain%water%mass(3)        = enefunc%table%mass_H
+      domain%water%mass(4)        = enefunc%table%mass_D
+    else
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
+      domain%water%charge(1)      = enefunc%table%charge_1
+      domain%water%mass(1)        = enefunc%table%mass_1
+    end if
 
     return
 
@@ -490,8 +521,8 @@ contains
     ! number of atoms in each cell (proceesor number is also considered)
     !
     call assign_cell_atoms(natom, natom_t0, nsolute, nwater, &
-                           cell_l2gx, cell_l2gy, cell_l2gz, &
-                           cell_start, cell_end,            &
+                           cell_l2gx, cell_l2gy, cell_l2gz,  &
+                           cell_start, cell_end,             &
                            neighbor, ncel_local, nboundary)
 
     ! assign the interaction cell for each interaction
@@ -692,7 +723,7 @@ contains
     calc_time      = calc_time - calc_time_prev
     calc_time_prev = calc_time_prev + calc_time
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(calc_time, 1, mpi_wip_real, &
                        time_proc, 1, mpi_wp_real, mpi_comm_country, ierror)
 #else
@@ -1157,6 +1188,7 @@ contains
       iproc(i) = iproc(i) - 1
       if (iproc(i) == -1) &
         iproc(i) = num_domain(i) - 1
+
     end do
 
     ! Assign the neighboring process index
@@ -1339,6 +1371,16 @@ contains
 
     MaxNb15_Fugaku = int(v_rate * real(NAtomBox8,wip)) * 12
     MaxNb15_Fugaku = MaxNb15_Fugaku * domain%scale_pairlist_fugaku
+
+    MaxNb15Water = int(v_rate * real(NAtomBox8,wip))
+    MaxNb15Water = MaxNb15Water ** 2
+    MaxNb15water = MaxNb15Water / 10
+
+    ! sp_constraints_str
+    !
+
+    HGroupMax    = int(v_rate * real(NHGrpBox8,wip) * ShrinkRate)
+    HGrpMaxMove  = int(v_rate * real(NHMovBox8,wip) * ShrinkRate)
 
     MaxNb15Water = int(v_rate * real(NAtomBox8,wip))
     MaxNb15Water = MaxNb15Water ** 2
@@ -1688,19 +1730,22 @@ contains
   !  Subroutine    setup_solute_and_water
   !> @brief        setup solute and water list
   !! @authors      JJ
-  !! @param[in]    water_model : water model
   !! @param[in]    molecule    : molecule information
-  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] water_model : water model
+  !! @param[inout] water_type  : water type
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_solute_and_water(molecule, enefunc, water_model, tip4)
+  subroutine setup_solute_and_water(molecule, enefunc, water_model, &
+                                    water_type, num_water)
 
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
     type(s_enefunc),         intent(inout) :: enefunc
     character(*),            intent(inout) :: water_model
-    logical,                 intent(inout) :: tip4
+    integer,                 intent(inout) :: water_type
+    integer,                 intent(inout) :: num_water
 
     ! local variables
     integer                  :: i, k, natom, nwater, nsolute, water_atom
@@ -1713,37 +1758,48 @@ contains
     nsolute = 0
 
     do i = 1, natom
-      if ((molecule%residue_name(i)(1:3) == 'TIP' .or.  &
-           molecule%residue_name(i)(1:3) == 'WAT' .or.  &
-           molecule%residue_name(i)(1:3) == 'SOL').and. &
-          .not.(molecule%light_atom_mass(i))        .and. &
-          .not.(molecule%light_atom_name(i))) then
+      if ((molecule%residue_name(i)(1:3) .eq. 'TIP' .or.  &
+           molecule%residue_name(i)(1:3) .eq. 'WAT' .or.  &
+           molecule%residue_name(i)(1:3) .eq. 'MIZ' .or.  &
+           molecule%residue_name(i)(1:3) .eq. 'SOL').and. &
+          .not.(molecule%light_atom_mass(i))      .and. &
+          .not.(molecule%light_atom_name(i))      .and. &
+           molecule%atom_name(i)(1:1) .ne. 'H') then
         nwater = nwater + 1
-      else if (molecule%residue_name(i)(1:3) /= 'TIP' .and. &
-               molecule%residue_name(i)(1:3) /= 'WAT' .and. &
-               molecule%residue_name(i)(1:3) /= 'SOL') then
+      else if (molecule%residue_name(i)(1:3) .ne. 'TIP' .and. &
+               molecule%residue_name(i)(1:3) .ne. 'WAT' .and. &
+               molecule%residue_name(i)(1:3) .ne. 'MIZ' .and. &
+               molecule%residue_name(i)(1:3) .ne. 'SOL') then
         nsolute = nsolute + 1
       end if
     end do
 
     if ((natom-nsolute)/4 == nwater .and. nwater > 0) then
-      tip4 = .true. 
-!     nwater = nwater / 2
+      water_type = TIP4
     else if ((natom-nsolute)/3 == nwater) then
-      tip4 = .false.
+      water_type = TIP3
+    else if ((natom-nsolute)/2 == nwater .and. nwater > 0) then
+      water_type = TIP2
+    else if (natom-nsolute == nwater .and. nwater > 0) then
+      water_type = TIP1
     else
       call error_msg('Setup_Solute_And_Water> # of water is incorrect.')
     end if
 
     enefunc%table%num_water  = nwater
     enefunc%table%num_solute = nsolute
+    num_water = nwater
     call alloc_enefunc(enefunc, EneFuncTableWat, nwater,  1)
     call alloc_enefunc(enefunc, EneFuncTableSol, nsolute, natom)
 
-    if (tip4) then
+    if (water_type == TIP4) then
       water_atom = 4
-    else
+    else if (water_type == TIP3) then
       water_atom = 3
+    else if (water_type == TIP2) then
+      water_atom = 2
+    else if (water_type == TIP1) then
+      water_atom = 1
     end if
 
     i       = 1
@@ -1754,9 +1810,10 @@ contains
 
       if (i > natom) exit
 
-      if (molecule%residue_name(i)(1:3) == 'TIP' .or. &
-          molecule%residue_name(i)(1:3) == 'WAT' .or. &
-          molecule%residue_name(i)(1:3) == 'SOL') then
+      if (molecule%residue_name(i)(1:3) .eq. 'TIP' .or. &
+          molecule%residue_name(i)(1:3) .eq. 'WAT' .or. &
+          molecule%residue_name(i)(1:3) .eq. 'MIZ' .or. &
+          molecule%residue_name(i)(1:3) .eq. 'SOL') then
 
         do k = 1, water_atom
           mass(k) = molecule%mass(i-1+k)
@@ -1787,6 +1844,11 @@ contains
               if (id(2) /= 0) id(3) = i-1+k
             end if
           end do
+        else if (water_atom == 2) then
+          id(1)=i
+          id(2)=i+1
+        else if (water_atom == 1) then
+          id(1) = i
         end if
         nwater = nwater + 1
         enefunc%table%water_list(1:water_atom,nwater) = id(1:water_atom)
@@ -1812,7 +1874,10 @@ contains
 
     ! set water oxygen and hydrogen
     !
-    if (size(enefunc%table%water_list(1,:)) /= 0) then
+    ! if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
+    !     water_atom >= 3) then
+    if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
+        water_atom >= 3) then
 
       io = enefunc%table%water_list(1,1)
       ih = enefunc%table%water_list(2,1)
@@ -1826,12 +1891,32 @@ contains
 
       ! dummy atom
       !
-      if (tip4) then
+      if (water_atom == 4) then
         io = enefunc%table%water_list(4,1)
         enefunc%table%atom_cls_no_D = molecule%atom_cls_no(io)
         enefunc%table%charge_D      = molecule%charge(io)
         enefunc%table%mass_D        = molecule%mass(io)
       end if
+
+    else if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
+             water_atom == 2) then
+
+      io = enefunc%table%water_list(1,1)
+      ih = enefunc%table%water_list(2,1)
+      enefunc%table%atom_cls_no_1  = molecule%atom_cls_no(io)
+      enefunc%table%atom_cls_no_2  = molecule%atom_cls_no(ih)
+      enefunc%table%charge_1       = molecule%charge(io)
+      enefunc%table%charge_2       = molecule%charge(ih)
+      enefunc%table%mass_1         = molecule%mass(io)
+      enefunc%table%mass_2         = molecule%mass(ih)
+
+    else if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
+             water_atom == 1) then
+
+      io = enefunc%table%water_list(1,1)
+      enefunc%table%atom_cls_no_1 = molecule%atom_cls_no(io)
+      enefunc%table%charge_1      = molecule%charge(io)
+      enefunc%table%mass_1        = molecule%mass(io)
 
     end if
 
@@ -1844,7 +1929,10 @@ contains
   !  Subroutine    setup_ring_check
   !> @brief        check rings
   !! @authors      JJ
-  !! @param[in]    molecule : molecule information
+  !! @param[in]    molecule    : molecule information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] domain      : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1887,7 +1975,7 @@ contains
       else if (constraints%hydrogen_type == ConstraintAtomBoth) then
         cl1 = (cl1 .or. mi1)
         cl2 = (cl2 .or. mi2)
-      endif
+      end if
 
       if (enefunc%table%solute_list_inv(i1) /= 0 .and. &
           enefunc%table%solute_list_inv(i2) /= 0) then
@@ -1998,7 +2086,9 @@ contains
   !  Subroutine    setup_hbond_group
   !> @brief        setup bonds including hydrogen atom
   !! @authors      JJ
-  !! @param[in]    molecule : molecule information
+  !! @param[in]    molecule    : molecule information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2013,6 +2103,7 @@ contains
     integer                  :: i, i1, i2, nhmax
     logical                  :: mi1, mi2
     logical                  :: cl1, cl2
+
 
     ! count the number of bonds including hydrogen
     !
@@ -2032,7 +2123,7 @@ contains
       else if (constraints%hydrogen_type == ConstraintAtomBoth) then
         cl1 = (cl1 .or. mi1)
         cl2 = (cl2 .or. mi2)
-      endif
+      end if
 
       if (enefunc%table%solute_list_inv(i1) /= 0 .and. &
           enefunc%table%solute_list_inv(i2) /= 0) then
@@ -2199,7 +2290,6 @@ contains
 
     end do
 
-
     return
 
   end subroutine setup_hbond_group
@@ -2209,7 +2299,7 @@ contains
   !  Subroutine    setup_atom_by_HBond
   !> @brief        setup atom maps with H-bond connection groups
   !! @authors      JJ
-  !! @param[in]    molecule    : molecule information
+  !! @param[inout] molecule    : molecule information
   !! @param[in]    boundary    : boundary condition information
   !! @param[in]    enefunc     : potential energy functions information
   !! @param[inout] constraints : constraints information
@@ -2242,7 +2332,7 @@ contains
     integer                      :: ncel_local, ncel
     integer                      :: patm, psol, pwat, pnoh, phgl
     character(4)                 :: ci1
-    logical                      :: mi1, cl1, tip4
+    logical                      :: mi1, cl1
 
     real(wip),           pointer :: bsize_x, bsize_y, bsize_z
     real(wip),           pointer :: csize_x, csize_y, csize_z
@@ -2253,6 +2343,7 @@ contains
     integer,             pointer :: solute_list(:,:), water_list(:,:,:)
     integer,             pointer :: No_HGr(:), HGr_local(:,:)
     integer,             pointer :: HGr_bond_list(:,:,:,:)
+
 
     ncel          = domain%num_cell_local + domain%num_cell_boundary
     ncel_local    = domain%num_cell_local
@@ -2285,7 +2376,6 @@ contains
     num_cell(1)   = boundary%num_cells_x
     num_cell(2)   = boundary%num_cells_y
     num_cell(3)   = boundary%num_cells_z
-    tip4          =  constraints%tip4
 
     origin(1)     = boundary%origin_x
     origin(2)     = boundary%origin_y
@@ -2324,7 +2414,7 @@ contains
               cl1 = mi1
             else if (constraints%hydrogen_type == ConstraintAtomBoth) then
               cl1 = (cl1 .or. mi1)
-            endif
+            end if
 
             if (constraints%duplicate(i) == 0 .and. .not. cl1) then
 
@@ -2604,9 +2694,18 @@ contains
           do iwater = 1, enefunc%table%num_water
 
             i   = enefunc%table%water_list(1,iwater)
-            ih1 = enefunc%table%water_list(2,iwater)
-            ih2 = enefunc%table%water_list(3,iwater)
-            if (tip4) id  = enefunc%table%water_list(4,iwater)
+            if (constraints%water_type == TIP2) then
+              ih1 = enefunc%table%water_list(2,iwater)
+            end if
+            if (constraints%water_type == TIP3) then
+              ih1 = enefunc%table%water_list(2,iwater)
+              ih2 = enefunc%table%water_list(3,iwater)
+            end if
+            if (constraints%water_type == TIP4) then
+              ih1 = enefunc%table%water_list(2,iwater)
+              ih2 = enefunc%table%water_list(3,iwater)
+              id = enefunc%table%water_list(4,iwater)
+            end if
 
             coord_temp(1:3) = molecule%atom_coord(1:3,i)
 
@@ -2648,83 +2747,93 @@ contains
                                       domain, icel_local, patm,  &
                                       dupl, bsize_orig, ioffset)
 
-              ! first hydrogen atoms
-              !
-              patm = patm + 1
-              water_list(2,pwat,icel_local) = patm
-              do k = 1, 3
-                if (molecule%atom_coord(k,ih1) < &
-                       coord_temp(k) - 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih1) = &
-                         molecule%atom_coord(k,ih1) + bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih1) =           &
-                         molecule%atom_refcoord(k,ih1) + bsize(k)
-                else if (molecule%atom_coord(k,ih1) > &
-                       coord_temp(k) + 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih1) = &
-                         molecule%atom_coord(k,ih1) - bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih1) =           &
-                         molecule%atom_refcoord(k,ih1) - bsize(k)
-                end if
-              end do
-              call molecule_to_domain(molecule, move, origin, ih1, &
-                                      domain, icel_local, patm,    &
-                                      dupl, bsize_orig, ioffset)
+              if (constraints%water_type == TIP2 .or. &
+                  constraints%water_type == TIP3 .or. &
+                  constraints%water_type == TIP4) then
 
-              ! second hydrogen atoms
-              !
-              patm = patm + 1
-              water_list(3,pwat,icel_local) = patm
-              do k = 1, 3
-                if (molecule%atom_coord(k,ih2) < &
-                       coord_temp(k) - 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih2) = &
-                         molecule%atom_coord(k,ih2) + bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih2) =           &
-                         molecule%atom_refcoord(k,ih2) + bsize(k)
-                else if (molecule%atom_coord(k,ih2) > &
-                       coord_temp(k) + 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih2) = &
-                         molecule%atom_coord(k,ih2) - bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih2) =           &
-                         molecule%atom_refcoord(k,ih2) - bsize(k)
-                end if
-              end do
-              call molecule_to_domain(molecule, move, origin, ih2, &
-                                      domain, icel_local, patm,    &
-                                      dupl, bsize_orig, ioffset)
-
-              ! dummy atoms
-              !
-              if (tip4) then
+                ! first hydrogen atoms
+                !
                 patm = patm + 1
-                water_list(4,pwat,icel_local) = patm
+                water_list(2,pwat,icel_local) = patm
                 do k = 1, 3
-                  if (molecule%atom_coord(k,id) < &
+                  if (molecule%atom_coord(k,ih1) < &
                          coord_temp(k) - 0.5_wp*bsize(k)) then
-                    molecule%atom_coord(k,id) = &
-                           molecule%atom_coord(k,id) + bsize(k)
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) + bsize(k)
                     if (allocated(molecule%atom_refcoord)) &
-                      molecule%atom_refcoord(k,id) =           &
-                           molecule%atom_refcoord(k,id) + bsize(k)
-                  else if (molecule%atom_coord(k,id) > &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) + bsize(k)
+                  else if (molecule%atom_coord(k,ih1) > &
                          coord_temp(k) + 0.5_wp*bsize(k)) then
-                    molecule%atom_coord(k,id) = &
-                           molecule%atom_coord(k,id) - bsize(k)
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) - bsize(k)
                     if (allocated(molecule%atom_refcoord)) &
-                      molecule%atom_refcoord(k,id) =           &
-                           molecule%atom_refcoord(k,id) - bsize(k)
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) - bsize(k)
                   end if
                 end do
-                call molecule_to_domain(molecule, move, origin, id, &
-                                        domain, icel_local, patm,   &
+                call molecule_to_domain(molecule, move, origin, ih1, &
+                                        domain, icel_local, patm,    &
                                         dupl, bsize_orig, ioffset)
-              end if
 
+                if (constraints%water_type == TIP3 .or. &
+                    constraints%water_type == TIP4) then
+
+                  ! second hydrogen atoms
+                  !
+                  patm = patm + 1
+                  water_list(3,pwat,icel_local) = patm
+                  do k = 1, 3
+                    if (molecule%atom_coord(k,ih2) < &
+                           coord_temp(k) - 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,ih2) = &
+                             molecule%atom_coord(k,ih2) + bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,ih2) =           &
+                             molecule%atom_refcoord(k,ih2) + bsize(k)
+                    else if (molecule%atom_coord(k,ih2) > &
+                           coord_temp(k) + 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,ih2) = &
+                             molecule%atom_coord(k,ih2) - bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,ih2) =           &
+                             molecule%atom_refcoord(k,ih2) - bsize(k)
+                    end if
+                  end do
+                  call molecule_to_domain(molecule, move, origin, ih2, &
+                                          domain, icel_local, patm,    &
+                                          dupl, bsize_orig, ioffset)
+
+                end if
+
+                ! dummy atoms
+                !
+                if (constraints%water_type == TIP4) then
+                  patm = patm + 1
+                  water_list(4,pwat,icel_local) = patm
+                  do k = 1, 3
+                    if (molecule%atom_coord(k,id) < &
+                           coord_temp(k) - 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,id) = &
+                             molecule%atom_coord(k,id) + bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,id) =           &
+                             molecule%atom_refcoord(k,id) + bsize(k)
+                    else if (molecule%atom_coord(k,id) > &
+                           coord_temp(k) + 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,id) = &
+                             molecule%atom_coord(k,id) - bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,id) =           &
+                             molecule%atom_refcoord(k,id) - bsize(k)
+                    end if
+                  end do
+                  call molecule_to_domain(molecule, move, origin, id, &
+                                          domain, icel_local, patm,   &
+                                          dupl, bsize_orig, ioffset)
+                end if
+
+              end if
               natom(icel_local)  = patm
               nwater(icel_local) = pwat
 
@@ -2754,81 +2863,92 @@ contains
                                       domain, icel_local, patm,  &
                                       dupl, bsize_orig, ioffset)
 
-              ! first hydrogen atoms
-              !
-              patm = patm + 1
-              water_list(2,pwat,icel_local) = patm
-              do k = 1, 3
-                if (molecule%atom_coord(k,ih1) < &
-                       coord_temp(k) - 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih1) = &
-                         molecule%atom_coord(k,ih1) + bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih1) =           &
-                         molecule%atom_refcoord(k,ih1) + bsize(k)
-                else if (molecule%atom_coord(k,ih1) > &
-                       coord_temp(k) + 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih1) = &
-                         molecule%atom_coord(k,ih1) - bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih1) =           &
-                         molecule%atom_refcoord(k,ih1) - bsize(k)
-                end if
-              end do
-              call molecule_to_domain(molecule, move, origin, ih1, &
-                                      domain, icel_local, patm,    &
-                                      dupl, bsize_orig, ioffset)
 
-              ! second hydrogen atoms
-              !
-              patm = patm + 1
-              water_list(3,pwat,icel_local) = patm
-              do k = 1, 3
-                if (molecule%atom_coord(k,ih2) < &
-                       coord_temp(k) - 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih2) = &
-                         molecule%atom_coord(k,ih2) + bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih2) =           &
-                         molecule%atom_refcoord(k,ih2) + bsize(k)
-                else if (molecule%atom_coord(k,ih2) > &
-                       coord_temp(k) + 0.5_wp*bsize(k)) then
-                  molecule%atom_coord(k,ih2) = &
-                         molecule%atom_coord(k,ih2) - bsize(k)
-                  if (allocated(molecule%atom_refcoord)) &
-                    molecule%atom_refcoord(k,ih2) =           &
-                         molecule%atom_refcoord(k,ih2) - bsize(k)
-                end if
-              end do
-              call molecule_to_domain(molecule, move, origin, ih2, &
-                                      domain, icel_local, patm,    &
-                                      dupl, bsize_orig, ioffset)
+              if (constraints%water_type == TIP2 .or. &
+                  constraints%water_type == TIP3 .or. &
+                  constraints%water_type == TIP4) then
 
-              ! dummy atoms
-              !
-              if (tip4) then
+                ! first hydrogen atoms
+                !
                 patm = patm + 1
-                water_list(4,pwat,icel_local) = patm
+                water_list(2,pwat,icel_local) = patm
                 do k = 1, 3
-                  if (molecule%atom_coord(k,id) < &
+                  if (molecule%atom_coord(k,ih1) < &
                          coord_temp(k) - 0.5_wp*bsize(k)) then
-                    molecule%atom_coord(k,id) = &
-                           molecule%atom_coord(k,id) + bsize(k)
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) + bsize(k)
                     if (allocated(molecule%atom_refcoord)) &
-                      molecule%atom_refcoord(k,id) =           &
-                           molecule%atom_refcoord(k,id) + bsize(k)
-                  else if (molecule%atom_coord(k,id) > &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) + bsize(k)
+                  else if (molecule%atom_coord(k,ih1) > &
                          coord_temp(k) + 0.5_wp*bsize(k)) then
-                    molecule%atom_coord(k,id) = &
-                           molecule%atom_coord(k,id) - bsize(k)
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) - bsize(k)
                     if (allocated(molecule%atom_refcoord)) &
-                      molecule%atom_refcoord(k,id) =           &
-                           molecule%atom_refcoord(k,id) - bsize(k)
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) - bsize(k)
                   end if
                 end do
-                call molecule_to_domain(molecule, move, origin, id, &
-                                        domain, icel_local, patm,   &
+                call molecule_to_domain(molecule, move, origin, ih1, &
+                                        domain, icel_local, patm,    &
                                         dupl, bsize_orig, ioffset)
+  
+              if (constraints%water_type == TIP3 .or. &
+                  constraints%water_type == TIP4) then
+
+                ! second hydrogen atoms
+                !
+                patm = patm + 1
+                water_list(3,pwat,icel_local) = patm
+                do k = 1, 3
+                  if (molecule%atom_coord(k,ih2) < &
+                         coord_temp(k) - 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih2) = &
+                           molecule%atom_coord(k,ih2) + bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih2) =           &
+                           molecule%atom_refcoord(k,ih2) + bsize(k)
+                  else if (molecule%atom_coord(k,ih2) > &
+                       coord_temp(k) + 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih2) = &
+                           molecule%atom_coord(k,ih2) - bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih2) =           &
+                           molecule%atom_refcoord(k,ih2) - bsize(k)
+                  end if
+                end do
+                call molecule_to_domain(molecule, move, origin, ih2, &
+                                        domain, icel_local, patm,    &
+                                        dupl, bsize_orig, ioffset)
+             end if
+  
+                ! dummy atoms
+                !
+                if (constraints%water_type == TIP4) then
+                  patm = patm + 1
+                  water_list(4,pwat,icel_local) = patm
+                  do k = 1, 3
+                    if (molecule%atom_coord(k,id) < &
+                           coord_temp(k) - 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,id) = &
+                             molecule%atom_coord(k,id) + bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,id) =           &
+                             molecule%atom_refcoord(k,id) + bsize(k)
+                    else if (molecule%atom_coord(k,id) > &
+                           coord_temp(k) + 0.5_wp*bsize(k)) then
+                      molecule%atom_coord(k,id) = &
+                             molecule%atom_coord(k,id) - bsize(k)
+                      if (allocated(molecule%atom_refcoord)) &
+                        molecule%atom_refcoord(k,id) =           &
+                             molecule%atom_refcoord(k,id) - bsize(k)
+                    end if
+                  end do
+                  call molecule_to_domain(molecule, move, origin, id, &
+                                          domain, icel_local, patm,   &
+                                          dupl, bsize_orig, ioffset)
+                end if
+
               end if
 
               natom(icel_local)  = patm
@@ -2851,7 +2971,6 @@ contains
   !  Subroutine    setup_atom_by_HBond_pio
   !> @brief        setup atom maps with H-bond connection groups
   !! @authors      JJ
-  !! @param[in]    molecule    : molecule information
   !! @param[in]    boundary    : boundary condition information
   !! @param[in]    enefunc     : potential energy functions information
   !! @param[inout] constraints : constraints information
@@ -2868,7 +2987,6 @@ contains
     type(s_domain),      target, intent(inout) :: domain
 
     ! local variable
-    logical                      :: tip4
     real(wip)                    :: shift(3), bsize(3)
     real(wip)                    :: move(3)
     integer                      :: file_num, file_tot_num
@@ -2902,6 +3020,7 @@ contains
     real(wip),           pointer :: mass(:,:), mass_pio(:,:,:), inv_mass(:,:)
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     real(wip),           pointer :: HGr_bond_dist_pio(:,:,:,:,:)
+
 
     ncel            = domain%num_cell_local + domain%num_cell_boundary
     ncel_local      = domain%num_cell_local
@@ -2957,7 +3076,6 @@ contains
     bsize(1)      = boundary%box_size_x
     bsize(2)      = boundary%box_size_y
     bsize(3)      = boundary%box_size_z
-    tip4          = constraints%tip4
 
     natom  (1:ncel) = 0
     nsolute(1:ncel) = 0
@@ -3009,10 +3127,14 @@ contains
           end do
 
           do ix = 1, nwater(i)
-            if (tip4) then
+            if (constraints%water_type == TIP4) then
               water_list(1:4,ix,i) = water_list_pio(1:4,ix,icel,file_num)
-            else
+            else if (constraints%water_type == TIP3) then
               water_list(1:3,ix,i) = water_list_pio(1:3,ix,icel,file_num)
+            else if (constraints%water_type == TIP2) then
+              water_list(1:2,ix,i) = water_list_pio(1:2,ix,icel,file_num)
+            else if (constraints%water_type == TIP1) then
+              water_list(1:1,ix,i) = water_list_pio(1:1,ix,icel,file_num)
             end if
           end do
 
@@ -3040,7 +3162,7 @@ contains
             end do
           end do
 
-          if (tip4) then
+          if (constraints%water_type == TIP4) then
             do ix = nsolute(i)+1, natom(i)-3, 4
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
@@ -3048,13 +3170,27 @@ contains
                 trans(1:3,ix-1+j,i) = move(1:3)
               end do
             end do
-          else
+          else if (constraints%water_type == TIP3) then
             do ix = nsolute(i)+1, natom(i)-2, 3
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
               do j = 1, 3
                 trans(1:3,ix-1+j,i) = move(1:3)
               end do
+            end do
+          else if (constraints%water_type == TIP2) then
+               do ix = nsolute(i)+1, natom(i)-2, 2
+                  move(1:3) = bsize(1:3)*0.5_wip &
+                       - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
+                  do j = 1, 2
+                     trans(1:3,ix-1+j,i) = move(1:3)
+                  end do
+               end do
+          else if (constraints%water_type == TIP1) then
+            do ix = nsolute(i)+1, natom(i)
+              move(1:3) = bsize(1:3)*0.5_wip &
+                        - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
+              trans(1:3,ix,i) = move(1:3)
             end do
           end if
 
@@ -3087,10 +3223,14 @@ contains
           end do
 
           do ix = 1, nwater(i)
-            if (tip4) then
+            if (constraints%water_type == TIP4) then
               water_list(1:4,ix,i) = water_list_pio(1:4,ix,icel,file_num)
-            else
+            else if (constraints%water_type == TIP3) then
               water_list(1:3,ix,i) = water_list_pio(1:3,ix,icel,file_num)
+            else if (constraints%water_type == TIP2) then
+              water_list(1:2,ix,i) = water_list_pio(1:2,ix,icel,file_num)
+            else if (constraints%water_type == TIP1) then
+              water_list(1:1,ix,i) = water_list_pio(1:1,ix,icel,file_num)
             end if
           end do
 
@@ -3132,27 +3272,44 @@ contains
             end do
           end do
 
-          if (tip4) then
+
+          if (constraints%water_type == TIP4) then
             do ix = nsolute(i)+1, natom(i)-3, 4
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku .or. &
-                  domain%nonbond_kernel == NBK_Intel) &
+              if (domain%nonbond_kernel == NBK_Fugaku) &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 4
                 trans(1:3,ix-1+j,i) = move(1:3)
               end do
             end do
-          else
+          else if (constraints%water_type == TIP3) then
             do ix = nsolute(i)+1, natom(i)-2, 3
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku .or. &
-                  domain%nonbond_kernel == NBK_Intel)      &
+              if (domain%nonbond_kernel == NBK_Fugaku) &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 3
                 trans(1:3,ix-1+j,i) = move(1:3)
               end do
+            end do
+          else if (constraints%water_type == TIP2) then
+            do ix = nsolute(i)+1, natom(i)-1, 2
+              move(1:3) = bsize(1:3)*0.5_wip &
+                        - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
+              if (domain%nonbond_kernel == NBK_Fugaku) &
+                move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
+              do j = 1, 2
+                trans(1:3,ix-1+j,i) = move(1:3)
+              end do
+            end do
+          else if (constraints%water_type == TIP1) then
+            do ix = nsolute(i)+1, natom(i)
+              move(1:3) = bsize(1:3)*0.5_wip &
+                        - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
+              if (domain%nonbond_kernel == NBK_Fugaku) &
+                move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
+              trans(1:3,ix,i) = move(1:3)
             end do
           end if
 
@@ -3174,7 +3331,7 @@ contains
   !  Subroutine    setup_global_to_local_atom_index
   !> @brief        relationship between global and local indices
   !! @authors      JJ
-  !! @param[in   ] enefunc  : energy function information
+  !! @param[in]    enefunc  : energy function information
   !! @param[inout] domain   : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -3193,6 +3350,7 @@ contains
     integer,          pointer :: id_l2g(:,:), id_l2g_solute(:,:)
     integer,          pointer :: natom(:), nsolute(:)
     integer,          pointer :: sollist(:)
+
 
     id_g2l        => domain%id_g2l
     id_l2g        => domain%id_l2g
@@ -3547,7 +3705,6 @@ contains
     return
 
   end subroutine assign_cell_atoms
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4262,7 +4419,6 @@ contains
   !! @authors      CK
   !! @param[in]    ene_info      : ENERGY section control parameters information
   !! @param[in]    boundary      : boundary condition information
-  !! @param[in]    contact_check : flag for contact_check
   !! @param[inout] domain        : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -4273,7 +4429,6 @@ contains
     type(s_ene_info), target, intent(in)    :: ene_info
     type(s_boundary), target, intent(in)    :: boundary
     type(s_domain),   target, intent(inout) :: domain
-
 
     ! local variable
     integer                   :: i, ix, iy, ij, j
@@ -4289,6 +4444,7 @@ contains
     real(wip),        pointer :: mass(:,:)
     real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: system_size(:)
+
 
     mass           => domain%mass
     coord          => domain%coord
@@ -4397,7 +4553,7 @@ contains
           end do
         end do
       end do
-    endif
+    end if
 
     !$omp end parallel
 
@@ -4423,7 +4579,6 @@ contains
     type(s_boundary), target, intent(in)    :: boundary
     type(s_domain),   target, intent(inout) :: domain
 
-
     ! local variable
     integer                   :: i, ix, iy, ij, j
     integer                   :: id, omp_get_thread_num
@@ -4439,6 +4594,7 @@ contains
     real(wp),         pointer :: trans1(:,:,:), trans2(:,:,:)
     real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: system_size(:)
+
 
     mass           => domain%mass
     coord          => domain%coord
@@ -4477,7 +4633,7 @@ contains
           trans2(ix,3,i) = coord(3,ix,i)
         end do
       end do
-    endif
+    end if
     !$omp barrier
 
     do i = id+1, ncell, nthread
@@ -4560,7 +4716,7 @@ contains
           end do
         end do
       end do
-    endif
+    end if
 
     !$omp end parallel
 
@@ -4574,7 +4730,8 @@ contains
   !> @brief        kernel selection
   !! @authors      NT
   !! @param[in]    ene_info : ENERGY section control parameters information
-  !! @param[in]    domain   : domain information
+  !! @param[in]    boundary : boundary information
+  !! @param[inout] domain   : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4589,6 +4746,7 @@ contains
     integer                  :: i
     logical                  :: has_avx2, has_avx512
     character(20), allocatable :: cpuflags(:)
+
 
     select case(ene_info%nonbond_kernel)
 
@@ -4617,9 +4775,9 @@ contains
       has_avx512 = .false.
       do i = 1, size(cpuflags)
 
-        if (cpuflags(i)(1:4) == 'avx2') then
+        if (cpuflags(i)(1:4) .eq. 'avx2') then
           has_avx2 = .true.
-        else if (cpuflags(i)(1:6) == 'avx512') then
+        else if (cpuflags(i)(1:6) .eq. 'avx512') then
           has_avx512 = .true.
         end if
 
@@ -4673,7 +4831,7 @@ contains
     if ((boundary%num_domain(1) == 1 .or. &
          boundary%num_domain(2) == 1 .or. &
          boundary%num_domain(3) == 1) .and. &
-        domain%nonbond_kernel /= NBK_GPU) then
+         domain%nonbond_kernel /= NBK_GPU) then
       domain%pairlist_kernel = PLK_Generic
       domain%nonbond_kernel  = NBK_Generic
     end if

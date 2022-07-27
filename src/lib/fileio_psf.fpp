@@ -3,7 +3,7 @@
 !  Module   fileio_psf_mod
 !> @brief   read CHARMM PSF file
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Jaewoon Jung (JJ), 
-!!          Norio Takase (NT)
+!!          Norio Takase (NT), Kenta Yamada (KYMD), Kiyoshi Yagi (KY)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -27,9 +27,9 @@ module fileio_psf_mod
   type, public :: s_psf
 
     integer                       :: type              = 0
-
     integer                       :: num_atoms         = 0
     integer                       :: num_bonds         = 0
+    integer                       :: num_enm_bonds     = 0
     integer                       :: num_angles        = 0
     integer                       :: num_dihedrals     = 0
     integer                       :: num_impropers     = 0
@@ -56,6 +56,9 @@ module fileio_psf_mod
 
     ! bonds
     integer,          allocatable :: bond_list(:,:)
+
+    ! enm  
+    integer,          allocatable :: enm_list(:,:)
 
     ! angles
     integer,          allocatable :: angl_list(:,:)
@@ -96,10 +99,16 @@ module fileio_psf_mod
   integer,      public, parameter :: PsfNb   = 8
   integer,      public, parameter :: PsfGrp  = 9
   integer,      public, parameter :: PsfCmap = 10
+  integer,      public, parameter :: PsfEnm  = 11
 
   ! parameters
-  integer,      public, parameter :: PsfTypeCHARMM = 1
-  integer,      public, parameter :: PsfTypeXPLOR  = 2
+  integer,      public, parameter :: PsfTypeCHARMM    = 1
+  integer,      public, parameter :: PsfTypeXPLOR     = 2
+  integer,      public, parameter :: PsfTypeCHARMMEXT = 3
+  integer,      public, parameter :: PsfTypeXPLOREXT  = 4
+
+  ! local variables
+  logical,                private :: vervose = .true.  
 
   ! subroutines
   public  :: input_psf
@@ -113,6 +122,7 @@ module fileio_psf_mod
   private :: read_psf_header
   private :: read_psf_atom
   private :: read_psf_bond
+  private :: read_psf_enm 
   private :: read_psf_angl
   private :: read_psf_dihe
   private :: read_psf_impr
@@ -133,6 +143,7 @@ module fileio_psf_mod
   private :: write_psf_acce
   private :: write_psf_nb
   private :: write_psf_grp
+  private :: write_psf_lpair 
   private :: write_psf_cmap
   private :: get_digit
 
@@ -225,8 +236,10 @@ contains
     type(s_psf),             intent(inout) :: psf
 
 
+    psf%type              = PsfTypeXPLOREXT
     psf%num_atoms         = 0 
     psf%num_bonds         = 0 
+    psf%num_enm_bonds     = 0 
     psf%num_angles        = 0
     psf%num_dihedrals     = 0
     psf%num_impropers     = 0
@@ -326,6 +339,17 @@ contains
       allocate(psf%bond_list(2, var_size), stat = alloc_stat)
 
       psf%bond_list(1:2,1:var_size) = 0
+
+    case (PsfEnm)
+
+      if (allocated(psf%enm_list)) then
+        if (size(psf%enm_list(1,:)) == var_size) return
+        deallocate(psf%enm_list, stat = dealloc_stat)
+      end if
+
+      allocate(psf%enm_list(2, var_size), stat = alloc_stat)
+
+      psf%enm_list(1:2,1:var_size) = 0
 
     case (PsfAngl)
 
@@ -479,6 +503,12 @@ contains
         deallocate(psf%bond_list, stat = dealloc_stat)
       end if
 
+    case (PsfEnm)
+
+      if (allocated(psf%enm_list)) then
+        deallocate(psf%enm_list, stat = dealloc_stat)
+      end if
+
     case (PsfAngl)
 
       if (allocated(psf%angl_list)) then
@@ -562,6 +592,7 @@ contains
 
     call dealloc_psf(psf, PsfAtom)
     call dealloc_psf(psf, PsfBond)
+    call dealloc_psf(psf, PsfEnm)
     call dealloc_psf(psf, PsfAngl)
     call dealloc_psf(psf, PsfDihe)
     call dealloc_psf(psf, PsfImpr)
@@ -595,7 +626,9 @@ contains
     integer                  :: n1, n2
     character(100)           :: key
     logical                  :: can_read
-
+    integer                  :: natom, iatom
+    real(wp), parameter      :: RoundDown = 10000.0_wp
+    real(dp)                 :: total_charge = 0.0_dp
 
     ! deallocate old data
     !
@@ -631,6 +664,12 @@ contains
         ! read bond section
         !
         call read_psf_bond(file, n1, psf)
+
+      else if (key(1:5) == 'NENMB') then
+
+        ! read bond section
+        !
+        call read_psf_enm(file, n1, psf)
 
       else if (key(1:6) == 'NTHETA') then
 
@@ -680,6 +719,13 @@ contains
         !
         call read_psf_cmap(file, n1, psf)
 
+      else if (key(1:5) == 'NUMLP') then
+
+        ! not allowed lone pairs
+        !
+        if (n1 > 0) &
+          call error_msg('Read_Psf> ERROR: NUMLPH is not allowed test')
+
       end if
 
     end do
@@ -688,32 +734,46 @@ contains
     ! write summary of PSF information
     !
     if (main_rank) then
+      
+      do iatom = 1, psf%num_atoms
+        total_charge = total_charge + psf%charge(iatom)
+      end do
+      psf%total_charge = total_charge
 
-      write(MsgOut,'(A)') 'Read_Psf> Summary of Psffile'
-      if (psf%type == PsfTypeXPLOR) then
-        write(MsgOut,'(A)') '  psftype         =      xplor'
-      else
-        write(MsgOut,'(A)') '  psftype         =     charmm'
-      endif
+      natom = psf%num_atoms
+      do iatom = 1, natom
+        total_charge = total_charge + psf%charge(iatom)
+      end do
+      psf%total_charge = total_charge
 
-      write(MsgOut,'(A20,I10,A20,I10)')                   &
-           '  num_atoms       = ', psf%num_atoms,         &
-           '  num_bonds       = ', psf%num_bonds
-      write(MsgOut,'(A20,I10,A20,I10)')                   &
-           '  num_angles      = ', psf%num_angles,        &
-           '  num_dihedrals   = ', psf%num_dihedrals
-      write(MsgOut,'(A20,I10,A20,I10)')                   &
-           '  num_impropers   = ', psf%num_impropers,     &
-           '  num_cmap_terms  = ', psf%num_cross_terms
-      write(MsgOut,'(A20,I10,A20,I10)')                   &
-           '  num_HB_donors   = ', psf%num_HB_donors,     &
-           '  num_HB_acceptors= ', psf%num_HB_acceptors
-      write(MsgOut,'(A20,I10,A20,I10)')                   &
-           '  num_NB_exclusion= ', psf%num_NB_exclusions, &
-           '  num_groups      = ', psf%num_groups
-      write(MsgOut,'(A20,F10.3)')                         &
-           '  total_charge    = ', psf%total_charge
-      write(MsgOut,'(A)') ' '
+      if (vervose) then
+        write(MsgOut,'(A)') 'Read_Psf> Summary of Psffile'
+        if (psf%type == PsfTypeXPLOR) then
+          write(MsgOut,'(A)') '  psftype         =      xplor'
+        else
+          write(MsgOut,'(A)') '  psftype         =     charmm'
+        end if
+
+        write(MsgOut,'(A20,I10,A20,I10)')                   &
+             '  num_atoms       = ', psf%num_atoms,         &
+             '  num_bonds       = ', psf%num_bonds
+        write(MsgOut,'(A20,I10,A20,I10)')                   &
+             '  num_angles      = ', psf%num_angles,        &
+             '  num_dihedrals   = ', psf%num_dihedrals
+        write(MsgOut,'(A20,I10,A20,I10)')                   &
+             '  num_impropers   = ', psf%num_impropers,     &
+             '  num_cmap_terms  = ', psf%num_cross_terms
+        write(MsgOut,'(A20,I10,A20,I10)')                   &
+             '  num_HB_donors   = ', psf%num_HB_donors,     &
+             '  num_HB_acceptors= ', psf%num_HB_acceptors
+        write(MsgOut,'(A20,I10,A20,I10)')                   &
+             '  num_NB_exclusion= ', psf%num_NB_exclusions, &
+             '  num_groups      = ', psf%num_groups
+        write(MsgOut,'(A20,F10.3)')                         &
+             '  total_charge    = ', psf%total_charge
+        write(MsgOut,'(A)') ' '
+        vervose = .false.
+      end if
     end if
 
     return
@@ -751,10 +811,10 @@ contains
     icheq = .false.
 
     do i = 1, MAXROW
-      if (line(i:i+3) == 'PSF ') ipsf  = .true.
-      if (line(i:i+3) == 'EXT ') iext  = .true.
-      if (line(i:i+3) == 'CMAP') icmap = .true.
-      if (line(i:i+3) == 'CHEQ') icheq = .true.
+      if (line(i:i+3) .eq. 'PSF ') ipsf  = .true.
+      if (line(i:i+3) .eq. 'EXT ') iext  = .true.
+      if (line(i:i+3) .eq. 'CMAP') icmap = .true.
+      if (line(i:i+3) .eq. 'CHEQ') icheq = .true.
     end do
 
     if (.not. ipsf) then
@@ -790,9 +850,10 @@ contains
     type(s_psf),             intent(inout) :: psf
 
     ! local variables
-    integer                  :: i
-    character(8)             :: cstr, cseg_nm, cres_nm, catm_nm
+    integer                  :: i, j
+    character(8)             :: cstr, cseg_nm, cres_nm, catm_nm, cres_nb
     character(20)            :: ctmp
+    logical                  :: insertion
 
       
     ! allocate Atom variables
@@ -806,7 +867,7 @@ contains
         cstr(1:1) >= 'a' .and. cstr(1:1) <= 'z') then
       psf%type = PsfTypeXPLOR
     else
-       psf%type = PsfTypeCHARMM
+      psf%type = PsfTypeCHARMM
     end if
 
     backspace(file)
@@ -820,7 +881,7 @@ contains
       do i = 1, natom
         read(file, *) psf%atom_no(i),     &
                       cseg_nm,            &
-                      psf%residue_no(i),  &
+                      cres_nb,            &
                       cres_nm,            &
                       catm_nm,            &
                       psf%atom_cls_no(i), &
@@ -828,6 +889,16 @@ contains
                       psf%mass(i),        &
                       psf%imove(i)
 
+        insertion = .false.
+        do j = 1, len_trim(cres_nb)
+          if (cres_nb(j:j) >= 'A' .and. cres_nb(j:j) <= 'Z' .or.  &
+              cres_nb(j:j) >= 'a' .and. cres_nb(j:j) <= 'z') insertion = .true.
+        end do
+        if (insertion) &
+           call error_msg('Read_Psf_Atom> Insertion code is not allowed. '//&
+                          'Please renumber residue number without insetion code')
+
+        read(cres_nb, *) psf%residue_no(i) 
         psf%segment_name(i) = cseg_nm(1:4)
         psf%residue_name(i) = cres_nm(1:6)
         psf%atom_name(i)    = catm_nm(1:4)
@@ -839,13 +910,25 @@ contains
       do i = 1, natom
         read(file, *) psf%atom_no(i),       &
                       psf%segment_name(i),  &
-                      psf%residue_no(i),    &
+                      cres_nb,              &
                       psf%residue_name(i),  &
                       psf%atom_name(i),     &
                       psf%atom_cls_name(i), &
                       psf%charge(i),        &
                       psf%mass(i),          &
                       psf%imove(i)
+
+        insertion = .false.
+        do j = 1, len_trim(cres_nb)
+          if (cres_nb(j:j) >= 'A' .and. cres_nb(j:j) <= 'Z' .or.  &
+              cres_nb(j:j) >= 'a' .and. cres_nb(j:j) <= 'z') insertion = .true.
+        end do
+        if (insertion) &
+           call error_msg('Read_Psf_Atom> Insertion code is not allowed. '//&
+                          'Please renumber residue number without insetion code')
+        read(cres_nb, *) psf%residue_no(i) 
+
+
       end do
 
     end if
@@ -891,6 +974,44 @@ contains
     return
 
   end subroutine read_psf_bond
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_psf_bond
+  !> @brief        read bond information from PSF file
+  !! @authors      YS
+  !! @param[in]    file : unit number of PSF file
+  !! @param[in]    nbnd : total number of bonds
+  !! @param[inout] psf  : structureo of PSF information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_psf_enm(file, nenm, psf)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    integer,                 intent(in)    :: nenm
+    type(s_psf),             intent(inout) :: psf
+
+    ! local variables
+    integer                  :: i
+
+
+    ! Allocate Bond variables
+    !
+    call alloc_psf(psf, PsfEnm, nenm)
+
+
+    ! Read Bond
+    !
+    psf%num_enm_bonds = nenm
+
+    read(file,*) (psf%enm_list(1, i), &
+                  psf%enm_list(2, i), i = 1, nenm)
+
+    return
+
+  end subroutine read_psf_enm
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -1211,7 +1332,7 @@ contains
   !
   !  Subroutine    write_psf
   !> @brief        write data to PSF file
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[in]    file : unit number of PSF file
   !! @param[in]    psf  : structure of PSF information
   !
@@ -1226,28 +1347,49 @@ contains
 
     ! write summary of PSF information
     !
-    if (psf%type == PsfTypeXPLOR) then
-      write(MsgOut,*) 'Write_Psf> TYPE = XPLOR'
-    else
-      write(MsgOut,*) 'Write_Psf> TYPE = CHARMM'
-    end if
+    select case(psf%type)
 
-    write(MsgOut,*)'Write_Psf> Number of Atoms         = ',psf%num_atoms
-    write(MsgOut,*)'Write_Psf> Number of Bonds         = ',psf%num_bonds
-    write(MsgOut,*)'Write_Psf> Number of Angles        = ',psf%num_angles
-    write(MsgOut,*)'Write_Psf> Number of Dihedrals     = ',psf%num_dihedrals
-    write(MsgOut,*)'Write_Psf> Number of Impropers     = ',psf%num_impropers
-    write(MsgOut,*)'Write_Psf> Number of Cross-terms   = ',psf%num_cross_terms
-    write(MsgOut,*)'Write_Psf> Number of HB acceptors  = ',psf%num_HB_acceptors
-    write(MsgOut,*)'Write_Psf> Number of HB donors     = ',psf%num_HB_donors
-    write(MsgOut,*)'Write_Psf> Number of NB exclusions = ',psf%num_NB_exclusions
-    write(MsgOut,*)'Write_Psf> Number of Groups        = ',psf%num_groups
-    write(MsgOut,*)'Write_Psf> Total charge            = ',psf%total_charge
+    case (PsfTypeCHARMM) 
+      write(MsgOut,'(a)') 'Write_Psf> TYPE = CHARMM'
+
+    case (PsfTypeXPLOR) 
+      write(MsgOut,'(a)') 'Write_Psf> TYPE = XPLOR'
+
+    case (PsfTypeCHARMMEXT) 
+      write(MsgOut,'(a)') 'Write_Psf> TYPE = CHARMM EXT'
+
+    case (PsfTypeXPLOREXT) 
+      write(MsgOut,'(a)') 'Write_Psf> TYPE = XPLOR EXT'
+
+    end select
+
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Atoms         = ',psf%num_atoms
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Bonds         = ',psf%num_bonds
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Angles        = ',psf%num_angles
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Dihedrals     = ',psf%num_dihedrals
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Impropers     = ',psf%num_impropers
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Cross-terms   = ',psf%num_cross_terms
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of HB donors     = ',psf%num_HB_donors
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of HB acceptors  = ',psf%num_HB_acceptors
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of NB exclusions = ',psf%num_NB_exclusions
+    write(MsgOut,'(a, i8)') &
+      'Write_Psf> Number of Groups        = ',psf%num_groups
+    write(MsgOut,'(a, f8.3)') &
+      'Write_Psf> Total charge            = ',psf%total_charge
     write(MsgOut,*)' '
 
     !  write header section
     !
-    call write_psf_header(file)
+    call write_psf_header(file, psf%type)
 
     !  write atom section
     !
@@ -1285,6 +1427,11 @@ contains
     !
     call write_psf_grp(file, psf)
 
+    !  write lpair section
+    !
+    call write_psf_lpair(file, psf)
+    
+
     !  write cmap section
     !
     call write_psf_cmap(file, psf)
@@ -1297,18 +1444,19 @@ contains
   !
   !  Subroutine    write_psf_header
   !> @brief        write header information of PSF file
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[in]    file : unit number of PSF file
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine write_psf_header(file)
+  subroutine write_psf_header(file, flag_type)
 
     ! parameter
     integer,                 parameter     :: MAXROW = 80
 
     ! formal arguments
     integer,                 intent(in)    :: file
+    integer,                 intent(in)    :: flag_type
 
     ! local variables
     integer                  :: date_time(8)
@@ -1317,13 +1465,26 @@ contains
     character(5)             :: zone
 
 
-    write(file,'(a)') 'PSF CMAP'
+    select case (flag_type)
+    case (PsfTypeCHARMM)
+      write(file,'(a)') 'PSF CMAP'
 
-    write(file,'(/I8,1X,"!NTITLE")') 1
+    case (PsfTypeXPLOR)
+      write(file,'(a)') 'PSF CMAP XPLOR'
+
+    case (PsfTypeCHARMMEXT)
+      write(file,'(a)') 'PSF EXT CMAP'
+
+    case (PsfTypeXPLOREXT)
+      write(file,'(a)') 'PSF EXT CMAP XPLOR'
+
+    end select
+
+    write(file,'(/I10,1X,"!NTITLE")') 1
 
     call date_and_time(date, time, zone, date_time)
-    write(file,'("*  DATE:",i6,"/",i2"/",i2,i7,":",i2,":",i2)') &
-             date_time(2), date_time(3), MOD(date_time(1),100), &
+    write(file,'("*  DATE:",i6,"/",i0"/",i2,i7,":",i2.2,":",i2.2)') &
+             date_time(2), date_time(3), MOD(date_time(1),100),     &
              date_time(5), date_time(6), date_time(7)
 
     return
@@ -1334,7 +1495,7 @@ contains
   !
   !  Subroutine    write_psf_atom
   !> @brief        write atom information to PSF file
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[in]    file : unit number of PSF file
   !! @param[in]    psf  : structureo of PSF information
   !
@@ -1348,7 +1509,8 @@ contains
 
     ! local variables
     integer                  :: i, natom
-    character(8)             :: cres_no
+    character(8)             :: seg_name, cres_no, res_name, catm_name
+    character(8)             :: catm_cls_name
     character(2)             :: d
 
       
@@ -1362,13 +1524,13 @@ contains
 
     d = get_digit(natom)
 
-    write(file,'(/I'//trim(d)//',1X,"!NATOM")') natom
-    
-
     ! write atom
     !
-    if (psf%type == PsfTypeCHARMM) then
+    select case (psf%type)
 
+    case (PSFTypeCHARMM)
+
+      write(file,'(/I'//trim(d)//',1X,"!NATOM")') natom
       do i = 1, natom
         write(cres_no, '(i4)') psf%residue_no(i)
         write(file, &
@@ -1384,23 +1546,71 @@ contains
               psf%imove(i)
       end do
 
-    else  ! PsfTypeXPLOR 
+    case (PSFTypeXPLOR)
 
+      write(file,'(/I'//trim(d)//',1X,"!NATOM")') natom
       do i = 1, natom
-        write(cres_no, '(i4)') psf%residue_no(i)
+        write(cres_no, '(i0)') psf%residue_no(i)
+        write(catm_name, '(a)') adjustl(psf%atom_name(i))
+        write(catm_cls_name, '(a)') adjustl(psf%atom_cls_name(i))
         write(file, &
-           '(I'//trim(d)//',1X,A4,1X,A4,1X,A6,1X,A4,1X,A6,1X,G13.6,G14.6,I8)') &
+            '(I'//trim(d)//',1X,A4,1X,A4,1X,A6,1X,A4,1X,A6,1X,G13.6,G14.6,I8)') &
+              psf%atom_no(i),        &
+              psf%segment_name(i),   &
+              cres_no,               &
+              psf%residue_name(i),   &
+              catm_name,             &
+              catm_cls_name,         &
+              psf%charge(i),         &
+              psf%mass(i),           &
+              psf%imove(i)
+      end do
+
+    case (PSFTypeCHARMMEXT)
+
+      write(file,'(/I10,1X,"!NATOM")') natom
+      do i = 1, natom
+        write(seg_name, '(a)') psf%segment_name(i)
+        write(cres_no, '(i0)') psf%residue_no(i)
+        write(res_name, '(a)') psf%residue_name(i)
+        write(catm_name, '(a)') adjustl(psf%atom_name(i))
+        write(catm_cls_name, '(a)') adjustl(psf%atom_cls_name(i))
+        write(file, &
+            '(I10,1X,A8,1X,A8,1X,A8,1X,A8,1X,I6,2X,G13.6,G14.6,I8)') &
               psf%atom_no(i),        &
               psf%segment_name(i),   &
               adjustl(cres_no),      &
               psf%residue_name(i),   &
               psf%atom_name(i),      &
-              psf%atom_cls_name(i),  &
+              psf%atom_cls_no(i),    &
               psf%charge(i),         &
               psf%mass(i),           &
               psf%imove(i)
       end do
-    end if
+
+    case (PSFTypeXPLOREXT)
+
+      write(file,'(/I10,1X,"!NATOM")') natom
+      do i = 1, natom
+        write(seg_name, '(a)') psf%segment_name(i)
+        write(cres_no, '(i0)') psf%residue_no(i)
+        write(res_name, '(a)') psf%residue_name(i)
+        write(catm_name, '(a)') adjustl(psf%atom_name(i))
+        write(catm_cls_name, '(a)') adjustl(psf%atom_cls_name(i))
+        write(file, &
+            '(I10,1X,A8,1X,A8,1X,A8,1X,A8,1X,A8,G13.6,G14.6,I8)') &
+              psf%atom_no(i),   & ! I10
+              seg_name,         & ! A8
+              cres_no,          & ! A8
+              res_name,         & ! A8
+              catm_name,        & ! A8
+              catm_cls_name,    & ! A8
+              psf%charge(i),    & ! G13.6
+              psf%mass(i),      & ! G14.6
+              psf%imove(i)
+      end do
+
+    end select
 
     return
 
@@ -1426,28 +1636,42 @@ contains
     integer                  :: i, nbnd, natom
 
 
-    ! write the number of bonds
-    !
     if (allocated(psf%bond_list)) then
       nbnd = size(psf%bond_list(1,:))
     else
       nbnd = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(nbnd))//',1X,"!NBOND: bonds")') nbnd
-    
-
-    ! write bond
-    !
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(8I'//trim(get_digit(natom))//')') &
-                         (psf%bond_list(1, i), &
-                          psf%bond_list(2, i), i = 1, nbnd)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of bonds
+      !
+      write(file, '(/I'//trim(get_digit(nbnd))//',1X,"!NBOND: bonds")') nbnd
+
+      ! write bond
+      !
+      write(file, '(8I'//trim(get_digit(natom))//')') &
+                           (psf%bond_list(1, i), &
+                            psf%bond_list(2, i), i = 1, nbnd)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of bonds
+      !
+      write(file, '(/I10,1X,"!NBOND: bonds")') nbnd
+
+      ! write bond
+      !
+      write(file, '(8I10)') &
+                           (psf%bond_list(1, i), &
+                            psf%bond_list(2, i), i = 1, nbnd)
+
+    end select
 
     return
 
@@ -1473,29 +1697,44 @@ contains
     integer                  :: i, nang, natom
 
 
-    ! write the number of angles
-    !
     if (allocated(psf%angl_list)) then
       nang = size(psf%angl_list(1,:))
     else
       nang = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(nang))//',1X,"!NTHETA: angles")') nang
-    
-
-    ! write angle
-    !
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(9I'//trim(get_digit(natom))//')') &
-                         (psf%angl_list(1, i), &
-                          psf%angl_list(2, i), &
-                          psf%angl_list(3, i), i = 1, nang)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of angles
+      !
+      write(file, '(/I'//trim(get_digit(nang))//',1X,"!NTHETA: angles")') nang
+      
+      ! write angle
+      !
+      write(file, '(9I'//trim(get_digit(natom))//')') &
+                           (psf%angl_list(1, i), &
+                            psf%angl_list(2, i), &
+                            psf%angl_list(3, i), i = 1, nang)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of angles
+      !
+      write(file, '(/I10,1X,"!NTHETA: angles")') nang
+      
+      ! write angle
+      !
+      write(file, '(9I10)') &
+                           (psf%angl_list(1, i), &
+                            psf%angl_list(2, i), &
+                            psf%angl_list(3, i), i = 1, nang)
+
+    end select
 
     return
 
@@ -1521,30 +1760,46 @@ contains
     integer                  :: i, ndih, natom
 
 
-    ! write the number of angles
-    !
     if (allocated(psf%dihe_list)) then
       ndih = size(psf%dihe_list(1,:))
     else
       ndih = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(ndih))//',1X,"!NPHI: dihedrals")') ndih
-    
-
-    ! write dihe
-    !
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(8I'//trim(get_digit(natom))//')') &
-                         (psf%dihe_list(1, i), &
-                          psf%dihe_list(2, i), &
-                          psf%dihe_list(3, i), &
-                          psf%dihe_list(4, i), i = 1, ndih)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of angles
+      !
+      write(file, '(/I'//trim(get_digit(ndih))//',1X,"!NPHI: dihedrals")') ndih
+      
+      ! write dihe
+      !
+      write(file, '(8I'//trim(get_digit(natom))//')') &
+                           (psf%dihe_list(1, i), &
+                            psf%dihe_list(2, i), &
+                            psf%dihe_list(3, i), &
+                            psf%dihe_list(4, i), i = 1, ndih)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of angles
+      !
+      write(file, '(/I10,1X,"!NPHI: dihedrals")') ndih
+      
+      ! write dihe
+      !
+      write(file, '(8I10)') &
+                           (psf%dihe_list(1, i), &
+                            psf%dihe_list(2, i), &
+                            psf%dihe_list(3, i), &
+                            psf%dihe_list(4, i), i = 1, ndih)
+
+    end select
 
     return
 
@@ -1570,30 +1825,46 @@ contains
     integer                  :: i, nimp, natom
 
 
-    ! write the number of impropers
-    !
     if (allocated(psf%impr_list)) then
       nimp = size(psf%impr_list(1,:))
     else
       nimp = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(nimp))//',1X,"!NIMPHI: impropers")') nimp
-    
-
-    ! Write impr
-    !
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file,'(8I'//trim(get_digit(natom))//')' ) &
-                         (psf%impr_list(1, i), &
-                          psf%impr_list(2, i), &
-                          psf%impr_list(3, i), &
-                          psf%impr_list(4, i), i = 1, nimp)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of impropers
+      !
+      write(file, '(/I'//trim(get_digit(nimp))//',1X,"!NIMPHI: impropers")') nimp
+      
+      ! Write impr
+      !
+      write(file,'(8I'//trim(get_digit(natom))//')' ) &
+                           (psf%impr_list(1, i), &
+                            psf%impr_list(2, i), &
+                            psf%impr_list(3, i), &
+                            psf%impr_list(4, i), i = 1, nimp)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of impropers
+      !
+      write(file, '(/I10,1X,"!NIMPHI: impropers")') nimp
+      
+      ! Write impr
+      !
+      write(file,'(8I10)' ) &
+                           (psf%impr_list(1, i), &
+                            psf%impr_list(2, i), &
+                            psf%impr_list(3, i), &
+                            psf%impr_list(4, i), i = 1, nimp)
+
+    end select
 
     return
 
@@ -1619,26 +1890,40 @@ contains
     integer                  :: i, ndon, natom
 
 
-    ! write the number of donors
-    !
     if (allocated(psf%donr_list)) then
       ndon = size(psf%donr_list(1,:))
     else
       ndon = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(ndon))//',1X,"!NDON: donors")') ndon
-
-    ! write donors
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(8I'//trim(get_digit(natom))//')') &
-                         (psf%donr_list(1, i), &
-                          psf%donr_list(2, i), i = 1, ndon)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of donors
+      !
+      write(file, '(/I'//trim(get_digit(ndon))//',1X,"!NDON: donors")') ndon
+
+      ! write donors
+      write(file, '(8I'//trim(get_digit(natom))//')') &
+                           (psf%donr_list(1, i), &
+                            psf%donr_list(2, i), i = 1, ndon)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of donors
+      !
+      write(file, '(/I10,1X,"!NDON: donors")') ndon
+
+      ! write donors
+      write(file, '(8I10)') &
+                           (psf%donr_list(1, i), &
+                            psf%donr_list(2, i), i = 1, ndon)
+
+    end select
 
     return
 
@@ -1664,26 +1949,40 @@ contains
     integer                  :: i, nacc, natom
 
 
-    ! write the number of acceptors
-    !
     if (allocated(psf%acce_list)) then
       nacc = size(psf%acce_list(1,:))
     else
       nacc = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(nacc))//',1X,"!NACC: acceptors")') nacc
-
-    ! write acceptors
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(8I'//trim(get_digit(natom))//')') &
-                         (psf%acce_list(1, i), &
-                          psf%acce_list(2, i), i = 1, nacc)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of acceptors
+      !
+      write(file, '(/I'//trim(get_digit(nacc))//',1X,"!NACC: acceptors")') nacc
+
+      ! write acceptors
+      write(file, '(8I'//trim(get_digit(natom))//')') &
+                           (psf%acce_list(1, i), &
+                            psf%acce_list(2, i), i = 1, nacc)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of acceptors
+      !
+      write(file, '(/I10,1X,"!NACC: acceptors")') nacc
+
+      ! write acceptors
+      write(file, '(8I10)') &
+                           (psf%acce_list(1, i), &
+                            psf%acce_list(2, i), i = 1, nacc)
+
+    end select
 
     return
 
@@ -1693,7 +1992,7 @@ contains
   !
   !  Subroutine    write_psf_nb
   !> @brief        write nb information to PSF file
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[in]    file : unit number of PSF file
   !! @param[in]    psf  : structureo of PSF information
   !
@@ -1706,23 +2005,49 @@ contains
     type(s_psf),             intent(in)    :: psf
 
     ! local variables
-    integer                  :: i, nnb
+    integer                  :: i, nnb, natom
 
 
-    nnb = psf%num_atoms
+    nnb = psf%num_NB_exclusions
 
-    ! write the number of nb
-    !
-    write(file,'(/I'//trim(get_digit(psf%num_NB_exclusions))//',1X,"!NNB")') &
-         psf%num_NB_exclusions
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of nb
+      !
+      write(file,'(/I'//trim(get_digit(psf%num_NB_exclusions))//',1X,"!NNB")') nnb
 
-    ! write nb
-    !
-    if (allocated(psf%nb_list)) then
+      ! write nb
+      !
       write(file, '(8I'//trim(get_digit(nnb))//')') (psf%nb_list(i), i = 1, nnb)
-    else
-      write(file, '(8I'//trim(get_digit(nnb))//')') (0, i = 1, nnb)
-    end if
+
+      ! write IBLO 
+      !
+      if (allocated(psf%atom_no)) then
+        natom = size(psf%atom_no)
+      else
+        natom = 0
+      end if
+      write(file, '(8I'//trim(get_digit(natom))//')') (0, i = 1, natom)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of nb
+      !
+      write(file,'(/I10,1X,"!NNB")') nnb
+
+      ! write nb
+      !
+      write(file, '(8I10)') (psf%nb_list(i), i = 1, nnb)
+
+      ! write IBLO 
+      !
+      if (allocated(psf%atom_no)) then
+        natom = size(psf%atom_no)
+      else
+        natom = 0
+      end if
+      write(file, '(8I10)') (0, i = 1, natom)
+
+    end select
 
     return
 
@@ -1748,31 +2073,90 @@ contains
     integer                  :: i, ngrp, natom
 
 
-    ! write the number of groups
-    !
     if (allocated(psf%grp_list)) then
       ngrp = size(psf%grp_list(1,:))
     else
       ngrp = 0
     end if
 
-    write(file, '(/2I'//trim(get_digit(ngrp))//',1X,"!NGRP")') ngrp, 0
-
-    ! write group
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(9I'//trim(get_digit(natom))//')') &
-                         (psf%grp_list(1, i), &
-                          psf%grp_list(2, i), &
-                          psf%grp_list(3, i), i = 1, ngrp)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of groups
+      !
+      write(file, '(/2I'//trim(get_digit(ngrp))//',1X,"!NGRP NST2")') ngrp, 0
+
+      ! write group
+      write(file, '(9I'//trim(get_digit(natom))//')') &
+                           (psf%grp_list(1, i), &
+                            psf%grp_list(2, i), &
+                            psf%grp_list(3, i), i = 1, ngrp)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of groups
+      !
+      write(file, '(/2I10,1X,"!NGRP NST2")') ngrp, 0
+
+      ! write group
+      write(file, '(9I10)') &
+                           (psf%grp_list(1, i), &
+                            psf%grp_list(2, i), &
+                            psf%grp_list(3, i), i = 1, ngrp)
+
+    end select
 
     return
 
   end subroutine write_psf_grp
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_psf_lpair
+  !> @brief        write lone pair information to PSF file
+  !! @authors      Shingo Ito (SI)
+  !! @param[in]    file : unit number of PSF file
+  !! @param[in]    psf  : structureo of PSF information
+  !! @remark       It only print out "0 0" in PSF file.
+  !! @remark       Current GENESIS does not consider writing polarizable PSF.
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_psf_lpair(file, psf)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_psf),             intent(in)    :: psf
+
+    ! local variables
+    integer                  :: i, numlp, numlph, natom
+
+
+    numlp  = 0
+    numlph = 0
+    natom  = 0
+
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of lone pair
+      !
+      write(file, '(/I'//trim(get_digit(numlp))//', &
+                      I'//trim(get_digit(numlph))//', &
+                      1X,"!NUMLP NUMLPH")') numlp, numlph
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of lone pair
+      !
+      write(file, '(/2I10,1X,"!NUMLP NUMLPH")') numlp, numlph
+    end select
+ 
+    return
+
+  end subroutine write_psf_lpair
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -1794,35 +2178,56 @@ contains
     integer                  :: i, ncmap, natom
 
 
-    ! write the number of cross-term 
-    !
     if (allocated(psf%cmap_list)) then
       ncmap = size(psf%cmap_list(1,:))
     else
       ncmap = 0
     end if
 
-    write(file, '(/I'//trim(get_digit(ncmap))//',1X,"!NCRTERM: cross-terms")') &
-         ncmap
-    
-
-    ! write impr
-    !
     if (allocated(psf%atom_no)) then
       natom = size(psf%atom_no)
     else
       natom = 0
     end if
 
-    write(file, '(8I'//trim(get_digit(natom))//')') &
-                         (psf%cmap_list(1, i), &
-                          psf%cmap_list(2, i), &
-                          psf%cmap_list(3, i), &
-                          psf%cmap_list(4, i), &
-                          psf%cmap_list(5, i), &
-                          psf%cmap_list(6, i), &
-                          psf%cmap_list(7, i), &
-                          psf%cmap_list(8, i), i = 1, ncmap)
+    select case (psf%type)
+    case (PsfTypeCHARMM, PsfTypeXPLOR)
+      ! write the number of cross-term 
+      !
+      write(file, '(/I'//trim(get_digit(ncmap))//',1X,"!NCRTERM: cross-terms")') &
+           ncmap
+      
+      ! write impr
+      !
+      write(file, '(8I'//trim(get_digit(natom))//')') &
+                           (psf%cmap_list(1, i), &
+                            psf%cmap_list(2, i), &
+                            psf%cmap_list(3, i), &
+                            psf%cmap_list(4, i), &
+                            psf%cmap_list(5, i), &
+                            psf%cmap_list(6, i), &
+                            psf%cmap_list(7, i), &
+                            psf%cmap_list(8, i), i = 1, ncmap)
+
+    case (PsfTypeCHARMMEXT, PsfTypeXPLOREXT)
+      ! write the number of cross-term 
+      !
+      write(file, '(/I10,1X,"!NCRTERM: cross-terms")') &
+           ncmap
+      
+      ! write impr
+      !
+      write(file, '(8I10)') &
+                           (psf%cmap_list(1, i), &
+                            psf%cmap_list(2, i), &
+                            psf%cmap_list(3, i), &
+                            psf%cmap_list(4, i), &
+                            psf%cmap_list(5, i), &
+                            psf%cmap_list(6, i), &
+                            psf%cmap_list(7, i), &
+                            psf%cmap_list(8, i), i = 1, ncmap)
+
+    end select
 
     return
 

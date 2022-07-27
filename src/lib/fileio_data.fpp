@@ -2,7 +2,7 @@
 !
 !  Module   fileio_data
 !> @brief   utilities for reading data from binary file
-!! @authors Norio Takase (NT)
+!! @authors Norio Takase (NT), Kiyoshi Yagi (KY)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -24,10 +24,10 @@ module fileio_data_mod
   private
 
   ! constants
-  integer, public, parameter  :: IOFileDataRead       = 1
-  integer, public, parameter  :: IOFileDataWrite      = 2
-  integer, public, parameter  :: IOFileDataWriteAscii = 3
-  integer, public, parameter  :: IOFileDataAppend     = 4
+  integer, public, parameter   :: IOFileDataRead       = 1
+  integer, public, parameter   :: IOFileDataWrite      = 2
+  integer, public, parameter   :: IOFileDataWriteAscii = 3
+  integer, public, parameter   :: IOFileDataAppend     = 4
 
   integer(8)  :: Zero = 0   ! for gfortran 4.4.7 bug
   integer(8)  :: One = 1    ! for gfortran 4.4.7 bug
@@ -67,6 +67,7 @@ module fileio_data_mod
   ! subroutines
   public  :: open_data
   public  :: close_data
+  public  :: write_data_logical_array
   public  :: write_data_logical
   public  :: write_data_byte_array
   public  :: write_data_byte
@@ -76,6 +77,11 @@ module fileio_data_mod
   public  :: write_data_real_wp
   public  :: write_data_real_wip_array
   public  :: write_data_real_wip
+  public  :: write_data_real_dp_array
+  public  :: write_data_real_dp
+  public  :: write_data_real_sp_array
+  public  :: write_data_real_sp
+  public  :: read_data_logical_array
   public  :: read_data_logical
   public  :: read_data_byte_array
   public  :: read_data_byte
@@ -85,6 +91,10 @@ module fileio_data_mod
   public  :: read_data_real_wp
   public  :: read_data_real_wip_array
   public  :: read_data_real_wip
+  public  :: read_data_real_dp_array
+  public  :: read_data_real_dp
+  public  :: read_data_real_sp_array
+  public  :: read_data_real_sp
   public  :: get_data_size
   private :: import_data
   private :: import_data_binary
@@ -115,10 +125,12 @@ module fileio_data_mod
   private :: transfer_w2b
   private :: transfer_wi2b
   private :: transfer_d2b
+  private :: transfer_s2b
   private :: transfer_b2i
   private :: transfer_b2w
   private :: transfer_b2wi
   private :: transfer_b2d
+  private :: transfer_b2s
   private :: swap4
   private :: swap8
   private :: fd_open
@@ -141,7 +153,7 @@ module fileio_data_mod
   !     #byte  contents
   ! -------------------
   !  1:    8   block_size
-  !  2:    1   var. type (b:byte, i:integer, d:real(dp))
+  !  2:    1   var. type (b:byte, i:integer, w:real(wp), d:real(dp), s:real(sp))
   !  3:   40   tag name
   !  4:    n   payload
   !  5:    8   next common tag block pos. (zero => termiated)
@@ -249,6 +261,53 @@ contains
     return
 
   end subroutine close_data
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_data_logical_array
+  !> @brief        write logical array to data file
+  !! @authors      KY
+  !! @param[in]    handle : handle for file
+  !! @param[in]    tag    : tag name
+  !! @param[in]    dsize  : size of data
+  !! @param[in]    data   : data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_data_logical_array(handle, tag, dsize, data)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    logical,                 intent(in)    :: data(*)
+
+    ! local variables
+    integer                  :: i, ds
+    character, allocatable   :: v(:)
+
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    allocate(v(ds))
+
+    do i = 1, ds
+      if (data(i)) then
+        v(i) = 'T'
+      else
+        v(i) = 'F'
+      end if
+    end do
+
+    call write_data(handle, 'l', tag, ds, v)
+    deallocate(v)
+
+    return
+
+  end subroutine write_data_logical_array
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -467,7 +526,7 @@ contains
 
     call transfer_w2b(data, b, ds)
 
-    call write_data(handle, 'd', tag, ds * 8, b)
+    call write_data(handle, 'w', tag, ds * 8, b)
 
     return
 
@@ -507,7 +566,7 @@ contains
     dd = real(data,dp)
     b(1:8) = transfer(dd, b(1:8))
 
-    call write_data(handle, 'd', tag, 8, b)
+    call write_data(handle, 'w', tag, 8, b)
 
     return
 
@@ -598,6 +657,230 @@ contains
     return
 
   end subroutine write_data_real_wip
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_data_real_dp_array
+  !> @brief        write real(dp) array to data file
+  !! @authors      NT
+  !! @param[in]    handle : handle for file
+  !! @param[in]    tag    : tag name
+  !! @param[in]    dsize  : size of data
+  !! @param[in]    data   : data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_data_real_dp_array(handle, tag, dsize, data)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    real(dp),                intent(in)    :: data(*)
+
+    ! local variables
+    integer                  :: i, ds
+
+    character, pointer :: b(:)
+
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    if (ds * 8 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(ds * 8))
+    end if
+
+    b => g_file(handle)%b
+
+    call transfer_d2b(data, b, ds)
+
+    call write_data(handle, 'd', tag, ds * 8, b)
+
+    return
+
+  end subroutine write_data_real_dp_array
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_data_real_dp
+  !> @brief        write real(dp) to data file
+  !! @authors      NT
+  !! @param[in]    handle : handle for file
+  !! @param[in]    tag    : tag name
+  !! @param[in]    data   : data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_data_real_dp(handle, tag, data)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    real(dp),                intent(in)    :: data
+
+    ! local variables
+    character, pointer :: b(:)
+
+
+    if (8 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(8))
+    end if
+
+    b => g_file(handle)%b
+
+    b(1:8) = transfer(data, b(1:8))
+
+    call write_data(handle, 'd', tag, 8, b)
+
+    return
+
+  end subroutine write_data_real_dp
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_data_real_sp_array
+  !> @brief        write real(sp) array to data file
+  !! @authors      NT
+  !! @param[in]    handle : handle for file
+  !! @param[in]    tag    : tag name
+  !! @param[in]    dsize  : size of data
+  !! @param[in]    data   : data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_data_real_sp_array(handle, tag, dsize, data)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    real(sp),                intent(in)    :: data(*)
+
+    ! local variables
+    integer                  :: i, ds
+
+    character, pointer :: b(:)
+
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    if (ds * 4 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(ds * 4))
+    end if
+
+    b => g_file(handle)%b
+
+    call transfer_s2b(data, b, ds)
+
+    call write_data(handle, 's', tag, ds * 4, b)
+
+    return
+
+  end subroutine write_data_real_sp_array
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_data_real_sp
+  !> @brief        write real(sp) to data file
+  !! @authors      NT
+  !! @param[in]    handle : handle for file
+  !! @param[in]    tag    : tag name
+  !! @param[in]    data   : data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_data_real_sp(handle, tag, data)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    real(sp),                intent(in)    :: data
+
+    ! local variables
+    character, pointer :: b(:)
+
+
+    if (4 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(4))
+    end if
+
+    b => g_file(handle)%b
+
+    b(1:4) = transfer(data, b(1:4))
+
+    call write_data(handle, 's', tag, 4, b)
+
+    return
+
+  end subroutine write_data_real_sp
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_data_logical_array
+  !> @brief        read logical array from data file
+  !! @authors      KY
+  !! @param[in]    handle    : handle for file
+  !! @param[in]    tag       : tag name
+  !! @param[in]    dsize     : size of data
+  !! @param[inout] data      : data
+  !! @param[in]    oerr_stop : flag for error-stop or not when tag is not found
+  !!                           (optional: default is .true.)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_data_logical_array(handle, tag, dsize, data, oerr_stop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    logical,                 intent(inout) :: data(*)
+    logical, optional,       intent(in)    :: oerr_stop
+
+    ! local variables
+    integer                  :: i, ds
+    character(200)           :: msg
+    character, allocatable   :: v(:)
+    logical                  :: no_tag, err_stop
+
+
+    err_stop = .true.
+    if (present(oerr_stop)) err_stop = oerr_stop
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    allocate(v(ds))
+
+    call read_data(handle, 'l', tag, ds, v, no_tag)
+    if (no_tag) then
+      msg = 'Read_Data_Logical_Array> indicated tag is not found at file.['// &
+           trim(tag)//']'
+      if (err_stop) call error_msg(msg)
+      if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
+    end if
+
+    do i = 1, ds
+      data(i) = (v(i) == 'T')
+    end do
+
+    deallocate(v)
+
+    return
+
+  end subroutine read_data_logical_array
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -897,9 +1180,9 @@ contains
 
     b => g_file(handle)%b
 
-    call read_data(handle, 'd', tag, ds * 8, b, no_tag)
+    call read_data(handle, 'w', tag, ds * 8, b, no_tag)
     if (no_tag) then
-      msg = 'Read_Data_Real_Wp_Array> indicated tag is not found at file.['// &
+      msg = 'Read_Data_Real_Array> indicated tag is not found at file.['// &
            trim(tag)//']'
       if (err_stop) call error_msg(msg)
       if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
@@ -951,9 +1234,9 @@ contains
 
     b => g_file(handle)%b
 
-    call read_data(handle, 'd', tag, 8, b, no_tag)
+    call read_data(handle, 'w', tag, 8, b, no_tag)
     if (no_tag) then
-   msg='Read_Data_Real_Wp> indicated tag is not found at file.['//trim(tag)//']'
+      msg='Read_Data_Real> indicated tag is not found at file.['//trim(tag)//']'
       if (err_stop) call error_msg(msg)
       if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
       return
@@ -1080,6 +1363,237 @@ contains
     return
 
   end subroutine read_data_real_wip
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_data_real_dp_array
+  !> @brief        read real(dp) array from data file
+  !! @authors      NT
+  !! @param[in]    handle    : handle for file
+  !! @param[in]    tag       : tag name
+  !! @param[in]    dsize     : size of data
+  !! @param[inout] data      : data
+  !! @param[in]    oerr_stop : flag for error-stop or not when tag is not found
+  !!                           (optional: default is .true.)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_data_real_dp_array(handle, tag, dsize, data, oerr_stop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    real(dp),                intent(inout) :: data(*)
+    logical, optional,       intent(in)    :: oerr_stop
+
+    ! local variables
+    integer                  :: i, ds
+    character(200)           :: msg
+    logical                  :: no_tag, err_stop
+
+    character, pointer :: b(:)
+
+
+    err_stop = .true.
+    if (present(oerr_stop)) err_stop = oerr_stop
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    if (ds * 8 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(ds * 8))
+    end if
+
+    b => g_file(handle)%b
+
+    call read_data(handle, 'd', tag, ds * 8, b, no_tag)
+    if (no_tag) then
+      msg = 'Read_Data_Real_Dp_Array> indicated tag is not found at file.['// &
+           trim(tag)//']'
+      if (err_stop) call error_msg(msg)
+      if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
+      return
+    end if
+
+    call transfer_b2d(b, data, ds)
+
+    return
+
+  end subroutine read_data_real_dp_array
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_data_real_dp
+  !> @brief        read real(dp) from data file
+  !! @authors      NT
+  !! @param[in]    handle    : handle for file
+  !! @param[in]    tag       : tag name
+  !! @param[inout] data      : data
+  !! @param[in]    oerr_stop : flag for error-stop or not when tag is not found
+  !!                           (optional: default is .true.)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_data_real_dp(handle, tag, data, oerr_stop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    real(dp),                intent(inout) :: data
+    logical, optional,       intent(in)    :: oerr_stop
+
+    ! local variables
+    character(200)           :: msg
+    logical                  :: no_tag, err_stop
+
+    character, pointer :: b(:)
+
+
+    err_stop = .true.
+    if (present(oerr_stop)) err_stop = oerr_stop
+
+    if (8 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(8))
+    end if
+
+    b => g_file(handle)%b
+
+    call read_data(handle, 'd', tag, 8, b, no_tag)
+
+    if (no_tag) then
+      msg = 'Read_Data_Real_Dp> indicated tag is not found at file.['// &
+           trim(tag)//']'
+      if (err_stop) call error_msg(msg)
+      if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
+      return
+    end if
+
+    data = transfer(b(1:8), data)
+
+    return
+
+  end subroutine read_data_real_dp
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_data_real_sp_array
+  !> @brief        read real(sp) array from data file
+  !! @authors      NT
+  !! @param[in]    handle    : handle for file
+  !! @param[in]    tag       : tag name
+  !! @param[in]    dsize     : size of data
+  !! @param[inout] data      : data
+  !! @param[in]    oerr_stop : flag for error-stop or not when tag is not found
+  !!                           (optional: default is .true.)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_data_real_sp_array(handle, tag, dsize, data, oerr_stop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    integer,                 intent(in)    :: dsize(:)
+    real(sp),                intent(inout) :: data(*)
+    logical, optional,       intent(in)    :: oerr_stop
+
+    ! local variables
+    integer                  :: i, ds
+    character(200)           :: msg
+    logical                  :: no_tag, err_stop
+
+    character, pointer :: b(:)
+
+
+    err_stop = .true.
+    if (present(oerr_stop)) err_stop = oerr_stop
+
+    ds = 1
+    do i = 1, size(dsize)
+      ds = ds * dsize(i)
+    end do
+
+    if (ds * 4 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(ds * 4))
+    end if
+
+    b => g_file(handle)%b
+
+    call read_data(handle, 's', tag, ds * 4, b, no_tag)
+
+    if (no_tag) then
+      msg = 'Read_Data_Real_Sp_Array> indicated tag is not found at file.['// &
+           trim(tag)//']'
+      if (err_stop) call error_msg(msg)
+      if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
+      return
+    end if
+
+    call transfer_b2s(b, data, ds)
+
+    return
+
+  end subroutine read_data_real_sp_array
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_data_real_sp
+  !> @brief        read real(sp) from data file
+  !! @authors      NT
+  !! @param[in]    handle    : handle for file
+  !! @param[in]    tag       : tag name
+  !! @param[inout] data      : data
+  !! @param[in]    oerr_stop : flag for error-stop or not when tag is not found
+  !!                           (optional: default is .true.)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_data_real_sp(handle, tag, data, oerr_stop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: handle
+    character(*),            intent(in)    :: tag
+    real(sp),                intent(inout) :: data
+    logical, optional,       intent(in)    :: oerr_stop
+
+    ! local variables
+    character(200)           :: msg
+    logical                  :: no_tag, err_stop
+
+    character, pointer :: b(:)
+
+
+    err_stop = .true.
+    if (present(oerr_stop)) err_stop = oerr_stop
+
+    if (4 > size(g_file(handle)%b)) then
+      deallocate(g_file(handle)%b)
+      allocate(g_file(handle)%b(4))
+    end if
+
+    b => g_file(handle)%b
+
+    call read_data(handle, 's', tag, 4, b, no_tag)
+
+    if (no_tag) then
+      msg = 'Read_Data_Real_Sp> indicated tag is not found at file.['// &
+           trim(tag)//']'
+      if (err_stop) call error_msg(msg)
+      if (main_rank) write(MsgOut,'(a,/)') trim(msg)//'  skip..'
+      return
+    end if
+
+    data = transfer(b(1:4), data)
+
+    return
+
+  end subroutine read_data_real_sp
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -1249,7 +1763,9 @@ contains
     character(1)             :: var_type
 
     integer,     allocatable :: idata(:)
-    real(dp) ,   allocatable :: ddata(:)
+    real(sp),    allocatable :: sdata(:)
+    real(dp),    allocatable :: ddata(:)
+    real(wp),    allocatable :: wdata(:)
     type(s_data),    pointer :: dat
 
 
@@ -1291,6 +1807,14 @@ contains
         call transfer_i2b(idata,dat%payload,ndata)
         deallocate(idata)
 
+      case ('w')
+        data_size = ndata * 8
+        allocate(dat%payload(data_size))
+        allocate(wdata(ndata))
+        read(unit_no,*) (wdata(i),i=1,ndata)
+        call transfer_w2b(wdata,dat%payload,ndata)
+        deallocate(wdata)
+
       case ('d')
         data_size = ndata * 8
         allocate(dat%payload(data_size))
@@ -1298,6 +1822,14 @@ contains
         read(unit_no,*) (ddata(i),i=1,ndata)
         call transfer_d2b(ddata,dat%payload,ndata)
         deallocate(ddata)
+
+      case ('s')
+        data_size = ndata * 4
+        allocate(dat%payload(data_size))
+        allocate(sdata(ndata))
+        read(unit_no,*) (sdata(i),i=1,ndata)
+        call transfer_s2b(sdata,dat%payload,ndata)
+        deallocate(sdata)
 
       case default
         call error_msg('Import_Data_Ascii> Unknown variable type:'//var_type)
@@ -1367,7 +1899,9 @@ contains
     integer                  :: unit_no, ndata, i
 
     integer,     allocatable :: idata(:)
+    real(sp),    allocatable :: sdata(:)
     real(dp),    allocatable :: ddata(:)
+    real(wp),    allocatable :: wdata(:)
     type(s_data),    pointer :: dat
 
 
@@ -1396,11 +1930,23 @@ contains
         write(unit_no,'(6(i12,1x))') (idata(i),i=1,ndata)
         deallocate(idata)
 
+      case ('w')
+        allocate(wdata(ndata))
+        call transfer_b2w(dat%payload, wdata, ndata)
+        write(unit_no,'(3(f26.13,1x))') (wdata(i),i=1,ndata)
+        deallocate(wdata)
+
       case ('d')
         allocate(ddata(ndata))
         call transfer_b2d(dat%payload, ddata, ndata)
         write(unit_no,'(3(f26.13,1x))') (ddata(i),i=1,ndata)
         deallocate(ddata)
+
+      case ('s')
+        allocate(sdata(ndata))
+        call transfer_b2s(dat%payload, sdata, ndata)
+        write(unit_no,'(3(f26.13,1x))') (sdata(i),i=1,ndata)
+        deallocate(sdata)
 
       end select
 
@@ -1698,8 +2244,12 @@ contains
         dsize = dsize / 1
       case ('i')
         dsize = dsize / 4
+      case ('w')
+        dsize = dsize / 8
       case ('d')
         dsize = dsize / 8
+      case ('s')
+        dsize = dsize / 4
       case default
         ! nothing to do.
       end select
@@ -2078,6 +2628,29 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
+  subroutine transfer_s2b(sdata, bdata, ndata)
+
+    ! formal arguments
+    real(sp),                intent(in)    :: sdata(*)
+    character,               intent(inout) :: bdata(*)
+    integer,                 intent(in)    :: ndata
+
+    ! local variables
+    integer                  :: i, ii
+
+
+    ii = 1
+    do i = 1, ndata
+      bdata(ii:ii+3) = transfer(sdata(i), bdata(ii:ii+3))
+      ii = ii + 4
+    end do
+
+    return
+
+  end subroutine transfer_s2b
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
   subroutine transfer_b2i(bdata, idata, ndata)
 
     ! formal arguments
@@ -2171,6 +2744,29 @@ contains
     return
 
   end subroutine transfer_b2d
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine transfer_b2s(bdata, sdata, ndata)
+
+    ! formal arguments
+    character,               intent(inout) :: bdata(*)
+    real(sp),                intent(inout) :: sdata(*)
+    integer,                 intent(in)    :: ndata
+
+    ! local variables
+    integer                  :: i, ii
+
+
+    ii = 1
+    do i = 1, ndata
+      sdata(i) = transfer(bdata(ii:ii+3), sdata(i))
+      ii = ii + 4
+    end do
+
+    return
+
+  end subroutine transfer_b2s
 
   !======1=========2=========3=========4=========5=========6=========7=========8
 

@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   sp_energy_pme
+!  Module   sp_energy_pme_mod
 !> @brief   Smooth particle mesh ewald method
 !! @authors Jaewoon Jung (JJ)
 !
@@ -27,7 +27,7 @@ module sp_energy_pme_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -73,6 +73,7 @@ contains
     logical                  :: calc
     integer                  :: iproc(3), index_x, index_y, index_z
 
+
     if (boundary%type /= BoundaryTypePBC) &
       call error_msg('Setup_PME> Error! BoundaryType is not PBC.')
 
@@ -89,7 +90,7 @@ contains
     index_y  = iproc(3)*nproc_city + iproc(1)
     index_z  = iproc(1)*nproc_city + iproc(2)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_comm_split(mpi_comm_city, index_x,my_city_rank,grid_commx,ierror)
     call mpi_comm_size (grid_commx, nprocx, ierror)
     call mpi_comm_rank (grid_commx, my_x_rank, ierror)
@@ -139,12 +140,14 @@ contains
   !  Subroutine    dealloc_pme
   !> @brief        deallocate all arrays used in PME
   !! @authors      JJ
+  !! @param[in]    enefunc  : energy function
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine dealloc_pme(enefunc)
 
     type(s_enefunc),         intent(in) :: enefunc
+
 
     select case (pme_scheme)
 
@@ -158,10 +161,10 @@ contains
       call dealloc_pme_noopt_1dalltoall(enefunc)
 
     case (FFT_opt_2dalltoall)
-      call dealloc_pme_opt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
 
     case (FFT_noopt_2dalltoall)
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_noopt_2dalltoall(enefunc)
 
     case (FFT_opt_slab)
       call dealloc_pme_opt_slab
@@ -251,27 +254,29 @@ contains
     case (FFT_AutoSelect)
       return
 
-!   case (FFT_opt_1dalltoall)
-!     call pme_pre_opt_1dalltoall_lj(domain, boundary)
-!     u_self = u_self_o1
+    case (FFT_opt_1dalltoall)
+      call pme_pre_opt_1dalltoall_lj(domain, boundary)
+      u_self = u_self_o1
 
     case (FFT_noopt_1dalltoall)
       call pme_pre_noopt_1dalltoall_lj(domain, boundary)
       u_self = u_self_no1
 
-!   case (FFT_opt_2dalltoall)
-!     call pme_pre_opt_2dalltoall_lj(domain, boundary)
-!     u_self = u_self_o2
+    case (FFT_opt_2dalltoall)
+      call pme_pre_opt_2dalltoall_lj(domain, boundary)
+      u_self = u_self_o2
 
-!   case (FFT_noopt_2dalltoall)
-!     call pme_pre_noopt_2dalltoall_lj(domain, boundary)
-!     u_self = u_self_no2
+    case (FFT_noopt_2dalltoall)
+      call pme_pre_noopt_2dalltoall_lj(domain, boundary)
+      u_self = u_self_no2
 
-!   case (FFT_opt_slab)
+    case (FFT_opt_slab)
+      call error_msg('Dispersion_PME with opt_slab is not available now')
 !     call pme_pre_opt_slab_lj(domain, boundary)
 !     u_self = u_self_os
 
-!   case (FFT_noopt_slab)
+    case (FFT_noopt_slab)
+      call error_msg('Dispersion_PME with noopt_slab is not available now')
 !     call pme_pre_noopt_slab_lj(domain, boundary)
 !     u_self = u_self_nos
 
@@ -354,10 +359,12 @@ contains
   !  Subroutine    pme_recip_lj
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] force  : forces of target systems
-  !! @param[inout] virial : virial term of target systems
-  !! @param[inout] eelec  : electrostatic energy of target systems
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : energy function
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -377,49 +384,59 @@ contains
     case (FFT_AutoSelect)
       return
 
-!   case (FFT_opt_1dalltoall)
-!     if (pme_nspline == 4) then
-!       call pme_recip_opt_1dalltoall_4_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 6) then
-!       call pme_recip_opt_1dalltoall_6_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 8) then
-!       call pme_recip_opt_1dalltoall_8_lj(domain, force, virial, eelec)
-!     end if
+    case (FFT_opt_1dalltoall)
+      if (pme_nspline == 4) then
+        call pme_recip_opt_1dalltoall_lj_4 &
+                              (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 6) then
+        call pme_recip_opt_1dalltoall_lj_6 &
+                              (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 8) then
+        call pme_recip_opt_1dalltoall_lj_8 &
+                              (domain, enefunc, force, virial, eelec, evdw)
+      end if
 
     case (FFT_noopt_1dalltoall)
-      call pme_recip_noopt_1dalltoall_lj(domain, enefunc, force, virial, &
-                                         eelec, evdw)
+      call pme_recip_noopt_1dalltoall_lj &
+                              (domain, enefunc, force, virial, eelec, evdw)
 
-!   case (FFT_opt_2dalltoall)
-!     if (pme_nspline == 4) then
-!       call pme_recip_opt_2dalltoall_4_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 6) then
-!       call pme_recip_opt_2dalltoall_6_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 8) then
-!       call pme_recip_opt_2dalltoall_8_lj(domain, force, virial, eelec)
-!     end if
+    case (FFT_opt_2dalltoall)
+      if (pme_nspline == 4) then
+        call pme_recip_opt_2dalltoall_lj_4 &
+                              (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 6) then
+        call pme_recip_opt_2dalltoall_lj_6 &
+                              (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 8) then
+!       call pme_recip_opt_2dalltoall_lj_8 &
+!                             (domain, enefunc, force, virial, eelec, evdw)
+      end if
 
-!   case (FFT_noopt_2dalltoall)
-!     call pme_recip_noopt_2dalltoall_lj(domain, force, virial, eelec)
+    case (FFT_noopt_2dalltoall)
+      call pme_recip_noopt_2dalltoall_lj &
+                              (domain, enefunc, force, virial, eelec, evdw)
 
-!   case (FFT_opt_slab)
-!     if (pme_nspline == 4) then
-!       call pme_recip_opt_slab_4_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 6) then
-!       call pme_recip_opt_slab_6_lj(domain, force, virial, eelec)
-!     else if (pme_nspline == 8) then
-!       call pme_recip_opt_slab_8_lj(domain, force, virial, eelec)
-!     end if
+    case (FFT_opt_slab)
+      if (pme_nspline == 4) then
+!       call pme_recip_opt_slab_lj_4 &
+!                             (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 6) then
+!       call pme_recip_opt_slab_lj_6 &
+!                             (domain, enefunc, force, virial, eelec, evdw)
+      else if (pme_nspline == 8) then
+!       call pme_recip_opt_slab_lj_8 &
+!                             (domain, enefunc, force, virial, eelec, evdw)
+      end if
 
-!   case (FFT_noopt_slab)
-!     call pme_recip_noopt_slab_lj(domain, force, virial, eelec)
+    case (FFT_noopt_slab)
+!     call pme_recip_noopt_slab_lj &
+!                             (domain, enefunc, force, virial, eelec, evdw)
 
     end select
 
     return
 
   end subroutine pme_recip_lj
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -428,7 +445,7 @@ contains
   !! @authors      NT
   !! @param[in]    domain   : domain information
   !! @param[in]    boundary : boundary information
-  !! @param[inout] enefunc  : energy function
+  !! @param[in]    enefunc  : energy function
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -722,8 +739,8 @@ contains
           minimum_time = proc_time(i)
         end if
       end do
-    endif
-#ifdef MPI
+    end if
+#ifdef HAVE_MPI_GENESIS
     call mpi_bcast(pme_scheme, 1, mpi_integer, 0, mpi_comm_world, ierror)
 #endif
 
@@ -737,48 +754,47 @@ contains
 
     case (FFT_opt_1dalltoall)
       call dealloc_pme_noopt_1dalltoall(enefunc)
-      call dealloc_pme_opt_2dalltoall
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
+      call dealloc_pme_noopt_2dalltoall(enefunc)
       call dealloc_pme_opt_slab
       call dealloc_pme_noopt_slab
 
     case (FFT_noopt_1dalltoall)
       call dealloc_pme_opt_1dalltoall(enefunc)
-      call dealloc_pme_opt_2dalltoall
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
+      call dealloc_pme_noopt_2dalltoall(enefunc)
       call dealloc_pme_opt_slab
       call dealloc_pme_noopt_slab
 
     case (FFT_opt_2dalltoall)
       call dealloc_pme_opt_1dalltoall(enefunc)
       call dealloc_pme_noopt_1dalltoall(enefunc)
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_noopt_2dalltoall(enefunc)
       call dealloc_pme_opt_slab
       call dealloc_pme_noopt_slab
 
     case (FFT_noopt_2dalltoall)
       call dealloc_pme_opt_1dalltoall(enefunc)
       call dealloc_pme_noopt_1dalltoall(enefunc)
-      call dealloc_pme_opt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
       call dealloc_pme_opt_slab
       call dealloc_pme_noopt_slab
 
     case (FFT_opt_slab)
       call dealloc_pme_opt_1dalltoall(enefunc)
       call dealloc_pme_noopt_1dalltoall(enefunc)
-      call dealloc_pme_opt_2dalltoall
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
+      call dealloc_pme_noopt_2dalltoall(enefunc)
       call dealloc_pme_noopt_slab
 
     case (FFT_noopt_slab)
       call dealloc_pme_opt_1dalltoall(enefunc)
       call dealloc_pme_noopt_1dalltoall(enefunc)
-      call dealloc_pme_opt_2dalltoall
-      call dealloc_pme_noopt_2dalltoall
+      call dealloc_pme_opt_2dalltoall(enefunc)
+      call dealloc_pme_noopt_2dalltoall(enefunc)
       call dealloc_pme_opt_slab
 
     end select
-
 
     return
 

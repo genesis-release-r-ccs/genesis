@@ -41,7 +41,7 @@ module sp_dynamics_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -172,7 +172,6 @@ contains
 
     end if
 
-
     return
 
   end subroutine show_ctrl_dynamics
@@ -195,6 +194,7 @@ contains
     ! formal arguments
     integer,                 intent(in)    :: handle
     type(s_dyn_info),        intent(inout) :: dyn_info
+
 
     ! read parameters from control file
     !
@@ -383,18 +383,20 @@ contains
       
     ! error check
     !
-    if (dyn_info%crdout_period > 0 .and.                        &
-        mod(dyn_info%nsteps, dyn_info%crdout_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in crdout_period'//&
-        '  mod(nsteps, crdout_period) is not ZERO')
+    if (dyn_info%crdout_period > 0) then
+      if (mod(dyn_info%nsteps, dyn_info%crdout_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in crdout_period'//&
+          '  mod(nsteps, crdout_period) is not ZERO')
+      end if
     end if
 
-    if (dyn_info%velout_period > 0 .and.                        &
-        mod(dyn_info%nsteps, dyn_info%velout_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in velout_period'//&
-        '  mod(nsteps, velout_period) is not ZERO')
+    if (dyn_info%velout_period > 0) then
+      if (mod(dyn_info%nsteps, dyn_info%velout_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in velout_period'//&
+          '  mod(nsteps, velout_period) is not ZERO')
+      end if
     end if
 
     if (dyn_info%eneout_period > 0 .and.                        &
@@ -404,18 +406,20 @@ contains
         '  mod(nsteps, eneout_period) is not ZERO')
     end if
 
-    if (dyn_info%rstout_period > 0 .and.                        &
-        mod(dyn_info%nsteps, dyn_info%rstout_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in rstout_period'//&
-        '  mod(nsteps, rstout_period) is not ZERO')
+    if (dyn_info%rstout_period > 0) then
+      if (mod(dyn_info%nsteps, dyn_info%rstout_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in rstout_period'//&
+          '  mod(nsteps, rstout_period) is not ZERO')
+      end if
     end if
 
-    if (dyn_info%stoptr_period > 0 .and.                        &
-        mod(dyn_info%nsteps, dyn_info%stoptr_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in stoptr_period'//&
-        '  mod(nsteps, stoptr_period) is not ZERO')
+    if (dyn_info%stoptr_period > 0) then
+      if (mod(dyn_info%nsteps, dyn_info%stoptr_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in stoptr_period'//&
+          '  mod(nsteps, stoptr_period) is not ZERO')
+      end if
     end if
 
     if (dyn_info%nbupdate_period > 0 .and.                      &
@@ -425,11 +429,12 @@ contains
         '  mod(nsteps, nbupdate_period) is not ZERO')
     end if
 
-    if (dyn_info%anneal_period > 0 .and.                        &
-        mod(dyn_info%nsteps, dyn_info%anneal_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in anneal_period'//&
-        '  mod(nsteps, anneal_period) is not ZERO')
+    if (dyn_info%anneal_period > 0) then
+      if (mod(dyn_info%nsteps, dyn_info%anneal_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in anneal_period'//&
+          '  mod(nsteps, anneal_period) is not ZERO')
+      end if
     end if
 
     if (dyn_info%annealing .and. dyn_info%anneal_period <= 0) then
@@ -438,25 +443,28 @@ contains
         '  annealing = YES, but anneal_period is <= ZERO')
     end if
 
-    if (dyn_info%crdout_period > 0 .and.                        &
-        mod(dyn_info%crdout_period,dyn_info%nbupdate_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in crdout_period or nbupdate_period'//&
-        '  mod(crdout_period,nbupdate_period) is not ZERO')
+    if (dyn_info%crdout_period > 0) then
+      if (mod(dyn_info%crdout_period,dyn_info%nbupdate_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in crdout_period or nbupdate_period'//&
+          '  mod(crdout_period,nbupdate_period) is not ZERO')
+      end if
     end if
 
-    if (dyn_info%elec_long_period > 0 .and.                        &
-        mod(dyn_info%nbupdate_period,dyn_info%elec_long_period) /= 0) then
-      call error_msg( &
-        'Read_Ctrl_Dynamics> Error in elec_long_period or nbupdate_period'//&
-        '  mod(nbupdate_period,elec_long_period) is not ZERO')
+    if (dyn_info%elec_long_period > 0) then
+      if (mod(dyn_info%nbupdate_period,dyn_info%elec_long_period) /= 0) then
+        call error_msg( &
+          'Read_Ctrl_Dynamics> Error in elec_long_period or nbupdate_period'//&
+          '  mod(nbupdate_period,elec_long_period) is not ZERO')
+      end if
     end if
 
-    if (dyn_info%elec_long_period > 0 .and.  &
-        mod(dyn_info%thermo_period,dyn_info%elec_long_period) /= 0) then
-      call error_msg( &
-       'Read_Ctrl_Dynamics> Error in elec_long_period or thermostat_period'//&
-       '  mod(thermostat_period,elec_long_period) is not ZERO')
+    if (dyn_info%elec_long_period > 0) then
+      if (mod(dyn_info%thermo_period,dyn_info%elec_long_period) /= 0) then
+        call error_msg( &
+         'Read_Ctrl_Dynamics> Error in elec_long_period or thermostat_period'//&
+         '  mod(thermostat_period,elec_long_period) is not ZERO')
+      end if
     end if
 
     return
@@ -532,7 +540,7 @@ contains
       dynamics%iseed_read=.true.
       if (main_rank) &
         call random_seed_initial_time(iseed)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
 #endif
       iseed_init_vel = iseed
@@ -565,7 +573,7 @@ contains
         write(MsgOut,'(a)') &
         'Setup_Dynamics> Subtract 3 translational degrees of freedom'
         write(MsgOut,'(a)') ' '
-      endif
+      end if
 
       call update_num_deg_freedom('After removing translation', &
                                   -3, molecule%num_deg_freedom)
@@ -578,7 +586,7 @@ contains
         write(MsgOut,'(a)') &
         'Setup_Dynamics> Subtract 3 rotational degrees of freedom'
         write(MsgOut,'(a)') ' '
-      endif
+      end if
 
       call update_num_deg_freedom('After removing rotation', &
                                   -3, molecule%num_deg_freedom)
@@ -608,6 +616,7 @@ contains
   !! @param[in]    dyn_info   : DYNAMICS section control parameters information
   !! @param[in]    bound_info : BOUNDARY section control parameters information
   !! @param[in]    res_info   : RESTRAINT section control parameters information
+  !! @param[inout] domain     : domain information
   !! @param[inout] dynamics   : dynamics information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -681,7 +690,7 @@ contains
         write(MsgOut,'(a)') &
         'Setup_Dynamics> Subtract 3 translational degrees of freedom'
         write(MsgOut,'(a)') ' '
-      endif
+      end if
 
       call update_num_deg_freedom('After removing translation', &
                                   -3, domain%num_deg_freedom)
@@ -694,7 +703,7 @@ contains
         write(MsgOut,'(a)') &
         'Setup_Dynamics> Subtract 3 rotational degrees of freedom'
         write(MsgOut,'(a)') ' '
-      endif
+      end if
 
       call update_num_deg_freedom('After removing rotation', &
                                   -3, domain%num_deg_freedom)
@@ -712,7 +721,7 @@ contains
     if (dyn_info%iseed == -1) then
       if (main_rank) &
         call random_seed_initial_time(iseed)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
 #endif
       iseed_init_vel = iseed
@@ -726,14 +735,13 @@ contains
       !
       call random_term
       call random_init(dynamics%iseed)
-    endif
+    end if
 
     ! simulated annealing MD
     !
     dynamics%annealing     = dyn_info%annealing
     dynamics%anneal_period = dyn_info%anneal_period
     dynamics%dtemperature  = dyn_info%dtemperature
-
 
     return
 
@@ -755,11 +763,13 @@ contains
   !! @param[inout] constraints : bond constraints
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine run_md(output, domain, enefunc, dynvars, dynamics, &
                     pairlist, boundary, constraints, ensemble, comm, remd)
+
     ! formal arguments
     type(s_output),           intent(inout) :: output
     type(s_domain),   target, intent(inout) :: domain
@@ -772,6 +782,7 @@ contains
     type(s_ensemble),         intent(inout) :: ensemble
     type(s_comm),             intent(inout) :: comm
     type(s_remd),             intent(inout) :: remd
+
 
     if (dynamics%target_md) then
       enefunc%restraint_rmsd_target = .true.

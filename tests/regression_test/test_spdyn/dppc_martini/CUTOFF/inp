@@ -1,7 +1,7 @@
 [INPUT]
-grotopfile = ../../../build/dppc_martini/system.top
-grocrdfile = ../../../build/dppc_martini/crd.gro
-rstfile    = ../../../build/dppc_martini/rst
+grotopfile      = ../../../build/dppc_martini/system.top
+grocrdfile      = ../../../build/dppc_martini/crd.gro
+rstfile         = ../../../build/dppc_martini/rst
 
 [OUTPUT]
  
@@ -16,6 +16,7 @@ table_density   = 20.0
 water_model     = NONE
 vdw_shift       = yes
 output_style    = GENESIS
+scale_pairlist_generic = 0.5
 
 [DYNAMICS]
 integrator      = VVER
@@ -23,7 +24,6 @@ nsteps          = 20
 timestep        = 0.03
 eneout_period   = 2
 nbupdate_period = 5
-iseed           = 314159
 verbose         = yes
 
 [ENSEMBLE]
@@ -35,7 +35,7 @@ temperature     = 0
 rigid_bond      = NO
  
 [BOUNDARY]
-type  = PBC
+type            = PBC
  
 [SELECTION]
  

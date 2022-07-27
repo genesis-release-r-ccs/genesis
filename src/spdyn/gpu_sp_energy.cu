@@ -767,50 +767,46 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_intra
                 dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
                 rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-                if ( rij2 < cutoff2) {
+                rij2 = cutoff2 * density / rij2;
 
-                    rij2 = cutoff2 * density / rij2;
+                REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+                int   L  = int(rij2);
+                REAL  R  = rij2 - L;
+                int   L1 = 3*L - 2;
 
-                    int   L  = int(rij2);
-                    REAL  R  = rij2 - L;
-                    int   L1 = 3*L - 2;
+                REAL  tg0  = __ldg(&table_ene(L1  ));
+                REAL  tg1  = __ldg(&table_ene(L1+1));
+                REAL  tg2  = __ldg(&table_ene(L1+2));
+                REAL  tg3  = __ldg(&table_ene(L1+3));
+                REAL  tg4  = __ldg(&table_ene(L1+4));
+                REAL  tg5  = __ldg(&table_ene(L1+5));
+                REAL  term_lj12 = tg0 + R*(tg3-tg0);
+                REAL  term_lj6  = tg1 + R*(tg4-tg1);
+                REAL  term_elec = tg2 + R*(tg5-tg2);
 
-                    REAL  tg0  = __ldg(&table_ene(L1  ));
-                    REAL  tg1  = __ldg(&table_ene(L1+1));
-                    REAL  tg2  = __ldg(&table_ene(L1+2));
-                    REAL  tg3  = __ldg(&table_ene(L1+3));
-                    REAL  tg4  = __ldg(&table_ene(L1+4));
-                    REAL  tg5  = __ldg(&table_ene(L1+5));
-                    REAL  term_lj12 = tg0 + R*(tg3-tg0);
-                    REAL  term_lj6  = tg1 + R*(tg4-tg1);
-                    REAL  term_elec = tg2 + R*(tg5-tg2);
+                elec_temp += iqtmp*jqtmp*term_elec;
+                evdw_temp += term_lj12*lj12 - term_lj6*lj6;
 
-                    elec_temp += iqtmp*jqtmp*term_elec;
-                    evdw_temp += term_lj12*lj12 - term_lj6*lj6;
+                tg0  = __ldg(&table_grad(L1  ));
+                tg1  = __ldg(&table_grad(L1+1));
+                tg2  = __ldg(&table_grad(L1+2));
+                tg3  = __ldg(&table_grad(L1+3));
+                tg4  = __ldg(&table_grad(L1+4));
+                tg5  = __ldg(&table_grad(L1+5));
+                term_lj12 = tg0 + R*(tg3-tg0);
+                term_lj6  = tg1 + R*(tg4-tg1);
+                term_elec = tg2 + R*(tg5-tg2);
 
-                    tg0  = __ldg(&table_grad(L1  ));
-                    tg1  = __ldg(&table_grad(L1+1));
-                    tg2  = __ldg(&table_grad(L1+2));
-                    tg3  = __ldg(&table_grad(L1+3));
-                    tg4  = __ldg(&table_grad(L1+4));
-                    tg5  = __ldg(&table_grad(L1+5));
-                    term_lj12 = tg0 + R*(tg3-tg0);
-                    term_lj6  = tg1 + R*(tg4-tg1);
-                    term_elec = tg2 + R*(tg5-tg2);
-
-                    grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-                }
+                grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
             }
 
             REAL  work1 = grad_coef*dij1;
             REAL  work2 = grad_coef*dij2;
             REAL  work3 = grad_coef*dij3;
-//          if (i == 1 && ix == 1) printf("test1 %d %f %f %f \n",iy,work1,work2,work3);
 
             force_local(1) -= work1;
             force_local(2) -= work2;
@@ -947,46 +943,43 @@ __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_intra_
                 dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
                 rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-                if ( rij2 < cutoff2) {
+                REAL  inv_r2  = 1.0 / rij2;
+                REAL  inv_r6  = inv_r2 * inv_r2 * inv_r2;
+                REAL  term_lj12 = inv_r6 * inv_r6;
+                rij2 = cutoff2 * density * inv_r2;
 
-                    REAL  inv_r2  = 1.0 / rij2;
-                    REAL  inv_r6  = inv_r2 * inv_r2 * inv_r2;
-                    REAL  term_lj12 = inv_r6 * inv_r6;
-                    rij2 = cutoff2 * density * inv_r2;
+                REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
+                REAL  lj6_ij  = lj6_i * lj6_j;
+                REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
 
-                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                    REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
-                    REAL  lj6_ij  = lj6_i * lj6_j;
-                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
+                int   L  = int(rij2);
+                REAL  R  = rij2 - L;
+                int   L1 = 2*L - 1;
 
-                    int   L  = int(rij2);
-                    REAL  R  = rij2 - L;
-                    int   L1 = 2*L - 1;
+                REAL  tg0  = __ldg(&table_ene(L1  ));
+                REAL  tg1  = __ldg(&table_ene(L1+1));
+                REAL  tg2  = __ldg(&table_ene(L1+2));
+                REAL  tg3  = __ldg(&table_ene(L1+3));
+                REAL  term_lj6  = tg0 + R*(tg2-tg0);
+                REAL  term_elec = tg1 + R*(tg3-tg1);
+                REAL  term_temp = inv_r6 - inv_cutoff6;
 
-                    REAL  tg0  = __ldg(&table_ene(L1  ));
-                    REAL  tg1  = __ldg(&table_ene(L1+1));
-                    REAL  tg2  = __ldg(&table_ene(L1+2));
-                    REAL  tg3  = __ldg(&table_ene(L1+3));
-                    REAL  term_lj6  = tg0 + R*(tg2-tg0);
-                    REAL  term_elec = tg1 + R*(tg3-tg1);
-                    REAL  term_temp = inv_r6 - inv_cutoff6;
+                elec_temp += iqtmp*jqtmp*term_elec;
+                evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
 
-                    elec_temp += iqtmp*jqtmp*term_elec;
-                    evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
+                tg0  = __ldg(&table_grad(L1  ));
+                tg1  = __ldg(&table_grad(L1+1));
+                tg2  = __ldg(&table_grad(L1+2));
+                tg3  = __ldg(&table_grad(L1+3));
+                term_lj6  = tg0 + R*(tg2-tg0);
+                term_elec = tg1 + R*(tg3-tg1);
+                term_lj12 = -12.0 * term_lj12 * inv_r2;
+                term_temp = - 6.0 * inv_r6 * inv_r2;
 
-                    tg0  = __ldg(&table_grad(L1  ));
-                    tg1  = __ldg(&table_grad(L1+1));
-                    tg2  = __ldg(&table_grad(L1+2));
-                    tg3  = __ldg(&table_grad(L1+3));
-                    term_lj6  = tg0 + R*(tg2-tg0);
-                    term_elec = tg1 + R*(tg3-tg1);
-                    term_lj12 = -12.0 * term_lj12 * inv_r2;
-                    term_temp = - 6.0 * inv_r6 * inv_r2;
-
-                    grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
-                }
+                grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
             }
 
             REAL  work1 = grad_coef*dij1;
@@ -1301,35 +1294,31 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_intra_cell(
                 dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
                 rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-                if ( rij2 < cutoff2 && rij2 > 0.0) {
+                rij2 = cutoff2 * density / rij2;
 
-                    rij2 = cutoff2 * density / rij2;
+                REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+                int   L  = int(rij2);
+                REAL  R  = rij2 - L;
+                int   L1 = 3*L - 2;
+                REAL  tg0  = __ldg(&table_grad(L1  ));
+                REAL  tg1  = __ldg(&table_grad(L1+1));
+                REAL  tg2  = __ldg(&table_grad(L1+2));
+                REAL  tg3  = __ldg(&table_grad(L1+3));
+                REAL  tg4  = __ldg(&table_grad(L1+4));
+                REAL  tg5  = __ldg(&table_grad(L1+5));
+                REAL  term_lj12 = tg0 + R*(tg3-tg0);
+                REAL  term_lj6  = tg1 + R*(tg4-tg1);
+                REAL  term_elec = tg2 + R*(tg5-tg2);
 
-                    int   L  = int(rij2);
-                    REAL  R  = rij2 - L;
-                    int   L1 = 3*L - 2;
-                    REAL  tg0  = __ldg(&table_grad(L1  ));
-                    REAL  tg1  = __ldg(&table_grad(L1+1));
-                    REAL  tg2  = __ldg(&table_grad(L1+2));
-                    REAL  tg3  = __ldg(&table_grad(L1+3));
-                    REAL  tg4  = __ldg(&table_grad(L1+4));
-                    REAL  tg5  = __ldg(&table_grad(L1+5));
-                    REAL  term_lj12 = tg0 + R*(tg3-tg0);
-                    REAL  term_lj6  = tg1 + R*(tg4-tg1);
-                    REAL  term_elec = tg2 + R*(tg5-tg2);
-
-                    grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-                }
+                grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
 
 	        REAL  work1 = grad_coef*dij1;
 	        REAL  work2 = grad_coef*dij2;
         	REAL  work3 = grad_coef*dij3;
-//              if (i == 1 && ix == 1) printf("test1 %d %f %f %f \n",iy,work1,work2,work3);
 
     	        force_local(1) -= work1;
 	        force_local(2) -= work2;
@@ -1456,34 +1445,31 @@ __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_intra_cell(
                 dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
                 rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-                if ( rij2 < cutoff2 && rij2 > 0.0) {
+                REAL inv_r2 = 1.0 / rij2;
+                REAL inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                REAL inv_r12 = inv_r6 * inv_r6;
+                rij2 = cutoff2 * density * inv_r2;
 
-                    REAL inv_r2 = 1.0 / rij2;
-                    REAL inv_r6 = inv_r2 * inv_r2 * inv_r2;
-                    REAL inv_r12 = inv_r6 * inv_r6;
-                    rij2 = cutoff2 * density * inv_r2;
+                REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
+                REAL  lj6_ij  = lj6_i * lj6_j;
+                REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
 
-                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                    REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
-                    REAL  lj6_ij  = lj6_i * lj6_j;
-                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
-
-                    int   L  = int(rij2);
-                    REAL  R  = rij2 - L;
-                    int   L1 = 2*L - 1;
-                    REAL  tg0  = __ldg(&table_grad(L1  ));
-                    REAL  tg1  = __ldg(&table_grad(L1+1));
-                    REAL  tg2  = __ldg(&table_grad(L1+2));
-                    REAL  tg3  = __ldg(&table_grad(L1+3));
-                    REAL  term_lj6  = tg0 + R*(tg2-tg0);
-                    REAL  term_elec = tg1 + R*(tg3-tg1);
-                    REAL  term_lj12 = -12.0 * inv_r12 * inv_r2;
-                    REAL  term_temp = - 6.0 * inv_r6  * inv_r2;
+                int   L  = int(rij2);
+                REAL  R  = rij2 - L;
+                int   L1 = 2*L - 1;
+                REAL  tg0  = __ldg(&table_grad(L1  ));
+                REAL  tg1  = __ldg(&table_grad(L1+1));
+                REAL  tg2  = __ldg(&table_grad(L1+2));
+                REAL  tg3  = __ldg(&table_grad(L1+3));
+                REAL  term_lj6  = tg0 + R*(tg2-tg0);
+                REAL  term_elec = tg1 + R*(tg3-tg1);
+                REAL  term_lj12 = -12.0 * inv_r12 * inv_r2;
+                REAL  term_temp = - 6.0 * inv_r6  * inv_r2;
                      
-                    grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
-                }
+                grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
 
 	        REAL  work1 = grad_coef*dij1;
 	        REAL  work2 = grad_coef*dij2;
@@ -1812,44 +1798,41 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter
                     rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
                     grad_coef = 0.0;
 
-                    if ( rij2 < cutoff2 ) {
+                    rij2 = cutoff2 * density / rij2;
 
-                        rij2 = cutoff2 * density / rij2;
+                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-                        REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                        int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                        REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                        REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+                    int   L  = int(rij2);
+                    REAL  R  = rij2 - L;
+                    int   L1 = 3*L - 2;
 
-                        int   L  = int(rij2);
-                        REAL  R  = rij2 - L;
-                        int   L1 = 3*L - 2;
+                    REAL  tg0  = __ldg(&table_grad(L1  ));
+                    REAL  tg1  = __ldg(&table_grad(L1+1));
+                    REAL  tg2  = __ldg(&table_grad(L1+2));
+                    REAL  tg3  = __ldg(&table_grad(L1+3));
+                    REAL  tg4  = __ldg(&table_grad(L1+4));
+                    REAL  tg5  = __ldg(&table_grad(L1+5));
+                    REAL  term_lj12 = tg0 + R*(tg3-tg0);
+                    REAL  term_lj6  = tg1 + R*(tg4-tg1);
+                    REAL  term_elec = tg2 + R*(tg5-tg2);
 
-                        REAL  tg0  = __ldg(&table_grad(L1  ));
-                        REAL  tg1  = __ldg(&table_grad(L1+1));
-                        REAL  tg2  = __ldg(&table_grad(L1+2));
-                        REAL  tg3  = __ldg(&table_grad(L1+3));
-                        REAL  tg4  = __ldg(&table_grad(L1+4));
-                        REAL  tg5  = __ldg(&table_grad(L1+5));
-                        REAL  term_lj12 = tg0 + R*(tg3-tg0);
-                        REAL  term_lj6  = tg1 + R*(tg4-tg1);
-                        REAL  term_elec = tg2 + R*(tg5-tg2);
+                    grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
 
-                        grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-
-                        /* energy */
-                        tg0  = __ldg(&table_ene(L1  ));
-                        tg1  = __ldg(&table_ene(L1+1));
-                        tg2  = __ldg(&table_ene(L1+2));
-                        tg3  = __ldg(&table_ene(L1+3));
-                        tg4  = __ldg(&table_ene(L1+4));
-                        tg5  = __ldg(&table_ene(L1+5));
-                        term_lj12 = tg0 + R*(tg3-tg0);
-                        term_lj6  = tg1 + R*(tg4-tg1);
-                        term_elec = tg2 + R*(tg5-tg2);
-                        evdw_temp += term_lj12*lj12 - term_lj6*lj6;
-                        elec_temp += iqtmp*jqtmp*term_elec;
-                    }
+                    /* energy */
+                    tg0  = __ldg(&table_ene(L1  ));
+                    tg1  = __ldg(&table_ene(L1+1));
+                    tg2  = __ldg(&table_ene(L1+2));
+                    tg3  = __ldg(&table_ene(L1+3));
+                    tg4  = __ldg(&table_ene(L1+4));
+                    tg5  = __ldg(&table_ene(L1+5));
+                    term_lj12 = tg0 + R*(tg3-tg0);
+                    term_lj6  = tg1 + R*(tg4-tg1);
+                    term_elec = tg2 + R*(tg5-tg2);
+                    evdw_temp += term_lj12*lj12 - term_lj6*lj6;
+                    elec_temp += iqtmp*jqtmp*term_elec;
 
                     REAL  work1 = grad_coef*dij1;
                     REAL  work2 = grad_coef*dij2;
@@ -1951,44 +1934,41 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter
                         rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
                         grad_coef = 0.0;
 
-                        if ( rij2 < cutoff2 ) {
+                        rij2 = cutoff2 * density / rij2;
 
-                            rij2 = cutoff2 * density / rij2;
+	                REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+	                int   jatmcls = __ldg(&atmcls_pbc(iyy));
+	                REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+	                REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-    		            REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-		            int   jatmcls = __ldg(&atmcls_pbc(iyy));
-		            REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-		            REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+	                int   L  = int(rij2);
+	                REAL  R  = rij2 - L;
+	                int   L1 = 3*L - 2;
 
-		            int   L  = int(rij2);
-		            REAL  R  = rij2 - L;
-		            int   L1 = 3*L - 2;
+	                REAL  tg0  = __ldg(&table_grad(L1  ));
+	                REAL  tg1  = __ldg(&table_grad(L1+1));
+	                REAL  tg2  = __ldg(&table_grad(L1+2));
+	                REAL  tg3  = __ldg(&table_grad(L1+3));
+	                REAL  tg4  = __ldg(&table_grad(L1+4));
+	                REAL  tg5  = __ldg(&table_grad(L1+5));
+	                REAL  term_lj12 = tg0 + R*(tg3-tg0);
+	                REAL  term_lj6  = tg1 + R*(tg4-tg1);
+	                REAL  term_elec = tg2 + R*(tg5-tg2);
 
-		            REAL  tg0  = __ldg(&table_grad(L1  ));
-		            REAL  tg1  = __ldg(&table_grad(L1+1));
-		            REAL  tg2  = __ldg(&table_grad(L1+2));
-		            REAL  tg3  = __ldg(&table_grad(L1+3));
-		            REAL  tg4  = __ldg(&table_grad(L1+4));
-		            REAL  tg5  = __ldg(&table_grad(L1+5));
-		            REAL  term_lj12 = tg0 + R*(tg3-tg0);
-		            REAL  term_lj6  = tg1 + R*(tg4-tg1);
-		            REAL  term_elec = tg2 + R*(tg5-tg2);
+         	        grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
 
-		            grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-
-		            /* energy */
-		            tg0  = __ldg(&table_ene(L1  ));
-		            tg1  = __ldg(&table_ene(L1+1));
-		            tg2  = __ldg(&table_ene(L1+2));
-		            tg3  = __ldg(&table_ene(L1+3));
-		            tg4  = __ldg(&table_ene(L1+4));
-		            tg5  = __ldg(&table_ene(L1+5));
-		            term_lj12 = tg0 + R*(tg3-tg0);
-		            term_lj6  = tg1 + R*(tg4-tg1);
-		            term_elec = tg2 + R*(tg5-tg2);
-                            evdw_temp += term_lj12*lj12 - term_lj6*lj6;
-                            elec_temp += iqtmp*jqtmp*term_elec;
-		        }
+		        /* energy */
+                        tg0  = __ldg(&table_ene(L1  ));
+                        tg1  = __ldg(&table_ene(L1+1));
+                        tg2  = __ldg(&table_ene(L1+2));
+                        tg3  = __ldg(&table_ene(L1+3));
+                        tg4  = __ldg(&table_ene(L1+4));
+                        tg5  = __ldg(&table_ene(L1+5));
+                        term_lj12 = tg0 + R*(tg3-tg0);
+                        term_lj6  = tg1 + R*(tg4-tg1);
+                        term_elec = tg2 + R*(tg5-tg2);
+                        evdw_temp += term_lj12*lj12 - term_lj6*lj6;
+                        elec_temp += iqtmp*jqtmp*term_elec;
                     }
 
 		    REAL  work1 = grad_coef*dij1;
@@ -2196,48 +2176,44 @@ __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_inter_
                     rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
                     grad_coef = 0.0;
 
-                    if ( rij2 < cutoff2 ) {
+                    REAL inv_r2 = 1.0 / rij2;
+                    REAL inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                    REAL term_lj12 = inv_r6 * inv_r6;
+                    rij2 = cutoff2 * density * inv_r2;
 
-                        REAL inv_r2 = 1.0 / rij2;
-                        REAL inv_r6 = inv_r2 * inv_r2 * inv_r2;
-                        REAL term_lj12 = inv_r6 * inv_r6;
-                        rij2 = cutoff2 * density * inv_r2;
+                    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+                    int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                    REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
+                    REAL  lj6_ij  = lj6_i * lj6_j;
+                    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+                    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
 
-                        REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-                        int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                        REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
-                        REAL  lj6_ij  = lj6_i * lj6_j;
-                        REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-                        REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
+                    int   L  = int(rij2);
+                    REAL  R  = rij2 - L;
+                    int   L1 = 2*L - 1;
 
-                        int   L  = int(rij2);
-                        REAL  R  = rij2 - L;
-                        int   L1 = 2*L - 1;
+                    /* energy */
+                    REAL tg0  = __ldg(&table_ene(L1  ));
+                    REAL tg1  = __ldg(&table_ene(L1+1));
+                    REAL tg2  = __ldg(&table_ene(L1+2));
+                    REAL tg3  = __ldg(&table_ene(L1+3));
+                    REAL term_lj6  = tg0 + R*(tg2-tg0);
+                    REAL term_elec = tg1 + R*(tg3-tg1);
+                    REAL term_temp = inv_r6 - inv_cutoff6;
 
-                        /* energy */
-                        REAL tg0  = __ldg(&table_ene(L1  ));
-                        REAL tg1  = __ldg(&table_ene(L1+1));
-                        REAL tg2  = __ldg(&table_ene(L1+2));
-                        REAL tg3  = __ldg(&table_ene(L1+3));
-                        REAL term_lj6  = tg0 + R*(tg2-tg0);
-                        REAL term_elec = tg1 + R*(tg3-tg1);
-                        REAL term_temp = inv_r6 - inv_cutoff6;
+                    evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
+                    elec_temp += iqtmp*jqtmp*term_elec;
 
-                        evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
-                        elec_temp += iqtmp*jqtmp*term_elec;
-
-                        tg0  = __ldg(&table_grad(L1  ));
-                        tg1  = __ldg(&table_grad(L1+1));
-                        tg2  = __ldg(&table_grad(L1+2));
-                        tg3  = __ldg(&table_grad(L1+3));
-                        term_lj6  = tg0 + R*(tg2-tg0);
-                        term_elec = tg1 + R*(tg3-tg1);
-                        term_lj12 = -12.0 * term_lj12 * inv_r2;
-                        term_temp = - 6.0 * inv_r6 * inv_r2;
+                    tg0  = __ldg(&table_grad(L1  ));
+                    tg1  = __ldg(&table_grad(L1+1));
+                    tg2  = __ldg(&table_grad(L1+2));
+                    tg3  = __ldg(&table_grad(L1+3));
+                    term_lj6  = tg0 + R*(tg2-tg0);
+                    term_elec = tg1 + R*(tg3-tg1);
+                    term_lj12 = -12.0 * term_lj12 * inv_r2;
+                    term_temp = - 6.0 * inv_r6 * inv_r2;
                         
-                        grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
-
-                    }
+                    grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
 
                     REAL  work1 = grad_coef*dij1;
                     REAL  work2 = grad_coef*dij2;
@@ -2340,46 +2316,43 @@ __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_inter_
                         rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
                         grad_coef = 0.0;
 
-                        if ( rij2 < cutoff2 ) {
+                        REAL  inv_r2 = 1.0 / rij2;
+                        REAL  inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                        REAL  term_lj12 = inv_r6 * inv_r6;
+                        rij2 = cutoff2 * density * inv_r2;
 
-                            REAL  inv_r2 = 1.0 / rij2;
-                            REAL  inv_r6 = inv_r2 * inv_r2 * inv_r2;
-                            REAL  term_lj12 = inv_r6 * inv_r6;
-                            rij2 = cutoff2 * density * inv_r2;
+    		        REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+		        int   jatmcls = __ldg(&atmcls_pbc(iyy));
+                        REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
+                        REAL  lj6_ij  = lj6_i * lj6_j;
+		        REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+		        REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
 
-    		            REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-		            int   jatmcls = __ldg(&atmcls_pbc(iyy));
-                            REAL  lj6_j   = __ldg(&nonb_lj6_factor(jatmcls));
-                            REAL  lj6_ij  = lj6_i * lj6_j;
-		            REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-		            REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls)) - lj6_ij;
+		        int   L  = int(rij2);
+		        REAL  R  = rij2 - L;
+		        int   L1 = 2*L - 1;
 
-		            int   L  = int(rij2);
-		            REAL  R  = rij2 - L;
-		            int   L1 = 2*L - 1;
+                        /* energy */
+                        REAL  tg0  = __ldg(&table_ene(L1  ));
+                        REAL  tg1  = __ldg(&table_ene(L1+1));
+                        REAL  tg2  = __ldg(&table_ene(L1+2));
+                        REAL  tg3  = __ldg(&table_ene(L1+3));
+                        REAL  term_lj6  = tg0 + R*(tg2-tg0);
+                        REAL  term_elec = tg1 + R*(tg3-tg1);
+                        REAL  term_temp = inv_r6 - inv_cutoff6;
+                        evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
+                        elec_temp += iqtmp*jqtmp*term_elec;
 
-                            /* energy */
-                            REAL  tg0  = __ldg(&table_ene(L1  ));
-                            REAL  tg1  = __ldg(&table_ene(L1+1));
-                            REAL  tg2  = __ldg(&table_ene(L1+2));
-                            REAL  tg3  = __ldg(&table_ene(L1+3));
-                            REAL  term_lj6  = tg0 + R*(tg2-tg0);
-                            REAL  term_elec = tg1 + R*(tg3-tg1);
-                            REAL  term_temp = inv_r6 - inv_cutoff6;
-                            evdw_temp += term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij;
-                            elec_temp += iqtmp*jqtmp*term_elec;
+		        tg0  = __ldg(&table_grad(L1  ));
+		        tg1  = __ldg(&table_grad(L1+1));
+		        tg2  = __ldg(&table_grad(L1+2));
+		        tg3  = __ldg(&table_grad(L1+3));
+		        term_lj6  = tg0 + R*(tg2-tg0);
+		        term_elec = tg1 + R*(tg3-tg1);
+		        term_lj12 = -12.0 * term_lj12 * inv_r2;
+                        term_temp = - 6.0 * inv_r6 * inv_r2;
 
-		            tg0  = __ldg(&table_grad(L1  ));
-		            tg1  = __ldg(&table_grad(L1+1));
-		            tg2  = __ldg(&table_grad(L1+2));
-		            tg3  = __ldg(&table_grad(L1+3));
-		            term_lj6  = tg0 + R*(tg2-tg0);
-		            term_elec = tg1 + R*(tg3-tg1);
-		            term_lj12 = -12.0 * term_lj12 * inv_r2;
-                            term_temp = - 6.0 * inv_r6 * inv_r2;
-
-		            grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
-		        }
+		        grad_coef = term_lj12*lj12 - term_temp*lj6 - term_lj6*lj6_ij + iqtmp*jqtmp*term_elec;
                     }
 
 		    REAL  work1 = grad_coef*dij1;
@@ -2821,7 +2794,6 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_inter_cell
 }
 
 
-
 __global__ void kern_compute_energy_nonbond_table_linear_univ_energy_sum(
     double       *_ene_virial,
     const double *_ene_viri_mid,
@@ -3047,31 +3019,28 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell(
                     dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
                     rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-		    if ( rij2 < cutoff2 ) {
+                    rij2 = cutoff2 * density / rij2;
 
-		        rij2 = cutoff2 * density / rij2;
+		    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+		    int   jatmcls = __ldg(&atmcls_pbc(iyy));
+		    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+		    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-		        REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-		        int   jatmcls = __ldg(&atmcls_pbc(iyy));
-		        REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-		        REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+		    int   L  = int(rij2);
+		    REAL  R  = rij2 - L;
 
-		        int   L  = int(rij2);
-		        REAL  R  = rij2 - L;
+		    int   L1 = 3*L - 2;
+		    REAL  tg0  = __ldg(&table_grad(L1  ));
+		    REAL  tg1  = __ldg(&table_grad(L1+1));
+		    REAL  tg2  = __ldg(&table_grad(L1+2));
+		    REAL  tg3  = __ldg(&table_grad(L1+3));
+		    REAL  tg4  = __ldg(&table_grad(L1+4));
+		    REAL  tg5  = __ldg(&table_grad(L1+5));
+		    REAL  term_lj12 = tg0 + R*(tg3-tg0);
+		    REAL  term_lj6  = tg1 + R*(tg4-tg1);
+		    REAL  term_elec = tg2 + R*(tg5-tg2);
 
-		        int   L1 = 3*L - 2;
-		        REAL  tg0  = __ldg(&table_grad(L1  ));
-		        REAL  tg1  = __ldg(&table_grad(L1+1));
-		        REAL  tg2  = __ldg(&table_grad(L1+2));
-		        REAL  tg3  = __ldg(&table_grad(L1+3));
-		        REAL  tg4  = __ldg(&table_grad(L1+4));
-		        REAL  tg5  = __ldg(&table_grad(L1+5));
-		        REAL  term_lj12 = tg0 + R*(tg3-tg0);
-		        REAL  term_lj6  = tg1 + R*(tg4-tg1);
-		        REAL  term_elec = tg2 + R*(tg5-tg2);
-
-		        grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-		    }
+		    grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
 
 		    REAL  work1 = grad_coef*dij1;
 		    REAL  work2 = grad_coef*dij2;
@@ -3173,31 +3142,29 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell(
 			dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
 			rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
-			if ( rij2 < cutoff2 ) {
+			rij2 = cutoff2 * density / rij2;
 
-			    rij2 = cutoff2 * density / rij2;
+			REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
+			int   jatmcls = __ldg(&atmcls_pbc(iyy));
+			REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
+			REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
 
-			    REAL  jqtmp   = __ldg(&coord_pbc(iyy,4));
-			    int   jatmcls = __ldg(&atmcls_pbc(iyy));
-			    REAL  lj12 = __ldg(&nonb_lj12(jatmcls,iatmcls));
-			    REAL  lj6  = __ldg(&nonb_lj6( jatmcls,iatmcls));
+			int   L  = int(rij2);
+			REAL  R  = rij2 - L;
 
-			    int   L  = int(rij2);
-			    REAL  R  = rij2 - L;
+			int   L1 = 3*L - 2;
+			REAL  tg0  = __ldg(&table_grad(L1  ));
+			REAL  tg1  = __ldg(&table_grad(L1+1));
+			REAL  tg2  = __ldg(&table_grad(L1+2));
+			REAL  tg3  = __ldg(&table_grad(L1+3));
+			REAL  tg4  = __ldg(&table_grad(L1+4));
+			REAL  tg5  = __ldg(&table_grad(L1+5));
+			REAL  term_lj12 = tg0 + R*(tg3-tg0);
+			REAL  term_lj6  = tg1 + R*(tg4-tg1);
+			REAL  term_elec = tg2 + R*(tg5-tg2);
 
-			    int   L1 = 3*L - 2;
-			    REAL  tg0  = __ldg(&table_grad(L1  ));
-			    REAL  tg1  = __ldg(&table_grad(L1+1));
-			    REAL  tg2  = __ldg(&table_grad(L1+2));
-			    REAL  tg3  = __ldg(&table_grad(L1+3));
-			    REAL  tg4  = __ldg(&table_grad(L1+4));
-			    REAL  tg5  = __ldg(&table_grad(L1+5));
-			    REAL  term_lj12 = tg0 + R*(tg3-tg0);
-			    REAL  term_lj6  = tg1 + R*(tg4-tg1);
-			    REAL  term_elec = tg2 + R*(tg5-tg2);
-
-			    grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
-			}
+			grad_coef = term_lj12*lj12 - term_lj6*lj6 + iqtmp*jqtmp*term_elec;
+//	}
 		    }
 		    REAL  work1 = grad_coef*dij1;
 		    REAL  work2 = grad_coef*dij2;

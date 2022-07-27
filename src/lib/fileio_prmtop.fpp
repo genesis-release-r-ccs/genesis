@@ -31,11 +31,11 @@ module fileio_prmtop_mod
     character(80)    :: title
 
     ! atom
-    character(4),     allocatable :: atom_name(:)
-    character(4),     allocatable :: atom_cls_name(:)
-    integer,          allocatable :: atom_cls_no(:)
-    real(wp),         allocatable :: charge(:)
-    real(wp),         allocatable :: mass(:)
+    character(4),    allocatable :: atom_name(:)
+    character(4),    allocatable :: atom_cls_name(:)
+    integer,         allocatable :: atom_cls_no(:)
+    real(wp),        allocatable :: charge(:)
+    real(wp),        allocatable :: mass(:)
 
     ! numlp
 
@@ -77,6 +77,9 @@ module fileio_prmtop_mod
     integer          :: nspsol             ! NSPSOL
     real(wp)         :: oldbeta            ! OLDBETA
     real(wp)         :: box(3)             ! BOX
+    integer          :: num_cmap           ! CMAP_COUNT
+    integer          :: num_cmaptype       ! CMAP_COUNT
+    integer          :: num_cmap_resolution! CMAP_RESOLUTION
 
     ! amber prmtop other information (working variables)
     integer,         allocatable :: excl_atom(:)
@@ -114,7 +117,11 @@ module fileio_prmtop_mod
 
     real(wp),        allocatable :: radi_born(:)
     real(wp),        allocatable :: fs_born(:)
-    integer,        allocatable :: nsp(:)
+    integer,         allocatable :: nsp(:)
+
+    integer,         allocatable :: cmap_resolution(:)
+    integer,         allocatable :: cmap_list(:,:)
+    real(wp),        allocatable :: cmap_parameter(:,:)
 
     character(80)    :: radius_set
 
@@ -165,6 +172,7 @@ module fileio_prmtop_mod
     logical          :: lcap_info                   = .false.
     logical          :: lcap_info2                  = .false.
     logical          :: lpolarizability             = .false.
+    logical          :: lcmap_count                 = .false.
 
   end type s_prmtop
 
@@ -186,6 +194,12 @@ module fileio_prmtop_mod
   integer, public, parameter :: PrmtopHbond  = 15
   integer, public, parameter :: PrmtopExclud = 16
   integer, public, parameter :: PrmtopNSPM   = 17
+  integer, public, parameter :: PrmtopCMAPRes= 18
+  integer, public, parameter :: PrmtopCMAPIdx= 19
+  integer, public, parameter :: PrmtopCMAP   = 20
+
+  ! local variables
+  logical,                private :: vervose = .true. 
 
   ! subroutines
   public  :: init_prmtop
@@ -227,6 +241,8 @@ contains
     prmtop%num_anglh          = 0
     prmtop%num_mangla         = 0
     prmtop%num_diheh          = 0
+    prmtop%num_cmap           = 0
+    prmtop%num_cmaptype       = 0
     prmtop%num_mdihea         = 0
     prmtop%num_hparm          = 0
     prmtop%num_parm           = 0
@@ -278,6 +294,7 @@ contains
     integer,                 intent(in)    :: var_size
 
     ! local variables
+    integer                  :: i, max_size
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
 
@@ -520,6 +537,43 @@ contains
       allocate(prmtop%nsp(var_size),                 &
                stat = alloc_stat)
 
+    case (PrmtopCMAPRes)
+
+      if (allocated(prmtop%cmap_resolution)) then
+        if (size(prmtop%cmap_resolution) == var_size) return
+        deallocate(prmtop%cmap_resolution,           &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(prmtop%cmap_resolution(var_size),     &
+               stat = alloc_stat)
+
+    case (PrmtopCMAPIdx)
+
+      if (allocated(prmtop%cmap_list)) then
+        if (size(prmtop%cmap_list(1,:)) == var_size) return
+        deallocate(prmtop%cmap_list,                 &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(prmtop%cmap_list(6,var_size),         &
+               stat = alloc_stat)
+
+    case (PrmtopCMAP)
+
+      if (allocated(prmtop%cmap_parameter)) then
+        deallocate(prmtop%cmap_parameter,            &
+                   stat = dealloc_stat)
+      end if
+
+      max_size = 0
+      do i = 1, var_size
+        max_size = max(max_size, prmtop%cmap_resolution(i))
+      end do
+      prmtop%num_cmap_resolution = max_size*max_size
+      allocate(prmtop%cmap_parameter(max_size*max_size,var_size), &
+               stat = alloc_stat)
+
     case default
 
       call error_msg('Alloc_Prmtop> bad variable')
@@ -698,6 +752,27 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case (PrmtopCMAPRes)
+
+      if (allocated(prmtop%cmap_resolution)) then
+        deallocate(prmtop%cmap_resolution,           &
+                   stat = dealloc_stat)
+      end if
+
+    case (PrmtopCMAPIdx)
+
+      if (allocated(prmtop%cmap_list)) then
+        deallocate(prmtop%cmap_list,             &
+                   stat = dealloc_stat)
+      end if
+
+    case (PrmtopCMAP)
+
+      if (allocated(prmtop%cmap_parameter)) then
+        deallocate(prmtop%cmap_parameter,        &
+                   stat = dealloc_stat)
+      end if
+
     case default
 
       call error_msg('Dealloc_Prmtop> bad variable')
@@ -742,6 +817,9 @@ contains
     call dealloc_prmtop(prmtop, PrmtopExclud)
     call dealloc_prmtop(prmtop, PrmtopHbond )
     call dealloc_prmtop(prmtop, PrmtopNSPM  )
+    call dealloc_prmtop(prmtop, PrmtopCMAPRes)
+    call dealloc_prmtop(prmtop, PrmtopCMAPIdx)
+    call dealloc_prmtop(prmtop, PrmtopCMAP   )
 
     return
 
@@ -789,8 +867,8 @@ contains
   !  Subroutine    output_prmtop
   !> @brief        a driver subroutine for writing PRMTOP file
   !! @authors      YSFJ
-  !! @param[in]    psf_filename : filename of PRMTOP file
-  !! @param[in]    psf          : structure of PRMTOP information
+  !! @param[in]    prmtop_filename : filename of PRMTOP file
+  !! @param[in]    prmtop          : structure of PRMTOP information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -848,10 +926,9 @@ contains
     !
     call read_prmtop_main(file, prmtop)
 
-
     ! write summary of PRMTOP information
     !
-    if (main_rank) then
+    if (main_rank .and. vervose) then
       write(MsgOut,'(A)') 'Read_Prmtop> Summary of PRMTOP file'
 
       write(MsgOut,'(A20,I10,A20,I10)')                       &
@@ -883,7 +960,11 @@ contains
            '  NATYP           = ', prmtop%num_types_prm
       write(MsgOut,'(A20,I10)')                               &
            '  NPHB            = ', prmtop%num_bondtypes
+      write(MsgOut,'(A20,I10,A20,I10)')                       &
+           '  NCMAP           = ', prmtop%num_cmap,           &
+           '  NCMAPTYPE       = ', prmtop%num_cmaptype
       write(MsgOut,'(A)') ' '
+      vervose = .false.
     end if
 
     return
@@ -907,33 +988,35 @@ contains
     type(s_prmtop),          intent(inout) :: prmtop
 
     ! local variables
-    integer                  :: i
+    integer                  :: i, icmap_type
     integer                  :: size
     character(80)            :: line
     character(80)            :: key, temp
     character(80)            :: fmt01, fmt02, fmt03
  
 
+    icmap_type = 0
+
     do while(.true.)
 
       read(file, '(A80)',end=100,err=100) line
 
-      if      (line(1:8) == '%VERSION') then
+      if      (line(1:8) .eq. '%VERSION') then
         prmtop%lversion = .true.
 
         prmtop%version = line(1:80)
 
-      else if (line(1:5) == '%FLAG') then
+      else if (line(1:5) .eq. '%FLAG') then
 
         backspace(file)
         read(file,'(A6,A)',end=100,err=100) temp, key
 
         read(file,'(A80)') line
-        if (line(1:7) == '%FORMAT') then
+        if (line(1:7) .eq. '%FORMAT') then
 
           read(line(9:),'(A)') fmt03
           do i = 1, len_trim(fmt03)
-            if (fmt03(i:i) == ')') then
+            if (fmt03(i:i) .eq. ')') then
               fmt03(i:i) = ' '
             end if
           end do
@@ -941,11 +1024,16 @@ contains
           fmt03 = trim(fmt03)
 
           do i = 1, len_trim(fmt03)
-            if (fmt03(i:i) == 'A' .or. fmt03(i:i) == 'a' .or. &
-                fmt03(i:i) == 'I' .or. fmt03(i:i) == 'i' .or. &
-                fmt03(i:i) == 'E' .or. fmt03(i:i) == 'e') then
+            if (fmt03(i:i) .eq. 'A' .or. fmt03(i:i) .eq. 'a' .or. &
+                fmt03(i:i) .eq. 'I' .or. fmt03(i:i) .eq. 'i' .or. &
+                fmt03(i:i) .eq. 'E' .or. fmt03(i:i) .eq. 'e' .or. &
+                fmt03(i:i) .eq. 'F' .or. fmt03(i:i) .eq. 'f') then
 
-              read(fmt03(1:i-1),'(A)') fmt01
+              if (fmt03(i-1:i-1) .eq. '(') then
+                read(fmt03(1:i-2),'(A)') fmt01
+              else
+                read(fmt03(1:i-1),'(A)') fmt01
+              end if
               read(fmt03(i+1:),'(A)')  fmt02
 
               exit
@@ -953,21 +1041,58 @@ contains
           end do
           fmt02 = trim(fmt02)
 
+        else if (line(1:8) .eq. '%COMMENT') then
+
+          read(file,'(A80)') line
+          if (line(1:7) .eq. '%FORMAT') then
+
+            read(line(9:),'(A)') fmt03
+            do i = 1, len_trim(fmt03)
+              if (fmt03(i:i) .eq. ')') then
+                fmt03(i:i) = ' '
+              end if
+            end do
+
+            fmt03 = trim(fmt03)
+
+            do i = 1, len_trim(fmt03)
+              if (fmt03(i:i) .eq. 'A' .or. fmt03(i:i) .eq. 'a' .or. &
+                  fmt03(i:i) .eq. 'I' .or. fmt03(i:i) .eq. 'i' .or. &
+                  fmt03(i:i) .eq. 'E' .or. fmt03(i:i) .eq. 'e' .or. &
+                  fmt03(i:i) .eq. 'F' .or. fmt03(i:i) .eq. 'f') then
+
+                if (fmt03(i-1:i-1) .eq. '(') then
+                  read(fmt03(1:i-2),'(A)') fmt01
+                else
+                  read(fmt03(1:i-1),'(A)') fmt01
+                end if
+                read(fmt03(i+1:),'(A)')  fmt02
+
+                exit
+              end if
+            end do
+            fmt02 = trim(fmt02)
+
+          else
+            call error_msg( &
+               'Read_Prmtop_Main> error! Please set %FORMAT line for all term.')
+          end if
+
         else
           call error_msg( &
                'Read_Prmtop_Main> error! Please set %FORMAT line for all term.')
         end if
 
-        if      (key(1: 5) == 'TITLE') then
+        if      (key(1: 5) .eq. 'TITLE') then
           prmtop%ltitle = .true.
 
           read(file,'(A80)') line
-          if (line(1:7) == '%FORMAT') then
+          if (line(1:7) .eq. '%FORMAT') then
             read(file,'(A80)') line
           end if
           prmtop%title = trim(line)
 
-        else if (key(1: 8) == 'POINTERS') then
+        else if (key(1: 8) .eq. 'POINTERS') then
           prmtop%lpointers = .true.
           call read_prmtop_pointers(file, fmt01, fmt02, prmtop)
 
@@ -992,241 +1117,240 @@ contains
           call alloc_prmtop(prmtop, PrmtopExclud, prmtop%num_nb)
           call alloc_prmtop(prmtop, PrmtopHbond,  prmtop%num_bondtypes)
 
-
-        else if (key(1: 9) == 'ATOM_NAME') then
+        else if (key(1: 9) .eq. 'ATOM_NAME') then
           prmtop%latom_name = .true.
           call read_prmtop_char_format(file, fmt01, fmt02,          &
                                        'ATOM_NAME',                 &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1: 6) == 'CHARGE') then
+        else if (key(1: 6) .eq. 'CHARGE') then
           prmtop%lcharge = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'CHARGE',                    &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1: 4) == 'MASS') then
+        else if (key(1: 4) .eq. 'MASS') then
           prmtop%lmass = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'MASS',                      &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:15) == 'ATOM_TYPE_INDEX') then
+        else if (key(1:15) .eq. 'ATOM_TYPE_INDEX') then
           prmtop%latom_type_index = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'ATOM_TYPE_INDEX',           &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:21) == 'NUMBER_EXCLUDED_ATOMS') then
+        else if (key(1:21) .eq. 'NUMBER_EXCLUDED_ATOMS') then
           prmtop%lnumber_excluded_atoms = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'NUMBER_EXCLUDED_ATOMS',     &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:20) == 'NONBONDED_PARM_INDEX') then
+        else if (key(1:20) .eq. 'NONBONDED_PARM_INDEX') then
           prmtop%lnonbonded_parm_index = .true.
           size = prmtop%num_types * prmtop%num_types
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'NONBONDED_PARM_INDEX',      &
                                        size, prmtop) 
 
-        else if (key(1:13) == 'RESIDUE_LABEL') then
+        else if (key(1:13) .eq. 'RESIDUE_LABEL') then
           prmtop%lresidue_label = .true.
           call read_prmtop_char_format(file, fmt01, fmt02,          &
                                        'RESIDUE_LABEL',             &
                                        prmtop%num_residues, prmtop) 
 
-        else if (key(1:15) == 'RESIDUE_POINTER') then
+        else if (key(1:15) .eq. 'RESIDUE_POINTER') then
           prmtop%lresidue_pointer = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'RESIDUE_POINTER',           &
                                        prmtop%num_residues, prmtop) 
 
-        else if (key(1:19) == 'BOND_FORCE_CONSTANT') then
+        else if (key(1:19) .eq. 'BOND_FORCE_CONSTANT') then
           prmtop%lbond_force_constant = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'BOND_FORCE_CONSTANT',       &
                                        prmtop%num_uniqbond, prmtop) 
 
-        else if (key(1:16) == 'BOND_EQUIL_VALUE') then
+        else if (key(1:16) .eq. 'BOND_EQUIL_VALUE') then
           prmtop%lbond_equil_value = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'BOND_EQUIL_VALUE',          &
                                        prmtop%num_uniqbond, prmtop) 
 
-        else if (key(1:20) == 'ANGLE_FORCE_CONSTANT') then
+        else if (key(1:20) .eq. 'ANGLE_FORCE_CONSTANT') then
           prmtop%langle_force_constant = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'ANGLE_FORCE_CONSTANT',      &
                                        prmtop%num_uniqangl, prmtop) 
 
-        else if (key(1:17) == 'ANGLE_EQUIL_VALUE') then
+        else if (key(1:17) .eq. 'ANGLE_EQUIL_VALUE') then
           prmtop%langle_equil_value = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'ANGLE_EQUIL_VALUE',         &
                                        prmtop%num_uniqangl, prmtop) 
 
-        else if (key(1:23) == 'DIHEDRAL_FORCE_CONSTANT') then
+        else if (key(1:23) .eq. 'DIHEDRAL_FORCE_CONSTANT') then
           prmtop%ldihedral_force_constant = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'DIHEDRAL_FORCE_CONSTANT',   &
                                        prmtop%num_uniqdihe, prmtop) 
 
-        else if (key(1:20) == 'DIHEDRAL_PERIODICITY') then
+        else if (key(1:20) .eq. 'DIHEDRAL_PERIODICITY') then
           prmtop%ldihedral_periodicity = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'DIHEDRAL_PERIODICITY',      &
                                        prmtop%num_uniqdihe, prmtop) 
 
-        else if (key(1:14) == 'DIHEDRAL_PHASE') then
+        else if (key(1:14) .eq. 'DIHEDRAL_PHASE') then
           prmtop%ldihedral_phase = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'DIHEDRAL_PHASE',            &
                                        prmtop%num_uniqdihe, prmtop) 
 
-        else if (key(1: 5) == 'SOLTY') then  ! currently unused
+        else if (key(1: 5) .eq. 'SOLTY') then  ! currently unused
           prmtop%lsolty = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'SOLTY',                     &
                                        prmtop%num_types_prm, prmtop) 
 
-        else if (key(1:17) == 'SCEE_SCALE_FACTOR') then
+        else if (key(1:17) .eq. 'SCEE_SCALE_FACTOR') then
           prmtop%lscee_scale_factor = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'SCEE_SCALE_FACTOR',         &
                                        prmtop%num_uniqdihe, prmtop) 
 
-        else if (key(1:17) == 'SCNB_SCALE_FACTOR') then
+        else if (key(1:17) .eq. 'SCNB_SCALE_FACTOR') then
           prmtop%lscnb_scale_factor = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'SCNB_SCALE_FACTOR',         &
                                        prmtop%num_uniqdihe, prmtop) 
 
-        else if (key(1:19) == 'LENNARD_JONES_ACOEF') then
+        else if (key(1:19) .eq. 'LENNARD_JONES_ACOEF') then
           prmtop%llennard_jones_acoef = .true.
           size = prmtop%num_types * (prmtop%num_types + 1) * 0.5_wp
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'LENNARD_JONES_ACOEF',       &
                                        size, prmtop) 
 
-        else if (key(1:19) == 'LENNARD_JONES_BCOEF') then
+        else if (key(1:19) .eq. 'LENNARD_JONES_BCOEF') then
           prmtop%llennard_jones_bcoef = .true.
           size = prmtop%num_types * (prmtop%num_types + 1) * 0.5_wp
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'LENNARD_JONES_BCOEF',       &
                                        size, prmtop) 
 
-        else if (key(1:18) == 'BONDS_INC_HYDROGEN') then
+        else if (key(1:18) .eq. 'BONDS_INC_HYDROGEN') then
           prmtop%lbonds_inc_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'BONDS_INC_HYDROGEN',        &
                                        prmtop%num_bondh, prmtop) 
 
-        else if (key(1:22) == 'BONDS_WITHOUT_HYDROGEN') then
+        else if (key(1:22) .eq. 'BONDS_WITHOUT_HYDROGEN') then
           prmtop%lbonds_without_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'BONDS_WITHOUT_HYDROGEN',    &
                                        prmtop%num_mbonda, prmtop) 
 
-        else if (key(1:19) == 'ANGLES_INC_HYDROGEN') then
+        else if (key(1:19) .eq. 'ANGLES_INC_HYDROGEN') then
           prmtop%langles_inc_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'ANGLES_INC_HYDROGEN',       &
                                        prmtop%num_anglh, prmtop) 
 
-        else if (key(1:23) == 'ANGLES_WITHOUT_HYDROGEN') then
+        else if (key(1:23) .eq. 'ANGLES_WITHOUT_HYDROGEN') then
           prmtop%langles_without_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'ANGLES_WITHOUT_HYDROGEN',   &
                                        prmtop%num_mangla, prmtop) 
 
-        else if (key(1:22) == 'DIHEDRALS_INC_HYDROGEN') then
+        else if (key(1:22) .eq. 'DIHEDRALS_INC_HYDROGEN') then
           prmtop%ldihedrals_inc_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'DIHEDRALS_INC_HYDROGEN',    &
                                        prmtop%num_diheh, prmtop) 
 
-        else if (key(1:26) == 'DIHEDRALS_WITHOUT_HYDROGEN') then
+        else if (key(1:26) .eq. 'DIHEDRALS_WITHOUT_HYDROGEN') then
           prmtop%ldihedrals_without_hydrogen = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'DIHEDRALS_WITHOUT_HYDROGEN',&
                                        prmtop%num_mdihea, prmtop) 
 
-        else if (key(1:19) == 'EXCLUDED_ATOMS_LIST') then
+        else if (key(1:19) .eq. 'EXCLUDED_ATOMS_LIST') then
           prmtop%lexcluded_atoms_list = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'EXCLUDED_ATOMS_LIST',       &
                                        prmtop%num_nb, prmtop) 
 
-        else if (key(1:11) == 'HBOND_ACOEF') then
+        else if (key(1:11) .eq. 'HBOND_ACOEF') then
           prmtop%lhbond_acoef = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'HBOND_ACOEF',               &
                                        prmtop%num_bondtypes, prmtop) 
 
-        else if (key(1:11) == 'HBOND_BCOEF') then
+        else if (key(1:11) .eq. 'HBOND_BCOEF') then
           prmtop%lhbond_bcoef = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'HBOND_BCOEF',               &
                                        prmtop%num_bondtypes, prmtop) 
 
-        else if (key(1: 5) == 'HBCUT') then ! no longer in use
+        else if (key(1: 5) .eq. 'HBCUT') then ! no longer in use
           prmtop%lhbcut = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'HBCUT',                     &
                                        prmtop%num_bondtypes, prmtop) 
 
-        else if (key(1:15) == 'AMBER_ATOM_TYPE') then
+        else if (key(1:15) .eq. 'AMBER_ATOM_TYPE') then
           prmtop%lamber_atom_type = .true.
           call read_prmtop_char_format(file, fmt01, fmt02,          &
                                        'AMBER_ATOM_TYPE',           &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:25) == 'TREE_CHAIN_CLASSIFICATION') then
+        else if (key(1:25) .eq. 'TREE_CHAIN_CLASSIFICATION') then
           prmtop%ltree_chain_classification = .true.
           call read_prmtop_char_format(file, fmt01, fmt02,          &
                                        'TREE_CHAIN_CLASSIFICATION', &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:10) == 'JOIN_ARRAY') then ! Currently unused in sander
+        else if (key(1:10) .eq. 'JOIN_ARRAY') then ! Currently unused in sander
           prmtop%ljoin_array = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'JOIN_ARRAY',                &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1: 6) == 'IROTAT') then
+        else if (key(1: 6) .eq. 'IROTAT') then
           prmtop%lirotat = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'IROTAT',                    &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1:10) == 'RADIUS_SET') then
+        else if (key(1:10) .eq. 'RADIUS_SET') then
           prmtop%lradius_set = .true.
           call read_prmtop_char_format(file, fmt01, fmt02,          &
                                        'RADIUS_SET',                &
                                        1, prmtop) 
 
-        else if (key(1: 5) == 'RADII') then
+        else if (key(1: 5) .eq. 'RADII') then
           prmtop%lradii = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'RADII',                     &
                                        prmtop%num_atoms, prmtop) 
 
-        else if (key(1: 6) == 'SCREEN') then
+        else if (key(1: 6) .eq. 'SCREEN') then
           prmtop%lscreen = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'SCREEN',                    &
                                        prmtop%num_atoms, prmtop) 
 
           ! The following are only present if IFBOX .gt. 0
-        else if (key(1:16) == 'SOLVENT_POINTERS') then
+        else if (key(1:16) .eq. 'SOLVENT_POINTERS') then
           prmtop%lsolvent_pointers = .true.
           call read_prmtop_int_format(file, fmt01, fmt02,           &
                                        'SOLVENT_POINTERS',          &
                                        3, prmtop) 
           call alloc_prmtop(prmtop, PrmtopNSPM,  prmtop%nspm)
 
-        else if (key(1:18) == 'ATOMS_PER_MOLECULE') then
+        else if (key(1:18) .eq. 'ATOMS_PER_MOLECULE') then
           prmtop%latoms_per_molecule = .true.
           if (prmtop%lsolvent_pointers) then
             call read_prmtop_int_format(file, fmt01, fmt02,         &
@@ -1234,25 +1358,53 @@ contains
                                          prmtop%nspm, prmtop) 
           end if
 
-        else if (key(1:14) == 'BOX_DIMENSIONS') then
+        else if (key(1:14) .eq. 'BOX_DIMENSIONS') then
           prmtop%lbox_dimensions = .true.
           call read_prmtop_real_format(file, fmt01, fmt02,          &
                                        'BOX_DIMENSIONS',            &
                4, prmtop)
 
           ! The following are only present if IFCAP .gt. 0
-        else if (key(1:8) == 'CAP_INFO') then
+        else if (key(1:8) .eq. 'CAP_INFO') then
           prmtop%lcap_info = .true.
 
-        else if (key(1:9) == 'CAP_INFO2') then
+        else if (key(1:9) .eq. 'CAP_INFO2') then
           prmtop%lcap_info2 = .true.
 
           ! The following are only present if IPOL .eq. 1
-        else if (key(1:14) == 'POLARIZABILITY') then
+        else if (key(1:14) .eq. 'POLARIZABILITY') then
           prmtop%lpolarizability = .true.
 
+        else if (key(1:10) .eq. 'CMAP_COUNT') then
+          prmtop%lcmap_count = .true.
+          call read_prmtop_int_format(file, fmt01, fmt02,           &
+                                      'CMAP_COUNT',                 &
+                                      2, prmtop)
+          call alloc_prmtop(prmtop, PrmtopCMAPRes, prmtop%num_cmaptype)
+          call alloc_prmtop(prmtop, PrmtopCMAPIdx, prmtop%num_cmap)
+
+        else if (key(1:15) .eq. 'CMAP_RESOLUTION') then
+          call read_prmtop_int_format(file, fmt01, fmt02,           &
+                                      'CMAP_RESOLUTION',            &
+                                      prmtop%num_cmaptype, prmtop)
+          call alloc_prmtop(prmtop, PrmtopCMAP,  prmtop%num_cmaptype)
+
+        else if (key(1:14) .eq. 'CMAP_PARAMETER') then
+          icmap_type = icmap_type + 1
+          call read_prmtop_realf_format(file, fmt01, fmt02,         &
+                                        'CMAP_PARAMETER',           &
+                                        prmtop%num_cmap_resolution, &
+                                        prmtop, icmap_type)
+
+        else if (key(1:10) .eq. 'CMAP_INDEX') then
+          call read_prmtop_int_format(file, fmt01, fmt02,           &
+                                      'CMAP_INDEX',                 &
+                                      prmtop%num_cmap, prmtop)
+
         end if
+
       end if
+
     end do
 
 100 continue
@@ -1374,22 +1526,22 @@ contains
   subroutine read_prmtop_char_format(file, fmt01, fmt02, keyword, num, prmtop) 
 
     ! formal arguments
-    integer,                intent(in)    :: file
-    character(*),           intent(in)    :: fmt01
-    character(*),           intent(in)    :: fmt02
-    character(*),           intent(in)    :: keyword
-    integer,                intent(in)    :: num
-    type(s_prmtop),         intent(inout) :: prmtop
+    integer,                 intent(in)    :: file
+    character(*),            intent(in)    :: fmt01
+    character(*),            intent(in)    :: fmt02
+    character(*),            intent(in)    :: keyword
+    integer,                 intent(in)    :: num
+    type(s_prmtop),          intent(inout) :: prmtop
     
     ! local variables
-    integer                 :: i, j
-    integer                 :: len
-    integer                 :: count
-    integer                 :: start, end
-    integer                 :: ifmt01, ifmt02
-    integer                 :: num_reads
-    character(100)          :: line
-    character(10)           :: fmt10
+    integer                  :: i, j
+    integer                  :: len
+    integer                  :: count
+    integer                  :: start, end
+    integer                  :: ifmt01, ifmt02
+    integer                  :: num_reads
+    character(100)           :: line
+    character(10)            :: fmt10
 
 
     read(fmt01,*) ifmt01
@@ -1422,19 +1574,19 @@ contains
         start = (i - 1) * ifmt02 + 1
         end = start + ifmt02 - 1
 
-        if (keyword == 'ATOM_NAME') then
+        if (keyword .eq. 'ATOM_NAME') then
           read(line(start:end),fmt10,end=200,err=200) &
                prmtop%atom_name(count)
-        else if (keyword == 'RESIDUE_LABEL') then
+        else if (keyword .eq. 'RESIDUE_LABEL') then
           read(line(start:end),fmt10,end=200,err=200) &
                prmtop%res_label(count)
-        else if (keyword == 'AMBER_ATOM_TYPE') then
+        else if (keyword .eq. 'AMBER_ATOM_TYPE') then
           read(line(start:end),fmt10,end=200,err=200) &
                prmtop%atom_cls_name(count)
-        else if (keyword == 'TREE_CHAIN_CLASSIFICATION') then
+        else if (keyword .eq. 'TREE_CHAIN_CLASSIFICATION') then
           read(line(start:end),fmt10,end=200,err=200) &
                prmtop%classify(count)
-        else if (keyword == 'RADIUS_SET') then
+        else if (keyword .eq. 'RADIUS_SET') then
           read(line(start:end),fmt10,end=200,err=200) &
                prmtop%radius_set
         end if
@@ -1466,25 +1618,25 @@ contains
   subroutine read_prmtop_int_format(file, fmt01, fmt02, keyword, num, prmtop) 
 
     ! formal arguments
-    integer,                intent(in)    :: file
-    character(*),           intent(in)    :: fmt01
-    character(*),           intent(in)    :: fmt02
-    character(*),           intent(in)    :: keyword
-    integer,                intent(in)    :: num
-    type(s_prmtop),         intent(inout) :: prmtop
+    integer,                 intent(in)    :: file
+    character(*),            intent(in)    :: fmt01
+    character(*),            intent(in)    :: fmt02
+    character(*),            intent(in)    :: keyword
+    integer,                 intent(in)    :: num
+    type(s_prmtop),          intent(inout) :: prmtop
 
     ! local variables
-    integer                 :: i, j
-    integer                 :: len
-    integer                 :: count
-    integer                 :: start, end
-    integer                 :: ifmt01, ifmt02
-    integer                 :: num_reads
-    integer                 :: sub_count
-    integer                 :: iwork
-    integer                 :: iwork_num
-    character(100)          :: line
-    character(10)           :: fmt10
+    integer                  :: i, j
+    integer                  :: len
+    integer                  :: count
+    integer                  :: start, end
+    integer                  :: ifmt01, ifmt02
+    integer                  :: num_reads
+    integer                  :: sub_count
+    integer                  :: iwork
+    integer                  :: iwork_num
+    character(100)           :: line
+    character(10)            :: fmt10
 
 
     read(fmt01,*) ifmt01
@@ -1500,15 +1652,17 @@ contains
     end if
 
     iwork_num = num
-    if      (keyword == 'BONDS_INC_HYDROGEN'       .or.       &
-             keyword == 'BONDS_WITHOUT_HYDROGEN')     then
+    if      (keyword .eq. 'BONDS_INC_HYDROGEN'       .or.       &
+             keyword .eq. 'BONDS_WITHOUT_HYDROGEN')     then
       iwork_num = num * 3
-    else if (keyword == 'ANGLES_INC_HYDROGEN'      .or.       &
-             keyword == 'ANGLES_WITHOUT_HYDROGEN')    then
+    else if (keyword .eq. 'ANGLES_INC_HYDROGEN'      .or.       &
+             keyword .eq. 'ANGLES_WITHOUT_HYDROGEN')    then
       iwork_num = num * 4
-    else if (keyword == 'DIHEDRALS_INC_HYDROGEN'   .or.       &
-             keyword == 'DIHEDRALS_WITHOUT_HYDROGEN') then
+    else if (keyword .eq. 'DIHEDRALS_INC_HYDROGEN'   .or.       &
+             keyword .eq. 'DIHEDRALS_WITHOUT_HYDROGEN') then
       iwork_num = num * 5
+    else if (keyword .eq. 'CMAP_INDEX') then
+      iwork_num = num * 6
     end if
 
     ! Read atom
@@ -1533,45 +1687,45 @@ contains
         start = (i - 1) * ifmt02 + 1
         end   = start + ifmt02 - 1
 
-        if (keyword == 'ATOM_TYPE_INDEX') then
+        if (keyword .eq. 'ATOM_TYPE_INDEX') then
           read(line(start:end),fmt10) prmtop%atom_cls_no(count)
 
           count = count + 1
-        else if (keyword == 'NUMBER_EXCLUDED_ATOMS') then
+        else if (keyword .eq. 'NUMBER_EXCLUDED_ATOMS') then
           read(line(start:end),fmt10) prmtop%excl_atom(count)
 
           count = count + 1
-        else if (keyword == 'NONBONDED_PARM_INDEX') then
+        else if (keyword .eq. 'NONBONDED_PARM_INDEX') then
           read(line(start:end),fmt10) prmtop%nb_par_idx(count)
 
           count = count + 1
 
-        else if (keyword == 'RESIDUE_POINTER') then
+        else if (keyword .eq. 'RESIDUE_POINTER') then
           read(line(start:end),fmt10) prmtop%res_point(count)
 
           count = count + 1
 
-        else if (keyword == 'JOIN_ARRAY') then
+        else if (keyword .eq. 'JOIN_ARRAY') then
           read(line(start:end),fmt10) prmtop%join_array(count)
 
           count = count + 1
 
-        else if (keyword == 'IROTAT') then
+        else if (keyword .eq. 'IROTAT') then
           read(line(start:end),fmt10) prmtop%irotate(count)
 
           count = count + 1
 
-        else if (keyword == 'EXCLUDED_ATOMS_LIST') then
+        else if (keyword .eq. 'EXCLUDED_ATOMS_LIST') then
           read(line(start:end),fmt10) prmtop%inb(count)
 
           count = count + 1
 
-        else if (keyword == 'ATOMS_PER_MOLECULE') then
+        else if (keyword .eq. 'ATOMS_PER_MOLECULE') then
           read(line(start:end),fmt10) prmtop%nsp(count)
 
           count = count + 1
 
-        else if (keyword == 'BONDS_INC_HYDROGEN') then
+        else if (keyword .eq. 'BONDS_INC_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%bond_inc_hy(sub_count,count) = iwork
@@ -1581,7 +1735,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'BONDS_WITHOUT_HYDROGEN') then
+        else if (keyword .eq. 'BONDS_WITHOUT_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%bond_wo_hy(sub_count,count) = iwork
@@ -1591,7 +1745,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'ANGLES_INC_HYDROGEN') then
+        else if (keyword .eq. 'ANGLES_INC_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%angl_inc_hy(sub_count,count) = iwork
@@ -1601,7 +1755,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'ANGLES_WITHOUT_HYDROGEN') then
+        else if (keyword .eq. 'ANGLES_WITHOUT_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%angl_wo_hy(sub_count,count) = iwork
@@ -1611,7 +1765,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'DIHEDRALS_INC_HYDROGEN') then
+        else if (keyword .eq. 'DIHEDRALS_INC_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%dihe_inc_hy(sub_count,count) = iwork
@@ -1621,7 +1775,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'DIHEDRALS_WITHOUT_HYDROGEN') then
+        else if (keyword .eq. 'DIHEDRALS_WITHOUT_HYDROGEN') then
           read(line(start:end),fmt10) iwork
           sub_count = sub_count + 1
           prmtop%dihe_wo_hy(sub_count,count) = iwork
@@ -1631,7 +1785,7 @@ contains
             sub_count = 0
           end if
 
-        else if (keyword == 'SOLVENT_POINTERS') then
+        else if (keyword .eq. 'SOLVENT_POINTERS') then
           read(line(start:end),fmt10) iwork
 
           if (count == 1) then
@@ -1643,6 +1797,32 @@ contains
           end if
 
           count = count + 1
+
+        else if (keyword .eq. 'CMAP_COUNT') then
+          read(line(start:end),fmt10) iwork
+
+          if (count == 1) then
+            prmtop%num_cmap = iwork
+          else if (count == 2) then
+            prmtop%num_cmaptype = iwork
+          end if
+
+          count = count + 1
+
+        else if (keyword .eq. 'CMAP_RESOLUTION') then
+          read(line(start:end),fmt10) prmtop%cmap_resolution(count)
+
+          count = count + 1
+
+        else if (keyword .eq. 'CMAP_INDEX') then
+          read(line(start:end),fmt10) iwork
+          sub_count = sub_count + 1
+          prmtop%cmap_list(sub_count,count) = iwork
+
+          if (sub_count == 6) then
+            count = count + 1
+            sub_count = 0
+          end if
 
         end if
 
@@ -1668,7 +1848,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine read_prmtop_real_format(file, fmt01, fmt02, keyword, num, prmtop) 
+  subroutine read_prmtop_real_format(file, fmt01, fmt02, keyword, num, prmtop)
 
     ! formal arguments
     integer,                 intent(in)    :: file
@@ -1745,64 +1925,64 @@ contains
         start = (i - 1) * ifmt02_int_part + 1
         end = start + ifmt02_int_part - 1
 
-        if (keyword == 'CHARGE') then
+        if (keyword .eq. 'CHARGE') then
           read(line(start:end),fmt10) prmtop%charge(count)
           
-        else if (keyword == 'MASS') then
+        else if (keyword .eq. 'MASS') then
           read(line(start:end),fmt10) prmtop%mass(count)
 
-        else if (keyword == 'BOND_FORCE_CONSTANT') then
+        else if (keyword .eq. 'BOND_FORCE_CONSTANT') then
           read(line(start:end),fmt10) prmtop%bond_fcons_uniq(count)
 
-        else if (keyword == 'BOND_EQUIL_VALUE') then
+        else if (keyword .eq. 'BOND_EQUIL_VALUE') then
           read(line(start:end),fmt10) prmtop%bond_equil_uniq(count)
 
-        else if (keyword == 'ANGLE_FORCE_CONSTANT') then
+        else if (keyword .eq. 'ANGLE_FORCE_CONSTANT') then
           read(line(start:end),fmt10) prmtop%angl_fcons_uniq(count)
 
-        else if (keyword == 'ANGLE_EQUIL_VALUE') then
+        else if (keyword .eq. 'ANGLE_EQUIL_VALUE') then
           read(line(start:end),fmt10) prmtop%angl_equil_uniq(count)
 
-        else if (keyword == 'DIHEDRAL_FORCE_CONSTANT') then
+        else if (keyword .eq. 'DIHEDRAL_FORCE_CONSTANT') then
           read(line(start:end),fmt10) prmtop%dihe_fcons_uniq(count)
 
-        else if (keyword == 'DIHEDRAL_PERIODICITY') then
+        else if (keyword .eq. 'DIHEDRAL_PERIODICITY') then
           read(line(start:end),fmt10) prmtop%dihe_perio_uniq(count)
 
-        else if (keyword == 'DIHEDRAL_PHASE') then
+        else if (keyword .eq. 'DIHEDRAL_PHASE') then
           read(line(start:end),fmt10) prmtop%dihe_phase_uniq(count)
 
-        else if (keyword == 'SOLTY') then
+        else if (keyword .eq. 'SOLTY') then
           read(line(start:end),fmt10) prmtop%solty(count)
 
-        else if (keyword == 'SCEE_SCALE_FACTOR') then
+        else if (keyword .eq. 'SCEE_SCALE_FACTOR') then
           read(line(start:end),fmt10) prmtop%scee_scale_fact(count)
 
-        else if (keyword == 'SCNB_SCALE_FACTOR') then
+        else if (keyword .eq. 'SCNB_SCALE_FACTOR') then
           read(line(start:end),fmt10) prmtop%scnb_scale_fact(count)
 
-        else if (keyword == 'LENNARD_JONES_ACOEF') then
+        else if (keyword .eq. 'LENNARD_JONES_ACOEF') then
           read(line(start:end),fmt10) prmtop%lennarda(count)
 
-        else if (keyword == 'LENNARD_JONES_BCOEF') then
+        else if (keyword .eq. 'LENNARD_JONES_BCOEF') then
           read(line(start:end),fmt10) prmtop%lennardb(count)
 
-        else if (keyword == 'HBOND_ACOEF') then
+        else if (keyword .eq. 'HBOND_ACOEF') then
           read(line(start:end),fmt10) prmtop%hbond_acoef(count)
 
-        else if (keyword == 'HBOND_BCOEF') then
+        else if (keyword .eq. 'HBOND_BCOEF') then
           read(line(start:end),fmt10) prmtop%hbond_bcoef(count)
 
-        else if (keyword == 'HBCUT') then
+        else if (keyword .eq. 'HBCUT') then
           read(line(start:end),fmt10) prmtop%hb_cut(count)
 
-        else if (keyword == 'RADII') then
+        else if (keyword .eq. 'RADII') then
           read(line(start:end),fmt10) prmtop%radi_born(count)
 
-        else if (keyword == 'SCREEN') then
+        else if (keyword .eq. 'SCREEN') then
           read(line(start:end),fmt10) prmtop%fs_born(count)
 
-        else if (keyword == 'BOX_DIMENSIONS') then
+        else if (keyword .eq. 'BOX_DIMENSIONS') then
           read(line(start:end),fmt10) dwork
 
           if      (count == 1) then
@@ -1827,6 +2007,115 @@ contains
     return
 
   end subroutine read_prmtop_real_format
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_prmtop_realf_format
+  !> @brief        read real style information from PRMTOP file
+  !! @authors      JJ
+  !! @param[in]    file    : unit number of PRMTOP file
+  !! @param[in]    fmt01   : number variables per line, 10 for10I8
+  !! @param[in]    fmt02   : column length per one variable, 8 for 10I8
+  !! @param[in]    keyword : input keyword information
+  !! @param[in]    num     : number of variables
+  !! @param[inout] prmtop  : prmtop data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_prmtop_realf_format(file, fmt01, fmt02, keyword, num, prmtop,&
+                                      icmap_type)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    character(*),            intent(in)    :: fmt01
+    character(*),            intent(in)    :: fmt02
+    character(*),            intent(in)    :: keyword
+    integer,                 intent(in)    :: num
+    type(s_prmtop),          intent(inout) :: prmtop
+    integer,       optional, intent(in)    :: icmap_type
+
+    ! local variables
+    real(wp)                 :: dwork
+    integer                  :: i, j
+    integer                  :: len
+    integer                  :: count
+    integer                  :: start, end
+    integer                  :: ifmt01
+    integer                  :: ifmt02_int_part
+    integer                  :: ifmt02_deci_part
+    integer                  :: num_reads
+    character(100)           :: line
+    character(10)            :: fmt10
+    character(10)            :: fmt02_int_part
+    character(10)            :: fmt02_deci_part
+
+
+    read(fmt01,*) ifmt01
+    len = len_trim(fmt02)
+
+    do i = 1, len
+      if (fmt02(i:i) == '.') then
+        read(fmt02(1:i-1),*)   ifmt02_int_part
+        read(fmt02(i+1:len),*) ifmt02_deci_part
+        read(fmt02(1:i-1),'(A)')   fmt02_int_part
+        read(fmt02(i+1:len),'(A)') fmt02_deci_part
+        exit
+      end if
+    end do
+
+    if (ifmt02_int_part < 10) then
+      if (ifmt02_deci_part < 10) then
+        fmt10 = '(fx.y)'
+        write(fmt10(3:3),'(A1)') fmt02_int_part
+        write(fmt10(5:5),'(A1)') fmt02_deci_part
+      end if
+    else if (ifmt02_int_part < 100) then
+      if (ifmt02_deci_part < 10) then
+        fmt10 = '(Fxx.y)'
+        write(fmt10(3:4),'(A2)') fmt02_int_part
+        write(fmt10(6:6),'(A1)') fmt02_deci_part
+      else if (ifmt02_deci_part < 100) then
+        fmt10 = '(Fxx.yy)'
+        write(fmt10(3:4),'(A2)') fmt02_int_part
+        write(fmt10(6:7),'(A2)') fmt02_deci_part
+      end if
+    end if
+
+    ! Read atom
+    !
+    len = ifmt01 * ifmt02_int_part
+
+    num_reads = num / ifmt01
+    if (mod(num,ifmt01) /= 0) then
+      num_reads = num_reads + 1
+    end if
+
+    count = 1
+    do j = 1, num_reads
+      read(file,'(A)',err=100,end=100) line
+
+      do i = 1, ifmt01
+        if (count > num) then
+          exit
+        end if
+        start = (i - 1) * ifmt02_int_part + 1
+        end = start + ifmt02_int_part - 1
+
+        if (keyword == 'CMAP_PARAMETER') then
+          read(line(start:end),fmt10) prmtop%cmap_parameter(count,icmap_type)
+
+        end if
+        count = count + 1
+
+      end do
+200   continue
+
+    end do
+100 continue
+
+    return
+
+  end subroutine read_prmtop_realf_format
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

@@ -20,7 +20,7 @@ module sp_pairlist_fugaku_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -39,7 +39,7 @@ contains
   !!               condition 
   !! @authors      JJ, NT
   !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    domain   : domain information
+  !! @param[inout] domain   : domain information
   !! @param[inout] pairlist : pair-list information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -79,6 +79,7 @@ contains
     integer,          pointer,contiguous :: istcell_pairlist1(:)
     integer,          pointer,contiguous :: ncell_pairlist2(:)
     integer,          pointer,contiguous :: istcell_pairlist2(:)
+
 
     ncell             => domain%num_cell_local
     nboundary         => domain%num_cell_boundary
@@ -167,7 +168,7 @@ contains
     !
     do i = id+1, ncell+nboundary, nthread
 
-      if(ncell_pairlist1(i) == 0) cycle
+      if (ncell_pairlist1(i) == 0) cycle
       start_i = start_atom(i)
 
       do ij = istcell_pairlist1(i), istcell_pairlist1(i)+ncell_pairlist1(i)-1
@@ -228,7 +229,7 @@ contains
 
     do i = id+1, ncell+nboundary, nthread
 
-      if( ncell_pairlist2(i) == 0 ) cycle
+      if (ncell_pairlist2(i) == 0) cycle
       start_i = start_atom(i)
 
       do ij = istcell_pairlist2(i), istcell_pairlist2(i)+ncell_pairlist2(i)-1
@@ -285,29 +286,29 @@ contains
 
     !$omp barrier
 
-    do i = id+1, ncell, nthread
-      start_i = start_atom(i)
-      do ix = 1, natom(i)-1
+!   do i = id+1, ncell, nthread
+!     start_i = start_atom(i)
+!     do ix = 1, natom(i)-1
 
-        ixx = start_i + ix
-        ! prefetch size:64
-        !
-        num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1), &
-                                  num_nb15_calc(ixx+1,1))
-        do k = 1, num_add_prefetch
-          nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) = nb15_calc_list(k,ixx+1,1)
-        end do
-      end do
-      ix = natom(i)
-      ixx = start_i + ix
-      num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1))
-      if (num_nb15_calc(ixx,1) > 0) then
-      do k = 1, num_add_prefetch
-        nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) &
-              = nb15_calc_list(num_nb15_calc(ixx,1),ixx,1)
-      end do
-      end if
-    end do
+!       ixx = start_i + ix
+!       ! prefetch size:64
+!       !
+!       num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1), &
+!                                 num_nb15_calc(ixx+1,1))
+!       do k = 1, num_add_prefetch
+!         nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) = nb15_calc_list(k,ixx+1,1)
+!       end do
+!     end do
+!     ix = natom(i)
+!     ixx = start_i + ix
+!     num_add_prefetch = min(64,MaxNb15_Fugaku-num_nb15_calc(ixx,1))
+!     if (num_nb15_calc(ixx,1) > 0) then
+!     do k = 1, num_add_prefetch
+!       nb15_calc_list(num_nb15_calc(ixx,1)+k,ixx,1) &
+!             = nb15_calc_list(num_nb15_calc(ixx,1),ixx,1)
+!     end do
+!     end if
+!   end do
 
     !$omp end parallel
 

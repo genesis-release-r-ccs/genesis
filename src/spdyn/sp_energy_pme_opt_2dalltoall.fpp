@@ -16,6 +16,7 @@ module sp_energy_pme_opt_2dalltoall_mod
 
   use sp_boundary_str_mod
   use sp_enefunc_str_mod
+  use sp_energy_str_mod
   use sp_domain_str_mod
   use math_libs_mod
   use timers_mod
@@ -23,7 +24,7 @@ module sp_energy_pme_opt_2dalltoall_mod
   use mpi_parallel_mod
   use constants_mod
   use fft3d_2dalltoall_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -32,10 +33,16 @@ module sp_energy_pme_opt_2dalltoall_mod
 
   real(wp),         save :: el_fact      ! e^2/(4*pi*eps) A*kcal/mol
   real(wp),         save :: alpha        ! alpha
+  real(wp),         save :: inv_alpha    ! 1/alpha
   real(wp),         save :: alpha2m      ! -alpha^2
+  real(wp),         save :: alpha3       ! alpha^3
+  real(wp),         save :: alpha6       ! alpha^6
   real(wp),         save :: vol_fact2    ! (2*pi/V)*el_fact
   real(wp),         save :: vol_fact4    ! (4*pi/V)*el_fact
+  real(wp),         save :: vol_fact2_lj ! (sqrt(pi^3)/24V)
+  real(wp),         save :: vol_fact4_lj ! (2*sqrt(pi^3)/24V)
   real(dp), public, save :: u_self_o2    ! Ewald self energy
+  real(wp),         save :: inv_volume   ! inverse of volume
   real(wp),         save :: box(3)       ! box size
   real(wp),         save :: box_inv(3)   ! Inverse of box size
   real(wp),         save :: bs_fact      ! B-spline factor (1/(n-1)...2)
@@ -72,20 +79,28 @@ module sp_energy_pme_opt_2dalltoall_mod
   real(wp),         save, allocatable :: gy(:)
   real(wp),         save, allocatable :: gz(:)
   real(wp),         save, allocatable :: vir_fact(:,:,:)! -2*(1+G^2/4a)/G^2
+  real(wp),         save, allocatable :: vir_fact_lj(:,:,:)
   real(wp),         save, allocatable :: theta(:,:,:)   ! F^-1[Theta](hz,hy,hx,procz)
+  real(wp),         save, allocatable :: theta_lj(:,:,:)   ! prefactor in recip energy (dispersion)
   real(wp),         save, allocatable :: f(:,:,:)
   integer,          save, allocatable :: vi(:,:,:)
   integer,          save, allocatable :: vii(:,:,:,:)
   real(wp),         save, allocatable :: bsc(:,:,:,:)
   real(wp),         save, allocatable :: bscd(:,:,:,:)
   real(wp),         save, allocatable :: qdf(:,:,:,:)
+  real(wp),         save, allocatable :: ldf(:,:,:,:)
   real(wp),         save, allocatable :: buf_send(:,:), buf_recv(:,:)
   real(wp),         save, allocatable :: qdf_real(:)
   real(wp),         save, allocatable :: qdf_work(:)
+  real(wp),         save, allocatable :: ldf_real(:)
+  real(wp),         save, allocatable :: ldf_work(:)
   complex(wp),      save, allocatable :: ftqdf(:)
   complex(wp),      save, allocatable :: ftqdf_work(:)
+  complex(wp),      save, allocatable :: ftldf(:)
+  complex(wp),      save, allocatable :: ftldf_work(:)
 
   complex(wp),      save, allocatable :: ftqdf_work2(:,:,:)
+  complex(wp),      save, allocatable :: ftldf_work2(:,:,:)
 
   ! parameters
   integer, parameter      :: NumIndex        = 45
@@ -100,9 +115,13 @@ module sp_energy_pme_opt_2dalltoall_mod
   public  :: setup_pme_opt_2dalltoall
   public  :: dealloc_pme_opt_2dalltoall
   public  :: pme_pre_opt_2dalltoall
+  public  :: pme_pre_opt_2dalltoall_lj
   public  :: pme_recip_opt_2dalltoall_4
+  public  :: pme_recip_opt_2dalltoall_lj_4
   public  :: pme_recip_opt_2dalltoall_6
+  public  :: pme_recip_opt_2dalltoall_lj_6
   public  :: pme_recip_opt_2dalltoall_8
+! public  :: pme_recip_opt_2dalltoall_lj_8
 
 contains
 
@@ -113,7 +132,8 @@ contains
   !! @authors      JJ, NT
   !! @param[in]    domain   : domain information
   !! @param[in]    boundary : boundary information
-  !! @param[inout] enefunc  : energy function
+  !! @param[in]    enefunc  : energy function
+  !! @param[inout] calc     : flag of whether calculated
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -136,6 +156,7 @@ contains
 
     real(wp),    allocatable :: bs(:)
 
+
     ncell    =  domain%num_cell_local + domain%num_cell_boundary
 
     ! Setting the number of grids (even number)
@@ -151,6 +172,9 @@ contains
     n_bs     = enefunc%pme_nspline
     alpha    = enefunc%pme_alpha
     alpha2m  = -alpha**2
+    alpha3   = alpha*alpha*alpha
+    alpha6   = alpha3*alpha3
+    inv_alpha  = 1.0_wp/alpha
 
     if (ngrid(1) == 0 .and. ngrid(2) == 0 .and. ngrid(3) == 0) then
 
@@ -519,17 +543,44 @@ contains
       !
       nix = (nlocalx1-1) / ny
       niy = ngrid(2) / nz
-      allocate(qdf(nlocalx+2*n_bs,nlocaly+2*n_bs,nlocalz+2*n_bs,nthread), &
-               qdf_real(nlocalx*nlocaly*nlocalz),                         &
-               buf_send(localmax,2), buf_recv(localmax,2),                &
-               gx(nix+1), gy(niy), gz(ngrid(3)),                          &
-               vir_fact(ngrid(3), niy, nix+1),                            &
-               theta(ngrid(3), niy, nix+1),                               &
-               ftqdf_work2(ngrid(3), niy, nix+1),                         &
-               qdf_work(nlocalx*nlocaly*nlocalz),                         &
-               ftqdf(ngrid(3)*(nix+1)*niy),                               &
-               ftqdf_work(ngrid(3)*(nix+1)*niy),                          &
-               stat = alloc_stat)
+      if (enefunc%vdw == VDWPME) then
+
+        allocate(qdf(nlocalx+2*n_bs,nlocaly+2*n_bs,nlocalz+2*n_bs,nthread), &
+                 ldf(nlocalx+2*n_bs,nlocaly+2*n_bs,nlocalz+2*n_bs,nthread), &
+                 qdf_real(nlocalx*nlocaly*nlocalz),                         &
+                 ldf_real(nlocalx*nlocaly*nlocalz),                         &
+                 buf_send(2*localmax,2), buf_recv(2*localmax,2),            &
+                 gx(nix+1), gy(niy), gz(ngrid(3)),                          &
+                 vir_fact(ngrid(3), niy, nix+1),                            &
+                 vir_fact_lj(ngrid(3), niy, nix+1),                         &
+                 theta(ngrid(3), niy, nix+1),                               &
+                 theta_lj(ngrid(3), niy, nix+1),                            &
+                 ftqdf_work2(ngrid(3), niy, nix+1),                         &
+                 ftldf_work2(ngrid(3), niy, nix+1),                         &
+                 qdf_work(nlocalx*nlocaly*nlocalz),                         &
+                 ldf_work(nlocalx*nlocaly*nlocalz),                         &
+                 ftqdf(ngrid(3)*(nix+1)*niy),                               &
+                 ftldf(ngrid(3)*(nix+1)*niy),                               &
+                 ftqdf_work(ngrid(3)*(nix+1)*niy),                          &
+                 ftldf_work(ngrid(3)*(nix+1)*niy),                          &
+                 stat = alloc_stat)
+
+      else
+
+        allocate(qdf(nlocalx+2*n_bs,nlocaly+2*n_bs,nlocalz+2*n_bs,nthread), &
+                 qdf_real(nlocalx*nlocaly*nlocalz),                         &
+                 buf_send(localmax,2), buf_recv(localmax,2),                &
+                 gx(nix+1), gy(niy), gz(ngrid(3)),                          &
+                 vir_fact(ngrid(3), niy, nix+1),                            &
+                 theta(ngrid(3), niy, nix+1),                               &
+                 ftqdf_work2(ngrid(3), niy, nix+1),                         &
+                 qdf_work(nlocalx*nlocaly*nlocalz),                         &
+                 ftqdf(ngrid(3)*(nix+1)*niy),                               &
+                 ftqdf_work(ngrid(3)*(nix+1)*niy),                          &
+                 stat = alloc_stat)
+
+      end if
+
       if (alloc_stat /= 0) call error_msg_alloc
 
       allocate(f(3,MaxAtom,ncell),                                   &
@@ -551,10 +602,13 @@ contains
   !  Subroutine    dealloc_pme_opt_2dalltoall
   !> @brief        deallocate all arrays used in PME
   !! @authors      JJ, NT
+  !! @param[in]    enefunc  : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine dealloc_pme_opt_2dalltoall
+  subroutine dealloc_pme_opt_2dalltoall(enefunc)
+
+    type(s_enefunc),          intent(in) :: enefunc
 
     ! local variables
     integer :: dealloc_stat, ierr
@@ -566,9 +620,22 @@ contains
     deallocate(f, bsc, bscd, vi, vii, stat = dealloc_stat)
     if (dealloc_stat /= 0) call error_msg_dealloc
 
-    deallocate(qdf, qdf_real, buf_send, buf_recv, gx, gy, gz, vir_fact, &
-               theta, qdf_work, ftqdf, ftqdf_work, ftqdf_work2, b2,     &
-               stat = dealloc_stat)
+    if (enefunc%vdw == VDWPME) then
+
+      deallocate(qdf, qdf_real, ldf, ldf_real, buf_send, buf_recv,      &
+                 gx, gy, gz, vir_fact, vir_fact_lj, theta, theta_lj,    &
+                 qdf_work, ldf_work, ftqdf, ftldf, ftqdf_work,          &
+                 ftldf_work, ftqdf_work2, ftldf_work2, b2,              &
+                 stat = dealloc_stat)
+
+    else
+
+      deallocate(qdf, qdf_real, buf_send, buf_recv, gx, gy, gz,         &
+                 vir_fact, theta, qdf_work, ftqdf, ftqdf_work,          &
+                 ftqdf_work2, b2, stat = dealloc_stat)
+
+    end if
+
     if (dealloc_stat /= 0) call error_msg_dealloc
 
     return
@@ -658,8 +725,13 @@ contains
           gz(k) = gfact(3) * real(ks,wp)
           g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
           if (g2 > EPS) then
-            vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/g2
-            theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - g2 * fact)/ g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2 * fact) / g2
+            end if
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -695,7 +767,12 @@ contains
           g2 = gx(ix)**2 + gy(iy)**2 + gz(k)*gz(k)
           if (g2 > EPS) then
             vir_fact(k,iy,ix) = -2.0_wp*(1.0_wp-g2*fact)/g2
-            theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2*fact)/g2
+            if (g2*fact < -80.0_wp) then
+              theta(k,iy,ix) = 0.0_wp
+            else
+              theta(k,iy,ix) = b2(i,1)*b2(j,2)*b2(k,3)*exp(g2*fact)/g2
+            end if
+            if (abs(theta(k,iy,ix)) < 1.0e-15) theta(k,iy,ix) = 0.0_wp
           else
             vir_fact(k,iy,ix) = 0.0_wp
             theta(k,iy,ix) = 0.0_wp
@@ -725,6 +802,226 @@ contains
     return
 
   end subroutine pme_pre_opt_2dalltoall
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    pme_pre_opt_2dalltoall_lj
+  !> @brief        Prepare functions for PME calculation (Elec and LJ)
+  !! @authors      JJ, NT
+  !! @param[in]    domain   : domain information
+  !! @param[in]    boundary : boundary information
+  !! @note         Extracted from setup_pme for NPT calculation
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pme_pre_opt_2dalltoall_lj(domain, boundary)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_boundary),        intent(in)    :: boundary
+
+    ! local variables
+    integer                  :: i, j, k, is, js, ks, ix, iy
+    integer                  :: nix, nix1, niy
+    integer                  :: ix_start, ix_end, iy_start, iy_end
+    real(wp)                 :: fact, gfact(3), g1, g2, g3, g_lj
+    real(wp)                 :: fact1, fact2, fact3, fact4, fact5
+
+
+    box(1) = boundary%box_size_x
+    box(2) = boundary%box_size_y
+    box(3) = boundary%box_size_z
+
+    do k = 1, 3
+      box_inv(k) = 1.0_wp / box(k)
+      r_scale(k) = real(ngrid(k),wp) * box_inv(k)
+    end do
+
+    inv_volume   = box_inv(1)*box_inv(2)*box_inv(3)
+    vol_fact2    = 2.0_wp * PI * el_fact * inv_volume
+    vol_fact4    = 2.0_wp * vol_fact2
+    vol_fact2_lj = PI * sqrt(PI) * inv_volume / (24.0_wp)
+    vol_fact4_lj = 2.0_wp * vol_fact2_lj
+
+    nix = (nlocalx1-1) / nprocy
+    nix1 = nix + 1
+    niy = ngrid(2) / nprocz
+    theta(1:ngrid(3),1:niy,1:nix1) = 0.0_wp
+
+    ! factor that converts from m to G=2*pi*m/L
+    !
+    gfact(1:3) = 2.0_wp * PI * box_inv(1:3)
+
+    fact = 0.25_wp / alpha2m
+
+    ix_start = my_xy_rank*nix + 1
+    ix_end   = ix_start + nix - 1
+
+    niy = ngrid(2) / nprocz
+    iy_start = niy*my_z_rank + 1
+    iy_end   = iy_start + niy - 1
+
+    do i = ix_start, ix_end
+
+      ix = i - ix_start + 1
+      is = i - 1
+      gx(ix) = gfact(1) * real(is,wp)
+
+      do j = iy_start, iy_end
+
+        iy = j - iy_start + 1
+        if (j <= ngrid(2)/2+1) then
+          js = j - 1
+        else
+          js = j - 1 - ngrid(2)
+        end if
+        gy(iy) = gfact(2) * real(js,wp)
+
+        do k = 1, ngrid(3)
+
+          if (k <= ngrid(3)/2+1) then
+            ks = k - 1
+          else
+            ks = k - 1 - ngrid(3)
+          end if
+          gz(k) = gfact(3) * real(ks,wp)
+
+          g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
+          g1 = sqrt(g2)
+          g3 = g1 * g2
+
+          ! -g^2/(4*alpha^2)
+          !
+          fact1 = g2*fact
+
+          ! exp(-g^2/(4*alpha^2))
+          !
+          fact2 = exp(fact1)
+
+          ! g / (2*alpha)
+          !
+          fact3 = 0.5*g1*inv_alpha
+
+          ! erfc(g/(2*alpha))
+          !
+          fact4 = erfc(fact3)
+
+          ! |bx(mx)|^2 * |by(my)|^2 * |bz(mz)|^2
+          !
+          fact5 = b2(i,1)*b2(j,2)*b2(k,3)
+
+          ! calculate theta and vir_fact (prefactor for energy & virial)
+          !
+          g_lj = (4.0_wp*alpha3-2.0_wp*alpha*g2)*fact2 &
+               + SQRT_PI*g3*fact4
+          theta_lj(k,iy,ix) = fact5 * g_lj
+          vir_fact_lj(k,iy,ix) = 3.0_wp*g1*SQRT_PI*fact4-6.0_wp*alpha*fact2
+          vir_fact_lj(k,iy,ix) = vir_fact_lj(k,iy,ix) * fact5
+
+          if (g2 > EPS) then
+            vir_fact(k,iy,ix) = -2.0_wp * (1.0_wp - fact1) / g2
+            theta(k,iy,ix) = fact5 * fact2 / g2
+          else
+            vir_fact(k,iy,ix) = 0.0_wp
+            theta(k,iy,ix) = 0.0_wp
+          end if
+        end do
+
+      end do
+
+    end do
+
+    if (my_xy_rank == 0) then
+      i  = ngrid(1)/2 + 1
+      is = i - 1
+      ix = nix1
+      gx(ix) = gfact(1)*real(is,wp)
+
+      do j = iy_start, iy_end
+
+        iy = j - iy_start + 1
+        if (j <= ngrid(2)/2+1) then
+          js = j - 1
+        else
+          js = j - 1 - ngrid(2)
+        end if
+        gy(iy) = gfact(2)*real(js,wp)
+
+        do k = 1, ngrid(3)
+
+          if (k <= ngrid(3)/2+1) then
+            ks = k - 1
+          else
+            ks = k - 1 - ngrid(3)
+          end if
+          gz(k) = gfact(3)*real(ks,wp)
+
+          g2 = gx(ix)*gx(ix) + gy(iy)*gy(iy) + gz(k)*gz(k)
+          g1 = sqrt(g2)
+          g3 = g1 * g2
+
+          ! -g^2/(4*alpha^2)
+          !
+          fact1 = g2*fact
+
+          ! exp(-g^2/(4*alpha^2))
+          !
+          fact2 = exp(fact1)
+
+          ! g / (2*alpha)
+          !
+          fact3 = 0.5*g1*inv_alpha
+
+          ! erfc(g/(2*alpha))
+          !
+          fact4 = erfc(fact3)
+
+          ! |bx(mx)|^2 * |by(my)|^2 * |bz(mz)|^2
+          !
+          fact5 = b2(i,1)*b2(j,2)*b2(k,3)
+
+          ! prefactor for energy and virial
+          !
+          g_lj = (4.0_wp*alpha3-2.0_wp*alpha*g2)*fact2 &
+               + SQRT_PI*g3*fact4
+          theta_lj(k,iy,ix) = fact5 * g_lj
+          vir_fact_lj(k,iy,ix) = 3.0_wp*g1*SQRT_PI*fact4-6.0_wp*alpha*fact2
+          vir_fact_lj(k,iy,ix) = vir_fact_lj(k,iy,ix) * fact5
+
+          if (g2 > EPS) then
+            vir_fact(k,iy,ix) = -2.0_wp*(1.0_wp-fact1)/g2
+            theta(k,iy,ix) = fact5*fact2/g2
+          else
+            vir_fact(k,iy,ix) = 0.0_wp
+            theta(k,iy,ix) = 0.0_wp
+          end if
+        end do
+      end do
+    end if
+
+    if (my_x_rank == 0 .and. my_y_rank == 0 .and. my_z_rank == 0) &
+      theta(1,1,1) = 0.0_wp
+      theta_lj(1,1,1) = 0.0_wp
+
+    if (my_city_rank == 0) &
+      vir_fact(1,1,1) = 0.0_wp
+      vir_fact_lj(1,1,1) = 0.0_wp
+
+    ! Calculating self energy
+    !
+    u_self_o2 = 0.0_dp 
+
+    do i = 1, domain%num_cell_local
+      do ix = 1, domain%num_atom(i)
+        u_self_o2 = u_self_o2 + domain%charge(ix,i)*domain%charge(ix,i)
+      end do 
+    end do
+
+    u_self_o2 = - u_self_o2 * el_fact * alpha/sqrt(PI)
+
+    return
+
+  end subroutine pme_pre_opt_2dalltoall_lj
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -771,6 +1068,7 @@ contains
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
 
+
     coord  => domain%coord
     charge => domain%charge
     natom  => domain%num_atom
@@ -782,7 +1080,9 @@ contains
     !
     qdf_real(1:nlocalx*nlocaly*nlocalz) = 0.0_wp
 
+#ifdef HAVE_MPI_GENESIS
     call mpi_barrier(MPI_comm_country, ierror)
+#endif
 
     !$omp parallel default(shared)                                             &
     !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
@@ -971,7 +1271,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -1179,6 +1479,558 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    pme_recip_opt_2dalltoall_lj_4
+  !> @brief        Calculate PME reciprocal part with domain decomposition
+  !! @authors      JJ, NT
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pme_recip_opt_2dalltoall_lj_4(domain, enefunc, force, virial, &
+                                           eelec, evdw)
+
+    ! formal arguments
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(in)    :: enefunc
+    real(wip),               intent(inout) :: force(:,:,:)
+    real(dp),                intent(inout) :: virial(3,3,nthread)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw (nthread)
+
+    ! local variables
+    real(wp)                 :: elec_temp, evdw_temp
+    real(wp)                 :: vr(4), dv(4), grid(4), half_grid(4)
+    real(wp)                 :: bscx(4), bscy(4), bscz(4)
+    real(wp)                 :: bscdx(4), bscdy(4), bscdz(4)
+    real(wp)                 :: vxx, vyy, vzz, vyyd, vzzd, temp
+    real(wp)                 :: efft_real, efft_imag
+    real(wp)                 :: vfft_real, vfft_imag
+    real(wp)                 :: tqq, tll, qtmp, ltmp
+    real(wp)                 :: force_local(3), force_local_lj(3)
+    real(wp)                 :: u_2(3), u_3(3)
+    integer                  :: iatmcls
+    integer                  :: i, k, icel, iproc, id
+    integer                  :: ix, iv, iy, iz, ixs, iys, izs
+    integer                  :: ixyz, nix, nix1, niy, niz, nizx, nizy
+    integer                  :: ixx, iyy, izz, iyyzz, ii(4)
+    integer                  :: iix(4), iiy(4), iiz(4)
+    integer                  :: start(3), end(3)
+    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: kk
+    integer                  :: iprocx, iprocy
+    integer                  :: ix_start, ix_end, iz_start, iz_end
+
+    complex(wp), allocatable :: work1(:), work2(:), work3(:), work4(:)
+    real(wip),       pointer :: coord(:,:,:)
+    real(wp),        pointer :: charge(:,:)
+    real(wp),        pointer :: nonb_lj6_factor(:)
+    integer,         pointer :: natom(:)
+    integer,         pointer :: atmcls(:,:)
+
+
+    coord  => domain%coord
+    charge => domain%charge
+    natom  => domain%num_atom
+    atmcls => domain%atom_cls_no
+    nonb_lj6_factor => enefunc%nonb_lj6_factor
+
+    ncell  = domain%num_cell_local + domain%num_cell_boundary
+    ncell_local  = domain%num_cell_local
+
+    ! Initializing the energy and force
+    !
+    qdf_real(1:nlocalx*nlocaly*nlocalz) = 0.0_wp
+    ldf_real(1:nlocalx*nlocaly*nlocalz) = 0.0_wp
+
+#ifdef HAVE_MPI_GENESIS
+    call mpi_barrier(MPI_comm_country, ierror)
+#endif
+
+    !$omp parallel default(shared)                                             &
+    !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
+    !$omp         iz_start, iz_end, ix_start, ix_end, ixx, ixs, vxx, vyy, vzz, &
+    !$omp         iproc, tqq, vr, work1, work2, elec_temp, evdw_temp, temp,    &
+    !$omp         force_local, force_local_lj, ixyz, nix, nix1, niy, niz,      &
+    !$omp         bscx, bscy, bscz, bscdx, bscdy, bscdz, kk, iprocx, iprocy,   &
+    !$omp         qtmp, grid, half_grid, start, end, nizx, nizy, iix, iiy,     &
+    !$omp         iiz, u_2, u_3, vyyd, vzzd, iyyzz, iatmcls, ltmp, efft_real,  &
+    !$omp         efft_imag, vfft_real, vfft_imag, tll, work3, work4)
+
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    ! initialization
+    !
+    allocate(work1(ngridmax), work2(2*ngridmax), &
+             work3(ngridmax), work4(2*ngridmax))
+
+    start(1) = x_start
+    start(2) = y_start
+    start(3) = z_start
+    end(1) = x_end
+    end(2) = y_end
+    end(3) = z_end
+
+    ! Initialization of Q-fanction
+    !
+    do iz = 1, nlocalz+8
+      do iy = 1, nlocaly+8
+        do ix = 1, nlocalx+8
+          qdf(ix,iy,iz,id+1) = 0.0_wp
+          ldf(ix,iy,iz,id+1) = 0.0_wp
+        end do
+      end do
+    end do
+
+    ! Calculateing Q-fanction
+    !
+    grid(1) = real(ngrid(1),wp)
+    grid(2) = real(ngrid(2),wp)
+    grid(3) = real(ngrid(3),wp)
+    grid(4) = 2.0_wp
+    half_grid(1) = real(ngrid(1)/2,wp)
+    half_grid(2) = real(ngrid(2)/2,wp)
+    half_grid(3) = real(ngrid(3)/2,wp)
+    half_grid(4) = 1.0_wp
+    ngrid(4) = 100000
+
+    do icel = id+1, ncell_local, nthread
+
+      do i = 1, natom(icel)
+
+        vr(1) = coord(1,i,icel) * r_scale(1)
+        vr(2) = coord(2,i,icel) * r_scale(2)
+        vr(3) = coord(3,i,icel) * r_scale(3)
+
+        vr(1) = vr(1) + half_grid(1) - grid(1)*anint(vr(1)/grid(1))
+        vr(2) = vr(2) + half_grid(2) - grid(2)*anint(vr(2)/grid(2))
+        vr(3) = vr(3) + half_grid(3) - grid(3)*anint(vr(3)/grid(3))
+
+        vr(1) = min(vr(1),grid(1)-0.0000001_wp)
+        vr(2) = min(vr(2),grid(2)-0.0000001_wp)
+        vr(3) = min(vr(3),grid(3)-0.0000001_wp)
+
+        vi(1,i,icel) = min(int(vr(1)),ngrid(1)-1)
+        vi(2,i,icel) = min(int(vr(2)),ngrid(2)-1)
+        vi(3,i,icel) = min(int(vr(3)),ngrid(3)-1)
+
+        dv(1) = vr(1) - real(vi(1,i,icel),wp)
+        dv(2) = vr(2) - real(vi(2,i,icel),wp)
+        dv(3) = vr(3) - real(vi(3,i,icel),wp)
+  
+        u_2(1) = dv(1)*dv(1)
+        u_2(2) = dv(2)*dv(2)
+        u_2(3) = dv(3)*dv(3)
+        u_3(1) = u_2(1)*dv(1)
+        u_3(2) = u_2(2)*dv(2)
+        u_3(3) = u_2(3)*dv(3)
+
+        bsc (1,1,i,icel) = u_3(1)
+        bsc (2,1,i,icel) = -3.0_wp*u_3(1) + 3.0_wp*u_2(1) &
+                           +3.0_wp*dv(1)  + 1.0_wp
+        bsc (3,1,i,icel) = 3.0_wp*u_3(1) - 6.0_wp*u_2(1) + 4.0_wp
+        bsc (4,1,i,icel) = (1.0_wp-dv(1))*(1.0_wp-dv(1))*(1.0_wp-dv(1))
+        bscd(1,1,i,icel) = u_2(1)
+        bscd(2,1,i,icel) = -3.0_wp*u_2(1) + 2.0_wp*dv(1) + 1.0_wp
+        bscd(3,1,i,icel) = 3.0_wp*u_2(1) - 4.0_wp*dv(1)
+        bscd(4,1,i,icel) = -(1.0_wp-dv(1))*(1.0_wp-dv(1))
+
+        bsc (1,2,i,icel) = u_3(2)
+        bsc (2,2,i,icel) = -3.0_wp*u_3(2) + 3.0_wp*u_2(2) &
+                           +3.0_wp*dv(2) + 1.0_wp
+        bsc (3,2,i,icel) = 3.0_wp*u_3(2) - 6.0_wp*u_2(2) + 4.0_wp
+        bsc (4,2,i,icel) = (1.0_wp-dv(2))*(1.0_wp-dv(2))*(1.0_wp-dv(2))
+        bscd(1,2,i,icel) = u_2(2)
+        bscd(2,2,i,icel) = -3.0_wp*u_2(2) + 2.0_wp*dv(2) + 1.0_wp
+        bscd(3,2,i,icel) = 3.0_wp*u_2(2) - 4.0_wp*dv(2)
+        bscd(4,2,i,icel) = -(1.0_wp-dv(2))*(1.0_wp-dv(2))
+
+        bsc (1,3,i,icel) = u_3(3)
+        bsc (2,3,i,icel) = -3.0_wp*u_3(3) + 3.0_wp*u_2(3) &
+                           +3.0_wp*dv(3) + 1.0_wp
+        bsc (3,3,i,icel) = 3.0_wp*u_3(3) - 6.0_wp*u_2(3) + 4.0_wp
+        bsc (4,3,i,icel) = (1.0_wp-dv(3))*(1.0_wp-dv(3))*(1.0_wp-dv(3))
+        bscd(1,3,i,icel) = u_2(3)
+        bscd(2,3,i,icel) = -3.0_wp*u_2(3) + 2.0_wp*dv(3) + 1.0_wp
+        bscd(3,3,i,icel) = 3.0_wp*u_2(3) - 4.0_wp*dv(3)
+        bscd(4,3,i,icel) = -(1.0_wp-dv(3))*(1.0_wp-dv(3))
+  
+      end do
+
+      do i = 1, natom(icel)
+
+        qtmp = charge(i,icel)*bs_fact3
+        iatmcls = atmcls(i,icel)
+        ltmp = nonb_lj6_factor(iatmcls)*bs_fact3
+        ii(1) = vi(1,i,icel)
+        ii(2) = vi(2,i,icel)
+        ii(3) = vi(3,i,icel)
+
+!ocl nosimd
+        do ixyz = 1, 4
+          bscx(ixyz) = bsc(ixyz,1,i,icel)
+          bscy(ixyz) = bsc(ixyz,2,i,icel)
+          bscz(ixyz) = bsc(ixyz,3,i,icel)
+          iz = ii(3) - ixyz + 2
+          if (iz <= 0) iz = iz + ngrid(3)
+          iiz(ixyz)  = grid_g2lz(iz)
+          iy = ii(2) - ixyz + 2
+          if (iy <= 0) iy = iy + ngrid(2)
+          iiy(ixyz) = grid_g2ly(iy)
+          ix = ii(1) - ixyz + 2
+          if (ix <= 0) ix = ix + ngrid(1)
+          iix(ixyz) = grid_g2lx(ix)
+        end do
+
+        do izz = 1, 4
+          izs = iiz(izz)
+          vzz = bscz(izz)
+          do iyy = 1, 4
+            iys = iiy(iyy)
+            vyy = bscy(iyy)
+!ocl norecurrence(qdf,ldf)
+!ocl nosimd
+            do ixx = 1, 4
+              ixs = iix(ixx)
+              qdf(ixs,iys,izs,id+1) = qdf(ixs,iys,izs,id+1)            &
+                                    + bscx(ixx)*vyy*vzz*qtmp
+              ldf(ixs,iys,izs,id+1) = ldf(ixs,iys,izs,id+1)            &
+                                    + bscx(ixx)*vyy*vzz*ltmp
+            end do
+          end do
+        end do
+
+      end do
+
+    end do
+
+    !$omp barrier
+    do iproc = 2, nthread
+      !$omp do
+      do iz = 1, nlocalz+8
+        do iy = 1, nlocaly+8
+          do ix = 1, nlocalx+8
+            qdf(ix,iy,iz,1) = qdf(ix,iy,iz,1) + qdf(ix,iy,iz,iproc)
+            ldf(ix,iy,iz,1) = ldf(ix,iy,iz,1) + ldf(ix,iy,iz,iproc)
+          end do
+        end do
+      end do
+    end do
+
+    !$omp barrier
+    !$omp master
+    call communicate_pme_pre_lj
+    !$omp end master
+    !$omp barrier
+
+    !$omp do
+    do iz = 1, nlocalz
+      izs = iz + 4
+      do iy = 1, nlocaly
+        k = (iy-1)*nlocalx + (iz-1)*nlocalx*nlocaly
+        iys = iy + 4
+        do ix = 1, nlocalx
+          ixs = ix + 4
+          qdf_real(k+ix) = qdf_real(k+ix) + qdf(ixs,iys,izs,1)
+          ldf_real(k+ix) = ldf_real(k+ix) + ldf(ixs,iys,izs,1)
+        end do
+      end do
+    end do
+
+    !$omp barrier
+    !$omp master
+#ifdef HAVE_MPI_GENESIS
+    call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      grid_commx, ierror)
+    call mpi_alltoall(ldf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      ldf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      grid_commx, ierror)
+#else
+    qdf_work(1:nlocalx*nlocaly*nlocalz,1) = qdf_real(1:nlocalx*nlocaly*nlocalz)
+    ldf_work(1:nlocalx*nlocaly*nlocalz,1) = ldf_real(1:nlocalx*nlocaly*nlocalz)
+#endif
+    !$omp end master
+    !$omp barrier
+    
+    niz  = nlocalz / nprocx
+    nix  = (nlocalx1-1) / nprocy
+    nix1 = nix + 1
+    niy  = ngrid(2) / nprocz 
+    call fft3d_2d_alltoall_lj(qdf_work, ftqdf, ftqdf, ftqdf, ftqdf_work,      &
+                              ftqdf_work, ftqdf_work2, work1, work2,          &
+                              ldf_work, ftldf, ftldf, ftldf, ftldf_work,      &
+                              ftldf_work, ftldf_work2, work3, work4,          &
+                              nlocalx, nlocaly, nlocalz, ngrid(1), ngrid(2),  &
+                              ngrid(3), nprocx, nprocy, nprocz, nix, nix1,    &
+                              niz, niy, id, nthread, my_x_rank, grid_commz,   &
+                              grid_commxy)
+
+    ! Energy calculation
+    !
+
+    !$omp barrier
+
+    iproc = my_z_rank + 1
+
+    do ix = id+1, nix, nthread
+      do iy = 1, niy
+        elec_temp = 0.0_wp
+        evdw_temp = 0.0_wp
+        vxx = 0.0_wp
+        vyy = 0.0_wp
+        vzz = 0.0_wp
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,ix),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,ix))
+          vfft_real = real(ftldf_work2(iz,iy,ix),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,ix))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,ix) * vol_fact4
+          elec_temp = elec_temp + tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact4_lj
+          evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
+          vxx = vxx + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gx(ix)*gx(ix))
+          vyy = vyy + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gy(iy)*gy(iy))
+          vzz = vzz + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gz(iz)*gz(iz))
+          vxx = vxx - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gx(ix)*gx(ix))
+          vyy = vyy - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(iy)*gy(iy))
+          vzz = vzz - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(iz)*gz(iz))
+        end do
+        eelec(id+1) = eelec(id+1) + elec_temp
+        evdw (id+1) = evdw (id+1) + evdw_temp
+        virial(1,1,id+1) = virial(1,1,id+1) + vxx
+        virial(2,2,id+1) = virial(2,2,id+1) + vyy
+        virial(3,3,id+1) = virial(3,3,id+1) + vzz
+      end do
+    end do
+
+    if (my_x_rank == 0 .and. my_y_rank == 0) then
+
+      do iy = id+1, niy, nthread
+        elec_temp = 0.0_wp
+        evdw_temp = 0.0_wp
+        vxx = 0.0_wp
+        vyy = 0.0_wp
+        vzz = 0.0_wp
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,1),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,1))
+          vfft_real = real(ftldf_work2(iz,iy,1),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,1))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,1) * vol_fact2
+          elec_temp = elec_temp - tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact2_lj
+          evdw_temp = evdw_temp + tll*theta_lj(iz,iy,1)
+          vxx = vxx - tqq * (1.0_wp+vir_fact(iz,iy,1)*gx(1)*gx(1))
+          vyy = vyy - tqq * (1.0_wp+vir_fact(iz,iy,1)*gy(iy)*gy(iy))
+          vzz = vzz - tqq * (1.0_wp+vir_fact(iz,iy,1)*gz(iz)*gz(iz))
+          vxx = vxx  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gx(1 )*gx(1 ))
+          vyy = vyy  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gy(iy)*gy(iy))
+          vzz = vzz  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gz(iz)*gz(iz))
+        end do
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,nix1),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,nix1))
+          vfft_real = real(ftldf_work2(iz,iy,nix1),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,nix1))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,nix1) * vol_fact2
+          elec_temp = elec_temp + tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact2_lj
+          evdw_temp = evdw_temp - tll*theta_lj(iz,iy,nix1)
+          vxx = vxx + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gx(nix1)*gx(nix1))
+          vyy = vyy + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gy(iy)*gy(iy))
+          vzz = vzz + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gz(iz)*gz(iz))
+          vxx = vxx  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gx(nix1)*gx(nix1))
+          vyy = vyy  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gy(iy)*gy(iy))
+          vzz = vzz  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gz(iz)*gz(iz))
+
+        end do
+        eelec(id+1) = eelec(id+1) + elec_temp
+        evdw(id+1)  = evdw(id+1) + evdw_temp
+        virial(1,1,id+1) = virial(1,1,id+1) + vxx
+        virial(2,2,id+1) = virial(2,2,id+1) + vyy
+        virial(3,3,id+1) = virial(3,3,id+1) + vzz
+      end do
+    end if
+
+    !$omp barrier
+
+    ! add self dispersion term
+    !
+    !$omp master
+    if (my_city_rank == 0) then
+      temp    = PI*sqrt(PI)*alpha3*inv_volume/(6.0_wp)*enefunc%pme_dispersion_self1
+      evdw(1) = evdw(1) - temp
+      evdw(1) = evdw(1) + alpha6/12.0_wp*enefunc%pme_dispersion_self2
+      virial(1,1,1) = virial(1,1,1) - temp
+      virial(2,2,1) = virial(2,2,1) - temp
+      virial(3,3,1) = virial(3,3,1) - temp
+    end if
+    !$omp end master
+
+    ! F^-1[Th]*F^-1[Q] (=X)
+    !
+    do ix = id+1, nix, nthread
+      do iy = 1, niy
+        do iz = 1, ngrid(3)
+          ftqdf_work2(iz,iy,ix) = ftqdf_work2(iz,iy,ix) &
+                                 *cmplx(theta(iz,iy,ix),0.0_wp)
+          ftldf_work2(iz,iy,ix) = ftldf_work2(iz,iy,ix) &
+                                 *cmplx(theta_lj(iz,iy,ix),0.0_wp)
+        end do
+      end do
+    end do
+    if(my_x_rank == 0 .and. my_y_rank == 0) then
+      ix = nix1
+      do iy = id+1, niy, nthread
+        do iz = 1, ngrid(3)
+          ftqdf_work2(iz,iy,ix) = ftqdf_work2(iz,iy,ix) &
+                                 *cmplx(theta(iz,iy,ix),0.0_wp)
+          ftldf_work2(iz,iy,ix) = ftldf_work2(iz,iy,ix) &
+                                 *cmplx(theta_lj(iz,iy,ix),0.0_wp)
+        end do
+      end do
+    end if
+
+    !$omp barrier
+
+    call bfft3d_2d_alltoall_lj(qdf_work, qdf_real, ftqdf, ftqdf, ftqdf, &
+                               ftqdf_work, ftqdf_work, ftqdf_work2,     &
+                               work1, work2,                            &
+                               ldf_work, ldf_real, ftldf, ftldf, ftldf, &
+                               ftldf_work, ftldf_work, ftldf_work2,     &
+                               work3, work4,                            &
+                               nlocalx, nlocaly, nlocalz,               &
+                               ngrid(1), ngrid(2), ngrid(3),            &
+                               nprocx, nprocy, nprocz, nix, nix1,       &
+                               niy, niz, id, nthread, grid_commx,       &
+                               grid_commz, grid_commxy)
+
+    !$omp barrier
+
+    ! X is saved on qdf
+    !
+    do iz = id+1, nlocalz, nthread
+      izs = iz + 4
+      do iy = 1, nlocaly
+        iys = iy + 4
+        k = (iy-1)*nlocalx + (iz-1)*nlocalx*nlocaly
+        do ix = 1, nlocalx
+          ixs = ix + 4
+          qdf(ixs,iys,izs,1) = qdf_real(k+ix)
+          ldf(ixs,iys,izs,1) = ldf_real(k+ix)
+        end do
+      end do
+    end do
+ 
+    !$omp barrier
+
+    !$omp barrier
+    !$omp master
+    call communicate_pme_post_lj
+    !$omp end master
+    !$omp barrier
+
+    do icel = id+1, ncell_local, nthread
+      do i = 1, natom(icel)
+
+        force_local(1) = 0.0_wp
+        force_local(2) = 0.0_wp
+        force_local(3) = 0.0_wp
+        force_local_lj(1) = 0.0_wp
+        force_local_lj(2) = 0.0_wp
+        force_local_lj(3) = 0.0_wp
+        qtmp = charge(i,icel)*vol_fact4*bs_fact3d
+        iatmcls = atmcls(i,icel)
+        ltmp = nonb_lj6_factor(iatmcls)*vol_fact4_lj*bs_fact3d
+
+!ocl nosimd
+        do ixyz = 1, 4
+          ii(ixyz)    = vi(ixyz,i,icel)
+          bscx(ixyz)  = bsc(ixyz,1,i,icel)
+          bscy(ixyz)  = bsc(ixyz,2,i,icel)
+          bscz(ixyz)  = bsc(ixyz,3,i,icel)
+          bscdx(ixyz) = bscd(ixyz,1,i,icel)
+          bscdy(ixyz) = bscd(ixyz,2,i,icel)
+          bscdz(ixyz) = bscd(ixyz,3,i,icel)
+        end do
+
+!ocl nosimd
+        do ixyz = 1, 4
+          ix = ii(1) - ixyz + 2
+          if (ix <= 0) ix = ix + ngrid(1)
+          iix(ixyz) = grid_g2lx(ix)
+          iy = ii(2) - ixyz + 2
+          if (iy <= 0) iy = iy + ngrid(2)
+          iiy(ixyz) = grid_g2ly(iy)
+          iz = ii(3) - ixyz + 2
+          if (iz <= 0) iz = iz + ngrid(3)
+          iiz(ixyz) = grid_g2lz(iz)
+        end do
+
+        do iyyzz = 1, 16
+          izz = (iyyzz-1)/4 + 1
+          iyy = iyyzz - 4*(izz-1)
+          izs = iiz(izz)
+          iys = iiy(iyy)
+          vzz = bscz(izz)
+          vzzd = bscdz(izz)
+          vyy = bscy(iyy)
+          vyyd = bscdy(iyy)
+!ocl nosimd
+          do ixx = 1, 4
+            ixs = iix(ixx)
+            force_local(1) = force_local(1) &
+                           + bscdx(ixx)*vyy*vzz*qdf(ixs,iys,izs,1)
+            force_local(2) = force_local(2)     &
+                           + bscx(ixx)*vyyd*vzz*qdf(ixs,iys,izs,1)
+            force_local(3) = force_local(3)     &
+                           + bscx(ixx)*vyy*vzzd*qdf(ixs,iys,izs,1)
+            force_local_lj(1) = force_local_lj(1) &
+                              + bscdx(ixx)*vyy*vzz*ldf(ixs,iys,izs,1)
+            force_local_lj(2) = force_local_lj(2)     &
+                              + bscx(ixx)*vyyd*vzz*ldf(ixs,iys,izs,1)
+            force_local_lj(3) = force_local_lj(3)     &
+                              + bscx(ixx)*vyy*vzzd*ldf(ixs,iys,izs,1)
+          end do
+        end do
+
+        force(1:3,i,icel) = - force_local(1:3)*qtmp*r_scale(1:3) &
+                          + force_local_lj(1:3)*ltmp*r_scale(1:3)
+
+      end do
+    end do
+
+    deallocate(work1, work2, work3, work4)
+
+    !$omp end parallel
+
+    return
+
+  end subroutine pme_recip_opt_2dalltoall_lj_4
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    pme_recip_opt_2dalltoall_6
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !! @authors      JJ, NT
@@ -1222,6 +2074,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1447,7 +2300,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -1496,7 +2349,7 @@ contains
       end do
     end do
 
-    if(my_x_rank == 0 .and. my_y_rank == 0) then
+    if (my_x_rank == 0 .and. my_y_rank == 0) then
 
       do iy = id+1, niy, nthread
         elec_temp = 0.0_wp
@@ -1622,6 +2475,602 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    pme_recip_opt_2dalltoall_lj_6
+  !> @brief        Calculate PME reciprocal part with domain decomposition
+  !! @authors      JJ, NT
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[inout] force   : forces of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pme_recip_opt_2dalltoall_lj_6(domain, enefunc, force, virial, &
+                                           eelec, evdw)
+
+    ! formal arguments
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(in)    :: enefunc
+    real(wip),               intent(inout) :: force(:,:,:)
+    real(dp),                intent(inout) :: virial(3,3,nthread)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw (nthread)
+
+    ! local variables
+    real(wp)                 :: elec_temp, evdw_temp
+    real(wp)                 :: vr(4), dv(4), grid(4), half_grid(4)
+    real(wp)                 :: bscx(6), bscy(6), bscz(6)
+    real(wp)                 :: bscdx(6), bscdy(6), bscdz(6)
+    real(wp)                 :: vxx, vyy, vzz, vyyd, vzzd, temp
+    real(wp)                 :: efft_real, efft_imag
+    real(wp)                 :: vfft_real, vfft_imag
+    real(wp)                 :: tqq, tll, qtmp, ltmp
+    real(wp)                 :: force_local(3), force_local_lj(3)
+    real(wp)                 :: u_2(3), u_3(3), u_4(3), u_5(3)
+    real(wp)                 :: v_1(3), v_4(3), v_5(3)
+    integer                  :: iatmcls
+    integer                  :: i, k, icel, iproc, id
+    integer                  :: ix, iv, iy, iz, ixs, iys, izs
+    integer                  :: ixyz, nix, nix1, niy, niz, nizx, nizy
+    integer                  :: ixx, iyy, izz, iyyzz, ii(6)
+    integer                  :: iix(6), iiy(6), iiz(6)
+    integer                  :: start(3), end(3)
+    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: kk
+    integer                  :: iprocx, iprocy
+    integer                  :: ix_start, ix_end, iz_start, iz_end
+
+    complex(wp), allocatable :: work1(:), work2(:), work3(:), work4(:)
+    real(wip),       pointer :: coord(:,:,:)
+    real(wp),        pointer :: charge(:,:)
+    real(wp),        pointer :: nonb_lj6_factor(:)
+    integer,         pointer :: natom(:)
+    integer,         pointer :: atmcls(:,:)
+
+
+    coord  => domain%coord
+    charge => domain%charge
+    natom  => domain%num_atom
+    atmcls => domain%atom_cls_no
+    nonb_lj6_factor => enefunc%nonb_lj6_factor
+
+    ncell  = domain%num_cell_local + domain%num_cell_boundary
+    ncell_local  = domain%num_cell_local
+
+    ! Initializing the energy and force
+    !
+    qdf_real(1:nlocalx*nlocaly*nlocalz) = 0.0_wp
+    ldf_real(1:nlocalx*nlocaly*nlocalz) = 0.0_wp
+
+#ifdef HAVE_MPI_GENESIS
+    call mpi_barrier(MPI_comm_country, ierror)
+#endif
+
+    !$omp parallel default(shared)                                             &
+    !$omp private(id, i, iv, ix, iy, iz, icel, k, ii, dv, izz, izs, iyy, iys,  &
+    !$omp         iz_start, iz_end, ix_start, ix_end, ixx, ixs, vxx, vyy, vzz, &
+    !$omp         iproc, tqq, vr, work1, work2, work3, work4, elec_temp,       &
+    !$omp         evdw_temp, temp, force_local, force_local_lj, ixyz,          &
+    !$omp         nix, nix1, niy, niz, bscx, bscy, bscz, bscdx, bscdy, bscdz,  &
+    !$omp         kk, iprocx, iprocy, qtmp, grid, half_grid, start, end,       &
+    !$omp         nizx, nizy, iix, iiy, iiz, u_2, u_3, vyyd, vzzd, iyyzz,      &
+    !$omp         iatmcls, ltmp, u_4, u_5, v_1, v_4, v_5,                      &
+    !$omp         efft_real, efft_imag, vfft_real, vfft_imag, tll)
+
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    ! initialization
+    !
+    allocate(work1(ngridmax), work2(2*ngridmax), &
+             work3(ngridmax), work4(2*ngridmax))
+
+    start(1) = x_start
+    start(2) = y_start
+    start(3) = z_start
+    end(1) = x_end
+    end(2) = y_end
+    end(3) = z_end
+
+    ! Initialization of Q-fanction
+    !
+    do iz = 1, nlocalz+12
+      do iy = 1, nlocaly+12
+        do ix = 1, nlocalx+12
+          qdf(ix,iy,iz,id+1) = 0.0_wp
+          ldf(ix,iy,iz,id+1) = 0.0_wp
+        end do
+      end do
+    end do
+
+    ! Calculateing Q-fanction
+    !
+    grid(1) = real(ngrid(1),wp)
+    grid(2) = real(ngrid(2),wp)
+    grid(3) = real(ngrid(3),wp)
+    grid(4) = 2.0_wp
+    half_grid(1) = real(ngrid(1)/2,wp)
+    half_grid(2) = real(ngrid(2)/2,wp)
+    half_grid(3) = real(ngrid(3)/2,wp)
+    half_grid(4) = 1.0_wp
+    ngrid(4) = 100000
+
+    do icel = id+1, ncell_local, nthread
+
+      do i = 1, natom(icel)
+
+        vr(1) = coord(1,i,icel) * r_scale(1)
+        vr(2) = coord(2,i,icel) * r_scale(2)
+        vr(3) = coord(3,i,icel) * r_scale(3)
+
+        vr(1) = vr(1) + half_grid(1) - grid(1)*anint(vr(1)/grid(1))
+        vr(2) = vr(2) + half_grid(2) - grid(2)*anint(vr(2)/grid(2))
+        vr(3) = vr(3) + half_grid(3) - grid(3)*anint(vr(3)/grid(3))
+
+        vr(1) = min(vr(1),grid(1)-0.0000001_wp)
+        vr(2) = min(vr(2),grid(2)-0.0000001_wp)
+        vr(3) = min(vr(3),grid(3)-0.0000001_wp)
+
+        vi(1,i,icel) = min(int(vr(1)),ngrid(1)-1)
+        vi(2,i,icel) = min(int(vr(2)),ngrid(2)-1)
+        vi(3,i,icel) = min(int(vr(3)),ngrid(3)-1)
+
+        dv(1) = vr(1) - real(vi(1,i,icel),wp)
+        dv(2) = vr(2) - real(vi(2,i,icel),wp)
+        dv(3) = vr(3) - real(vi(3,i,icel),wp)
+ 
+        v_1(1) = 1.0_wp - dv(1)
+        v_1(2) = 1.0_wp - dv(2)
+        v_1(3) = 1.0_wp - dv(3)
+        v_4(1) = v_1(1)**4
+        v_4(2) = v_1(2)**4
+        v_4(3) = v_1(3)**4
+        v_5(1) = v_4(1)*v_1(1)
+        v_5(2) = v_4(2)*v_1(2)
+        v_5(3) = v_4(3)*v_1(3)
+        u_2(1) = dv(1)*dv(1)
+        u_2(2) = dv(2)*dv(2)
+        u_2(3) = dv(3)*dv(3)
+        u_3(1) = u_2(1)*dv(1)
+        u_3(2) = u_2(2)*dv(2)
+        u_3(3) = u_2(3)*dv(3)
+        u_4(1) = u_2(1)*u_2(1)
+        u_4(2) = u_2(2)*u_2(2)
+        u_4(3) = u_2(3)*u_2(3)
+        u_5(1) = u_2(1)*u_3(1)
+        u_5(2) = u_2(2)*u_3(2)
+        u_5(3) = u_2(3)*u_3(3)
+        bsc(1,1,i,icel) = u_5(1)
+        bsc(1,2,i,icel) = u_5(2)
+        bsc(1,3,i,icel) = u_5(3)
+        bsc(2,1,i,icel) = -5.0_wp*u_5(1)+5.0_wp*u_4(1)+10.0_wp*u_3(1) &
+                        + 10.0_wp*u_2(1)+5.0_wp*dv(1)+1.0_wp
+        bsc(2,2,i,icel) = -5.0_wp*u_5(2)+5.0_wp*u_4(2)+10.0_wp*u_3(2) &
+                        + 10.0_wp*u_2(2)+5.0_wp*dv(2)+1.0_wp
+        bsc(2,3,i,icel) = -5.0_wp*u_5(3)+5.0_wp*u_4(3)+10.0_wp*u_3(3) &
+                        + 10.0_wp*u_2(3)+5.0_wp*dv(3)+1.0_wp
+        bsc(3,1,i,icel) = 10.0_wp*u_5(1)-20.0_wp*u_4(1)-20.0_wp*u_3(1) &
+                        + 20.0_wp*u_2(1)+50.0_wp*dv(1)+26.0_wp
+        bsc(3,2,i,icel) = 10.0_wp*u_5(2)-20.0_wp*u_4(2)-20.0_wp*u_3(2) &
+                        + 20.0_wp*u_2(2)+50.0_wp*dv(2)+26.0_wp
+        bsc(3,3,i,icel) = 10.0_wp*u_5(3)-20.0_wp*u_4(3)-20.0_wp*u_3(3) &
+                        + 20.0_wp*u_2(3)+50.0_wp*dv(3)+26.0_wp
+        bsc(4,1,i,icel) = -10.0_wp*u_5(1)+30.0_wp*u_4(1)-60.0_wp*u_2(1) &
+                        + 66.0_wp
+        bsc(4,2,i,icel) = -10.0_wp*u_5(2)+30.0_wp*u_4(2)-60.0_wp*u_2(2) &
+                        + 66.0_wp
+        bsc(4,3,i,icel) = -10.0_wp*u_5(3)+30.0_wp*u_4(3)-60.0_wp*u_2(3) &
+                        + 66.0_wp
+        bsc(5,1,i,icel) = 5.0_wp*u_5(1)-20.0_wp*u_4(1)+20.0_wp*u_3(1) &
+                        + 20.0_wp*u_2(1)-50.0_wp*dv(1)+26.0_wp
+        bsc(5,2,i,icel) = 5.0_wp*u_5(2)-20.0_wp*u_4(2)+20.0_wp*u_3(2) &
+                        + 20.0_wp*u_2(2)-50.0_wp*dv(2)+26.0_wp
+        bsc(5,3,i,icel) = 5.0_wp*u_5(3)-20.0_wp*u_4(3)+20.0_wp*u_3(3) &
+                        + 20.0_wp*u_2(3)-50.0_wp*dv(3)+26.0_wp
+        bsc(6,1,i,icel) = v_5(1)
+        bsc(6,2,i,icel) = v_5(2)
+        bsc(6,3,i,icel) = v_5(3)
+        bscd(1,1,i,icel) = u_4(1)
+        bscd(1,2,i,icel) = u_4(2)
+        bscd(1,3,i,icel) = u_4(3)
+        bscd(2,1,i,icel) = -5.0_wp*u_4(1)+4.0_wp*u_3(1)+6.0_wp*u_2(1) &
+                         + 4.0_wp*dv(1)+1.0_wp
+        bscd(2,2,i,icel) = -5.0_wp*u_4(2)+4.0_wp*u_3(2)+6.0_wp*u_2(2) &
+                         + 4.0_wp*dv(2)+1.0_wp
+        bscd(2,3,i,icel) = -5.0_wp*u_4(3)+4.0_wp*u_3(3)+6.0_wp*u_2(3) &
+                         + 4.0_wp*dv(3)+1.0_wp
+        bscd(3,1,i,icel) = 10.0_wp*u_4(1)-16.0_wp*u_3(1)-12.0_wp*u_2(1) &
+                         + 8.0_wp*dv(1)+10.0_wp
+        bscd(3,2,i,icel) = 10.0_wp*u_4(2)-16.0_wp*u_3(2)-12.0_wp*u_2(2) &
+                         + 8.0_wp*dv(2)+10.0_wp
+        bscd(3,3,i,icel) = 10.0_wp*u_4(3)-16.0_wp*u_3(3)-12.0_wp*u_2(3) &
+                         + 8.0_wp*dv(3)+10.0_wp
+        bscd(4,1,i,icel) = -10.0_wp*u_4(1)+24.0_wp*u_3(1)-24.0_wp*dv(1)
+        bscd(4,2,i,icel) = -10.0_wp*u_4(2)+24.0_wp*u_3(2)-24.0_wp*dv(2)
+        bscd(4,3,i,icel) = -10.0_wp*u_4(3)+24.0_wp*u_3(3)-24.0_wp*dv(3)
+        bscd(5,1,i,icel) = 5.0_wp*u_4(1)-16.0_wp*u_3(1)+12.0_wp*u_2(1) &
+                         + 8.0_wp*dv(1)-10.0_wp
+        bscd(5,2,i,icel) = 5.0_wp*u_4(2)-16.0_wp*u_3(2)+12.0_wp*u_2(2) &
+                         + 8.0_wp*dv(2)-10.0_wp
+        bscd(5,3,i,icel) = 5.0_wp*u_4(3)-16.0_wp*u_3(3)+12.0_wp*u_2(3) &
+                         + 8.0_wp*dv(3)-10.0_wp
+        bscd(6,1,i,icel) = -v_4(1)
+        bscd(6,2,i,icel) = -v_4(2)
+        bscd(6,3,i,icel) = -v_4(3)
+ 
+      end do
+
+      do i = 1, natom(icel)
+
+        qtmp = charge(i,icel)*bs_fact3
+        iatmcls = atmcls(i,icel)
+        ltmp = nonb_lj6_factor(iatmcls)*bs_fact3
+        ii(1) = vi(1,i,icel)
+        ii(2) = vi(2,i,icel)
+        ii(3) = vi(3,i,icel)
+
+!ocl nosimd
+        do ixyz = 1, 6
+          bscx(ixyz) = bsc(ixyz,1,i,icel)
+          bscy(ixyz) = bsc(ixyz,2,i,icel)
+          bscz(ixyz) = bsc(ixyz,3,i,icel)
+          iz = ii(3) - ixyz + 2
+          if (iz <= 0) iz = iz + ngrid(3)
+          iiz(ixyz)  = grid_g2lz(iz)
+          iy = ii(2) - ixyz + 2
+          if (iy <= 0) iy = iy + ngrid(2)
+          iiy(ixyz) = grid_g2ly(iy)
+          ix = ii(1) - ixyz + 2
+          if (ix <= 0) ix = ix + ngrid(1)
+          iix(ixyz) = grid_g2lx(ix)
+        end do
+
+        do izz = 1, 6
+          izs = iiz(izz)
+          vzz = bscz(izz)
+          do iyy = 1, 6
+            iys = iiy(iyy)
+            vyy = bscy(iyy)
+!ocl norecurrence(qdf,ldf)
+!ocl nosimd
+            do ixx = 1, 6
+              ixs = iix(ixx)
+              qdf(ixs,iys,izs,id+1) = qdf(ixs,iys,izs,id+1)            &
+                                    + bscx(ixx)*vyy*vzz*qtmp
+              ldf(ixs,iys,izs,id+1) = ldf(ixs,iys,izs,id+1)            &
+                                    + bscx(ixx)*vyy*vzz*ltmp
+            end do
+          end do
+        end do
+
+      end do
+
+    end do
+
+    !$omp barrier
+    do iproc = 2, nthread
+      !$omp do
+      do iz = 1, nlocalz+12
+        do iy = 1, nlocaly+12
+          do ix = 1, nlocalx+12
+            qdf(ix,iy,iz,1) = qdf(ix,iy,iz,1) + qdf(ix,iy,iz,iproc)
+            ldf(ix,iy,iz,1) = ldf(ix,iy,iz,1) + ldf(ix,iy,iz,iproc)
+          end do
+        end do
+      end do
+    end do
+
+    !$omp barrier
+    !$omp master
+    call communicate_pme_pre_lj
+    !$omp end master
+    !$omp barrier
+
+    !$omp do
+    do iz = 1, nlocalz
+      izs = iz + 6
+      do iy = 1, nlocaly
+        k = (iy-1)*nlocalx + (iz-1)*nlocalx*nlocaly
+        iys = iy + 6
+        do ix = 1, nlocalx
+          ixs = ix + 6
+          qdf_real(k+ix) = qdf_real(k+ix) + qdf(ixs,iys,izs,1)
+          ldf_real(k+ix) = ldf_real(k+ix) + ldf(ixs,iys,izs,1)
+        end do
+      end do
+    end do
+
+    !$omp barrier
+    !$omp master
+#ifdef HAVE_MPI_GENESIS
+    call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      grid_commx, ierror)
+    call mpi_alltoall(ldf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      ldf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
+                      grid_commx, ierror)
+#else
+    qdf_work(1:nlocalx*nlocaly*nlocalz,1) = qdf_real(1:nlocalx*nlocaly*nlocalz)
+    ldf_work(1:nlocalx*nlocaly*nlocalz,1) = ldf_real(1:nlocalx*nlocaly*nlocalz)
+#endif
+    !$omp end master
+    !$omp barrier
+    
+    niz  = nlocalz / nprocx
+    nix  = (nlocalx1-1) / nprocy
+    nix1 = nix + 1
+    niy  = ngrid(2) / nprocz 
+    call fft3d_2d_alltoall_lj(qdf_work, ftqdf, ftqdf, ftqdf, ftqdf_work,      &
+                              ftqdf_work, ftqdf_work2, work1, work2,          &
+                              ldf_work, ftldf, ftldf, ftldf, ftldf_work,      &
+                              ftldf_work, ftldf_work2, work3, work4,          &
+                              nlocalx, nlocaly, nlocalz, ngrid(1), ngrid(2),  &
+                              ngrid(3), nprocx, nprocy, nprocz, nix, nix1,    &
+                              niz, niy, id, nthread, my_x_rank, grid_commz,   &
+                              grid_commxy)
+
+    ! Energy calculation
+    !
+
+    !$omp barrier
+
+    iproc = my_z_rank + 1
+
+    do ix = id+1, nix, nthread
+      do iy = 1, niy
+        elec_temp = 0.0_wp
+        evdw_temp = 0.0_wp
+        vxx = 0.0_wp
+        vyy = 0.0_wp
+        vzz = 0.0_wp
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,ix),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,ix))
+          vfft_real = real(ftldf_work2(iz,iy,ix),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,ix))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,ix) * vol_fact4
+          elec_temp = elec_temp + tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact4_lj
+          evdw_temp = evdw_temp - tll*theta_lj(iz,iy,ix)
+          vxx = vxx + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gx(ix)*gx(ix))
+          vyy = vyy + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gy(iy)*gy(iy))
+          vzz = vzz + tqq * (1.0_wp+vir_fact(iz,iy,ix)*gz(iz)*gz(iz))
+          vxx = vxx - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gx(ix)*gx(ix))
+          vyy = vyy - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gy(iy)*gy(iy))
+          vzz = vzz - tll * (theta_lj(iz,iy,ix)+vir_fact_lj(iz,iy,ix)*gz(iz)*gz(iz))
+        end do
+        eelec(id+1) = eelec(id+1) + elec_temp
+        evdw (id+1) = evdw (id+1) + evdw_temp
+        virial(1,1,id+1) = virial(1,1,id+1) + vxx
+        virial(2,2,id+1) = virial(2,2,id+1) + vyy
+        virial(3,3,id+1) = virial(3,3,id+1) + vzz
+      end do
+    end do
+
+    if(my_x_rank == 0 .and. my_y_rank == 0) then
+
+      do iy = id+1, niy, nthread
+        elec_temp = 0.0_wp
+        evdw_temp = 0.0_wp
+        vxx = 0.0_wp
+        vyy = 0.0_wp
+        vzz = 0.0_wp
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,1),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,1))
+          vfft_real = real(ftldf_work2(iz,iy,1),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,1))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,1) * vol_fact2
+          elec_temp = elec_temp - tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact2_lj
+          evdw_temp = evdw_temp + tll*theta_lj(iz,iy,1)
+          vxx = vxx - tqq * (1.0_wp+vir_fact(iz,iy,1)*gx(1)*gx(1))
+          vyy = vyy - tqq * (1.0_wp+vir_fact(iz,iy,1)*gy(iy)*gy(iy))
+          vzz = vzz - tqq * (1.0_wp+vir_fact(iz,iy,1)*gz(iz)*gz(iz))
+          vxx = vxx  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gx(1 )*gx(1 ))
+          vyy = vyy  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gy(iy)*gy(iy))
+          vzz = vzz  &
+              + tll*(theta_lj(iz,iy,1)+vir_fact_lj(iz,iy,1)*gz(iz)*gz(iz))
+        end do
+        do iz = 1, ngrid(3)
+          efft_real = real(ftqdf_work2(iz,iy,nix1),wp)
+          efft_imag = imag(ftqdf_work2(iz,iy,nix1))
+          vfft_real = real(ftldf_work2(iz,iy,nix1),wp)
+          vfft_imag = imag(ftldf_work2(iz,iy,nix1))
+          tqq = efft_real*efft_real + efft_imag*efft_imag
+          tqq = tqq * theta(iz,iy,nix1) * vol_fact2
+          elec_temp = elec_temp + tqq
+          tll = vfft_real*vfft_real + vfft_imag*vfft_imag
+          tll = tll * vol_fact2_lj
+          evdw_temp = evdw_temp - tll*theta_lj(iz,iy,nix1)
+          vxx = vxx + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gx(nix1)*gx(nix1))
+          vyy = vyy + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gy(iy)*gy(iy))
+          vzz = vzz + tqq * (1.0_wp+vir_fact(iz,iy,nix1)*gz(iz)*gz(iz))
+          vxx = vxx  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gx(nix1)*gx(nix1))
+          vyy = vyy  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gy(iy)*gy(iy))
+          vzz = vzz  &
+              - tll*(theta_lj(iz,iy,nix1)+vir_fact_lj(iz,iy,nix1)*gz(iz)*gz(iz))
+
+        end do
+        eelec(id+1) = eelec(id+1) + elec_temp
+        evdw(id+1)  = evdw(id+1) + evdw_temp
+        virial(1,1,id+1) = virial(1,1,id+1) + vxx
+        virial(2,2,id+1) = virial(2,2,id+1) + vyy
+        virial(3,3,id+1) = virial(3,3,id+1) + vzz
+      end do
+    end if
+
+    !$omp barrier
+
+    ! add self dispersion term
+    !
+    !$omp master
+    if (my_city_rank == 0) then
+      temp    = PI*sqrt(PI)*alpha3*inv_volume/(6.0_wp)*enefunc%pme_dispersion_self1
+      evdw(1) = evdw(1) - temp
+      evdw(1) = evdw(1) + alpha6/12.0_wp*enefunc%pme_dispersion_self2
+      virial(1,1,1) = virial(1,1,1) - temp
+      virial(2,2,1) = virial(2,2,1) - temp
+      virial(3,3,1) = virial(3,3,1) - temp
+    end if
+    !$omp end master
+
+    ! F^-1[Th]*F^-1[Q] (=X)
+    !
+    do ix = id+1, nix, nthread
+      do iy = 1, niy
+        do iz = 1, ngrid(3)
+          ftqdf_work2(iz,iy,ix) = ftqdf_work2(iz,iy,ix) &
+                                 *cmplx(theta(iz,iy,ix),0.0_wp)
+          ftldf_work2(iz,iy,ix) = ftldf_work2(iz,iy,ix) &
+                                 *cmplx(theta_lj(iz,iy,ix),0.0_wp)
+        end do
+      end do
+    end do
+    if(my_x_rank == 0 .and. my_y_rank == 0) then
+      ix = nix1
+      do iy = id+1, niy, nthread
+        do iz = 1, ngrid(3)
+          ftqdf_work2(iz,iy,ix) = ftqdf_work2(iz,iy,ix) &
+                                 *cmplx(theta(iz,iy,ix),0.0_wp)
+          ftldf_work2(iz,iy,ix) = ftldf_work2(iz,iy,ix) &
+                                 *cmplx(theta_lj(iz,iy,ix),0.0_wp)
+        end do
+      end do
+    end if
+
+    !$omp barrier
+
+    call bfft3d_2d_alltoall_lj(qdf_work, qdf_real, ftqdf, ftqdf, ftqdf, &
+                               ftqdf_work, ftqdf_work, ftqdf_work2,     &
+                               work1, work2,                            &
+                               ldf_work, ldf_real, ftldf, ftldf, ftldf, &
+                               ftldf_work, ftldf_work, ftldf_work2,     &
+                               work3, work4,                            &
+                               nlocalx, nlocaly, nlocalz,               &
+                               ngrid(1), ngrid(2), ngrid(3),            &
+                               nprocx, nprocy, nprocz, nix, nix1,       &
+                               niy, niz, id, nthread, grid_commx,       &
+                               grid_commz, grid_commxy)
+
+    !$omp barrier
+
+    ! X is saved on qdf
+    !
+    do iz = id+1, nlocalz, nthread
+      izs = iz + 6
+      do iy = 1, nlocaly
+        iys = iy + 6
+        k = (iy-1)*nlocalx + (iz-1)*nlocalx*nlocaly
+        do ix = 1, nlocalx
+          ixs = ix + 6
+          qdf(ixs,iys,izs,1) = qdf_real(k+ix)
+          ldf(ixs,iys,izs,1) = ldf_real(k+ix)
+        end do
+      end do
+    end do
+ 
+    !$omp barrier
+
+    !$omp barrier
+    !$omp master
+    call communicate_pme_post_lj
+    !$omp end master
+    !$omp barrier
+
+    do icel = id+1, ncell_local, nthread
+      do i = 1, natom(icel)
+
+        force_local(1) = 0.0_wp
+        force_local(2) = 0.0_wp
+        force_local(3) = 0.0_wp
+        force_local_lj(1) = 0.0_wp
+        force_local_lj(2) = 0.0_wp
+        force_local_lj(3) = 0.0_wp
+        qtmp = charge(i,icel)*vol_fact4*bs_fact3d
+        iatmcls = atmcls(i,icel)
+        ltmp = nonb_lj6_factor(iatmcls)*vol_fact4_lj*bs_fact3d
+
+!ocl nosimd
+        do ixyz = 1, 6
+          ii(ixyz)    = vi(ixyz,i,icel)
+          bscx(ixyz)  = bsc(ixyz,1,i,icel)
+          bscy(ixyz)  = bsc(ixyz,2,i,icel)
+          bscz(ixyz)  = bsc(ixyz,3,i,icel)
+          bscdx(ixyz) = bscd(ixyz,1,i,icel)
+          bscdy(ixyz) = bscd(ixyz,2,i,icel)
+          bscdz(ixyz) = bscd(ixyz,3,i,icel)
+        end do
+
+!ocl nosimd
+        do ixyz = 1, 6
+          ix = ii(1) - ixyz + 2
+          if (ix <= 0) ix = ix + ngrid(1)
+          iix(ixyz) = grid_g2lx(ix)
+          iy = ii(2) - ixyz + 2
+          if (iy <= 0) iy = iy + ngrid(2)
+          iiy(ixyz) = grid_g2ly(iy)
+          iz = ii(3) - ixyz + 2
+          if (iz <= 0) iz = iz + ngrid(3)
+          iiz(ixyz) = grid_g2lz(iz)
+        end do
+
+        do iyyzz = 1, 36
+          izz = (iyyzz-1)/6 + 1
+          iyy = iyyzz - 6*(izz-1)
+          izs = iiz(izz)
+          iys = iiy(iyy)
+          vzz = bscz(izz)
+          vzzd = bscdz(izz)
+          vyy = bscy(iyy)
+          vyyd = bscdy(iyy)
+!ocl nosimd
+          do ixx = 1, 6
+            ixs = iix(ixx)
+            force_local(1) = force_local(1) &
+                           + bscdx(ixx)*vyy*vzz*qdf(ixs,iys,izs,1)
+            force_local(2) = force_local(2)     &
+                           + bscx(ixx)*vyyd*vzz*qdf(ixs,iys,izs,1)
+            force_local(3) = force_local(3)     &
+                           + bscx(ixx)*vyy*vzzd*qdf(ixs,iys,izs,1)
+            force_local_lj(1) = force_local_lj(1) &
+                              + bscdx(ixx)*vyy*vzz*ldf(ixs,iys,izs,1)
+            force_local_lj(2) = force_local_lj(2)     &
+                              + bscx(ixx)*vyyd*vzz*ldf(ixs,iys,izs,1)
+            force_local_lj(3) = force_local_lj(3)     &
+                              + bscx(ixx)*vyy*vzzd*ldf(ixs,iys,izs,1)
+          end do
+        end do
+
+        force(1:3,i,icel) = - force_local(1:3)*qtmp*r_scale(1:3) &
+                          + force_local_lj(1:3)*ltmp*r_scale(1:3)
+
+      end do
+    end do
+
+    deallocate(work1, work2, work3, work4)
+
+    !$omp end parallel
+
+    return
+
+  end subroutine pme_recip_opt_2dalltoall_lj_6
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    pme_recip_opt_2dalltoall_8
   !> @brief        Calculate PME reciprocal part with domain decomposition
   !! @authors      JJ, NT
@@ -1666,6 +3115,7 @@ contains
     real(wip),       pointer :: coord(:,:,:)
     real(wp),        pointer :: charge(:,:)
     integer,         pointer :: natom(:)
+
 
     coord  => domain%coord
     charge => domain%charge
@@ -1951,7 +3401,7 @@ contains
 
     !$omp barrier
     !$omp master
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_alltoall(qdf_real, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       qdf_work, nlocalx*nlocaly*nlocalz/nprocx, mpi_wp_real, &
                       grid_commx, ierror)
@@ -2045,7 +3495,7 @@ contains
         end do
       end do
     end do
-    if(my_x_rank == 0 .and. my_y_rank == 0) then
+    if (my_x_rank == 0 .and. my_y_rank == 0) then
       ix = nix1
       do iy = id+1, niy, nthread
         do iz = 1, ngrid(3)
@@ -2129,9 +3579,6 @@ contains
   !  Subroutine    communicate_pme_pre
   !> @brief        communicate boundary grid data before FFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2141,9 +3588,10 @@ contains
     integer                  :: k, ix, iy, iz, ki
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! z direction
     !
@@ -2158,7 +3606,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
 
@@ -2216,7 +3664,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
 
@@ -2276,7 +3724,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
 
@@ -2332,9 +3780,6 @@ contains
   !  Subroutine    communicate_pme_post
   !> @brief        communicate boundary grid data after bFFT
   !! @authors      JJ
-  !! @param[in]    domain : domain information
-  !! @param[inout] comm   : communication information
-  !! @param[inout] force  : forces of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2344,9 +3789,10 @@ contains
     integer                  :: k, ix, iy, iz
     integer                  :: irequest1, irequest2, irequest3, irequest4
     integer                  :: upper_rank, lower_rank
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
+
 
     ! x direction
     !
@@ -2361,7 +3807,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_x_rank+1,nprocx)
     lower_rank = mod(my_x_rank-1+nprocx,nprocx)
 
@@ -2419,7 +3865,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_y_rank+1,nprocy)
     lower_rank = mod(my_y_rank-1+nprocy,nprocy)
 
@@ -2477,7 +3923,7 @@ contains
       end do
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     upper_rank = mod(my_z_rank+1,nprocz)
     lower_rank = mod(my_z_rank-1+nprocz,nprocz)
 
@@ -2525,5 +3971,471 @@ contains
 
   end subroutine communicate_pme_post
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    communicate_pme_pre_lj
+  !> @brief        communicate boundary grid data before FFT
+  !! @authors      JJ
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine communicate_pme_pre_lj
+
+    ! local variable
+    integer                  :: k, ix, iy, iz
+    integer                  :: irequest1, irequest2, irequest3, irequest4
+    integer                  :: upper_rank, lower_rank
+#ifdef HAVE_MPI_GENESIS
+    integer                  :: istatus(mpi_status_size)
+#endif
+
+
+    ! z direction
+    !
+    k = 0
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          buf_send(iz+k,1) = qdf(ix,iy,iz,1)  ! send to lower
+          buf_send(iz+k,2) = qdf(ix,iy,n_bs+nlocalz+iz,1) !send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          buf_send(iz+k,1) = ldf(ix,iy,iz,1)  ! send to lower
+          buf_send(iz+k,2) = ldf(ix,iy,n_bs+nlocalz+iz,1) !send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_z_rank+1,nprocz)
+    lower_rank = mod(my_z_rank-1+nprocz,nprocz)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocz+my_z_rank,               &
+                   grid_commz, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_z_rank+nprocz+lower_rank,               &
+                   grid_commz, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_z_rank+2*nprocz+lower_rank,             &
+                   grid_commz, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocz+my_z_rank,             &
+                   grid_commz, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          qdf(ix,iy,nlocalz+iz,1) = &     !receive from upper
+            qdf(ix,iy,nlocalz+iz,1) + buf_recv(iz+k,1)
+          qdf(ix,iy,n_bs+iz,1)       = &     !receive from lower
+           qdf(ix,iy,n_bs+iz,1) + buf_recv(iz+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          ldf(ix,iy,nlocalz+iz,1) = &     !receive from upper
+            ldf(ix,iy,nlocalz+iz,1) + buf_recv(iz+k,1)
+          ldf(ix,iy,n_bs+iz,1)       = &     !receive from lower
+           ldf(ix,iy,n_bs+iz,1) + buf_recv(iz+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    ! y direction
+    !
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          buf_send(iy+k,1) = qdf(ix,iy,iz,1)
+          buf_send(iy+k,2) = qdf(ix,n_bs+nlocaly+iy,iz,1)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          buf_send(iy+k,1) = ldf(ix,iy,iz,1)
+          buf_send(iy+k,2) = ldf(ix,n_bs+nlocaly+iy,iz,1)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_y_rank+1,nprocy)
+    lower_rank = mod(my_y_rank-1+nprocy,nprocy)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocy+my_y_rank,               &
+                   grid_commy, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_y_rank+nprocy+lower_rank,               &
+                   grid_commy, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_y_rank+2*nprocy+lower_rank,             &
+                   grid_commy, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocy+my_y_rank,             &
+                   grid_commy, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          qdf(ix,nlocaly+iy,iz,1) = &
+            qdf(ix,nlocaly+iy,iz,1) + buf_recv(iy+k,1)
+          qdf(ix,n_bs+iy,iz,1)       = &
+            qdf(ix,n_bs+iy,iz,1) + buf_recv(iy+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          ldf(ix,nlocaly+iy,iz,1) = &
+            ldf(ix,nlocaly+iy,iz,1) + buf_recv(iy+k,1)
+          ldf(ix,n_bs+iy,iz,1)       = &
+            ldf(ix,n_bs+iy,iz,1) + buf_recv(iy+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    ! x direction
+    !
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          buf_send(ix+k,1) = qdf(ix,iy,iz,1)
+          buf_send(ix+k,2) = qdf(n_bs+nlocalx+ix,iy,iz,1)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          buf_send(ix+k,1) = ldf(ix,iy,iz,1)
+          buf_send(ix+k,2) = ldf(n_bs+nlocalx+ix,iy,iz,1)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_x_rank+1,nprocx)
+    lower_rank = mod(my_x_rank-1+nprocx,nprocx)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocx+my_x_rank,               &
+                   grid_commx, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_x_rank+nprocx+lower_rank,               &
+                   grid_commx, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_x_rank+2*nprocx+lower_rank,             &
+                   grid_commx, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocx+my_x_rank,             &
+                   grid_commx, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          qdf(nlocalx+ix,iy,iz,1) = &
+            qdf(nlocalx+ix,iy,iz,1) + buf_recv(ix+k,1)
+          qdf(n_bs+ix,iy,iz,1) =       &
+            qdf(n_bs+ix,iy,iz,1) + buf_recv(ix+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          ldf(nlocalx+ix,iy,iz,1) = &
+            ldf(nlocalx+ix,iy,iz,1) + buf_recv(ix+k,1)
+          ldf(n_bs+ix,iy,iz,1) =       &
+            ldf(n_bs+ix,iy,iz,1) + buf_recv(ix+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    return
+
+  end subroutine communicate_pme_pre_lj
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    communicate_pme_post_lj
+  !> @brief        communicate boundary grid data after bFFT
+  !! @authors      JJ
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine communicate_pme_post_lj
+
+    ! local variable
+    integer                  :: k, ix, iy, iz
+    integer                  :: irequest1, irequest2, irequest3, irequest4
+    integer                  :: upper_rank, lower_rank
+#ifdef HAVE_MPI_GENESIS
+    integer                  :: istatus(mpi_status_size)
+#endif
+
+    ! x direction
+    !
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          buf_send(ix+k,1) = qdf(n_bs+ix,iy,iz,1)     ! send to lower
+          buf_send(ix+k,2) = qdf(nlocalx+ix,iy,iz,1)  ! send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          buf_send(ix+k,1) = ldf(n_bs+ix,iy,iz,1)     ! send to lower
+          buf_send(ix+k,2) = ldf(nlocalx+ix,iy,iz,1)  ! send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_x_rank+1,nprocx)
+    lower_rank = mod(my_x_rank-1+nprocx,nprocx)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocx+my_x_rank,               &
+                   grid_commx, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_x_rank+nprocx+lower_rank,               &
+                   grid_commx, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_x_rank+2*nprocx+lower_rank,             &
+                   grid_commx, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocx+my_x_rank,             &
+                   grid_commx, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          qdf(n_bs+nlocalx+ix,iy,iz,1) = buf_recv(ix+k,1) ! receive from upper
+          qdf(ix,iy,iz,1)  = buf_recv(ix+k,2) ! receive from lower
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do iy = n_bs+1, n_bs+nlocaly
+        do ix = 1, n_bs
+          ldf(n_bs+nlocalx+ix,iy,iz,1) = buf_recv(ix+k,1) ! receive from upper
+          ldf(ix,iy,iz,1)  = buf_recv(ix+k,2) ! receive from lower
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    ! y direction
+    !
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          buf_send(iy+k,1) = qdf(ix,n_bs+iy,iz,1)      ! send to lower
+          buf_send(iy+k,2) = qdf(ix,nlocaly+iy,iz,1)   ! send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          buf_send(iy+k,1) = ldf(ix,n_bs+iy,iz,1)      ! send to lower
+          buf_send(iy+k,2) = ldf(ix,nlocaly+iy,iz,1)   ! send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_y_rank+1,nprocy)
+    lower_rank = mod(my_y_rank-1+nprocy,nprocy)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocy+my_y_rank,               &
+                   grid_commy, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_y_rank+nprocy+lower_rank,               &
+                   grid_commy, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_y_rank+2*nprocy+lower_rank,             &
+                   grid_commy, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocy+my_y_rank,             &
+                   grid_commy, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          qdf(ix,n_bs+nlocaly+iy,iz,1) = buf_recv(iy+k,1)
+          qdf(ix,iy,iz,1)    = buf_recv(iy+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iz = n_bs+1, n_bs+nlocalz
+      do ix = 1, nlocalx+2*n_bs
+        do iy = 1, n_bs
+          ldf(ix,n_bs+nlocaly+iy,iz,1) = buf_recv(iy+k,1)
+          ldf(ix,iy,iz,1)    = buf_recv(iy+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    ! z direction
+    !
+    k = 0
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          buf_send(iz+k,1) = qdf(ix,iy,n_bs+iz,1)  ! send to lower
+          buf_send(iz+k,2) = qdf(ix,iy,nlocalz+iz,1) !send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          buf_send(iz+k,1) = ldf(ix,iy,n_bs+iz,1)  ! send to lower
+          buf_send(iz+k,2) = ldf(ix,iy,nlocalz+iz,1) !send to upper
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+
+#ifdef HAVE_MPI_GENESIS
+    upper_rank = mod(my_z_rank+1,nprocz)
+    lower_rank = mod(my_z_rank-1+nprocz,nprocz)
+    ! send to lower, receive from upper
+    call mpi_irecv(buf_recv(1,1), k, mpi_wp_real, upper_rank, &
+                   upper_rank+nprocz+my_z_rank,               &
+                   grid_commz, irequest1, ierror)
+    call mpi_isend(buf_send(1,1), k, mpi_wp_real, lower_rank, &
+                   my_z_rank+nprocz+lower_rank,               &
+                   grid_commz, irequest2, ierror)
+    ! send to upper, receive from lower
+    call mpi_irecv(buf_recv(1,2), k, mpi_wp_real, lower_rank, &
+                   my_z_rank+2*nprocz+lower_rank,             &
+                   grid_commz, irequest3, ierror)
+    call mpi_isend(buf_send(1,2), k, mpi_wp_real, upper_rank, &
+                   upper_rank+2*nprocz+my_z_rank,             &
+                   grid_commz, irequest4, ierror)
+    call mpi_wait(irequest1, istatus, ierror)
+    call mpi_wait(irequest2, istatus, ierror)
+    call mpi_wait(irequest3, istatus, ierror)
+    call mpi_wait(irequest4, istatus, ierror)
+#else
+    buf_recv(1:k,1) = buf_send(1:k,1)
+    buf_recv(1:k,2) = buf_send(1:k,2)
+#endif
+
+    k = 0
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          qdf(ix,iy,n_bs+nlocalz+iz,1) = buf_recv(iz+k,1)
+          qdf(ix,iy,iz,1) = buf_recv(iz+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+    do iy = 1, nlocaly+2*n_bs
+      do ix = 1, nlocalx+2*n_bs
+        do iz = 1, n_bs
+          ldf(ix,iy,n_bs+nlocalz+iz,1) = buf_recv(iz+k,1)
+          ldf(ix,iy,iz,1) = buf_recv(iz+k,2)
+        end do
+        k = k + n_bs
+      end do
+    end do
+
+    return
+
+  end subroutine communicate_pme_post_lj
 
 end module sp_energy_pme_opt_2dalltoall_mod

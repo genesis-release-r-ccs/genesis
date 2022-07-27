@@ -7,6 +7,12 @@
 #
 #--------1---------2---------3---------4---------5---------6---------7---------8
 
+if INTERNAL_LAPACK
+  INT_LAPACK_LIB=$(LAPACK_LIB1)
+else
+  INT_LAPACK_LIB=
+endif
+
 SUBDIRS	:= ../lib .
 
 if PARALLEL_IO
@@ -111,7 +117,7 @@ spdyn_SOURCES += \
 	spdyn.fpp
 endif
 
-spdyn_ADDLIB = ../lib/lib.a
+spdyn_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
 
 prst_setup_SOURCES = \
 	sp_domain_str.fpp \
@@ -212,7 +218,7 @@ prst_setup_SOURCES += \
 	prst_setup.fpp
 endif
 
-prst_setup_ADDLIB = ../lib/lib.a
+prst_setup_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
 
 SUFFIXES = .fpp
 

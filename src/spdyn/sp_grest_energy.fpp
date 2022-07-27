@@ -30,7 +30,7 @@ module sp_grest_energy_mod
   use mpi_parallel_mod
   use constants_mod
   use math_libs_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -47,6 +47,15 @@ contains
   !  Subroutine    compute_grest_energy_output
   !> @brief        compute energy output of each replica with all parameters
   !! @authors      JJ
+  !! @param[in]    int_scheme  : integrator scheme
+  !! @param[in]    alloc_ref   : flag for allocate reference or not
+  !! @param[in]    dealloc_ref : flag for deallocate reference or not
+  !! @param[in]    boundary    : boundary information
+  !! @param[in]    pairlist    : pairlist information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : potential energy function information
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -71,6 +80,7 @@ contains
     integer                  :: i, ix, j, k, ifunc
     integer                  :: replica_id, param_id
     real(wp)                 :: rest_param
+
 
     coord     => domain%coord
     coord_ref => domain%coord_ref
@@ -132,7 +142,7 @@ contains
                             remd%grest_energy%virial_extern)
 
         remd%grest_energy%potential_energy(remd%parmidsets(param_id,i)) = &
-                                          remd%grest_energy%energy%total
+                                           remd%grest_energy%energy%total
 
         do k = 1, remd%nreplicas(i)
  
@@ -202,6 +212,9 @@ contains
   !  Subroutine    memory_alloc_grest_ref
   !> @brief        allocation of arrays for saving the current force constant
   !! @authors      JJ
+  !! @param[in]    domain      : domain information
+  !! @param[in]    enefunc     : potential energy function information
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -218,6 +231,7 @@ contains
     integer                          :: ncmap_type, ncls
     type(s_soltemp),         pointer :: soltemp(:)
  
+
     soltemp     => remd%solute_tempering
  
     ncell_local = domain%num_cell_local
@@ -357,6 +371,9 @@ contains
   !  Subroutine    memory_dealloc_grest_ref
   !> @brief        deallocation of arrays for saving the current force constant
   !! @authors      JJ
+  !! @param[in]    domain      : domain information
+  !! @param[in]    enefunc     : potential energy function information
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -372,7 +389,8 @@ contains
     integer                          :: i, ncell_local, ncell
     integer                          :: ncmap_type, ncls
 
-    if ( allocated(remd%grest_energy%force) ) then
+
+    if (allocated(remd%grest_energy%force)) then
       deallocate(remd%grest_energy%force,            &
                  remd%grest_energy%force_long,       &
                  stat = dealloc_stat)
@@ -384,57 +402,57 @@ contains
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if 
 
-    if ( allocated(remd%grest_energy%bond_force_const) ) then
+    if (allocated(remd%grest_energy%bond_force_const) ) then
       deallocate(remd%grest_energy%bond_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%angle_force_const) ) then
+    if (allocated(remd%grest_energy%angle_force_const) ) then
       deallocate(remd%grest_energy%angle_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%urey_force_const) ) then
+    if (allocated(remd%grest_energy%urey_force_const) ) then
       deallocate(remd%grest_energy%urey_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%dihe_force_const) ) then
+    if (allocated(remd%grest_energy%dihe_force_const) ) then
       deallocate(remd%grest_energy%dihe_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%dihe_force_const) ) then
+    if (allocated(remd%grest_energy%dihe_force_const) ) then
       deallocate(remd%grest_energy%dihe_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%impr_force_const) ) then
+    if (allocated(remd%grest_energy%impr_force_const) ) then
       deallocate(remd%grest_energy%impr_force_const, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%cmap_coef) ) then
+    if (allocated(remd%grest_energy%cmap_coef) ) then
       deallocate(remd%grest_energy%cmap_coef, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%nb14_lj6) ) then
+    if (allocated(remd%grest_energy%nb14_lj6) ) then
       deallocate(remd%grest_energy%nb14_lj6, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%nb14_lj12) ) then
+    if (allocated(remd%grest_energy%nb14_lj12) ) then
       deallocate(remd%grest_energy%nb14_lj12, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%nonb_lj6) ) then
+    if (allocated(remd%grest_energy%nonb_lj6) ) then
       deallocate(remd%grest_energy%nonb_lj6, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
 
-    if ( allocated(remd%grest_energy%nonb_lj12) ) then
+    if (allocated(remd%grest_energy%nonb_lj12) ) then
       deallocate(remd%grest_energy%nonb_lj12, stat = dealloc_stat)
       if (dealloc_stat /= 0)   call error_msg_dealloc
     end if
@@ -448,6 +466,9 @@ contains
   !  Subroutine    copy_grest_to_ref
   !> @brief        copy current force field to reference array
   !! @authors      JJ
+  !! @param[in]    domain      : domain information
+  !! @param[in]    enefunc     : potential energy function information
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -636,28 +657,28 @@ contains
         !
         if (soltemp(i)%sw_lj) then
           ncls = enefunc%num_atom_cls
-          if ( allocated(enefunc%nb14_lj6) ) then
+          if (allocated(enefunc%nb14_lj6)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nb14_lj6_ref(jx,ix) = nb14_lj6(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nb14_lj12) ) then
+          if (allocated(enefunc%nb14_lj12)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nb14_lj12_ref(jx,ix) = nb14_lj12(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nonb_lj6) ) then
+          if (allocated(enefunc%nonb_lj6)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nonb_lj6_ref(jx,ix) = nonb_lj6(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nonb_lj12) ) then
+          if (allocated(enefunc%nonb_lj12)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nonb_lj12_ref(jx,ix) = nonb_lj12(jx,ix)
@@ -668,7 +689,7 @@ contains
 
         ! copy cmap coeffcients
         !
-        if ( soltemp(i)%num_cmap_type > 0 .and. soltemp(i)%sw_cmaps) then
+        if (soltemp(i)%num_cmap_type > 0 .and. soltemp(i)%sw_cmaps) then
           ncmap_type = size(enefunc%cmap_coef(1,1,1,1,:))
           cmap_coef_ref(1:4,1:4,1:24,1:24,1:ncmap_type) = &
                               cmap_coef(1:4,1:4,1:24,1:24,1:ncmap_type) 
@@ -686,6 +707,9 @@ contains
   !  Subroutine    copy_grest_from_ref
   !> @brief        copy current force field from reference array
   !! @authors      JJ
+  !! @param[inout] domain      : domain information
+  !! @param[in]    remd        : remd information
+  !! @param[inout] enefunc     : potential energy function information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -727,6 +751,7 @@ contains
     real(wp),                pointer :: cmap_coef_ref(:,:,:,:,:)
     real(wp),                pointer :: cmap_coef(:,:,:,:,:)
  
+
     soltemp          => remd%solute_tempering
     natom            => domain%num_atom
     nsolute          => domain%num_solute
@@ -802,7 +827,7 @@ contains
                 domain%translated(3*n+ig+ix,1,1) = charge(ix,icel)
               end do
             end do
-            call gpu_upload_charge( domain%translated );
+            call gpu_upload_charge(domain%translated);
           end if
 #endif
 
@@ -903,28 +928,28 @@ contains
         !
         if (soltemp(i)%sw_lj) then
           ncls = enefunc%num_atom_cls
-          if ( allocated(enefunc%nb14_lj6) ) then
+          if (allocated(enefunc%nb14_lj6)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nb14_lj6(jx,ix) = nb14_lj6_ref(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nb14_lj12) ) then
+          if (allocated(enefunc%nb14_lj12)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nb14_lj12(jx,ix) = nb14_lj12_ref(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nonb_lj6) ) then
+          if (allocated(enefunc%nonb_lj6)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nonb_lj6(jx,ix) = nonb_lj6_ref(jx,ix)
               end do
             end do
           end if
-          if ( allocated(enefunc%nonb_lj12) ) then
+          if (allocated(enefunc%nonb_lj12)) then
             do ix = 1, ncls
               do jx = 1, ncls
                 nonb_lj12(jx,ix) = nonb_lj12_ref(jx,ix)
@@ -932,8 +957,8 @@ contains
             end do
           end if
 #ifdef USE_GPU
-          if ( allocated(enefunc%nonb_lj12) .or. &
-               allocated(enefunc%nonb_lj6) ) then
+          if (allocated(enefunc%nonb_lj12) .or. &
+              allocated(enefunc%nonb_lj6)) then
             call gpu_upload_lj_coeffs(ncls, nonb_lj12, nonb_lj6);
           end if
 #endif /* USE_GPU */
@@ -942,7 +967,7 @@ contains
 
         ! copy cmap coeffcients
         !
-        if ( soltemp(i)%num_cmap_type > 0 .and. soltemp(i)%sw_cmaps) then
+        if (soltemp(i)%num_cmap_type > 0 .and. soltemp(i)%sw_cmaps) then
           ncmap_type = size(enefunc%cmap_coef(1,1,1,1,:))
           cmap_coef(1:4,1:4,1:24,1:24,1:ncmap_type) = &
                             cmap_coef_ref(1:4,1:4,1:24,1:24,1:ncmap_type) 
@@ -960,16 +985,16 @@ contains
   !  Subroutine    assign_condition_solte_tempering
   !> @brief        reassign force constant involving REST
   !! @authors      MK
-  !! @param[in]    soltemp     : REST information
+  !! @param[inout] soltemp     : REST information
   !! @param[in]    rest_param  : target temperature
   !! @param[inout] domain      : domain information
-  !! @param[inout] ensemble    : ensemble information
+  !! @param[in]    ensemble    : ensemble information
   !! @param[inout] enefunc     : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering( soltemp, rest_param, &
-                                                domain, ensemble, enefunc )
+  subroutine assign_condition_solute_tempering(soltemp, rest_param, &
+                                                domain, ensemble, enefunc)
 
     ! formal arguments
     type(s_soltemp),  target, intent(inout) :: soltemp
@@ -1001,6 +1026,7 @@ contains
     real(wp)                  :: coeff_full, coeff_half, wgt, tmp1, tmp2
     real(wp)                  :: el_fact, alpha
     real(dp)                  :: u_self_org
+
 
     id_l2g_sol   => domain%id_l2g_solute
     natom        => domain%num_atom
@@ -1055,7 +1081,7 @@ contains
       soltemp%done_setup = .true.
     end if
 
-    if ( soltemp%sw_charge ) then
+    if (soltemp%sw_charge) then
       do i = 1, ncell
         ! charge
         do ix = 1, nsolute(i)
@@ -1077,7 +1103,7 @@ contains
             domain%translated(3*n+ig+ix,1,1) = charge(ix,i)
           end do
         end do
-        call gpu_upload_charge( domain%translated );
+        call gpu_upload_charge(domain%translated);
       end if
 #endif
 
@@ -1097,10 +1123,10 @@ contains
     do i = 1, ncell_local
 
       ! bond
-      if ( soltemp%sw_bonds ) then
+      if (soltemp%sw_bonds) then
         call assign_condition_solute_tempering_internal( &
                   soltemp, 2, coeff_full,                &
-                  nbond(i), bond_list(:,:,i), force_bond(:,i) )
+                  nbond(i), bond_list(:,:,i), force_bond(:,i))
       end if
 
       ! angle and urey
@@ -1110,16 +1136,16 @@ contains
         do j = 1, 3
           if (is_sol(alist(j)) > 0) num = num + 1
         end do
-        if ( num > 0 .and. soltemp%sw_angles ) then
+        if (num > 0 .and. soltemp%sw_angles) then
           wgt = real(num,wp) / 3.0_wp
           wgt = coeff_full ** wgt
           force_angl(ix,i) = wgt * force_angl(ix,i)
         end if
-        if ( force_urey(ix,i) > EPS .and. soltemp%sw_ureys ) then
+        if (force_urey(ix,i) > EPS .and. soltemp%sw_ureys) then
           num = 0
           if (is_sol(alist(1)) > 0) num = num + 1
           if (is_sol(alist(3)) > 0) num = num + 1
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / 2.0_wp
             wgt = coeff_full ** wgt
             force_urey(ix,i) = wgt * force_urey(ix,i)
@@ -1128,21 +1154,21 @@ contains
       end do
 
       ! dihedral
-      if ( soltemp%sw_dihedrals ) then
+      if (soltemp%sw_dihedrals) then
         call assign_condition_solute_tempering_internal( &
                   soltemp, 4, coeff_full,                &
-                  ndihe(i), dihe_list(:,:,i), force_dihe(:,i) )
+                  ndihe(i), dihe_list(:,:,i), force_dihe(:,i))
       end if
 
       ! rb_dihedral
-      if ( soltemp%sw_rb_dihedrals ) then
+      if (soltemp%sw_rb_dihedrals) then
         do ix = 1, rb_dihe(i)
           alist(1:4) = rb_dihe_list(1:4,ix,i)
           num = 0
           do j = 1, 4
             if (is_sol(alist(j)) > 0) num = num + 1
           end do
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / real(n,wp)
             wgt = coeff_full ** wgt
             rb_dihe_c(1:6,ix,i) = wgt * rb_dihe_c(1:6,ix,i)
@@ -1151,21 +1177,21 @@ contains
       end if
 
       ! impropers
-      if ( soltemp%sw_impropers ) then
+      if (soltemp%sw_impropers) then
         call assign_condition_solute_tempering_internal( &
                   soltemp, 4, coeff_full,                &
-                  nimpr(i), impr_list(:,:,i), force_impr(:,i) )
+                  nimpr(i), impr_list(:,:,i), force_impr(:,i))
       end if
 
       ! contact
-      if ( soltemp%sw_contacts ) then
+      if (soltemp%sw_contacts) then
         do ix = 1, ncontact(i)
           alist(1:2) = contact_list(1:2,ix,i)
           num = 0
           do j = 1, 2
             if (is_sol(alist(j)) > 0) num = num + 1
           end do
-          if ( num > 0 ) then
+          if (num > 0) then
             wgt = real(num,wp) / 2.0_wp
             wgt = coeff_full ** wgt
             contact_lj6(ix,i)  = wgt * contact_lj6(ix,i)
@@ -1177,37 +1203,37 @@ contains
     end do
 
     ! lj
-    if ( soltemp%sw_lj ) then
+    if (soltemp%sw_lj) then
       n = enefunc%num_atom_cls
-      if ( allocated(enefunc%nb14_lj6) ) then
+      if (allocated(enefunc%nb14_lj6)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, nb14_lj6 )
+                 soltemp, nb14_lj6)
       end if
-      if ( allocated(enefunc%nb14_lj12) ) then
+      if (allocated(enefunc%nb14_lj12)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, nb14_lj12 )
+                 soltemp, nb14_lj12)
       end if
-      if ( allocated(enefunc%nonb_lj6) ) then
+      if (allocated(enefunc%nonb_lj6)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, nonb_lj6 )
+                 soltemp, nonb_lj6)
       end if
-      if ( allocated(enefunc%nonb_lj12) ) then
+      if (allocated(enefunc%nonb_lj12)) then
         call assign_condition_solute_tempering_lj( &
                  n, soltemp%rest_param_half, soltemp%rest_param_full, &
-                 soltemp, nonb_lj12 )
+                 soltemp, nonb_lj12)
       end if
 #ifdef USE_GPU
-      if ( allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6) ) then
-        call gpu_upload_lj_coeffs( n, enefunc%nonb_lj12, enefunc%nonb_lj6 );
+      if (allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6)) then
+        call gpu_upload_lj_coeffs(n, enefunc%nonb_lj12, enefunc%nonb_lj6);
       end if
 #endif /* USE_GPU */
     end if
 
     ! cmap
-    if ( soltemp%num_cmap_type > 0 .and. soltemp%sw_cmaps ) then
+    if (soltemp%num_cmap_type > 0 .and. soltemp%sw_cmaps) then
       do i = 1, soltemp%num_cmap_type
         tgt = i + soltemp%istart_cmap_type - 1
         org = soltemp%cmap_type_org(i)
@@ -1233,8 +1259,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering_lj( n, coeff_half, coeff_full, &
-                                                   soltemp, nbcoeff )
+  subroutine assign_condition_solute_tempering_lj(n, coeff_half, coeff_full, &
+                                                  soltemp, nbcoeff)
 
     ! formal arguments
     integer,                 intent(in)    :: n
@@ -1245,6 +1271,7 @@ contains
 
     ! local variables
     integer :: i, j, oldcount, newcount, org, orgj
+
 
     oldcount = soltemp%istart_atom_cls - 1
     newcount = oldcount + soltemp%num_atom_cls
@@ -1271,6 +1298,7 @@ contains
   !  Subroutine    assign_condition_solte_tempering_internal
   !> @brief        reassign force constant involving REST for internal
   !! @authors      MK
+  !! @param[in]    soltemp     : solute tempering information
   !! @param[in]    n           : number of indexes involved
   !! @param[in]    coeff_full  : coefficient
   !! @param[in]    n_internal  : number of terms
@@ -1279,8 +1307,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_condition_solute_tempering_internal( soltemp, n, &
-                                  coeff_full, n_internal, aindex, fc )
+  subroutine assign_condition_solute_tempering_internal(soltemp, n, &
+                                  coeff_full, n_internal, aindex, fc)
 
     ! formal arguments
     type(s_soltemp),         intent(in)    :: soltemp
@@ -1294,13 +1322,14 @@ contains
     integer  :: alist(1:n), ix, j, num
     real(wp) :: wgt
 
+
     do ix = 1, n_internal
       alist(1:n) = aindex(1:n,ix)
       num = 0
       do j = 1, n
         if (soltemp%is_solute(alist(j)) > 0) num = num + 1
       end do
-      if ( num > 0 ) then
+      if (num > 0) then
         wgt = real(num,wp) / real(n,wp)
         wgt = coeff_full ** wgt
         fc(ix) = wgt * fc(ix)
@@ -1316,6 +1345,13 @@ contains
   !  Subroutine    copy_solute_tempering_internal
   !> @brief        copy the internal force constant
   !! @authors      JJ
+  !! @param[in]    soltemp       : solute tempering information
+  !! @param[in]    ncell         : number of cells
+  !! @param[in]    num           : number of list
+  !! @param[in]    ninternal     : number of terms
+  !! @param[in]    internal_list : internal list
+  !! @param[in]    force_from    : target force
+  !! @param[inout] force_to      : reference force
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1335,6 +1371,7 @@ contains
     ! local variables
     integer                          :: j, icel, ix, k
     integer                          :: list(num)
+
 
     do icel = 1, ncell
  

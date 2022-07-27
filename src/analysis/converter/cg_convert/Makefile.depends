@@ -1,0 +1,11 @@
+cc_control.o: cc_control.fpp cc_option_mod.mod 
+cc_control_mod.mod: cc_control.fpp cc_control.o
+cc_convert.o: cc_convert.fpp cc_option_mod.mod cc_option_str_mod.mod 
+cc_convert_mod.mod: cc_convert.fpp cc_convert.o
+cc_main.o: cc_main.fpp cc_setup_mod.mod cc_control_mod.mod cc_convert_mod.mod cc_option_str_mod.mod 
+cc_option.o: cc_option.fpp cc_option_str_mod.mod 
+cc_option_mod.mod: cc_option.fpp cc_option.o
+cc_option_str.o: cc_option_str.fpp  
+cc_option_str_mod.mod: cc_option_str.fpp cc_option_str.o
+cc_setup.o: cc_setup.fpp cc_option_mod.mod cc_control_mod.mod cc_option_str_mod.mod 
+cc_setup_mod.mod: cc_setup.fpp cc_setup.o

@@ -15,10 +15,10 @@ boost_type    = POTENTIAL
 thresh_type   = LOWER
 sigma0_pot    = 6.0
 update_period = 10
-pot_max       = -89927.5189
-pot_min       = -90727.9320
-pot_ave       = -90352.7724
-pot_dev       = 114.3160
+pot_max       = -89914.4121
+pot_min       = -90737.6311
+pot_ave       = -90350.3564
+pot_dev       = 115.6079
 
 [ENERGY]
 forcefield       = CHARMM
@@ -31,6 +31,8 @@ pme_alpha        = 0.34
 pme_ngrid_x      = 64
 pme_ngrid_y      = 64
 pme_ngrid_z      = 64
+pme_nspline      = 4
+pme_scheme       = NOOPT_2DALLTOALL
 table_density    = 20.000
 
 [DYNAMICS]

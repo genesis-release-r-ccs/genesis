@@ -1,0 +1,62 @@
+[INPUT]
+topfile = toppar/top_all36_prot.rtf, toppar/top_all36_cgenff.rtf 
+parfile = toppar/par_all36_prot.prm, toppar/par_all36_cgenff.prm
+strfile = toppar/toppar_water_ions.str, toppar/toppar_dhap.3.str
+psffile = tim2.psf     # protein structure file
+pdbfile = initial/initial{}.pdb          # PDB file for input coord
+reffile = tim2.pdb     # PDB file
+
+[OUTPUT]
+logfile = test{}
+#dcdfile = mep_{}.dcd
+#rstfile = mep_{}.rst
+#rpathfile  = mep_{}.rpath
+
+[ENERGY]
+forcefield       = CHARMM        # [CHARMM]
+electrostatic    = CUTOFF    # [CUTOFF,PME]
+switchdist       = 16.0      # switch distance
+cutoffdist       = 18.0      # cutoff distance
+pairlistdist     = 19.5      # pair-list distance
+vdw_force_switch = YES
+
+[MINIMIZE]
+method              = LBFGS
+nsteps              = 10  # number of steps
+eneout_period       = 2   # energy output period
+nbupdate_period     = 1
+fixatm_select_index = 2
+macro               = yes
+
+[RPATH]
+rpathmode           = MEP
+method              = STRING
+delta               = 0.0005
+ncycle              = 10
+nreplica            = 8
+eneout_period       = 1
+crdout_period       = 0
+rstout_period       = 0
+fix_terminal        = no
+massWeightCoord     = no
+mepatm_select_index = 1
+
+[BOUNDARY]
+type          = NOBC      # [PBC,NOBC]
+
+[QMMM]
+qmtyp              = dftb+
+qmcnt              = script/template.hsd
+qmexe              = script/runDFTB.sh
+workdir            = qmmm
+basename           = job
+qmmaxtrial         = 1
+qmsave_period      = 1
+qmatm_select_index = 1
+exclude_charge     = group
+qminfo             = no
+
+[SELECTION]
+group1         = sid:DHA or (sid:TIMA and (rno:95 or rno:165) and not (an:CA  | an:C   | an:O   | an:N | an:HN | an:HA))
+group2         = not (sid:DHA  or sid:DHA  around_res:6.0)
+

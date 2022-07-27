@@ -21,18 +21,19 @@ Build_Information> Compiler Information
   build host   = oshima@goby
   fortran      = ifort (IFORT) 19.0.5.281 20190815
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+ -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
   C            = icc (ICC) 19.0.5.281 20190815
-  option       = -O3 -ip -axCORE-AVX2  -qopenmp
-  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp  -L/home/oshima/Soft/lapack-3.8.0 -lmkl_intel_lp64 -
- lmkl_sequential -lmkl_core -lmkl_lapack95_lp64 
+  -assume byterecl -lgfortran -qopenmp  -L/home/oshima/Soft/lapack-3.8.0 -lmkl_i
+ ntel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64  
 
 Runtime_Information> Machine and Library Information
-  date       = 2022/02/25 01:14:26
+  date       = 2022/05/09 17:26:33
   cpu model    = Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz
-  exec. host   = oshima@goby14
+  exec. host   = oshima@goby13
   LD library   = 
  /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
  intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
@@ -58,10 +59,10 @@ Read_Ctrl_Output> Output Files
 Read_Ctrl_Gamd> Gamd information
   boost_type       = DIHEDRAL
   sigma0_dih       =   6.00000
-  dih_max          =      8.1351000000
-  dih_min          =     -1.6350000000
-  dih_ave          =      2.6025000000
-  dih_dev          =      1.2736000000
+  dih_max          =      9.1716000000
+  dih_min          =     -1.4541000000
+  dih_ave          =      2.8288000000
+  dih_dev          =      1.2448000000
   thresh_type      = LOWER
   update_period    =        10
   boost            = YES
@@ -77,7 +78,7 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   pme_ngrid(x,y,z)=    64   64   64
   pme_nspline     =               4
   pme_alpha       =         0.34000
-  pme_scheme      =      AUTOSELECT
+  pme_scheme      = NOOPT_2DALLTOAL
   nonbond_kernel  =      AUTOSELECT
   table_order     =               1
   table_density   =          20.000
@@ -85,6 +86,11 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   dispersion_corr =            none
   nonb_limiter    =              no
   contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
  
 Read_Ctrl_Dynamics> Parameters of MD simulation
   integrator      =       VVER  nsteps          =         20
@@ -163,6 +169,7 @@ Read_Pdb> Summary of Data in PDB file
 Read_Rst_Binary> Summary of RST file
   num_atoms       =      27757  iseed           =     890440
   boxsize (x,y,z) =     64.885    64.885    64.885
+
 Define_Molecule> Summary of molecules
   num_atoms       =      27757  num_bonds       =      27756
   num_angles      =       9281  num_dihedrals   =         41
@@ -192,14 +199,6 @@ Define_Enefunc_Charmm> Number of Interactions in Each Term
 Setup_Fitting_Spdyn> NO fitting is applied, skip
   fitting method  =  NO
  
-Select_FFT_Scheme> Checking performance of long range interaction operation...
-
-  OPT_1DALLTOALL   :      184.636 (ms)
-  NOOPT-1DALLTOALL :      170.151 (ms)
-  OPT-2DALLTOALL   :      159.105 (ms)
-  NOOPT-2DALLTOALL :      142.111 (ms)
-
-Select_FFT_Scheme> selected scheme is NOOPT_2DALLTOALL
 Setup_Dynamics> Subtract 3 translational degrees of freedom
  
 Update_Num_Deg_Freedom> Number of degrees of freedom was updated
@@ -212,6 +211,7 @@ Setup_Fast_Water> Setup constraints for SETTLE
   r0(O-H)         =     0.9572  mass(O)         =    15.9994
   r0(H-H)         =     1.5139  mass(H)         =     1.0080
  
+ 
 Update_Num_Deg_Freedom> Number of degrees of freedom was updated
   num_deg_freedom =      55533 (After setup of SETTLE)
  
@@ -222,8 +222,8 @@ Update_Num_Deg_Freedom> Number of degrees of freedom was updated
   num_deg_freedom =      55521 (After setup of SHAKE/RATTLE)
  
 Setup_Gamd> Gamd initial parameters
-      ene_dih_th  =        8.13510
-      k_dih       =        0.10235
+      ene_dih_th  =        9.17160
+      k_dih       =        0.09411
 
 Random_Init> Initialize the random number
   seed            = 11
@@ -237,46 +237,58 @@ Update_Num_Deg_Freedom> Number of degrees of freedom was updated
  
             STEP            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT   DIHEDRAL_GAMD
  --------------- --------------- --------------- --------------- ---------------
-               0          2.0155         11.7800          0.9836          3.2941          1.1387          0.1965       9526.1720     -99974.6093          1.1039
+               0          5.6835          5.0164          0.4979          4.8703          0.7960         -1.5090       9679.4848    -100054.6750          1.5886
 
 [STEP5] Perform Molecular Dynamics Simulation
  
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT     TEMPERATURE          VOLUME   DIHEDRAL_GAMD
  --------------- --------------- --------------- --------------- ---------------
-INFO:          5          0.0200     -74073.9085     -90543.2368      16467.9593         13.4956          3.4763          9.4732          0.3903          2.6946          1.1674          0.2684       9475.9706    -100036.6776        301.7186     273167.8017          1.3690
+INFO:          5          0.0200     -74087.5189     -90542.2475      16453.9791         13.5046          2.4564          6.6865          0.5039          6.7309          1.4279         -1.5503       9556.3370    -100114.8398        304.1574     273167.8017          0.7495
 
-INFO:         10          0.0400     -74063.5396     -90304.5632      16239.9711         13.5053          1.8245         10.6332          0.6054          3.3206          0.8932          0.2793       9557.3175     -99879.4370        297.7223     273167.8017          1.0526
+INFO:         10          0.0400     -74082.0332     -90473.0485      16389.3699         13.5087          6.1420          8.3750          0.3548          4.9312          1.1373         -1.6730       9624.8185    -100117.1343        302.8197     273167.8017          1.6455
 
-INFO:         15          0.0600     -74066.4939     -90401.5560      16334.8118         13.4853          2.8709         11.1347          0.9837          5.5193          0.2885          0.4041       9403.4923     -99826.2495        300.0771     273167.8017          0.2503
+INFO:         15          0.0600     -74085.9465     -90447.7357      16360.5570         13.5391          4.0081          7.3636          0.3575          5.4239          0.8988         -1.3695       9770.7366    -100235.1547        299.1851     273167.8017          1.2322
 
-INFO:         20          0.0800     -74059.5207     -90450.6573      16390.2335         13.4667          1.9482          9.2562          0.7654          3.5029          1.2292          0.4314       9295.5280     -99763.3186        301.5903     273167.8017          0.9031
+INFO:         20          0.0800     -74078.6014     -90348.2690      16268.9189         13.5266          2.9709          9.1579          1.0059          6.6099          0.9497         -1.4270       9767.2236    -100134.7598        298.3944     273167.8017          0.7486
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       1.340
-    setup         =       1.098
-    dynamics      =       0.242
-      energy      =       0.209
-      integrator  =       0.010
-      pairlist    =       0.030 (       0.029,       0.031)
+  total time      =       0.720
+    setup         =       0.458
+    dynamics      =       0.262
+      energy      =       0.238
+      integrator  =       0.011
+      pairlist    =       0.029 (       0.028,       0.030)
   energy           
     bond          =       0.000 (       0.000,       0.000)
     angle         =       0.000 (       0.000,       0.000)
     dihedral      =       0.000 (       0.000,       0.001)
-    nonbond       =       0.189 (       0.189,       0.189)
-      pme real    =       0.149 (       0.144,       0.154)
-      pme recip   =       0.040 (       0.035,       0.045)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.217 (       0.217,       0.217)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.159 (       0.143,       0.178)
+      pme recip   =       0.058 (       0.040,       0.074)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
     restraint     =       0.000 (       0.000,       0.000)
     qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.002 (       0.002,       0.002)
-    update        =       0.006 (       0.006,       0.007)
-    comm_coord    =       0.003 (       0.002,       0.003)
+    update        =       0.006 (       0.005,       0.007)
+    comm_coord    =       0.003 (       0.002,       0.004)
     comm_force    =       0.003 (       0.002,       0.003)
-    comm_migrate  =       0.001 (       0.000,       0.001)
+    comm_migrate  =       0.001 (       0.000,       0.002)
 

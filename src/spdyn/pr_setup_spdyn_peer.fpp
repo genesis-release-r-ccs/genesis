@@ -86,27 +86,22 @@ module pr_setup_spdyn_peer_mod
   private ::       setup_enefunc_impr_C_peer
   private ::       setup_enefunc_cmap_C_peer
   private ::       setup_enefunc_nonb_C_peer
-  private ::       setup_enefunc_bond_constraint_C_peer
-  private ::       setup_enefunc_angl_constraint_C_peer
   private ::     define_enefunc_amber_peer
   private ::       setup_enefunc_bond_A_peer
   private ::       setup_enefunc_angl_A_peer
   private ::       setup_enefunc_dihe_A_peer
   private ::       setup_enefunc_impr_A_peer
   private ::       setup_enefunc_nonb_A_peer
-  private ::       setup_enefunc_bond_constraint_A_peer
-  private ::       setup_enefunc_angl_constraint_A_peer
   private ::     define_enefunc_gromacs_peer
   private ::       setup_enefunc_bond_G_peer
   private ::       setup_enefunc_angl_G_peer
   private ::       setup_enefunc_dihe_G_peer
   private ::       setup_enefunc_rb_dihe_G_peer
   private ::       setup_enefunc_impr_G_peer
-  private ::       setup_enefunc_bond_constraint_G_peer
-  private ::       setup_enefunc_angl_constraint_G_peer
   private ::       setup_enefunc_nonb_G_peer
   private ::       setup_enefunc_restraints_peer
   private ::         setup_enefunc_rest_domain_peer
+  private ::         check_pbc
   private ::     alloc_id_g2l
   
 contains
@@ -423,10 +418,10 @@ contains
     end do
 
     if ((hm_num_atoms-nsol)/4 == nwat .and. nwat > 0) then
-      constraints%tip4 = .true.
+      constraints%water_type = TIP4
       water_atom   = 4
     else if ((hm_num_atoms-nsol)/3 == nwat) then
-      constraints%tip4 = .false.
+      constraints%water_type = TIP3
       water_atom   = 3
     else
       call error_msg('Setup_Solute_And_Water_Peer_0> # of water is incorrect.')
@@ -529,7 +524,7 @@ contains
     enefunc%table%mass_O        = hm_mass(io)
     enefunc%table%mass_H        = hm_mass(ih)
 
-    if (constraints%tip4) then
+    if (constraints%water_type == TIP4) then
       io = hm_water_list(4,1)
       enefunc%table%atom_cls_no_D = hm_atom_cls_no(io)
       enefunc%table%charge_D      = hm_charge(io)
@@ -2091,7 +2086,7 @@ contains
 
     ! setup SETTLE
     !
-    if (constraints%tip4) then
+    if (constraints%water_type == TIP4) then
       call setup_fast_water_peer_tip4_0(par, prmtop, grotop, &
                                         enefunc, constraints)
     else
@@ -2128,6 +2123,7 @@ contains
 
     ! local variables
     integer                  :: i, j, k, i1, i2, list(4), ioffset
+    real(wp)                 :: a, b
     character(6)             :: ci1, ci2, ci3, ci4
 
     type(s_grotop_mol), pointer :: gromol
@@ -2232,6 +2228,114 @@ contains
         end if
 
       end do
+
+    ! gromacs
+    else if (grotop%num_atomtypes > 0) then
+
+      ioffset = 0
+
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+
+        if (gromol%settles%func == 0) then
+
+          do j = 1, grotop%molss(i)%count
+
+            do k = 1, gromol%num_bonds
+
+              i1 = gromol%bonds(k)%atom_idx1 + ioffset
+              i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+              if (list(1) == i1 .and. list(2) == i2 .or.  &
+                  list(2) == i1 .and. list(1) == i2) then
+
+                constraints%water_rOH = gromol%bonds(k)%b0 * 10.0_dp
+                goto 1
+
+              end if
+            end do
+
+            ioffset = ioffset + gromol%num_atoms
+
+          end do
+
+        else
+
+          constraints%water_rOH = gromol%settles%doh * 10.0_dp
+          goto 1
+
+        end if
+
+      end do
+
+1     ioffset = 0
+
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+
+        if (gromol%settles%func == 0) then
+
+          do j = 1, grotop%molss(i)%count
+
+            do k = 1, gromol%num_bonds
+
+              i1 = gromol%bonds(k)%atom_idx1 + ioffset
+              i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+              if (list(2) == i1 .and. list(3) == i2 .or.  &
+                  list(3) == i1 .and. list(2) == i2) then
+
+                constraints%water_rHH = gromol%bonds(k)%b0 * 10.0_dp
+                goto 2
+
+              end if
+            end do
+
+            ioffset = ioffset + gromol%num_atoms
+
+          end do
+
+        else
+
+          constraints%water_rHH = gromol%settles%dhh * 10.0_dp
+          goto 2
+
+        end if
+
+      end do
+
+2     ioffset = 0
+
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+
+        do j = 1, grotop%molss(i)%count
+
+          do k = 1, gromol%num_vsites3
+            i1 = gromol%vsites3(k)%func
+
+            if (i1 == 1) then
+
+              ioffset = 1
+              a = gromol%vsites3(k)%a
+              b = gromol%vsites3(k)%b
+              if (a /= b) call error_msg('TIP4P molecule is not symmetric')
+              constraints%water_rOD = 2.0_wp * a  &
+                                * sqrt(constraints%water_rOH**2 &
+                                       -0.25_wp*constraints%water_rHH**2)
+            end if
+            if (ioffset == 1) exit
+          end do
+
+          if (ioffset == 1) exit
+
+        end do
+
+        if (ioffset == 1) exit
+      end do
+
+      if (ioffset /= 1) call error_msg('Virtual site should be defined &
+                                     & when using TIP4P')
 
     end if
 
@@ -2536,6 +2640,9 @@ contains
     constraints%fast_water    = con_info%fast_water
     constraints%water_model   = con_info%water_model
 
+    domain%system_size(1)     = boundary%box_size_x
+    domain%system_size(2)     = boundary%box_size_y
+    domain%system_size(3)     = boundary%box_size_z
 
     ! assign the rank of each dimension from my_rank
     !
@@ -2597,7 +2704,7 @@ contains
     call alloc_constraints(constraints, ConstraintsDomainBond, ncel_all, &
                            constraints%connect)
 
-   if (constraints%tip4) then
+   if (constraints%water_type == TIP4) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
     else
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
@@ -2662,7 +2769,6 @@ contains
     integer                       :: ncel, ncel_local
     character(4)                  :: ci1
     integer                       :: mi1, cl1
-    logical                       :: tip4
 
     real(wip),            pointer :: bsize_x, bsize_y, bsize_z
     real(wip),            pointer :: csize_x, csize_y, csize_z
@@ -2710,8 +2816,6 @@ contains
     origin(1)     = boundary%origin_x
     origin(2)     = boundary%origin_y
     origin(3)     = boundary%origin_z
-
-    tip4          = constraints%tip4
 
     natom      (                       1:ncel) = 0
     nsolute    (                       1:ncel) = 0
@@ -2865,6 +2969,7 @@ contains
           solute_list(psol,icel_local) = patm
           HGr_bond_list(1,phgl,isolute,icel_local) = patm 
 
+
           call molecule_to_domain_peer(move, origin, i, &
                                        domain, icel_local, patm)
 
@@ -2933,7 +3038,7 @@ contains
       i   = hm_water_list(1,iwater)
       ih1 = hm_water_list(2,iwater)
       ih2 = hm_water_list(3,iwater)
-      if (tip4) id = hm_water_list(4,iwater)
+      if (constraints%water_type == TIP4) id = hm_water_list(4,iwater)
 
       !coordinate shifted against the origin
       !
@@ -2998,7 +3103,7 @@ contains
 
         ! dummy atoms
         !
-        if (tip4) then
+        if (constraints%water_type == TIP4) then
           patm = patm + 1
           water_list(4,pwat,icel_local) = patm
           call molecule_to_domain_peer(move, origin, id, &
@@ -3045,7 +3150,7 @@ contains
 
         ! dummy atoms
         ! 
-        if (tip4) then
+        if (constraints%water_type == TIP4) then
           patm = patm + 1
           water_list(4,pwat,icel_local) = patm
           call molecule_to_domain_peer(move, origin, id, &
@@ -3375,18 +3480,19 @@ contains
     logical                       :: exit_local
     integer                       :: i, j, k, ih, ih1, ih2, m, icel_local
     integer                       :: icel1, icel2
-    integer                       :: nbond_p, i1, i2, ia, ib
+    integer                       :: nbond_p, i1, i2, ia, ib, pbc_int
     integer                       :: nbond_lst, ibond, ncel
     character(6)                  :: ci1, ci2, ri1, ri2
+    real(wp)                      :: water_dist(3), cwork(3,2), dij(3)
 
-    real(wp),             pointer :: force(:,:), dist(:,:)
+    real(wp),             pointer :: force(:,:), dist(:,:), box_size(:)
     real(wp),             pointer :: HGr_bond_dist(:,:,:,:)
     integer,              pointer :: bond(:), list(:,:,:)
     integer,              pointer :: id_l2g(:,:)
     integer(int2),        pointer :: cell_pair(:,:)
-    integer(2),           pointer :: id_g2l(:,:)
+    integer(int2),        pointer :: id_g2l(:,:)
     integer,              pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
-    integer,              pointer :: ibond_lst(:)
+    integer,              pointer :: ibond_lst(:), bond_pbc(:,:)
 
 
     ibond_lst => domain_index%ibond_list
@@ -3394,6 +3500,7 @@ contains
     cell_pair     => domain%cell_pair
     id_g2l        => domain%id_g2l
     id_l2g        => domain%id_l2g
+    box_size      => domain%system_size
 
     HGr_local     => constraints%HGr_local
     HGr_bond_list => constraints%HGr_bond_list
@@ -3403,6 +3510,7 @@ contains
     list          => enefunc%bond_list
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
+    bond_pbc      => enefunc%bond_pbc
 
     nbond_lst     =  domain_index%nbond_list
     nbond_p       =  par%num_bonds
@@ -3449,6 +3557,15 @@ contains
                 list (2, bond(icel_local), icel_local) = ib
                 force(bond(icel_local), icel_local) = par%bond_force_const(j) 
                 dist (bond(icel_local), icel_local) = par%bond_dist_min(j)
+                cwork(1,1) = hm_atom_coord(1,i1)
+                cwork(2,1) = hm_atom_coord(2,i1)
+                cwork(3,1) = hm_atom_coord(3,i1)
+                cwork(1,2) = hm_atom_coord(1,i2)
+                cwork(2,2) = hm_atom_coord(2,i2)
+                cwork(3,2) = hm_atom_coord(3,i2)
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                bond_pbc(bond(icel_local),icel_local) = pbc_int
                 exit
               end if
             end do
@@ -3560,26 +3677,28 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                       :: i, j, icel_local
+    integer                       :: i, j, icel_local, pbc_int
     integer                       :: icel1, icel2
     integer                       :: nangl_p
     integer                       :: list(3)
     integer                       :: nangl_lst, iangl
     character(6)                  :: ci1, ci2, ci3
     character(6)                  :: ri1, ri2, ri3
+    real(wp)                      :: cwork(3,3), dij(3)
 
     real(wp),             pointer :: force(:,:), theta(:,:)
     real(wp),             pointer :: ubforce(:,:), ubrmin(:,:)
+    real(wp),             pointer :: box_size(:)
     integer,              pointer :: ncel
     integer(int2),        pointer :: cell_pair(:,:)
     integer,              pointer :: angle(:), alist(:,:,:)
-    integer,              pointer :: iangl_list(:)
-
+    integer,              pointer :: iangl_list(:), angl_pbc(:,:,:)
 
     iangl_list => domain_index%iangl_list
 
     ncel       => domain%num_cell_local
     cell_pair  => domain%cell_pair
+    box_size   => domain%system_size
 
     angle      => enefunc%num_angle
     alist      => enefunc%angle_list
@@ -3587,6 +3706,7 @@ contains
     theta      => enefunc%angle_theta_min
     ubforce    => enefunc%urey_force_const
     ubrmin     => enefunc%urey_rmin
+    angl_pbc   => enefunc%angle_pbc
 
     nangl_lst  = domain_index%nangl_list
     nangl_p    = par%num_angles
@@ -3633,6 +3753,24 @@ contains
                 theta  (angle(icel_local),icel_local) = par%angl_theta_min(j)*RAD
                 ubforce(angle(icel_local),icel_local) = par%angl_ub_force_const(j)
                 ubrmin (angle(icel_local),icel_local) = par%angl_ub_rmin(j)
+                cwork(1,1) = hm_atom_coord(1,list(1))
+                cwork(2,1) = hm_atom_coord(2,list(1))
+                cwork(3,1) = hm_atom_coord(3,list(1))
+                cwork(1,2) = hm_atom_coord(1,list(2))
+                cwork(2,2) = hm_atom_coord(2,list(2))
+                cwork(3,2) = hm_atom_coord(3,list(2))
+                cwork(1,3) = hm_atom_coord(1,list(3))
+                cwork(2,3) = hm_atom_coord(2,list(3))
+                cwork(3,3) = hm_atom_coord(3,list(3))
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                angl_pbc(3,angle(icel_local),icel_local) = pbc_int
                 exit
               end if
             end do
@@ -3663,7 +3801,8 @@ contains
            ci1 .eq. par%angl_atom_cls(1, j))) then
         enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
         enefunc%table%HOH_force = par%angl_force_const(j)
-        enefunc%table%water_bond_calc = .true.
+        if (enefunc%table%HOH_force > 0.0_wp) &
+            enefunc%table%water_angle_calc = .true.
         exit
       end if
     end do
@@ -3690,19 +3829,20 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                       :: ndihe_p
+    integer                       :: ndihe_p, ndihe
     integer                       :: i, j, icel_local
     integer                       :: icel1, icel2
     integer                       :: nw_found
-    integer                       :: list(4)
+    integer                       :: list(4), pbc_int
     integer                       :: ndihe_lst, idihe
     character(6)                  :: ci1, ci2, ci3, ci4
+    real(wp)                      :: cwork(3,4), dij(3)
 
-    real(wp),             pointer :: force(:,:), phase(:,:)
+    real(wp),             pointer :: force(:,:), phase(:,:), box_size(:)
     integer,              pointer :: ncel
     integer(int2),        pointer :: cell_pair(:,:)
     integer,              pointer :: dihedral(:), dlist(:,:,:), period(:,:)
-    integer,              pointer :: idihe_lst(:)
+    integer,              pointer :: idihe_lst(:), dihe_pbc(:,:,:)
     integer,              pointer :: notation
 
     logical,          allocatable :: no_wild(:)
@@ -3712,6 +3852,7 @@ contains
 
     ncel       => domain%num_cell_local
     cell_pair  => domain%cell_pair
+    box_size   => domain%system_size
 
     dihedral   => enefunc%num_dihedral
     dlist      => enefunc%dihe_list
@@ -3720,6 +3861,7 @@ contains
     phase      => enefunc%dihe_phase
     notation   => enefunc%notation_14types
     notation   = 100
+    dihe_pbc   => enefunc%dihe_pbc
 
     ndihe_lst  = domain_index%ndihe_list
     ndihe_p    = par%num_dihedrals
@@ -3784,10 +3926,33 @@ contains
                    (ci4 == par%dihe_atom_cls(1, j)))) then
                 nw_found = nw_found + 1
                 dihedral(icel_local) = dihedral(icel_local) + 1 
+                ndihe = dihedral(icel_local)
                 dlist (1:4,dihedral(icel_local),icel_local) = list(1:4)
                 force (dihedral(icel_local),icel_local) =par%dihe_force_const(j)
                 period(dihedral(icel_local),icel_local) =par%dihe_periodicity(j)
                 phase (dihedral(icel_local),icel_local) =par%dihe_phase(j) * RAD
+                cwork(1,1) = hm_atom_coord(1,list(1))
+                cwork(2,1) = hm_atom_coord(2,list(1))
+                cwork(3,1) = hm_atom_coord(3,list(1))
+                cwork(1,2) = hm_atom_coord(1,list(2))
+                cwork(2,2) = hm_atom_coord(2,list(2))
+                cwork(3,2) = hm_atom_coord(3,list(2))
+                cwork(1,3) = hm_atom_coord(1,list(3))
+                cwork(2,3) = hm_atom_coord(2,list(3))
+                cwork(3,3) = hm_atom_coord(3,list(3))
+                cwork(1,4) = hm_atom_coord(1,list(4))
+                cwork(2,4) = hm_atom_coord(2,list(4))
+                cwork(3,4) = hm_atom_coord(3,list(4))
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(1,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(2,ndihe,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                dihe_pbc(3,ndihe,icel_local) = pbc_int
+
                 if (period(dihedral(icel_local),icel_local) >  &
                 enefunc%notation_14types) &
                 call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicity.')
@@ -3803,6 +3968,7 @@ contains
                     ((ci2 == par%dihe_atom_cls(3, j)) .and. &
                      (ci3 == par%dihe_atom_cls(2, j)))) then
                   dihedral(icel_local) = dihedral(icel_local) + 1
+                  ndihe = dihedral(icel_local)
                   dlist (1:4,dihedral(icel_local),icel_local) = list(1:4)
                   force (dihedral(icel_local),icel_local) = &
                        par%dihe_force_const(j)
@@ -3810,6 +3976,28 @@ contains
                        par%dihe_periodicity(j)
                   phase (dihedral(icel_local),icel_local) = &
                        par%dihe_phase(j) * RAD
+                  cwork(1,1) = hm_atom_coord(1,list(1))
+                  cwork(2,1) = hm_atom_coord(2,list(1))
+                  cwork(3,1) = hm_atom_coord(3,list(1))
+                  cwork(1,2) = hm_atom_coord(1,list(2))
+                  cwork(2,2) = hm_atom_coord(2,list(2))
+                  cwork(3,2) = hm_atom_coord(3,list(2))
+                  cwork(1,3) = hm_atom_coord(1,list(3))
+                  cwork(2,3) = hm_atom_coord(2,list(3))
+                  cwork(3,3) = hm_atom_coord(3,list(3))
+                  cwork(1,4) = hm_atom_coord(1,list(4))
+                  cwork(2,4) = hm_atom_coord(2,list(4))
+                  cwork(3,4) = hm_atom_coord(3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(1,ndihe,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(2,ndihe,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  dihe_pbc(3,ndihe,icel_local) = pbc_int
+
                   if (period(dihedral(icel_local),icel_local) >  &
                   enefunc%notation_14types) &
                   call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicity.')
@@ -3846,19 +4034,21 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                       :: nimpr_p
+    integer                       :: nimpr_p, nimpr, pbc_int
     integer                       :: i, j, icel_local
     integer                       :: icel1, icel2
     integer                       :: list(4)
     integer                       :: nimpr_lst, iimpr
     character(6)                  :: ci1, ci2, ci3, ci4
     logical                       :: no_wild
+    real(wp)                      :: cwork(3,4), dij(3)
 
-    real(wp),             pointer :: force(:,:), phase(:,:)
+    real(wp),             pointer :: force(:,:), phase(:,:), box_size(:)
     integer,              pointer :: ncel
     integer(int2),        pointer :: cell_pair(:,:)
     integer,              pointer :: improper(:), ilist(:,:,:)
     integer,              pointer :: iimpr_lst(:)
+    integer,              pointer :: impr_pbc(:,:,:)
     integer,          allocatable :: wc_type(:)
 
 
@@ -3866,11 +4056,13 @@ contains
 
     ncel       => domain%num_cell_local
     cell_pair  => domain%cell_pair
+    box_size   => domain%system_size
 
     improper   => enefunc%num_improper
     ilist      => enefunc%impr_list
     force      => enefunc%impr_force_const
     phase      => enefunc%impr_phase
+    impr_pbc   => enefunc%impr_pbc
 
     nimpr_lst  = domain_index%nimpr_list
     nimpr_p    = par%num_impropers
@@ -3962,9 +4154,32 @@ contains
                    (ci4 == par%impr_atom_cls(1, j)))) then
 
                 improper(icel_local) = improper(icel_local) + 1
+                nimpr = improper(icel_local)
                 ilist(1:4,improper(icel_local), icel_local) = list(1:4)
                 force(improper(icel_local),icel_local) = par%impr_force_const(j)
                 phase(improper(icel_local),icel_local) = par%impr_phase(j) * RAD
+                cwork(1,1) = hm_atom_coord(1,list(1))
+                cwork(2,1) = hm_atom_coord(2,list(1))
+                cwork(3,1) = hm_atom_coord(3,list(1))
+                cwork(1,2) = hm_atom_coord(1,list(2))
+                cwork(2,2) = hm_atom_coord(2,list(2))
+                cwork(3,2) = hm_atom_coord(3,list(2))
+                cwork(1,3) = hm_atom_coord(1,list(3))
+                cwork(2,3) = hm_atom_coord(2,list(3))
+                cwork(3,3) = hm_atom_coord(3,list(3))
+                cwork(1,4) = hm_atom_coord(1,list(4))
+                cwork(2,4) = hm_atom_coord(2,list(4))
+                cwork(3,4) = hm_atom_coord(3,list(4))
+                dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(1,nimpr,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(2,nimpr,icel_local) = pbc_int
+                dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                call check_pbc(box_size, dij, pbc_int)
+                impr_pbc(3,nimpr,icel_local) = pbc_int
+
                 no_wild = .true.
                 exit
 
@@ -3985,9 +4200,32 @@ contains
                      (ci4 == par%impr_atom_cls(2, j)))) then
 
                   improper(icel_local) = improper(icel_local) + 1
+                  nimpr = improper(icel_local)
                   ilist(1:4,improper(icel_local), icel_local) = list(1:4)
                   force(improper(icel_local),icel_local)=par%impr_force_const(j)
                   phase(improper(icel_local),icel_local)=par%impr_phase(j)*RAD
+                  cwork(1,1) = hm_atom_coord(1,list(1))
+                  cwork(2,1) = hm_atom_coord(2,list(1))
+                  cwork(3,1) = hm_atom_coord(3,list(1))
+                  cwork(1,2) = hm_atom_coord(1,list(2))
+                  cwork(2,2) = hm_atom_coord(2,list(2))
+                  cwork(3,2) = hm_atom_coord(3,list(2))
+                  cwork(1,3) = hm_atom_coord(1,list(3))
+                  cwork(2,3) = hm_atom_coord(2,list(3))
+                  cwork(3,3) = hm_atom_coord(3,list(3))
+                  cwork(1,4) = hm_atom_coord(1,list(4))
+                  cwork(2,4) = hm_atom_coord(2,list(4))
+                  cwork(3,4) = hm_atom_coord(3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(1,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(2,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(3,nimpr,icel_local) = pbc_int
+
                   no_wild = .true.
                   exit
 
@@ -4007,9 +4245,32 @@ contains
                      (ci4 == par%impr_atom_cls(3, j)))) then
 
                   improper(icel_local) = improper(icel_local) + 1
+                  nimpr = improper(icel_local)
                   ilist(1:4,improper(icel_local), icel_local) = list(1:4)
                   force(improper(icel_local),icel_local)=par%impr_force_const(j)
                   phase(improper(icel_local),icel_local)=par%impr_phase(j)*RAD
+                  cwork(1,1) = hm_atom_coord(1,list(1))
+                  cwork(2,1) = hm_atom_coord(2,list(1))
+                  cwork(3,1) = hm_atom_coord(3,list(1))
+                  cwork(1,2) = hm_atom_coord(1,list(2))
+                  cwork(2,2) = hm_atom_coord(2,list(2))
+                  cwork(3,2) = hm_atom_coord(3,list(2))
+                  cwork(1,3) = hm_atom_coord(1,list(3))
+                  cwork(2,3) = hm_atom_coord(2,list(3))
+                  cwork(3,3) = hm_atom_coord(3,list(3))
+                  cwork(1,4) = hm_atom_coord(1,list(4))
+                  cwork(2,4) = hm_atom_coord(2,list(4))
+                  cwork(3,4) = hm_atom_coord(3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(1,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(2,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(3,nimpr,icel_local) = pbc_int
+
                   no_wild = .true.
                   exit
 
@@ -4029,9 +4290,32 @@ contains
                      (ci4 == par%impr_atom_cls(1, j)))) then
 
                   improper(icel_local) = improper(icel_local) + 1
+                  nimpr = improper(icel_local)
                   ilist(1:4,improper(icel_local), icel_local) = list(1:4)
                   force(improper(icel_local),icel_local)=par%impr_force_const(j)
                   phase(improper(icel_local),icel_local)=par%impr_phase(j)*RAD
+                  cwork(1,1) = hm_atom_coord(1,list(1))
+                  cwork(2,1) = hm_atom_coord(2,list(1))
+                  cwork(3,1) = hm_atom_coord(3,list(1))
+                  cwork(1,2) = hm_atom_coord(1,list(2))
+                  cwork(2,2) = hm_atom_coord(2,list(2))
+                  cwork(3,2) = hm_atom_coord(3,list(2))
+                  cwork(1,3) = hm_atom_coord(1,list(3))
+                  cwork(2,3) = hm_atom_coord(2,list(3))
+                  cwork(3,3) = hm_atom_coord(3,list(3))
+                  cwork(1,4) = hm_atom_coord(1,list(4))
+                  cwork(2,4) = hm_atom_coord(2,list(4))
+                  cwork(3,4) = hm_atom_coord(3,list(4))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(1,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(2,nimpr,icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  impr_pbc(3,nimpr,icel_local) = pbc_int
+
                   no_wild = .true.
                   exit
 
@@ -4076,27 +4360,28 @@ contains
     type(s_ene_info),             intent(in)    :: ene_info
 
     ! local variables
-    integer                       :: ncmap_p, ngrid0
-    integer                       :: list(2), icel1, icel2, icel_local
+    integer                       :: ncmap_p, ngrid0, pbc_int
+    integer                       :: list(8), icel1, icel2, icel_local
     integer                       :: flag_cmap_type, alloc_stat, dealloc_stat
     integer                       :: i, j, k, l, ityp
     integer                       :: ncmap_lst, icmap
     character(6)                  :: ci1, ci2, ci3, ci4, ci5, ci6, ci7, ci8
     logical                       :: periodic
+    real(wp)                      :: cwork(3,8), dij(3)
 
-    real(wp),             pointer :: ccoef(:,:,:,:,:)
+    real(wp),             pointer :: ccoef(:,:,:,:,:), box_size(:)
     integer,              pointer :: ncel
     integer(int2),        pointer :: cell_pair(:,:)
     integer,              pointer :: ncmap(:), clist(:,:,:), ctype(:,:), cres(:)
-    integer,              pointer :: icmap_lst(:)
+    integer,              pointer :: icmap_lst(:), cmap_pbc(:,:,:)
 
     real(wp),         allocatable :: c_ij(:,:,:,:)      ! cmap coeffs
 
 
     icmap_lst  => domain_index%icmap_list
-
     ncel       => domain%num_cell_local
     cell_pair  => domain%cell_pair
+    box_size   => domain%system_size
 
     ! If 'periodic' is .true.,
     !   then cubic spline with periodic (in dihedral-angle space) boundary
@@ -4129,6 +4414,7 @@ contains
     ctype      => enefunc%cmap_type
     cres       => enefunc%cmap_resolution
     ccoef      => enefunc%cmap_coef
+    cmap_pbc   => enefunc%cmap_pbc
 
     do i = 1, ncmap_p
       cres(i) = par%cmap_resolution(i)
@@ -4160,9 +4446,15 @@ contains
       i = icmap_lst(icmap)
 
       list(1) = hm_cmap_list(1, i)
-      list(2) = hm_cmap_list(8, i)
+      list(2) = hm_cmap_list(2, i)
+      list(3) = hm_cmap_list(3, i)
+      list(4) = hm_cmap_list(4, i)
+      list(5) = hm_cmap_list(5, i)
+      list(6) = hm_cmap_list(6, i)
+      list(7) = hm_cmap_list(7, i)
+      list(8) = hm_cmap_list(8, i)
       icel1 = domain%id_g2l(1, list(1))
-      icel2 = domain%id_g2l(1, list(2))
+      icel2 = domain%id_g2l(1, list(8))
 
       if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -4172,14 +4464,14 @@ contains
 
           ! ci* will be atom-type strings
           !
-          ci1 = hm_atom_cls_name(hm_cmap_list(1,i))
-          ci2 = hm_atom_cls_name(hm_cmap_list(2,i))
-          ci3 = hm_atom_cls_name(hm_cmap_list(3,i))
-          ci4 = hm_atom_cls_name(hm_cmap_list(4,i))
-          ci5 = hm_atom_cls_name(hm_cmap_list(5,i))
-          ci6 = hm_atom_cls_name(hm_cmap_list(6,i))
-          ci7 = hm_atom_cls_name(hm_cmap_list(7,i))
-          ci8 = hm_atom_cls_name(hm_cmap_list(8,i))
+          ci1 = hm_atom_cls_name(list(1))
+          ci2 = hm_atom_cls_name(list(2))
+          ci3 = hm_atom_cls_name(list(3))
+          ci4 = hm_atom_cls_name(list(4))
+          ci5 = hm_atom_cls_name(list(5))
+          ci6 = hm_atom_cls_name(list(6))
+          ci7 = hm_atom_cls_name(list(7))
+          ci8 = hm_atom_cls_name(list(8))
           flag_cmap_type = -1
 
           ! assign cmap type ID to each (psi,phi) pair
@@ -4196,22 +4488,66 @@ contains
 
               ncmap(icel_local) = ncmap(icel_local) + 1
               clist(1, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(1, i))
+                  hm_solute_list_inv(list(1))
               clist(2, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(2, i))
+                  hm_solute_list_inv(list(2))
               clist(3, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(3, i))
+                  hm_solute_list_inv(list(3))
               clist(4, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(4, i))
+                  hm_solute_list_inv(list(4))
               clist(5, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(5, i))
+                  hm_solute_list_inv(list(5))
               clist(6, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(6, i))
+                  hm_solute_list_inv(list(6))
               clist(7, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(7, i))
+                  hm_solute_list_inv(list(7))
               clist(8, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(hm_cmap_list(8, i))
+                  hm_solute_list_inv(list(8))
               ctype(ncmap(icel_local), icel_local) = j
+    
+              cwork(1,1) = hm_atom_coord(1,list(1))
+              cwork(2,1) = hm_atom_coord(2,list(1))
+              cwork(3,1) = hm_atom_coord(3,list(1))
+              cwork(1,2) = hm_atom_coord(1,list(2))
+              cwork(2,2) = hm_atom_coord(2,list(2))
+              cwork(3,2) = hm_atom_coord(3,list(2))
+              cwork(1,3) = hm_atom_coord(1,list(3))
+              cwork(2,3) = hm_atom_coord(2,list(3))
+              cwork(3,3) = hm_atom_coord(3,list(3))
+              cwork(1,4) = hm_atom_coord(1,list(4))
+              cwork(2,4) = hm_atom_coord(2,list(4))
+              cwork(3,4) = hm_atom_coord(3,list(4))
+              cwork(1,5) = hm_atom_coord(1,list(5))
+              cwork(2,5) = hm_atom_coord(2,list(5))
+              cwork(3,5) = hm_atom_coord(3,list(5))
+              cwork(1,6) = hm_atom_coord(1,list(6))
+              cwork(2,6) = hm_atom_coord(2,list(6))
+              cwork(3,6) = hm_atom_coord(3,list(6))
+              cwork(1,7) = hm_atom_coord(1,list(7))
+              cwork(2,7) = hm_atom_coord(2,list(7))
+              cwork(3,7) = hm_atom_coord(3,list(7))
+              cwork(1,8) = hm_atom_coord(1,list(8))
+              cwork(2,8) = hm_atom_coord(2,list(8))
+              cwork(3,8) = hm_atom_coord(3,list(8))
+              dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(1,ncmap(icel_local),icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(2,ncmap(icel_local),icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(3,ncmap(icel_local),icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,5) - cwork(1:3,6)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(4,ncmap(icel_local),icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,6) - cwork(1:3,7)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(5,ncmap(icel_local),icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,8) - cwork(1:3,7)
+              call check_pbc(box_size, dij, pbc_int)
+              cmap_pbc(6,ncmap(icel_local),icel_local) = pbc_int
+ 
               flag_cmap_type = j
               exit
             end if
@@ -4236,278 +4572,6 @@ contains
     return
 
   end subroutine setup_enefunc_cmap_C_peer
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_bond_constraint_C_peer
-  !> @brief        peer routine of sp_enefunc_charmm_mod::
-  !!                                          setup_enefunc_bond_constraint()
-  !! @authors      NT
-  !! @param[in]    
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_bond_constraint_C_peer(par, constraints, &
-                                                  domain_index, domain, enefunc)
-
-    ! formal arguments
-    type(s_par),                  intent(in)    :: par
-    type(s_constraints),  target, intent(inout) :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variable
-    integer                       :: i, j, k, m, ih, icel_local, connect
-    integer                       :: icel1, icel2, icel
-    integer                       :: nbond_p, i1, i2, ih1, ih2
-    integer                       :: nbond_lst, ibond, nbond_c
-    character(6)                  :: ci1, ci2
-    character(4)                  :: a1, a2
-
-    real(wp),             pointer :: force(:,:), dist(:,:)
-    real(wip),            pointer :: HGr_bond_dist(:,:,:,:)
-    integer,              pointer :: bond(:), list(:,:,:), ncel
-    integer,              pointer :: id_l2g(:,:)
-    integer(int2),        pointer :: cell_pair(:,:)
-    integer(int2),        pointer :: id_g2l(:,:)
-    integer,              pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
-    integer,              pointer :: ibond_lst(:)
-
-
-    ibond_lst     => domain_index%ibond_list
-
-    ncel          => domain%num_cell_local
-    cell_pair     => domain%cell_pair
-    id_g2l        => domain%id_g2l
-    id_l2g        => domain%id_l2g
-
-    HGr_local     => constraints%HGr_local
-    HGr_bond_list => constraints%HGr_bond_list
-    HGr_bond_dist => constraints%HGr_bond_dist
-
-    bond          => enefunc%num_bond
-    list          => enefunc%bond_list
-    force         => enefunc%bond_force_const
-    dist          => enefunc%bond_dist_min
-
-    nbond_lst     =  domain_index%nbond_list
-    nbond_p       =  par%num_bonds
-
-    connect       = constraints%connect
-
-    bond(1:ncel)  = 0
-
-    nbond_c       = 0
-
-    do ibond = 1, nbond_lst
-
-      i = ibond_lst(ibond)
-
-      i1 = hm_bond_list(1,i)
-      i2 = hm_bond_list(2,i)
-
-      ci1 = hm_atom_cls_name(i1)
-      ci2 = hm_atom_cls_name(i2)
-
-      a1 = hm_atom_name(i1)
-      a2 = hm_atom_name(i2)
-
-      if (a1(1:1) /= 'H' .and. a2(1:1) /= 'H' .and. &
-          a1(1:1) /= 'h' .and. a2(1:1) /= 'h') then
-
-        icel1 = domain%id_g2l(1,i1)
-        icel2 = domain%id_g2l(1,i2)
-
-        ! Check if it is in my domain
-        !
-        if (icel1 /= 0 .and. icel2 /= 0) then
-
-          icel_local = cell_pair(icel1, icel2)
-
-          if (icel_local > 0 .and. icel_local <= ncel) then
-
-            do j = 1, nbond_p
-              if ((ci1 == par%bond_atom_cls(1, j) .and.  &
-                   ci2 == par%bond_atom_cls(2, j)) .or.  &
-                  (ci1 == par%bond_atom_cls(2, j) .and.  &
-                   ci2 == par%bond_atom_cls(1, j))) then
-                bond (icel_local) = bond(icel_local) + 1
-                list (1, bond(icel_local), icel_local) = i1
-                list (2, bond(icel_local), icel_local) = i2
-                force(bond(icel_local), icel_local) = par%bond_force_const(j) 
-                dist (bond(icel_local), icel_local) = par%bond_dist_min(j)
-                exit
-              end if
-            end do
-
-            if (j == nbond_p + 1) &
-              write(MsgOut,*) &
-                'Setup_Enefunc_Bond_Constraint_Peer> not found BOND: [', &
-                ci1, ']-[', ci2, '] in parameter file. (ERROR)'
-
-          end if
-
-        end if
-
-      else
-
-        do icel = 1, ncel
-          do j = 1, connect
-
-            do k = 1, HGr_local(j,icel)
-              ih1 = id_l2g(HGr_bond_list(1,k,j,icel),icel)
-              do ih = 1, j
-                ih2 = id_l2g(HGr_bond_list(ih+1,k,j,icel),icel)
-
-                if (ih1 == i1 .and. ih2 == i2 .or. &
-                    ih2 == i1 .and. ih1 == i2) then
-
-                  do m = 1, nbond_p
-                    if ((ci1 == par%bond_atom_cls(1, m) .and.  &
-                         ci2 == par%bond_atom_cls(2, m)) .or.  &
-                        (ci1 == par%bond_atom_cls(2, m) .and.  &
-                         ci2 == par%bond_atom_cls(1, m))) then
-
-                      nbond_c = nbond_c + 1
-                      HGr_bond_dist(ih+1,k,j,icel) = par%bond_dist_min(m)
-                      exit
-                    end if
-                  end do
-
-                end if
-
-              end do
-            end do
-
-          end do
-        end do
-
-      end if
-
-    end do
-    constraints%num_bonds = nbond_c
-
-    return
-
-  end subroutine setup_enefunc_bond_constraint_C_peer
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_angl_constraint_C_peer
-  !> @brief        peer routine of sp_enefunc_charmm_mod::
-  !!                                          setup_enefunc_angl_constraint()
-  !! @authors      NT, JJ
-  !! @param[in]    
-  !! @date         2012/10/24 (JJ) - removing angle list of water molecules
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_angl_constraint_C_peer(par, constraints, &
-                                                  domain_index, domain, enefunc)
-
-    ! formal arguments
-    type(s_par),                  intent(in)    :: par
-    type(s_constraints),          intent(in)    :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variables
-    integer                       :: i, j, icel_local
-    integer                       :: icel1, icel2
-    integer                       :: nangl_p
-    integer                       :: list(3)
-    integer                       :: nangl_lst, iangl
-    character(6)                  :: ci1, ci2, ci3
-    character(6)                  :: ri1, ri2, ri3
-
-    real(wp),             pointer :: force(:,:), theta(:,:)
-    real(wp),             pointer :: ubforce(:,:), ubrmin(:,:)
-    integer,              pointer :: ncel
-    integer(int2),        pointer :: cell_pair(:,:)
-    integer,              pointer :: angle(:), alist(:,:,:)
-    integer,              pointer :: iangl_list(:)
-
-
-    iangl_list => domain_index%iangl_list
-
-    ncel       => domain%num_cell_local
-    cell_pair  => domain%cell_pair
-
-    angle      => enefunc%num_angle
-    alist      => enefunc%angle_list
-    force      => enefunc%angle_force_const
-    theta      => enefunc%angle_theta_min
-    ubforce    => enefunc%urey_force_const
-    ubrmin     => enefunc%urey_rmin
-
-    nangl_lst  = domain_index%nangl_list
-    nangl_p    = par%num_angles
-
-
-    do iangl = 1, nangl_lst
-
-      i = iangl_list(iangl)
-
-      list(1) = hm_angl_list(1, i)
-      list(2) = hm_angl_list(2, i)
-      list(3) = hm_angl_list(3, i)
-      ci1 = hm_atom_cls_name(list(1))
-      ci2 = hm_atom_cls_name(list(2))
-      ci3 = hm_atom_cls_name(list(3))
-      ri1 = hm_residue_name(list(1))
-      ri2 = hm_residue_name(list(2))
-      ri3 = hm_residue_name(list(3))
-
-      if (ri1(1:4) /= constraints%water_model .and. &
-          ri2(1:4) /= constraints%water_model .and. &
-          ri3(1:4) /= constraints%water_model) then
-
-        icel1 = domain%id_g2l(1, list(1))
-        icel2 = domain%id_g2l(1, list(3))
-
-        if (icel1 /= 0 .and. icel2 /= 0) then
-
-          icel_local = cell_pair(icel1, icel2)
-
-          if (icel_local >= 1 .and. icel_local <= ncel) then
-
-            do j = 1, nangl_p
-              if ((ci1 == par%angl_atom_cls(1, j) .and. &
-                   ci2 == par%angl_atom_cls(2, j) .and. &
-                   ci3 == par%angl_atom_cls(3, j)) .or. &
-                  (ci1 == par%angl_atom_cls(3, j) .and. &
-                   ci2 == par%angl_atom_cls(2, j) .and. &
-                   ci3 == par%angl_atom_cls(1, j))) then
-
-                angle(icel_local) = angle(icel_local) + 1
-                alist(1:3,angle(icel_local),icel_local) = list(1:3)
-              force  (angle(icel_local),icel_local) = par%angl_force_const(j)
-              theta  (angle(icel_local),icel_local) = par%angl_theta_min(j)*RAD
-              ubforce(angle(icel_local),icel_local) = par%angl_ub_force_const(j)
-              ubrmin (angle(icel_local),icel_local) = par%angl_ub_rmin(j)
-                exit
-
-              end if
-            end do
-
-            if (j == nangl_p + 1) &
-              write(MsgOut,*) &
-                'Setup_Enefunc_Angl_Constraint_Peer> not found ANGL: [', &
-                ci1, ']-[', ci2, ']-[', ci3, '] in parameter file. (ERROR)'
-
-          end if
-
-        end if
-
-      end if
-
-    end do
-
-    return
-
-  end subroutine setup_enefunc_angl_constraint_C_peer
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4670,7 +4734,7 @@ contains
     domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
     domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
     domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
-    if (constraints%tip4 .or. enefunc%table%tip4) then
+    if (constraints%water_type == TIP4 .or. enefunc%table%water_model == "TIP4") then
       enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
       domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
     end if
@@ -4734,30 +4798,15 @@ contains
     call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
 
-    if (.not. constraints%rigid_bond) then
+    ! bond
+    !
+    call setup_enefunc_bond_A_peer(prmtop, domain_index, domain, &
+                                   constraints, enefunc)
 
-      ! bond
-      !
-      call setup_enefunc_bond_A_peer(prmtop, domain_index, domain, enefunc)
 
-
-      ! angle
-      !
-      call setup_enefunc_angl_A_peer(prmtop, domain_index, domain, enefunc)
-
-    else
-
-      ! bond
-      !
-      call setup_enefunc_bond_constraint_A_peer( &
-                           prmtop, constraints, domain_index, domain, enefunc)
-
-      ! angle
-      !
-      call setup_enefunc_angl_constraint_A_peer( &
-                           prmtop, constraints, domain_index, domain, enefunc)
-
-    end if
+    ! angle
+    !
+    call setup_enefunc_angl_A_peer(prmtop, domain_index, domain, enefunc)
 
 
     ! dihedral
@@ -4793,63 +4842,101 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_enefunc_bond_A_peer(prmtop, domain_index, domain, enefunc)
+  subroutine setup_enefunc_bond_A_peer(prmtop, domain_index, domain, &
+                                       constraints, enefunc)
 
     ! formal arguments
     type(s_prmtop),               intent(in)    :: prmtop
     type(s_domain_index), target, intent(in)    :: domain_index
     type(s_domain),       target, intent(in)    :: domain
+    type(s_constraints),  target, intent(in)    :: constraints
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
     integer                  :: i, i1, i2, icel1, icel2
-    integer                  :: icel_local
+    integer                  :: icel_local, connect
+    integer                  :: j, k, ih, ih1, ih2
+    character(6)             :: ri1, ri2
 
     real(wp),        pointer :: force(:,:), dist(:,:)
+    real(wip),       pointer :: HGr_bond_dist(:,:,:,:)
     integer,         pointer :: bond(:), list(:,:,:)
-    integer,         pointer :: ncel
+    integer,         pointer :: ncel, id_l2g(:,:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nbond
+    integer,         pointer :: nbond, bond_pbc(:,:)
+    integer,         pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
 
 
-    ncel      => domain%num_cell_local
-    cell_pair => domain%cell_pair
-    id_g2l    => domain%id_g2l
+    ncel          => domain%num_cell_local
+    cell_pair     => domain%cell_pair
+    id_g2l        => domain%id_g2l
+    id_l2g        => domain%id_l2g_solute
 
-    bond      => enefunc%num_bond
-    list      => enefunc%bond_list
-    force     => enefunc%bond_force_const
-    dist      => enefunc%bond_dist_min
+    HGr_local     => constraints%HGr_local
+    HGr_bond_list => constraints%HGr_bond_list
+    HGr_bond_dist => constraints%HGr_bond_dist
+
+    bond          => enefunc%num_bond
+    list          => enefunc%bond_list
+    force         => enefunc%bond_force_const
+    dist          => enefunc%bond_dist_min
+    bond_pbc      => enefunc%bond_pbc
+
+    connect       =  constraints%connect
 
     do i = 1, prmtop%num_bondh
 
       i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
       i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
+      ri1 = hm_residue_name(i1)
+      ri2 = hm_residue_name(i2)
 
-      icel1 = id_g2l(1,i1)
-      icel2 = id_g2l(1,i2)
+      if (ri1(1:3) /= 'TIP' .and. ri1(1:3) /= 'WAT' .and. &
+          ri1(1:3) /= 'SOL' .and. ri2(1:3) /= 'TIP' .and. &
+          ri2(1:3) /= 'WAT' .and. ri2(1:3) /= 'SOL') then
 
-      if (icel1 /= 0 .and. icel2 /= 0) then
+        i1 = hm_solute_list_inv(i1)
+        i2 = hm_solute_list_inv(i2)
+        icel1 = id_g2l(1,i1)
+        icel2 = id_g2l(1,i2)
 
-        icel_local = cell_pair(icel1,icel2)
+        if (icel1 /= 0 .and. icel2 /= 0) then
 
-        if (icel_local > 0 .and. icel_local <= ncel) then
+          icel_local = cell_pair(icel1,icel2)
 
-          nbond => bond(icel_local)
-          nbond = nbond + 1
+          if (icel_local > 0 .and. icel_local <= ncel) then
 
-          if (nbond > MaxBond) &
-            call error_msg('Setup_Enefunc_Bond_A_Peer> Too many bonds.')
+            nbond => bond(icel_local)
+            nbond = nbond + 1
 
-          list (1,nbond,icel_local) = i1
-          list (2,nbond,icel_local) = i2
-          force(  nbond,icel_local) = &
+            if (nbond > MaxBond) &
+              call error_msg('Setup_Enefunc_Bond_A_Peer> Too many bonds.')
+
+            list (1,nbond,icel_local) = i1
+            list (2,nbond,icel_local) = i2
+            force(  nbond,icel_local) = &
                              prmtop%bond_fcons_uniq(prmtop%bond_inc_hy(3,i))
-          dist (  nbond,icel_local) = &
+            dist (  nbond,icel_local) = &
                              prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
-        end if
+            bond_pbc(nbond,icel_local) = 13
 
+            do j = 1, connect
+              do k = 1, HGr_local(j,icel_local)
+                ih1 = id_l2g(HGr_bond_list(1,k,j,icel_local),icel_local)
+                do ih = 1, j
+                  ih2 = id_l2g(HGr_bond_list(ih+1,k,j,icel_local),icel_local)
+                  if ((ih1 == i1 .and. ih2 == i2) .or. &
+                      (ih2 == i1 .and. ih1 == i2)) then
+                    HGr_bond_dist(ih+1,k,j,icel_local) = &
+                       prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
+                  end if
+                end do
+              end do
+            end do
+ 
+          end if
+        end if
       end if
 
     end do
@@ -4880,6 +4967,7 @@ contains
                              prmtop%bond_fcons_uniq(prmtop%bond_wo_hy(3,i))
           dist (  nbond,icel_local) = &
                              prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
+          bond_pbc(nbond,icel_local) = 13
         end if
 
       end if
@@ -4916,7 +5004,7 @@ contains
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nangl
+    integer,         pointer :: nangl, angl_pbc(:,:,:)
 
 
     ncel      => domain%num_cell_local
@@ -4927,6 +5015,7 @@ contains
     alist     => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
+    angl_pbc  => enefunc%angle_pbc
 
 
     do i = 1, prmtop%num_anglh
@@ -4955,6 +5044,7 @@ contains
                              prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
           theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
+          angl_pbc(1:3,nangl,icel_local) = 13
         end if
 
       end if
@@ -4987,6 +5077,7 @@ contains
                              prmtop%angl_fcons_uniq(prmtop%angl_wo_hy(4,i))
           theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
+          angl_pbc(1:3,nangl,icel_local) = 13
         end if
 
       end if
@@ -5023,7 +5114,7 @@ contains
     integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-    integer,            pointer :: ndihe
+    integer,            pointer :: ndihe, dihe_pbc(:,:,:)
     integer,            pointer :: notation
 
     ncel      => domain%num_cell_local
@@ -5036,6 +5127,7 @@ contains
     phase     => enefunc%dihe_phase
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
+    dihe_pbc  => enefunc%dihe_pbc
 
     notation = 100
     if (prmtop%num_uniqdihe > 100) then
@@ -5077,6 +5169,7 @@ contains
                               prmtop%dihe_phase_uniq(prmtop%dihe_inc_hy(5,i))
           period(  ndihe,icel_local) = &
                               prmtop%dihe_perio_uniq(prmtop%dihe_inc_hy(5,i))
+          dihe_pbc(1:3,ndihe,icel_local) = 13
           if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
             period(ndihe,icel_local) = period(  ndihe,icel_local) &
                             + prmtop%dihe_inc_hy(5,i)*notation
@@ -5120,6 +5213,7 @@ contains
                               prmtop%dihe_phase_uniq(prmtop%dihe_wo_hy(5,i))
           period(  ndihe,icel_local) = &
                               prmtop%dihe_perio_uniq(prmtop%dihe_wo_hy(5,i))
+          dihe_pbc(1:3,ndihe,icel_local) = 13
           if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
             period(ndihe,icel_local) = period(  ndihe,icel_local) &
                             + prmtop%dihe_wo_hy(5,i)*notation
@@ -5155,13 +5249,14 @@ contains
     ! local variables
     integer                     :: i
     integer                     :: i1, i2, i3, i4, icel1, icel2, icel_local
+    integer                     :: ia, ib, ic, id
 
     real(wp),           pointer :: force(:,:), phase(:,:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
     integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-    integer,            pointer :: nimpr
+    integer,            pointer :: nimpr, notation, impr_pbc(:,:,:)
 
 
     ncel      => domain%num_cell_local
@@ -5173,6 +5268,8 @@ contains
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
+    notation  => enefunc%notation_14types
+    impr_pbc  => enefunc%impr_pbc
 
     do i = 1, prmtop%num_diheh
 
@@ -5184,8 +5281,12 @@ contains
       i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
       i4 = iabs(prmtop%dihe_inc_hy(4,i)) / 3 + 1
 
-      icel1 = id_g2l(1,i1)
-      icel2 = id_g2l(1,i4)
+      ia = hm_solute_list_inv(i1)
+      ib = hm_solute_list_inv(i2)
+      ic = hm_solute_list_inv(i3)
+      id = hm_solute_list_inv(i4)
+      icel1 = id_g2l(1,ia)
+      icel2 = id_g2l(1,id)
 
       if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -5199,14 +5300,18 @@ contains
           if (nimpr > MaxImpr) &
             call error_msg('Setup_Enefunc_Impr_A_Peer> Too many impropers.')
 
-          list(1:4,nimpr,icel_local) = (/i1,i2,i3,i4/)
+          list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
           force (  nimpr,icel_local) = &
                               prmtop%dihe_fcons_uniq(prmtop%dihe_inc_hy(5,i))
           phase (  nimpr,icel_local) = &
                               prmtop%dihe_phase_uniq(prmtop%dihe_inc_hy(5,i))
           period(  nimpr,icel_local) = &
                               prmtop%dihe_perio_uniq(prmtop%dihe_inc_hy(5,i))
-
+          impr_pbc(1:3,nimpr,icel_local) = 13
+          if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
+              period(nimpr,icel_local) = period(  nimpr,icel_local) &
+                              + prmtop%dihe_inc_hy(5,i)*notation
+          end if
         end if
 
       end if
@@ -5223,8 +5328,12 @@ contains
       i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
       i4 = iabs(prmtop%dihe_wo_hy(4,i)) / 3 + 1
 
-      icel1 = id_g2l(1,i1)
-      icel2 = id_g2l(1,i4)
+      ia = hm_solute_list_inv(i1)
+      ib = hm_solute_list_inv(i2)
+      ic = hm_solute_list_inv(i3)
+      id = hm_solute_list_inv(i4)
+      icel1 = id_g2l(1,ia)
+      icel2 = id_g2l(1,id)
 
       if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -5238,14 +5347,18 @@ contains
           if (nimpr > MaxImpr) &
             call error_msg('Setup_Enefunc_Impr_A_Peer> Too many impropers.')
 
-          list(1:4,nimpr,icel_local) = (/i1,i2,i3,i4/)
+          list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
           force (  nimpr,icel_local) = &
                               prmtop%dihe_fcons_uniq(prmtop%dihe_wo_hy(5,i))
           phase (  nimpr,icel_local) = &
                               prmtop%dihe_phase_uniq(prmtop%dihe_wo_hy(5,i))
           period(  nimpr,icel_local) = &
                               prmtop%dihe_perio_uniq(prmtop%dihe_wo_hy(5,i))
-
+          impr_pbc(1:3,nimpr,icel_local) = 13
+          if (prmtop%lscee_scale_factor .or. prmtop%lscnb_scale_factor ) then
+            period(nimpr,icel_local) = period(  nimpr,icel_local) &
+                              + prmtop%dihe_wo_hy(5,i)*notation
+          end if
         end if
 
       end if
@@ -5256,283 +5369,6 @@ contains
 
   end subroutine setup_enefunc_impr_A_peer
 
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_bond_constraint_A_peer
-  !> @brief        peer routine of sp_enefunc_amber_mod::
-  !!                                          setup_enefunc_bond_constraint()
-  !! @authors      NT
-  !! @param[in]    
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_bond_constraint_A_peer(prmtop, constraints, &
-                                                 domain_index, domain,  enefunc)
-
-    ! formal arguments
-    type(s_prmtop),               intent(in)    :: prmtop
-    type(s_constraints),  target, intent(inout) :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variables
-    integer                      :: i, j, k, m, ih, icel_local, connect
-    integer                      :: i1, i2, ih1, ih2, icel1, icel2, icel
-    integer                      :: wat_bonds, wat_found, nbond_c
-    integer                      :: tmp_mole_no, mole_no
-    character(6)                 :: ri1, ri2
-
-    real(wp),            pointer :: force(:,:), dist(:,:)
-    real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
-    integer,             pointer :: bond(:), list(:,:,:), ncel
-    integer,             pointer :: id_l2g(:,:)
-    integer(int2),       pointer :: cell_pair(:,:)
-    integer(int2),       pointer :: id_g2l(:,:)
-    integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
-
-
-    ncel          => domain%num_cell_local
-    cell_pair     => domain%cell_pair
-    id_g2l        => domain%id_g2l
-    id_l2g        => domain%id_l2g
-
-    HGr_local     => constraints%HGr_local
-    HGr_bond_list => constraints%HGr_bond_list
-    HGr_bond_dist => constraints%HGr_bond_dist
-
-    bond          => enefunc%num_bond
-    list          => enefunc%bond_list
-    force         => enefunc%bond_force_const
-    dist          => enefunc%bond_dist_min
-
-    connect       =  constraints%connect
-    nbond_c       = 0
-
-    do i = 1, prmtop%num_mbonda
-
-      i1 = prmtop%bond_wo_hy(1,i) / 3 + 1
-      i2 = prmtop%bond_wo_hy(2,i) / 3 + 1
-
-      icel1 = id_g2l(1,i1)
-      icel2 = id_g2l(1,i2)
-
-      if (icel1 /= 0 .and. icel2 /= 0) then
-
-        icel_local = cell_pair(icel1,icel2)
-
-        if (icel_local > 0 .and. icel_local <= ncel) then
-
-          bond(icel_local) = bond(icel_local) + 1
-
-          if (bond(icel_local) > MaxBond) &
-       call error_msg('Setup_Enefunc_Bond_Constraint_A_Peer> Too many bonds.')
-
-          list (1,bond(icel_local),icel_local) = i1
-          list (2,bond(icel_local),icel_local) = i2
-          force(  bond(icel_local),icel_local) = &
-                             prmtop%bond_fcons_uniq(prmtop%bond_wo_hy(3,i))
-          dist (  bond(icel_local),icel_local) = &
-                             prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
-        end if
-
-      end if
-
-    end do
-
-    do i = 1, prmtop%num_bondh
-
-      i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
-      i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
-
-      do icel = 1, ncel
-        do j = 1, connect
-
-          do k = 1, HGr_local(j,icel)
-            ih1 = id_l2g(HGr_bond_list(1,k,j,icel),icel)
-            do ih = 1, j
-              ih2 = id_l2g(HGr_bond_list(ih+1,k,j,icel),icel)
-
-              if (ih1 == i1 .and. ih2 == i2 .or. &
-                  ih2 == i1 .and. ih1 == i2) then
-
-                nbond_c = nbond_c + 1
-                HGr_bond_dist(ih+1,k,j,icel) = &
-                             prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
-
-              end if
-
-            end do
-          end do
-        end do
-      end do
-
-    end do
-
-    ! for water molecule
-    !
-    wat_bonds = 0
-    wat_found = 0
-
-    if (constraints%fast_water) then
-
-      tmp_mole_no = -1
-
-      do i = 1, prmtop%num_bondh
-  
-        i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
-        i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
-  
-        ri1 = hm_residue_name(i1)
-        ri2 = hm_residue_name(i2)
-
-        if (ri1 == constraints%water_model .and. &
-            ri2 == constraints%water_model) then
-
-          wat_bonds = wat_bonds+1
-          mole_no = hm_molecule_no(hm_bond_list(1,i))
-
-          if (mole_no /= tmp_mole_no) then
-            wat_found = wat_found +1
-            tmp_mole_no = mole_no
-          end if
-
-        end if
-
-      end do
-
-      if (wat_found /= enefunc%table%num_water) &
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint_A_Peer> # of water is incorrect')
-
-    end if
-    constraints%num_bonds = nbond_c
-
-    return
-
-  end subroutine setup_enefunc_bond_constraint_A_peer
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_angl_constraint_A_peer
-  !> @brief        peer routine of sp_enefunc_amber_mod::
-  !!                                          setup_enefunc_angl_constraint()
-  !! @authors      NT, JJ
-  !! @param[in]    
-  !! @date         2012/10/24 (JJ) - removing angle list of water molecules
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_angl_constraint_A_peer(prmtop, constraints, &
-                                                  domain_index, domain, enefunc)
-
-    ! formal arguments
-    type(s_prmtop),               intent(in)    :: prmtop
-    type(s_constraints),          intent(in)    :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variables
-    integer                  :: i, i1, i2, i3, icel1, icel2
-    integer                  :: icel_local
-    character(6)             :: res1, res2, res3, res4
-
-    real(wp),        pointer :: force(:,:), theta(:,:)
-    integer,         pointer :: angle(:), alist(:,:,:)
-    integer,         pointer :: ncel
-    integer(int2),   pointer :: cell_pair(:,:)
-    integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nangl
-
-
-    ncel      => domain%num_cell_local
-    cell_pair => domain%cell_pair
-    id_g2l    => domain%id_g2l
-
-    angle     => enefunc%num_angle
-    alist     => enefunc%angle_list
-    force     => enefunc%angle_force_const
-    theta     => enefunc%angle_theta_min
-
-
-    do i = 1, prmtop%num_anglh
-
-      i1 = prmtop%angl_inc_hy(1,i) / 3 + 1
-      i2 = prmtop%angl_inc_hy(2,i) / 3 + 1
-      i3 = prmtop%angl_inc_hy(3,i) / 3 + 1
-
-      res1 = hm_residue_name(i1)
-      res2 = hm_residue_name(i2)
-      res3 = hm_residue_name(i3)
-
-      if (res1 /= constraints%water_model .and. &
-          res2 /= constraints%water_model .and. &
-          res3 /= constraints%water_model) then
-
-        icel1 = id_g2l(1,i1)
-        icel2 = id_g2l(1,i3)
-  
-        if (icel1 /= 0 .and. icel2 /= 0) then
-  
-          icel_local = cell_pair(icel1,icel2)
-  
-          if (icel_local > 0 .and. icel_local <= ncel) then
-  
-            nangl => angle(icel_local)
-            nangl = nangl + 1
-  
-            if (nangl > MaxAngle) &
-       call error_msg('Setup_Enefunc_Angl_Constraint_A_Peer> Too many angles.') 
-  
-            alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
-            force(    nangl,icel_local) = &
-                               prmtop%angl_fcons_uniq(prmtop%angl_inc_hy(4,i))
-            theta(    nangl,icel_local) = &
-                               prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
-          end if
-  
-        end if
-
-      end if
-
-    end do
-
-    do i = 1, prmtop%num_mangla
-
-      i1 = prmtop%angl_wo_hy(1,i) / 3 + 1
-      i2 = prmtop%angl_wo_hy(2,i) / 3 + 1
-      i3 = prmtop%angl_wo_hy(3,i) / 3 + 1
-
-      icel1 = id_g2l(1,i1)
-      icel2 = id_g2l(1,i3)
-
-      if (icel1 /= 0 .and. icel2 /= 0) then
-
-        icel_local = cell_pair(icel1,icel2)
-
-        if (icel_local > 0 .and. icel_local <= ncel) then
-
-          nangl => angle(icel_local)
-          nangl = nangl + 1
-
-          if (nangl > MaxAngle) &
-      call error_msg('Setup_Enefunc_Angl_Constraint_A_Peer> Too many angles.') 
-
-          alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
-          force(    nangl,icel_local) = &
-                             prmtop%angl_fcons_uniq(prmtop%angl_wo_hy(4,i))
-          theta(    nangl,icel_local) = &
-                             prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
-        end if
-
-      end if
-
-    end do
-
-    return
-
-  end subroutine setup_enefunc_angl_constraint_A_peer
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -5700,7 +5536,7 @@ contains
     domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
     domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
 
-    if (constraints%tip4 .or. enefunc%table%tip4) then
+    if (constraints%water_type == TIP4 .or. enefunc%table%water_model == "TIP4") then
       enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
       domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
     end if
@@ -5763,30 +5599,15 @@ contains
     call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
 
-    if (.not. constraints%rigid_bond) then
+    ! bond
+    !
+    call setup_enefunc_bond_G_peer(grotop, constraints, domain_index, &
+                                   domain, enefunc)
 
-      ! bond
-      !
-      call setup_enefunc_bond_G_peer(grotop, domain_index, domain, enefunc)
 
-
-      ! angle
-      !
-      call setup_enefunc_angl_G_peer(grotop, domain_index, domain, enefunc)
-
-    else
-
-      ! bond
-      !
-      call setup_enefunc_bond_constraint_G_peer( &
-                           grotop, constraints, domain_index, domain, enefunc)
-
-      ! angle
-      !
-      call setup_enefunc_angl_constraint_G_peer( &
-                           grotop, constraints, domain_index, domain, enefunc)
-
-    end if
+    ! angle
+    !
+    call setup_enefunc_angl_G_peer(grotop, domain_index, domain, enefunc)
 
 
     ! dihedral
@@ -5832,111 +5653,151 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_enefunc_bond_G_peer(grotop, domain_index, domain, enefunc)
+  subroutine setup_enefunc_bond_G_peer(grotop, constraints, domain_index, &
+                                       domain, enefunc)
 
     ! paramters
     integer, parameter :: WaterIdx(2,3) = reshape((/1,2,1,3,2,3/),shape=(/2,3/))
 
     ! formal arguments
     type(s_grotop),               intent(in)    :: grotop
+    type(s_constraints),  target, intent(in)    :: constraints
     type(s_domain_index), target, intent(in)    :: domain_index
     type(s_domain),       target, intent(in)    :: domain
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    real(wp)                 :: water_dist(3)
-    integer                  :: i, j, k
+    real(wp)                 :: water_dist(3), cwork(3,2), dij(3)
+    real(wp)                 :: m1, m2
+    integer                  :: i, j, k, m, n, connect, ih, ih1, ih2, ia, ib
     integer                  :: ioffset
-    integer                  :: idx1, idx2, icel1, icel2, icel_local
-    integer                  :: nbond_c
+    integer                  :: i1, i2, idx1, idx2, icel1, icel2, icel_local
+    integer                  :: pbc_int
+    character(6)             :: res1, res2
+    character(6)             :: atm1, atm2
+    logical                  :: cl1, cl2
 
     type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: force(:,:), dist(:,:)
+    real(wp),           pointer :: force(:,:), dist(:,:), coord(:,:)
+    real(wp),           pointer :: box_size(:)
+    real(wp),           pointer :: HGr_bond_dist(:,:,:,:)
     integer,            pointer :: bond(:), list(:,:,:)
-    integer,            pointer :: ncel
+    integer,            pointer :: ncel, sollist(:)
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
+    integer,            pointer :: id_l2g(:,:)
+    integer,            pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
+    integer,            pointer :: bond_pbc(:,:)
 
 
-    ncel      => domain%num_cell_local
-    cell_pair => domain%cell_pair
-    id_g2l    => domain%id_g2l
+    ncel          => domain%num_cell_local
+    cell_pair     => domain%cell_pair
+    id_g2l        => domain%id_g2l
+    id_l2g        => domain%id_l2g
+    box_size      => domain%system_size
 
-    bond      => enefunc%num_bond
-    list      => enefunc%bond_list
-    force     => enefunc%bond_force_const
-    dist      => enefunc%bond_dist_min
+    HGr_local     => constraints%HGr_local
+    HGr_bond_list => constraints%HGr_bond_list
+    HGr_bond_dist => constraints%HGr_bond_dist
+    connect       =  constraints%connect
+
+    bond          => enefunc%num_bond
+    list          => enefunc%bond_list
+    force         => enefunc%bond_force_const
+    dist          => enefunc%bond_dist_min
+    bond_pbc      => enefunc%bond_pbc
 
     ioffset   = 0
 
     do i = 1, grotop%num_molss
       gromol => grotop%molss(i)%moltype%mol
-      do j = 1, grotop%molss(i)%count
+      do i1 = 1, grotop%molss(i)%count
 
         if (gromol%settles%func == 0) then
 
           do k = 1, gromol%num_bonds
 
-            idx1 = gromol%bonds(k)%atom_idx1 + ioffset
-            idx2 = gromol%bonds(k)%atom_idx2 + ioffset
+            idx1 = gromol%bonds(k)%atom_idx1
+            idx2 = gromol%bonds(k)%atom_idx2
+            res1 = gromol%atoms(idx1)%residue_name
+            res2 = gromol%atoms(idx2)%residue_name
+            atm1 = gromol%atoms(idx1)%atom_type
+            atm2 = gromol%atoms(idx2)%atom_type
 
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx2)
+            if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
+                res1(1:3) /= 'SOL' .and. res2(1:3) /= 'TIP' .and. &
+                res2(1:3) /= 'WAT' .and. res2(1:3) /= 'SOL') then
 
-            if (icel1 /= 0 .and. icel2 /= 0) then
+              cl1 = (atm1(1:1) /= 'H' .and. atm1(1:1) /= 'h')
+              cl2 = (atm2(1:1) /= 'H' .and. atm2(1:1) /= 'h')
+              if (constraints%hydrogen_type == ConstraintAtomMass) then
+                cl1 = (gromol%atoms(idx1)%mass > LIGHT_ATOM_MASS_LIMIT)
+                cl2 = (gromol%atoms(idx2)%mass > LIGHT_ATOM_MASS_LIMIT)
+              else if (constraints%hydrogen_type == ConstraintAtomBoth) then
+                cl1 = (cl1 .and. &
+                    gromol%atoms(idx1)%mass > LIGHT_ATOM_MASS_LIMIT)
+                cl2 = (cl2 .and. &
+                   gromol%atoms(idx2)%mass > LIGHT_ATOM_MASS_LIMIT)
+              endif
 
-              icel_local = cell_pair(icel1,icel2)
+              idx1 = idx1 + ioffset
+              idx2 = idx2 + ioffset
+              ia   = hm_solute_list_inv(idx1)
+              ib   = hm_solute_list_inv(idx2)
 
-              if (icel_local > 0 .and. icel_local <= ncel) then
+              icel1 = id_g2l(1,ia)
+              icel2 = id_g2l(1,ib)
 
-                if (bond(icel_local)+1 > MaxBond) &
-                  call error_msg('Setup_Enefunc_Bond_G_Peer> Too many bonds.') 
+              if (icel1 /= 0 .and. icel2 /= 0) then
 
-                bond(icel_local) = bond(icel_local) + 1
-                list (1,bond(icel_local),icel_local) = idx1
-                list (2,bond(icel_local),icel_local) = idx2
-                force(  bond(icel_local),icel_local) = &
-                                 gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
-                dist (  bond(icel_local),icel_local) = &
-                                 gromol%bonds(k)%b0 * 10.0_wp
+                icel_local = cell_pair(icel1,icel2)
+
+                if (icel_local > 0 .and. icel_local <= ncel) then
+
+                  if (bond(icel_local)+1 > MaxBond) &
+                    call error_msg('Setup_Enefunc_Bond_G_Peer> Too many bonds.')
+                  bond(icel_local) = bond(icel_local) + 1
+                  list (1,bond(icel_local),icel_local) = ia
+                  list (2,bond(icel_local),icel_local) = ib
+                  force(  bond(icel_local),icel_local) = &
+                          gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+                  dist (  bond(icel_local),icel_local) = &
+                          gromol%bonds(k)%b0 * 10.0_wp
+                  cwork(1,1) = hm_atom_coord(1,idx1)
+                  cwork(2,1) = hm_atom_coord(2,idx1)
+                  cwork(3,1) = hm_atom_coord(3,idx1)
+                  cwork(1,2) = hm_atom_coord(1,idx2)
+                  cwork(2,2) = hm_atom_coord(2,idx2)
+                  cwork(3,2) = hm_atom_coord(3,idx2)
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  bond_pbc(bond(icel_local),icel_local) = pbc_int
+
+                  if (.not.cl1 .or. .not.cl2) then
+                    do m = 1, connect
+                      do n = 1, HGr_local(m,icel_local)
+                        ih1 = id_l2g(HGr_bond_list(1,n,m,icel_local),icel_local)
+                        do ih = 1, m
+                          ih2 = id_l2g(HGr_bond_list(ih+1,n,m,icel_local),icel_local)
+                          if ((ih1 == idx1 .and. ih2 == idx2) .or. &
+                              (ih2 == idx1 .and. ih1 == idx2)) then
+                            HGr_bond_dist(ih+1,n,m,icel_local) = &
+                                     gromol%bonds(k)%b0 * 10.0_wp
+                             goto 1
+                          end if
+
+                        end do
+                      end do
+
+                    end do
+                  end if
+1               continue
+                end if
+ 
               end if
-  
+ 
             end if
-  
-          end do
-
-        else
-
-          water_dist = (/gromol%settles%doh * 10.0_wp, &
-                         gromol%settles%doh * 10.0_wp, &
-                         gromol%settles%dhh * 10.0_wp/)
-
-          do k = 1, 3
-
-            idx1 = WaterIdx(1,k) + ioffset
-            idx2 = WaterIdx(2,k) + ioffset
-
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx2)
-
-            if (icel1 /= 0 .and. icel2 /= 0) then
-
-              icel_local = cell_pair(icel1,icel2)
-
-              if (icel_local > 0 .and. icel_local <= ncel) then
-
-                if (bond(icel_local)+1 > MaxBond) &
-                  call error_msg('Setup_Enefunc_Bond_G_Peer> Too many bonds.') 
-
-                bond(icel_local) = bond(icel_local) + 1
-                list (1,bond(icel_local),icel_local) = idx1
-                list (2,bond(icel_local),icel_local) = idx2
-                force(  bond(icel_local),icel_local) = 0.0_wp
-                dist (  bond(icel_local),icel_local) = water_dist(k)
-              end if
-
-            end if
-
+ 
           end do
 
         end if
@@ -5945,6 +5806,63 @@ contains
 
       end do
     end do
+
+    ! water
+    !
+    ioffset = 0
+    do i = 1, grotop%num_molss
+      gromol => grotop%molss(i)%moltype%mol
+      do j = 1, grotop%molss(i)%count
+        if (gromol%settles%func == 0) then
+
+          do k = 1, gromol%num_bonds
+
+            idx1 = gromol%bonds(k)%atom_idx1
+            idx2 = gromol%bonds(k)%atom_idx2
+            res1 = gromol%atoms(idx1)%residue_name
+            res2 = gromol%atoms(idx2)%residue_name
+            m1   = gromol%atoms(idx1)%mass
+            m2   = gromol%atoms(idx2)%mass
+
+            if (res1(1:3) == 'TIP' .or. res1(1:3) == 'WAT' .or. &
+                res1(1:3) == 'SOL') then
+
+              if (m1 /= m2) then
+                enefunc%table%water_bond_calc_OH = .true.
+                enefunc%table%water_bond_calc = .true.
+                enefunc%table%OH_bond = gromol%bonds(k)%b0 * 10.0_wp
+                enefunc%table%OH_force = &
+                    gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+              else if (m1 == m2 .and. m1 < LIGHT_ATOM_MASS_LIMIT) then
+                enefunc%table%water_bond_calc_HH = .true.
+                enefunc%table%HH_bond = gromol%bonds(k)%b0 * 10.0_wp
+                enefunc%table%HH_force = &
+                    gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
+              end if
+            end if
+
+          end do
+        end if
+      end do
+    end do
+
+    if (.not. enefunc%table%water_bond_calc_OH) then
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+        do j = 1, grotop%molss(i)%count
+          if (gromol%settles%func == 1) then
+            water_dist = (/gromol%settles%doh * 10.0_wp, &
+                           gromol%settles%doh * 10.0_wp, &
+                           gromol%settles%dhh * 10.0_wp/)
+            enefunc%table%water_bond_calc_OH = .true.
+            enefunc%table%OH_bond  = water_dist(1)
+            enefunc%table%OH_force = 0.0_wp
+            enefunc%table%HH_bond  = water_dist(3)
+            enefunc%table%HH_force = 0.0_wp
+          end if
+        end do
+      end do
+    end if
 
     return
 
@@ -5968,26 +5886,31 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: i, j, k
+    integer                  :: i, j, k, ia, ib, ic, pbc_int
     integer                  :: ioffset
     integer                  :: idx1, idx2, idx3, icel1, icel2, icel_local
+    character(6)             :: res1, res2, res3
+    real(wp)                 :: cwork(3,3), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), theta(:,:)
+    real(wp),           pointer :: box_size(:)
     integer,            pointer :: angle(:), list(:,:,:)
     integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
-
+    integer,            pointer :: angl_pbc(:,:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     angle     => enefunc%num_angle
     list      => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
+    angl_pbc  => enefunc%angle_pbc
 
     ioffset   = 0
 
@@ -5999,64 +5922,106 @@ contains
 
           do k = 1, gromol%num_angls
 
-            idx1 = gromol%angls(k)%atom_idx1 + ioffset
-            idx2 = gromol%angls(k)%atom_idx2 + ioffset
-            idx3 = gromol%angls(k)%atom_idx3 + ioffset
+            idx1 = gromol%angls(k)%atom_idx1
+            idx2 = gromol%angls(k)%atom_idx2
+            idx3 = gromol%angls(k)%atom_idx3
 
-            icel1 = id_g2l(1,idx1)
-            icel2 = id_g2l(1,idx3)
+            res1 = gromol%atoms(idx1)%residue_name
+            res2 = gromol%atoms(idx2)%residue_name
+            res3 = gromol%atoms(idx3)%residue_name
 
-            if (icel1 /= 0 .and. icel2 /= 0) then
+            if (res1(1:3) /= 'TIP' .and. res1(1:3) /= 'WAT' .and. &
+                res1(1:3) /= 'SOL') then
 
-              icel_local = cell_pair(icel1,icel2)
+              idx1 = idx1 + ioffset
+              idx2 = idx2 + ioffset
+              idx3 = idx3 + ioffset
+              ia   = hm_solute_list_inv(idx1)
+              ib   = hm_solute_list_inv(idx2)
+              ic   = hm_solute_list_inv(idx3)
 
-              if (icel_local > 0 .and. icel_local <= ncel) then
+              icel1 = id_g2l(1,ia)
+              icel2 = id_g2l(1,ic)
 
-                if (angle(icel_local)+1 > MaxAngle) &
-                  call error_msg('Setup_Enefunc_Angl_G_Peer> Too many angles.') 
+              if (icel1 /= 0 .and. icel2 /= 0) then
 
-                angle(icel_local) = angle(icel_local) + 1
-                list (1:3,angle(icel_local),icel_local) = (/idx1, idx2, idx3/)
-                force(    angle(icel_local),icel_local) = &
+                icel_local = cell_pair(icel1,icel2)
+
+                if (icel_local > 0 .and. icel_local <= ncel) then
+
+                  if (angle(icel_local)+1 > MaxAngle) &
+                    call error_msg('Setup_Enefunc_Angl_G_Peer> Too many angles.') 
+
+                  angle(icel_local) = angle(icel_local) + 1
+                  list (1:3,angle(icel_local),icel_local) = (/idx1, idx2, idx3/)
+                  force(    angle(icel_local),icel_local) = &
                                     gromol%angls(k)%kt * JOU2CAL * 0.5_wp
-                theta(    angle(icel_local),icel_local) = &
+                  theta(    angle(icel_local),icel_local) = &
                                     gromol%angls(k)%theta_0 * RAD
+                  cwork(1,1) = hm_atom_coord(1,idx1)
+                  cwork(2,1) = hm_atom_coord(2,idx1)
+                  cwork(3,1) = hm_atom_coord(3,idx1)
+                  cwork(1,2) = hm_atom_coord(1,idx2)
+                  cwork(2,2) = hm_atom_coord(2,idx2)
+                  cwork(3,2) = hm_atom_coord(3,idx2)
+                  cwork(1,3) = hm_atom_coord(1,idx3)
+                  cwork(2,3) = hm_atom_coord(2,idx3)
+                  cwork(3,3) = hm_atom_coord(3,idx3)
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(3,angle(icel_local),icel_local) = pbc_int
+
+                end if
+
               end if
 
             end if
 
           end do
 
-        else
-
-          idx1 = 2 + ioffset
-          idx2 = 1 + ioffset
-          idx3 = 3 + ioffset
-
-          icel1 = id_g2l(1,idx1)
-          icel2 = id_g2l(1,idx3)
-
-          if (icel1 /= 0 .and. icel2 /= 0) then
-
-            icel_local = cell_pair(icel1,icel2)
-
-            if (icel_local > 0 .and. icel_local <= ncel) then
-
-              if (angle(icel_local)+1 > MaxAngle) &
-                call error_msg('Setup_Enefunc_Angl_G_Peer> Too many angles.') 
-
-              angle(icel_local) = angle(icel_local) + 1
-              list (1:3,angle(icel_local),icel_local) = (/idx1, idx2, idx3/)
-              force(    angle(icel_local),icel_local) = 0.0_wp
-              theta(    angle(icel_local),icel_local) = 0.0_wp
-            end if
-
-          end if
-
         end if
 
         ioffset = ioffset + gromol%num_atoms
 
+      end do
+    end do
+
+    ! water
+    !
+    ioffset = 0
+    do i = 1, grotop%num_molss
+      gromol => grotop%molss(i)%moltype%mol
+      do j = 1, grotop%molss(i)%count
+        if (gromol%settles%func == 0) then
+
+          do k = 1, gromol%num_angls
+
+            idx1 = gromol%angls(k)%atom_idx1
+            idx2 = gromol%angls(k)%atom_idx2
+            idx3 = gromol%angls(k)%atom_idx2
+            res1 = gromol%atoms(idx1)%residue_name
+            res2 = gromol%atoms(idx2)%residue_name
+            res3 = gromol%atoms(idx3)%residue_name
+
+            if (res1(1:3) == 'TIP' .or. res1(1:3) == 'WAT' .or. &
+                res1(1:3) == 'SOL') then
+
+              enefunc%table%HOH_angle = gromol%angls(k)%theta_0 * RAD
+              enefunc%table%HOH_force = &
+                    gromol%angls(k)%kt * JOU2CAL * 0.5_wp
+              if (enefunc%table%HOH_force > 0.0_wp) &
+                  enefunc%table%water_angle_calc = .true.
+
+            end if
+
+          end do
+        end if
       end do
     end do
 
@@ -6082,9 +6047,10 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: i, j, k
+    integer                  :: i, j, k, ia, ib, ic, id, pbc_int
     integer                  :: ioffset
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: force(:,:), phase(:,:)
@@ -6094,11 +6060,13 @@ contains
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
     integer,            pointer :: notation
-
+    real(wp),           pointer :: box_size(:)
+    integer,            pointer :: dihe_pbc(:,:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     dihe      => enefunc%num_dihedral
     list      => enefunc%dihe_list
@@ -6107,6 +6075,7 @@ contains
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
     notation  = 100
+    dihe_pbc  => enefunc%dihe_pbc
 
     ioffset   = 0
 
@@ -6124,9 +6093,13 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
+          ia   = hm_solute_list_inv(idx1)
+          ib   = hm_solute_list_inv(idx2)
+          ic   = hm_solute_list_inv(idx3)
+          id   = hm_solute_list_inv(idx4)
 
-          icel1 = id_g2l(1,idx1)
-          icel2 = id_g2l(1,idx4)
+          icel1 = id_g2l(1,ia)
+          icel2 = id_g2l(1,ib)
 
           if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -6144,6 +6117,28 @@ contains
               force (   ndihe,icel_local) = gromol%dihes(k)%kp * JOU2CAL
               phase (   ndihe,icel_local) = gromol%dihes(k)%ps * RAD
               period(   ndihe,icel_local) = gromol%dihes(k)%multiplicity
+              cwork(1,1) = hm_atom_coord(1,idx1)
+              cwork(2,1) = hm_atom_coord(2,idx1)
+              cwork(3,1) = hm_atom_coord(3,idx1)
+              cwork(1,2) = hm_atom_coord(1,idx2)
+              cwork(2,2) = hm_atom_coord(2,idx2)
+              cwork(3,2) = hm_atom_coord(3,idx2)
+              cwork(1,3) = hm_atom_coord(1,idx3)
+              cwork(2,3) = hm_atom_coord(2,idx3)
+              cwork(3,3) = hm_atom_coord(3,idx3)
+              cwork(1,4) = hm_atom_coord(1,idx4)
+              cwork(2,4) = hm_atom_coord(2,idx4)
+              cwork(3,4) = hm_atom_coord(3,idx4)
+              dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(1,ndihe,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(2,ndihe,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(3,ndihe,icel_local) = pbc_int
+
               if (period(ndihe,icel_local) >  enefunc%notation_14types) &
               call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
             end if
@@ -6180,26 +6175,30 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: i, j, k
+    integer                  :: i, j, k, pbc_int
     integer                  :: ioffset
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    integer                  :: ia, ib, ic, id
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: c(:,:,:)
+    real(wp),           pointer :: c(:,:,:), box_size(:)
     integer,            pointer :: dihe(:), list(:,:,:)
     integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
-
+    integer,            pointer :: dihe_pbc(:,:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     dihe      => enefunc%num_rb_dihedral
     list      => enefunc%rb_dihe_list
     c         => enefunc%rb_dihe_c
+    dihe_pbc  => enefunc%rb_dihe_pbc
 
     ioffset   = 0
 
@@ -6216,9 +6215,13 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
+          ia   = hm_solute_list_inv(idx1)
+          ib   = hm_solute_list_inv(idx2)
+          ic   = hm_solute_list_inv(idx3)
+          id   = hm_solute_list_inv(idx4)
 
-          icel1 = id_g2l(1,idx1)
-          icel2 = id_g2l(1,idx4)
+          icel1 = id_g2l(1,ia)
+          icel2 = id_g2l(1,id)
 
           if (icel1 /= 0 .and. icel2 /= 0) then
 
@@ -6234,6 +6237,27 @@ contains
 
               list (1:4,ndihe,icel_local) = (/idx1, idx2, idx3, idx4/)
               c    (1:6,ndihe,icel_local) = gromol%dihes(k)%c(1:6) * JOU2CAL
+              cwork(1,1) = hm_atom_coord(1,idx1)
+              cwork(2,1) = hm_atom_coord(2,idx1)
+              cwork(3,1) = hm_atom_coord(3,idx1)
+              cwork(1,2) = hm_atom_coord(1,idx2)
+              cwork(2,2) = hm_atom_coord(2,idx2)
+              cwork(3,2) = hm_atom_coord(3,idx2)
+              cwork(1,3) = hm_atom_coord(1,idx3)
+              cwork(2,3) = hm_atom_coord(2,idx3)
+              cwork(3,3) = hm_atom_coord(3,idx3)
+              cwork(1,4) = hm_atom_coord(1,idx4)
+              cwork(2,4) = hm_atom_coord(2,idx4)
+              cwork(3,4) = hm_atom_coord(3,idx4)
+              dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(1,ndihe,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(2,ndihe,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              dihe_pbc(3,ndihe,icel_local) = pbc_int
             end if
 
           end if
@@ -6267,28 +6291,32 @@ contains
     type(s_enefunc),      target, intent(inout) :: enefunc
 
     ! local variables
-    integer                  :: i, j, k
+    integer                  :: i, j, k, pbc_int
     integer                  :: ioffset
     integer                  :: idx1, idx2, idx3, idx4, icel1, icel2, icel_local
+    integer                  :: ia, ib, ic, id
+    real(wp)                 :: cwork(3,4), dij(3)
 
     type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: force(:,:), phase(:,:)
+    real(wp),           pointer :: force(:,:), phase(:,:), box_size(:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
     integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
-
+    integer,            pointer :: impr_pbc(:,:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
+    box_size  => domain%system_size
 
     impr      => enefunc%num_improper
     list      => enefunc%impr_list
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
+    impr_pbc  => enefunc%impr_pbc
 
     ioffset   = 0
 
@@ -6305,6 +6333,10 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
+          ia   = hm_solute_list_inv(idx1)
+          ib   = hm_solute_list_inv(idx2)
+          ic   = hm_solute_list_inv(idx3)
+          id   = hm_solute_list_inv(idx4)
 
           icel1 = id_g2l(1,idx1)
           icel2 = id_g2l(1,idx4)
@@ -6325,6 +6357,28 @@ contains
               force (   nimpr,icel_local) = gromol%dihes(k)%kp * JOU2CAL
               phase (   nimpr,icel_local) = gromol%dihes(k)%ps * RAD
               period(   nimpr,icel_local) = gromol%dihes(k)%multiplicity
+              cwork(1,1) = hm_atom_coord(1,idx1)
+              cwork(2,1) = hm_atom_coord(2,idx1)
+              cwork(3,1) = hm_atom_coord(3,idx1)
+              cwork(1,2) = hm_atom_coord(1,idx2)
+              cwork(2,2) = hm_atom_coord(2,idx2)
+              cwork(3,2) = hm_atom_coord(3,idx2)
+              cwork(1,3) = hm_atom_coord(1,idx3)
+              cwork(2,3) = hm_atom_coord(2,idx3)
+              cwork(3,3) = hm_atom_coord(3,idx3)
+              cwork(1,4) = hm_atom_coord(1,idx4)
+              cwork(2,4) = hm_atom_coord(2,idx4)
+              cwork(3,4) = hm_atom_coord(3,idx4)
+              dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+              call check_pbc(box_size, dij, pbc_int)
+              impr_pbc(1,nimpr,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,2) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              impr_pbc(2,nimpr,icel_local) = pbc_int
+              dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
+              call check_pbc(box_size, dij, pbc_int)
+              impr_pbc(3,nimpr,icel_local) = pbc_int
+
             end if
 
           end if
@@ -6340,297 +6394,6 @@ contains
 
   end subroutine setup_enefunc_impr_G_peer
 
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_bond_constraint_G_peer
-  !> @brief        peer routine of sp_enefunc_gromacs_mod::
-  !!                                          setup_enefunc_bond_constraint()
-  !! @authors      NT
-  !! @param[in]    
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_bond_constraint_G_peer(grotop, constraints, &
-                                                 domain_index, domain,  enefunc)
-
-    ! paramters
-    integer, parameter :: WaterIdx(2,3) = reshape((/1,2,1,3,2,3/),shape=(/2,3/))
-
-    ! formal arguments
-    type(s_grotop),               intent(in)    :: grotop
-    type(s_constraints),  target, intent(inout) :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variables
-    real(wp)                 :: water_dist(3)
-    integer                  :: i, j, k, m, n
-    integer                  :: ioffset
-    integer                  :: icel, connect, ih, ih1, ih2, nbond_c
-    integer                  :: i1, i2, idx1, idx2, icel1, icel2, icel_local
-    character(4)             :: atm1, atm2
-    character(6)             :: res1, res2
-
-    type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: force(:,:), dist(:,:)
-    real(wip),          pointer :: HGr_bond_dist(:,:,:,:)
-    integer,            pointer :: bond(:), list(:,:,:)
-    integer,            pointer :: ncel
-    integer(int2),      pointer :: cell_pair(:,:)
-    integer,            pointer :: id_l2g(:,:)
-    integer(int2),      pointer :: id_g2l(:,:)
-    integer,            pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
-
-
-    ncel          => domain%num_cell_local
-    cell_pair     => domain%cell_pair
-    id_g2l        => domain%id_g2l
-    id_l2g        => domain%id_l2g
-
-    HGr_local     => constraints%HGr_local
-    HGr_bond_list => constraints%HGr_bond_list
-    HGr_bond_dist => constraints%HGr_bond_dist
-    connect       =  constraints%connect
-
-    bond          => enefunc%num_bond
-    list          => enefunc%bond_list
-    force         => enefunc%bond_force_const
-    dist          => enefunc%bond_dist_min
-
-    ioffset   = 0
-    nbond_c   = 0
-
-    do i = 1, grotop%num_molss
-      gromol => grotop%molss(i)%moltype%mol
-      do j = 1, grotop%molss(i)%count
-
-        if (gromol%settles%func == 0) then
-
-          do k = 1, gromol%num_bonds
-
-            i1 = gromol%bonds(k)%atom_idx1
-            i2 = gromol%bonds(k)%atom_idx2
-
-            atm1 = gromol%atoms(i1)%atom_type
-            atm2 = gromol%atoms(i2)%atom_type
-
-            idx1 = i1 + ioffset
-            idx2 = i2 + ioffset
-
-            if (atm1(1:1) /= 'H' .and. atm2(1:1) /= 'H' .and. &
-                atm1(1:1) /= 'h' .and. atm2(1:1) /= 'h') then
-
-              icel1 = id_g2l(1,idx1)
-              icel2 = id_g2l(1,idx2)
-
-              if (icel1 /= 0 .and. icel2 /= 0) then
-
-                icel_local = cell_pair(icel1,icel2)
-
-                if (icel_local > 0 .and. icel_local <= ncel) then
-
-                  if (bond(icel_local)+1 > MaxBond) &
-        call error_msg('Setup_Enefunc_Bond_Constraint_G_Peer> Too many bonds.') 
-
-                  bond(icel_local) = bond(icel_local) + 1
-                  list (1,bond(icel_local),icel_local) = idx1
-                  list (2,bond(icel_local),icel_local) = idx2
-                  force(  bond(icel_local),icel_local) = &
-                                 gromol%bonds(k)%kb * 0.01_wp * JOU2CAL * 0.5_wp
-                  dist (  bond(icel_local),icel_local) = &
-                                 gromol%bonds(k)%b0 * 10.0_wp
-                end if
-
-              end if
-
-            else
-
-              do icel = 1, ncel
-                do m = 1, connect
-
-                  do n = 1, HGr_local(m,icel)
-                    ih1 = id_l2g(HGr_bond_list(1,n,m,icel),icel)
-                    do ih = 1, m
-                      ih2 = id_l2g(HGr_bond_list(ih+1,n,m,icel),icel)
-
-                      if (ih1 == idx1 .and. ih2 == idx2 .or. &
-                          ih2 == idx1 .and. ih1 == idx2) then
-
-                        nbond_c = nbond_c + 1
-                        HGr_bond_dist(ih+1,n,m,icel) = &
-                                   gromol%bonds(k)%b0 * 10.0_wp
-
-                        goto 1
-
-                      end if
-
-                    end do
-                  end do
-
-                end do
-              end do
-  1           continue
-
-            end if
-
-          end do
-
-        else
-
-          water_dist = (/gromol%settles%doh * 10.0_wp, &
-                         gromol%settles%doh * 10.0_wp, &
-                         gromol%settles%dhh * 10.0_wp/)
-
-          do k = 1, 3
-
-            idx1 = WaterIdx(1,k) + ioffset
-            idx2 = WaterIdx(2,k) + ioffset
-
-            do icel = 1, ncel
-              do m = 1, connect
-
-                do n = 1, HGr_local(m,icel)
-                  ih1 = id_l2g(HGr_bond_list(1,n,m,icel),icel)
-                  do ih = 1, m
-                    ih2 = id_l2g(HGr_bond_list(ih+1,n,m,icel),icel)
-
-                    if (ih1 == idx1 .and. ih2 == idx2 .or. &
-                        ih2 == idx1 .and. ih1 == idx2) then
-
-                      HGr_bond_dist(ih+1,n,m,icel) = water_dist(k)
-  
-                      goto 2
-
-                    end if
-
-                  end do
-                end do
-
-              end do
-            end do
-2           continue
-
-          end do
-
-        end if
-
-        ioffset   = ioffset   + gromol%num_atoms
-
-      end do
-    end do
-    constraints%num_bonds = nbond_c
-
-    return
-
-  end subroutine setup_enefunc_bond_constraint_G_peer
-
-  !======1=========2=========3=========4=========5=========6=========7=========8
-  !
-  !  Subroutine    setup_enefunc_angl_constraint_G_peer
-  !> @brief        peer routine of sp_enefunc_gromacs_mod::
-  !!                                          setup_enefunc_angl_constraint()
-  !! @authors      NT, JJ
-  !! @param[in]    
-  !! @date         2012/10/24 (JJ) - removing angle list of water molecules
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine setup_enefunc_angl_constraint_G_peer(grotop, constraints, &
-                                                  domain_index, domain, enefunc)
-
-    ! formal arguments
-    type(s_grotop),               intent(in)    :: grotop
-    type(s_constraints),          intent(in)    :: constraints
-    type(s_domain_index), target, intent(in)    :: domain_index
-    type(s_domain),       target, intent(in)    :: domain
-    type(s_enefunc),      target, intent(inout) :: enefunc
-
-    ! local variables
-    integer                  :: i, j, k
-    integer                  :: ioffset, icel_local
-    integer                  :: i1, i2, i3, idx1, idx2, idx3, icel1, icel2
-    character(6)             :: res1, res2, res3
-
-    type(s_grotop_mol), pointer :: gromol
-    real(wp),           pointer :: force(:,:), theta(:,:)
-    integer,            pointer :: angle(:), list(:,:,:)
-    integer,            pointer :: ncel
-    integer(int2),      pointer :: cell_pair(:,:)
-    integer(int2),      pointer :: id_g2l(:,:)
-
-
-    ncel      => domain%num_cell_local
-    cell_pair => domain%cell_pair
-    id_g2l    => domain%id_g2l
-
-    angle     => enefunc%num_angle
-    list      => enefunc%angle_list
-    force     => enefunc%angle_force_const
-    theta     => enefunc%angle_theta_min
-
-    ioffset   = 0
-
-    do i = 1, grotop%num_molss
-      gromol => grotop%molss(i)%moltype%mol
-      do j = 1, grotop%molss(i)%count
-
-        if (gromol%settles%func == 0) then
-
-          do k = 1, gromol%num_angls
-
-            i1 = gromol%angls(k)%atom_idx1
-            i2 = gromol%angls(k)%atom_idx2
-            i3 = gromol%angls(k)%atom_idx3
-
-            res1 = gromol%atoms(i1)%residue_name
-            res2 = gromol%atoms(i2)%residue_name
-            res3 = gromol%atoms(i3)%residue_name
-
-            if (res1(1:4) /= constraints%water_model .and. &
-                res2(1:4) /= constraints%water_model .and. &
-                res3(1:4) /= constraints%water_model) then
-
-              idx1 = i1 + ioffset
-              idx2 = i2 + ioffset
-              idx3 = i3 + ioffset
-
-              icel1 = id_g2l(1,idx1)
-              icel2 = id_g2l(1,idx3)
-
-              if (icel1 /= 0 .and. icel2 /= 0) then
-
-                icel_local = cell_pair(icel1,icel2)
-
-                if (icel_local > 0 .and. icel_local <= ncel) then
-
-                  if (angle(icel_local)+1 > MaxAngle) &
-        call error_msg('Setup_Enefunc_Angl_Constraint_G_Peer> Too many angles.')
-
-                  angle(icel_local) = angle(icel_local) + 1
-                  list (1:3,angle(icel_local),icel_local) = (/idx1,idx2,idx3/)
-                  force(    angle(icel_local),icel_local) = &
-                                      gromol%angls(k)%kt * JOU2CAL * 0.5_wp
-                  theta(    angle(icel_local),icel_local) = &
-                                      gromol%angls(k)%theta_0 * RAD
-                end if
-
-              end if
-
-            end if
-
-          end do
-
-        end if
-
-        ioffset   = ioffset   + gromol%num_atoms
-
-      end do
-    end do
-
-    return
-
-  end subroutine setup_enefunc_angl_constraint_G_peer
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -6724,7 +6487,6 @@ contains
 
     end do
     enefunc%num_atoms_bonds_restraint = k
-
 
     call alloc_enefunc(enefunc, EneFuncRest, ncel, 1)
 
@@ -6832,43 +6594,39 @@ contains
 
       do j = 1, nnonb
 
-        ! combination rule
-        !
-        if (grotop%num_nbonparms == 0) then
+        vi = grotop%atomtypes(i)%v
+        vj = grotop%atomtypes(j)%v
+        wi = grotop%atomtypes(i)%w
+        wj = grotop%atomtypes(j)%w
 
-          vi = grotop%atomtypes(i)%v
-          vj = grotop%atomtypes(j)%v
-          wi = grotop%atomtypes(i)%w
-          wj = grotop%atomtypes(j)%w
+        if (grotop%defaults%combi_rule == 2) then
 
-          if (grotop%defaults%combi_rule == 2) then
+          si = vi * 10.0_wp
+          sj = vj * 10.0_wp
 
-            si = vi * 10.0_wp
-            sj = vj * 10.0_wp
+          ei = wi * JOU2CAL
+          ej = wj * JOU2CAL
 
-            ei = wi * JOU2CAL
-            ej = wj * JOU2CAL
+          sig = (si + sj) * 0.5_wp
+          eps = sqrt(ei * ej)
 
-            sig = (si + sj) * 0.5_wp
-            eps = sqrt(ei * ej)
+          c6  = 4.0_wp * eps * (sig ** 6)
+          c12 = 4.0_wp * eps * (sig ** 12)
 
-            c6  = 4.0_wp * eps * (sig ** 6)
-            c12 = 4.0_wp * eps * (sig ** 12)
+        else ! combi_rule == 1 or 3
 
-          else ! combi_rule == 1 or 3
+          c6i  = vi * 1000000.0_wp * JOU2CAL
+          c6j  = vj * 1000000.0_wp * JOU2CAL
 
-            c6i  = vi * 1000000.0_wp * JOU2CAL
-            c6j  = vj * 1000000.0_wp * JOU2CAL
+          c12i = wi * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+          c12j = wj * 1000000.0_wp * 1000000.0_wp * JOU2CAL
 
-            c12i = wi * 1000000.0_wp * 1000000.0_wp * JOU2CAL
-            c12j = wj * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+          c6  = sqrt(c6i  * c6j)
+          c12 = sqrt(c12i * c12j)
 
-            c6  = sqrt(c6i  * c6j)
-            c12 = sqrt(c12i * c12j)
+        end if
 
-          end if
-
-        else
+        if (grotop%num_nbonparms > 0) then
 
           vij = 0.0_wp
           wij = 0.0_wp
@@ -6890,24 +6648,25 @@ contains
             end if
           end do
 
-          if (vij == 0.0_wp .or. wij == 0.0_wp) &
-       call error_msg('Setup_Enefunc_Nonb_G_Peer_0> combination is not found.')
+          if (abs(vij) > eps .and. abs(wij) > eps) then
 
-          if (grotop%defaults%combi_rule == 2) then
+            if (grotop%defaults%combi_rule == 2) then
 
-            sig = vij * 10.0_wp
-            eps = wij * JOU2CAL
+              sig = vij * 10.0_wp
+              eps = wij * JOU2CAL
 
-            c6  = 4.0_wp * eps * (sig ** 6)
-            c12 = 4.0_wp * eps * (sig ** 12)
+              c6  = 4.0_wp * eps * (sig ** 6)
+              c12 = 4.0_wp * eps * (sig ** 12)
 
-          else ! combi_rule = 1 or 3
+            else ! combi_rule = 1 or 3
 
-            c6  = vij * 1000000.0_wp * JOU2CAL
-            c12 = wij * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+              c6  = vij * 1000000.0_wp * JOU2CAL
+              c12 = wij * 1000000.0_wp * 1000000.0_wp * JOU2CAL
+
+            end if
 
           end if
-
+       
         end if
 
         ! set parameters
@@ -6983,7 +6742,7 @@ contains
         domain%atom_cls_no(ix,i) = atmcls_map_g2l(domain%atom_cls_no(ix,i))
       end do
     end do
-    if (constraints%rigid_bond .or. enefunc%table%water_table) then
+    if (enefunc%table%num_water > 0) then
       domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
       domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
       domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
@@ -6991,6 +6750,10 @@ contains
         atmcls_map_g2l(domain%water%atom_cls_no(1:3))
       enefunc%table%atom_cls_no_O = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
       enefunc%table%atom_cls_no_H = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
+      if (constraints%water_type == TIP4) then
+        enefunc%table%atom_cls_no_D =atmcls_map_g2l(enefunc%table%atom_cls_no_D)
+        domain%water%atom_cls_no(4) =atmcls_map_g2l(domain%water%atom_cls_no(4))
+      end if
     endif
 
     deallocate(check_cls,     &
@@ -7007,6 +6770,49 @@ contains
 
   end subroutine setup_enefunc_nonb_G_peer
 
+  subroutine check_pbc(box_size, dij, pbc_int)
+
+    real(wp),         intent(in)    :: box_size(:)
+    real(wp),         intent(inout) :: dij(:)
+    integer,          intent(inout) :: pbc_int
+
+    integer                  :: i, j, k
+
+    if (dij(1) > box_size(1)/2.0_dp) then
+      i = 0
+      dij(1) = dij(1) - box_size(1)
+    else if (dij(1) < -box_size(1)/2.0_dp) then
+      i = 2
+      dij(1) = dij(1) + box_size(1)
+    else
+      i = 1
+    end if
+
+    if (dij(2) > box_size(2)/2.0_dp) then
+      j = 0
+      dij(2) = dij(2) - box_size(2)
+    else if (dij(2) < -box_size(2)/2.0_dp) then
+      j = 2
+      dij(2) = dij(2) + box_size(2)
+    else
+      j = 1
+    end if
+
+    if (dij(3) > box_size(3)/2.0_dp) then
+      k = 0
+      dij(3) = dij(3) - box_size(3)
+    else if (dij(3) < -box_size(3)/2.0_dp) then
+      k = 2
+      dij(3) = dij(3) + box_size(3)
+    else
+      k = 1
+    end if
+
+    pbc_int = i + j*3 + k*9
+
+    return
+
+  end subroutine check_pbc
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

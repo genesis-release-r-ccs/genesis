@@ -2,7 +2,8 @@
 !
 !  Module   fileio_crd_mod
 !> @brief   read coordinate data from CHARMM CRD file
-!! @authors Yuji Sugita (YS), Jaewoon Jung (JJ), Takaharu Mori (TM)
+!! @authors Yuji Sugita (YS), Jaewoon Jung (JJ), Takaharu Mori (TM), 
+!!          Kenta YAMADA (KYMD), Kiyoshi Yagi (KY)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -27,11 +28,12 @@ module fileio_crd_mod
   type, public :: s_crd
 
      integer                       :: num_atoms = 0
-     character(4),     allocatable :: atom_name(:)
-     character(6),     allocatable :: residue_name(:)
+     character(4),     allocatable :: atom_name(:)    
+     character(6),     allocatable :: residue_name(:) 
      character(4),     allocatable :: segment_name(:)
      integer,          allocatable :: atom_no(:)
      integer,          allocatable :: residue_no(:)
+     integer,          allocatable :: residue_id(:)
      real(wp),         allocatable :: atom_coord(:,:)
 
   end type s_crd
@@ -91,21 +93,30 @@ contains
   !
   !  Subroutine    output_crd
   !> @brief        a driver subroutine for writing CHARMM CRD file
-  !! @authors      YS
+  !! @authors      YS, KY
   !! @param[in]    crd_filename : filename of CRD file
   !! @param[in]    crd          : structure of CRD information
+  !! @param[optional]   ioext   : write in an extended form, if true
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine output_crd(crd_filename, crd)
+  subroutine output_crd(crd_filename, crd, ioext)
 
     ! formal arguments
     character(*),            intent(in)    :: crd_filename
     type(s_crd),             intent(in)    :: crd
+    logical, optional                      :: ioext
    
     ! local variables
     integer                  :: file
+    logical                  :: lio
     
+
+    if (present(ioext)) then
+       lio = ioext
+    else
+       lio = .false.
+    end if
 
     ! open CRD file
     !
@@ -113,7 +124,7 @@ contains
 
     ! write coordinate data from CRD file
     !
-    call write_crd(file, crd)
+    call write_crd(file, crd, lio)
 
     ! close CRD file
     !
@@ -138,7 +149,7 @@ contains
     type(s_crd),             intent(inout) :: crd
 
 
-    crd%num_atoms        = 0
+    crd%num_atoms = 0
 
     return
 
@@ -148,7 +159,7 @@ contains
   !
   !  Subroutine    alloc_crd
   !> @brief        allocate CHARMM CRD information
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[inout] crd      : structure of CHARMM CRD information
   !! @param[in]    variable : selected variable
   !! @param[in]    var_size : size of the selected variable
@@ -185,6 +196,7 @@ contains
                    crd%segment_name, &
                    crd%atom_no,      &
                    crd%residue_no,   &
+                   crd%residue_id,   &
                    crd%atom_coord,   &
                    stat = dealloc_stat)
       end if
@@ -194,6 +206,7 @@ contains
                crd%segment_name(var_size), &
                crd%atom_no(var_size),      &
                crd%residue_no(var_size),   &
+               crd%residue_id(var_size),   &
                crd%atom_coord(3,var_size), &
                stat = alloc_stat)
 
@@ -202,6 +215,7 @@ contains
       crd%segment_name  (1:var_size) = ''
       crd%atom_no       (1:var_size) = 0
       crd%residue_no    (1:var_size) = 0
+      crd%residue_id    (1:var_size) = 0
       crd%atom_coord(1:3,1:var_size) = 0.0_wp
 
     case default
@@ -221,7 +235,7 @@ contains
   !
   !  Subroutine    dealloc_crd
   !> @brief        deallocate CHARMM CRD information
-  !! @authors      YS
+  !! @authors      YS, KYMD
   !! @param[inout] crd      : structure of CHARMM CRD information
   !! @param[in]    variable : selected variable
   !
@@ -253,6 +267,7 @@ contains
                    crd%segment_name, &
                    crd%atom_no,      &
                    crd%residue_no,   &
+                   crd%residue_id,   &
                    crd%atom_coord,   &
                    stat = dealloc_stat)
       end if
@@ -292,9 +307,9 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    read_crd
+  !  Subroutine    read_crds
   !> @brief        read data from CHARMM CRD file
-  !! @authors      YS, JJ, TM
+  !! @authors      YS, JJ, TM, KYMD
   !! @param[in]    file : unit number of CHARMM CRD file
   !! @param[out]   crd  : CHARMM CRD data
   !
@@ -309,7 +324,7 @@ contains
     ! local variables
     character(MaxLine)       :: line
     integer                  :: natm, i, j
-    character(8)             :: cres_nm, catm_nm, cseg_nm
+    character(8)             :: cres_nm, catm_nm, cseg_nm, cres_id
     character(5)             :: flag
 
 
@@ -327,25 +342,30 @@ contains
       read(file,'(a120)') line
 
       if (natm >= 100000 .or. flag == '  EXT') then
-        read(line,'(i10,i10,2x,a8,2x,a8,3f20.10,2x,a8)') &
+        read(line,'(i10,i10,2x,a8,2x,a8,3f20.10,2x,a8,2x,a8)') &      
              crd%atom_no(i),              &
              crd%residue_no(i),           &
              cres_nm,                     &
              catm_nm,                     &
              (crd%atom_coord(j,i),j=1,3), &
-             cseg_nm
+             cseg_nm,                     &
+             cres_id
 
         crd%residue_name(i) = cres_nm(1:6)
         crd%atom_name(i)    = catm_nm(1:4)
         crd%segment_name(i) = cseg_nm(1:4)
+        read(cres_id, '(i8)') crd%residue_id(i)
       else
-        read(line,'(i5,i5,1x,a4,1x,a4,3f10.5,1x,a4)') &
+        read(line,'(i5,i5,1x,a4,1x,a4,3f10.5,1x,a4,1x,a4)') &
              crd%atom_no(i),              &
              crd%residue_no(i),           &
              crd%residue_name(i),         &
              crd%atom_name(i),            &
              (crd%atom_coord(j,i),j=1,3), &
-             crd%segment_name(i)
+             crd%segment_name(i),         &
+             cres_id
+
+        read(cres_id(1: 4), '(i4)') crd%residue_id(i)
       end if
 
     end do
@@ -370,17 +390,19 @@ contains
   !
   !  Subroutine    write_crd
   !> @brief        write data from CHARMM CRD file
-  !! @authors      YS
-  !! @param[in]    file : unit number of CHARMM CRD file
-  !! @param[in]    crd  : CHARMM CRD data
+  !! @authors      YS, KYMD, KY
+  !! @param[in]    file  : unit number of CHARMM CRD file
+  !! @param[in]    crd   : CHARMM CRD data
+  !! @param[in]    ioext : write in an extended form, if true
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine write_crd(file, crd)
+  subroutine write_crd(file, crd, ioext)
 
     ! formal arugments
     integer,                 intent(in)    :: file
     type(s_crd),             intent(in)    :: crd
+    logical,                 intent(in)    :: ioext
 
     ! local variables
     integer                  :: natm, i, j
@@ -391,27 +413,38 @@ contains
     if (.not.allocated(crd%atom_coord)) &
       call error_msg('Write_Crd> not allocated: crd%atom_coord')
 
-    write(file,'(i10)') natm
+    if (ioext) then
+      write(file,'(i10,''  EXT'')') natm
+      do i = 1, natm
+          ! SI: Original source code
+          !write(file,'(i10,i10,1x,a9,1x,a9,3f20.10,1x,a9,1x,i9)') &
+          ! SI: Correct CHARMM EXT Format
+          !write(line,'(i10,i10,2x,a8,2x,a8,3f20.10,2x,a8,2x,a8)') &
+          ! SI: Pseudo CHARMM EXT Format for GENESIS
+          write(file, '(i10,i10,2x,a4,6x,a4,4x,3f20.10,2x,a4,6x,i0)') &
+                crd%atom_no(i),              &
+                crd%residue_no(i),           &
+                crd%residue_name(i),         &
+                crd%atom_name(i),            &
+                (crd%atom_coord(j,i),j=1,3), &
+                crd%segment_name(i),         &
+                crd%residue_id(i)
+      end do
 
-    do i = 1, natm
-      if (natm < 100000) then
-        write(file,'(i5,i5,1x,a4,1x,a4,3f10.5,1x,a4)') &
-              crd%atom_no(i),              &
-              crd%residue_no(i),           &
-              crd%residue_name(i),         &
-              crd%atom_name(i),            &
-              (crd%atom_coord(j,i),j=1,3), &
-              crd%segment_name(i)
-      else
-        write(file,'(i10,i10,1x,a9,1x,a9,3f20.10,1x,a9)') &
-              crd%atom_no(i),              &
-              crd%residue_no(i),           &
-              crd%residue_name(i),         &
-              crd%atom_name(i),            &
-              (crd%atom_coord(j,i),j=1,3), &
-              crd%segment_name(i)
-      end if
-    end do
+    else
+      write(file,'(i5)') natm
+      do i = 1, natm
+          write(file,'(i5,i5,1x,a4,1x,a4,3f10.5,1x,a4,1x,i4)') &
+                crd%atom_no(i),              &
+                crd%residue_no(i),           &
+                crd%residue_name(i),         &
+                crd%atom_name(i),            &
+                (crd%atom_coord(j,i),j=1,3), &
+                crd%segment_name(i),         &
+                crd%residue_id(i)
+      end do
+
+    end if
 
     return
 

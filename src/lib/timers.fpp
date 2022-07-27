@@ -2,9 +2,9 @@
 !
 !  Module   timers_mod
 !> @brief   process timer (msec)
-!! @authors Yuji Sugita (YS), Takaharu Mori (TM), Naoyuki Miyashita (NM), 
+!! @authors Yuji Sugita (YS), Takaharu Mori (TM), Naoyuki Miyashita (NM),
 !!          Norio Takase (NT), Kiyoshi Yagi (KY)
-! 
+!
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
 !--------1---------2---------3---------4---------5---------6---------7---------8
@@ -18,11 +18,16 @@ module timers_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! parameters
@@ -65,9 +70,24 @@ module timers_mod
   integer, public, parameter :: TimerSolvation  = 32
   integer, public, parameter :: TimerGB         = 33
   integer, public, parameter :: TimerSA         = 34
+  integer, public, parameter :: TimerCompBrown  = 35
+  integer, public, parameter :: TimerCompMob    = 36
+  integer, public, parameter :: TimerMorph      = 37
+  integer, public, parameter :: TimerBaseStack  = 38
+  integer, public, parameter :: TimerBasePair   = 39
+  integer, public, parameter :: TimerCGDNAexv   = 40
+  integer, public, parameter :: TimerCGDebye    = 41
+  integer, public, parameter :: TimerCGPWMcos   = 42
+  integer, public, parameter :: TimerCGPWMcosns = 43
+  integer, public, parameter :: TimerCGexv      = 44
+  integer, public, parameter :: TimerContact    = 45
+  integer, public, parameter :: TimerCGIDRHPS   = 46
+  integer, public, parameter :: TimerCGIDRKH    = 47
+  integer, public, parameter :: TimerCGKH       = 48
 
   integer,         parameter :: InvalidID       = -1
-  integer,         parameter :: NumTimers = 34  !< total number of timers
+  integer,         parameter :: NumTimers       = 48  !< total number of timers
+  integer,         parameter :: MaxProc         = 100 !< maximum number of processes
 
   ! variables
   real(dp),        public    :: total_time(NumTimers)
@@ -131,8 +151,8 @@ contains
     integer                       :: i, j, alloc_stat, dealloc_stat
     integer                       :: num_realnodes, num_recipnodes
 
-    real(dp)        , allocatable :: tottime(:,:), avetime(:), sumtime(:)
-    real(dp)        , allocatable :: maxtime(:), mintime(:)
+    real(dp),         allocatable :: tottime(:,:), avetime(:), sumtime(:)
+    real(dp),         allocatable :: maxtime(:), mintime(:)
     logical,          allocatable :: node_real(:), node_recip(:)
 
 
@@ -148,7 +168,7 @@ contains
              stat=alloc_stat)
     if (alloc_stat /= 0) call error_msg_alloc
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allgather(total_time, NumTimers, mpi_double_precision, &
                        tottime,    NumTimers, mpi_double_precision, &
                        mpi_comm_world, ierror)
@@ -199,6 +219,17 @@ contains
       avetime(TimerBond)       = sumtime(TimerBond)       / num_realnodes
       avetime(TimerAngle)      = sumtime(TimerAngle)      / num_realnodes
       avetime(TimerDihedral)   = sumtime(TimerDihedral)   / num_realnodes
+      avetime(TimerBaseStack)  = sumtime(TimerBaseStack)  / num_realnodes
+      avetime(TimerBasePair)   = sumtime(TimerBasePair)   / num_realnodes
+      avetime(TimerCGDNAexv)   = sumtime(TimerCGDNAexv)   / num_realnodes
+      avetime(TimerCGDebye)    = sumtime(TimerCGDebye)    / num_realnodes
+      avetime(TimerCGPWMcos)   = sumtime(TimerCGPWMcos)   / num_realnodes
+      avetime(TimerCGPWMcosns) = sumtime(TimerCGPWMcosns) / num_realnodes
+      avetime(TimerCGexv)      = sumtime(TimerCGexv)      / num_realnodes
+      avetime(TimerContact)    = sumtime(TimerContact)    / num_realnodes
+      avetime(TimerCGIDRHPS)   = sumtime(TimerCGIDRHPS)   / num_realnodes
+      avetime(TimerCGIDRKH)    = sumtime(TimerCGIDRKH)    / num_realnodes
+      avetime(TimerCGKH)       = sumtime(TimerCGKH)       / num_realnodes
       avetime(TimerRestraint)  = sumtime(TimerRestraint)  / num_realnodes
       avetime(TimerNonBond)    = sumtime(TimerNonBond)    / nproc_world
       avetime(TimerPmeReal)    = sumtime(TimerPmeReal)    / num_realnodes
@@ -218,9 +249,9 @@ contains
       avetime(TimerSolvation)  = sumtime(TimerSolvation)  / nproc_world
       avetime(TimerGB)         = sumtime(TimerGB)         / nproc_world
       avetime(TimerSA)         = sumtime(TimerSA)         / nproc_world
-  
+
       avetime(TimerQMMM ) = sumtime(TimerQMMM ) / nproc_world
-  
+
       avetime(TimerTest1) = sumtime(TimerTest1) / nproc_world
       avetime(TimerTest2) = sumtime(TimerTest2) / nproc_world
       avetime(TimerTest3) = sumtime(TimerTest3) / nproc_world
@@ -232,8 +263,14 @@ contains
       avetime(TimerTest9) = sumtime(TimerTest9) / nproc_world
       avetime(TimerTest10) = sumtime(TimerTest10) / nproc_world
 
+      avetime(TimerMorph)      = sumtime(TimerMorph) / nproc_world
+      avetime(TimerRespa)      = sumtime(TimerRespa)      / nproc_world
+      avetime(TimerCompBrown)  = sumtime(TimerCompBrown)  / nproc_world
+      avetime(TimerCompMob)    = sumtime(TimerCompMob)    / nproc_world
+
       ! write detailed timer profile of the main_rank
       !
+!    if (main_rank) then
       avetime_setup   = avetime(TimerTotal) - avetime(TimerDynamics)
 
       write(MsgOut,'(a)') 'Output_Time> Averaged timer profile (Min, Max)'
@@ -260,9 +297,53 @@ contains
                                 ' (',mintime(TimerDihedral),',',               &
                                  maxtime(TimerDihedral),')'
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    base stacking =',avetime(TimerBaseStack), &
+                                ' (',mintime(TimerBaseStack),',',              &
+                                 maxtime(TimerBaseStack),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '    nonbond       =',avetime(TimerNonBond),   &
                                 ' (',mintime(TimerNonBond),',',                &
                                  maxtime(TimerNonBond),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG exv      =',avetime(TimerCGexv),     &
+                                ' (',mintime(TimerCGexv),',',                  &
+                                maxtime(TimerCGexv),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG DNA bp   =',avetime(TimerBasePair),  &
+                                ' (',mintime(TimerBasePair),',',               &
+                                maxtime(TimerBasePair),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG DNA exv  =',avetime(TimerCGDNAexv),  &
+                                ' (',mintime(TimerCGDNAexv),',',               &
+                                maxtime(TimerCGDNAexv),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG ele      =',avetime(TimerCGDebye),   &
+                                ' (',mintime(TimerCGDebye),',',                &
+                                maxtime(TimerCGDebye),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG PWMcos   =',avetime(TimerCGPWMcos),  &
+                                ' (',mintime(TimerCGPWMcos),',',               &
+                                maxtime(TimerCGPWMcos),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG PWMcosns =',avetime(TimerCGPWMcosns),&
+                                ' (',mintime(TimerCGPWMcosns),',',             &
+                                maxtime(TimerCGPWMcosns),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG IDR-HPS  =',avetime(TimerCGIDRHPS),  &
+                                ' (',mintime(TimerCGIDRHPS),',',               &
+                                maxtime(TimerCGIDRHPS),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG IDR-KH   =',avetime(TimerCGIDRKH),   &
+                                ' (',mintime(TimerCGIDRKH),',',                &
+                                maxtime(TimerCGIDRKH),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      CG KH       =',avetime(TimerCGKH),      &
+                                ' (',mintime(TimerCGKH),',',                   &
+                                maxtime(TimerCGKH),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '      Contact     =',avetime(TimerContact),   &
+                                ' (',mintime(TimerContact),',',                &
+                                maxtime(TimerContact),')'
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '      pme real    =',avetime(TimerPmeReal),   &
                                 ' (',mintime(TimerPmeReal),',',                &
@@ -295,6 +376,10 @@ contains
                                 '    qmmm          =',avetime(TimerQMMM),      &
                                 ' (',mintime(TimerQMMM),',',                   &
                                  maxtime(TimerQMMM),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    morph         =',avetime(TimerMorph), &
+                                ' (',mintime(TimerMorph),',',              &
+                                 maxtime(TimerMorph),')'
       write(MsgOut,'(a)')       '  integrator       '
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '    constraint    =',                         &
@@ -346,15 +431,18 @@ contains
 
   subroutine output_time_prst(comm, n_proc)
 
-    integer,           intent(in) :: comm, n_proc
+    ! formal arguments
+    integer,           intent(in) :: comm
+    integer,           intent(in) :: n_proc
 
     ! local variables
     real(dp)                      :: avetime, sumtime, maxtime, mintime
     integer                       :: i, j, tottime(n_proc)
 
+
     ! allocate local array
     !
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place,total_time(TimerDynamics), 1, mpi_real8, &
                        mpi_max, comm, ierror)
 #else
@@ -385,7 +473,7 @@ contains
   !
   !  Function      get_unix_time
   !> @brief        get the local unix time (not GMT)
-  !! @authors      NT
+  !! @authors      JJ, ST(FJ), NT
   !! @return       milliseconds
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -397,6 +485,7 @@ contains
 
     ! local variables
     real(dp)               :: usec
+
 
 #ifdef KCOMP
     call gettod(usec)

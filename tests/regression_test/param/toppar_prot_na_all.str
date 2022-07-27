@@ -1,0 +1,1580 @@
+* Topology and Parameter Stream File for patches to create
+* model compounds and patches that require both protein and
+* nucleic acid topology and parameter information
+*
+
+!Parent files that have to be read prior to streaming this file
+!top_all27_prot_na.rtf
+!par_all27_prot_na.prm
+!
+!Testcase
+!test_prot_na_all.inp
+
+!The following atom types are unique to the phosphotyrosine analags and
+!have been added to the nucleic acid rtf and parameter files.  In
+!future versions of charmm, if the ability to append MASSes is added
+!these atom types should be removed from the original topology and
+!the following lines uncommented.
+!MASS 79   ON2b 15.999400 O ! Nucleic acid phosphate ester oxygen (pres tp1/tp2, toppar_tyr_ser_thr_phosphate.str)
+!
+
+!all patches must be followed by AUTOGENERATE ANGLES DIHEDRALS
+
+!PHOSPHOTYROSINE
+!
+!Feng, M.-H., Philippopoulos, M., MacKerell, Jr., A.D. and Lim, C.
+!Structural Characterization of the Phosphotyrosine Binding Region of a
+!High-Affinity aSH2 Domain-Phosphopeptide Complex by Molecular Dynamics
+!Simulation and Chemical Shift Calculations. Journal of the American
+!Chemical Society, 1996, 118: 11265-11277.
+
+read rtf card append
+* Topology for phosphorylated amino acids
+*
+31  1
+
+DECL -CA  
+DECL -C  
+DECL -O  
+DECL +N  
+DECL +HN  
+DECL +CA  
+
+PRES TP1        -1.00  ! convert tyrosine to monoanionic phosphotyrosine
+                       !
+!patch to convert tyrosine to phenolphosphate
+!PATCH TP1 TYR 1 SETUP WARN
+!
+DELE ATOM 1HH
+
+GROUP
+ATOM CE1 CA    -0.21
+ATOM HE1 HP     0.21
+GROUP
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.21
+GROUP
+ATOM CZ  CA    -0.16
+ATOM OH  ON2b  -0.36   ! NA ATOM TYPE
+ATOM P1  P      1.40   ! NA ATOM TYPE
+ATOM O2  ON4   -0.76   ! NA ATOM TYPE
+ATOM H2  HN4    0.40   ! NA ATOM TYPE
+ATOM O3  ON3   -0.76   ! NA ATOM TYPE
+ATOM O4  ON3   -0.76   ! NA ATOM TYPE
+BOND P1   OH     P1   O2    P1   O3    P1   O4
+BOND O2   H2 
+BILD CE1   CZ   OH  P1     0.0000  000.00    0.00   000.00   0.0000
+BILD CZ    OH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+BILD O2    OH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+BILD O2    OH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+BILD H2    O2   P1  OH     0.0000  000.00  180.00   000.00   0.0000
+
+PRES TP1A       -1.00  ! patch to convert tyrosine to
+                       ! monoanionic phenol-phosphate model compound
+                       ! when generating tyr, use first none last none for terminal patches
+DELE ATOM N
+DELE ATOM HN
+DELE ATOM CA
+DELE ATOM HA
+DELE ATOM CB
+DELE ATOM HB1
+DELE ATOM HB2
+DELE ATOM C
+DELE ATOM O
+
+DELE ATOM 1HH
+
+GROUP
+ATOM CG  CA    -0.115
+ATOM HG  HP     0.115
+GROUP
+ATOM CE1 CA    -0.21   
+ATOM HE1 HP     0.21   
+GROUP
+ATOM CE2 CA    -0.21   
+ATOM HE2 HP     0.21   
+GROUP
+ATOM CZ  CA    -0.16
+ATOM OH  ON2B  -0.36   ! NA ATOM TYPE
+ATOM P1  P      1.40   ! NA ATOM TYPE
+ATOM O2  ON4   -0.76   ! NA ATOM TYPE
+ATOM H2  HN4    0.40   ! NA ATOM TYPE
+ATOM O3  ON3   -0.76   ! NA ATOM TYPE
+ATOM O4  ON3   -0.76   ! NA ATOM TYPE
+BOND P1   OH     P1   O2    P1   O3    P1   O4
+BOND O2   H2 
+BOND CG   HG
+BILD CE1   CZ   OH  P1     0.0000  000.00    0.00   000.00   0.0000
+BILD CZ    OH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+BILD O2    OH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+BILD O2    OH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+BILD H2    O2   P1  OH     0.0000  000.00  180.00   000.00   0.0000
+BILD CD1   CD2  *CG HG     1.3978  120.09  179.64   120.58   1.0799
+
+PRES TP2       -2.00  ! patch to convert tyrosine to
+                      ! dianionic phosphotyrosine
+DELE ATOM 1HH
+GROUP
+ATOM CE1 CA    -0.21
+ATOM HE1 HP     0.21
+GROUP
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.21
+GROUP
+ATOM CZ  CA    -0.28
+ATOM OH  ON2B  -0.28   ! NA ATOM TYPE
+ATOM P1  P      1.44   ! NA ATOM TYPE
+ATOM O2  ON3   -0.96   ! NA ATOM TYPE
+ATOM O3  ON3   -0.96   ! NA ATOM TYPE
+ATOM O4  ON3   -0.96   ! NA ATOM TYPE
+BOND P1   OH     P1   O2    P1   O3    P1   O4
+BILD CE1   CZ   OH  P1     0.0000  000.00    0.00   000.00   0.0000
+BILD CZ    OH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+BILD O2    OH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+BILD O2    OH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+
+PRES TP2A       -2.00  ! patch to convert tyrosine to
+                       ! dianionic phosphotyrosine
+                       ! when generating tyr, use first none last none for terminal patches
+! this converts a single tyrosine to a phenol phosphate
+
+DELE ATOM N
+DELE ATOM HN
+DELE ATOM CA
+DELE ATOM HA
+DELE ATOM CB
+DELE ATOM HB1
+DELE ATOM HB2
+DELE ATOM C
+DELE ATOM O
+
+DELE ATOM 1HH
+
+GROUP
+ATOM CG  CA    -0.115
+ATOM HG  HP     0.115
+GROUP
+ATOM CE1 CA    -0.21   
+ATOM HE1 HP     0.21   
+GROUP
+ATOM CE2 CA    -0.21   
+ATOM HE2 HP     0.21   
+GROUP
+ATOM CZ  CA    -0.28
+ATOM OH  ON2B  -0.28   ! NA ATOM TYPE
+ATOM P1  P      1.44   ! NA ATOM TYPE
+ATOM O2  ON3   -0.96   ! NA ATOM TYPE
+ATOM O3  ON3   -0.96   ! NA ATOM TYPE
+ATOM O4  ON3   -0.96   ! NA ATOM TYPE
+BOND P1   OH     P1   O2    P1   O3    P1   O4
+BOND CG   HG
+BILD CE1   CZ   OH   P1    0.0000  000.00    0.00   000.00   0.0000
+BILD CZ    OH   P1   O2    0.0000  000.00  180.00   000.00   0.0000
+BILD O2    OH   *P1  O3    0.0000  000.00 -115.82   000.00   0.0000
+BILD O2    OH   *P1  O4    0.0000  000.00  115.90   000.00   0.0000
+BILD CD1   CD2  *CG  HG    1.3978  120.09  179.64   120.58   1.0799
+
+PRES TMP1      -1.00  ! patch to convert tyrosine to monoanionic phosphonate 
+                      ! ester O -> methylene (see RESI BMPH)
+                      !
+DELE ATOM 1OH
+DELE ATOM 1HH
+GROUP                          
+ATOM CE1 CA    -0.21
+ATOM HE1 HP     0.24
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.24
+ATOM CZ  CA    -0.44
+ATOM CH  CT2   -0.18
+ATOM HH1 HA     0.09
+ATOM HH2 HA     0.09
+ATOM P1  P      1.53   ! NA ATOM TYPE
+ATOM O2  ON4   -0.80   ! NA ATOM TYPE
+ATOM H2  HN4    0.37   ! NA ATOM TYPE
+ATOM O3  ON3   -0.86   ! NA ATOM TYPE
+ATOM O4  ON3   -0.86   ! NA ATOM TYPE
+
+BOND CZ   CH  CH   P1   P1   O2    P1   O3    P1   O4  
+BOND CH   HH1 CH   HH2  O2   H2
+
+IC CE1   CE2  *CZ CH     0.0000  000.00  180.00   000.00   0.0000
+IC CE1   CZ   CH  P1     0.0000  000.00   90.00   000.00   0.0000
+IC CZ    CH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+IC CZ    P1   *CH HH1    0.0000  000.00  120.00   000.00   0.0000
+IC CZ    P1   *CH HH2    0.0000  000.00 -120.00   000.00   0.0000
+IC CH    P1   O2  H2     0.0000  000.00  180.00   000.00   0.0000
+
+PRES TMP2      -2.00  ! patch to convert tyrosine to dianionic phosphonate 
+                      ! ester O -> methylene (see RESI BMPD)
+                      !
+! see PRES TP1 for proper preparation of the topology and
+! parameter files
+!
+DELE ATOM 1OH
+DELE ATOM 1HH
+GROUP                          
+ATOM CE1 CA    -0.24
+ATOM HE1 HP     0.26
+ATOM CE2 CA    -0.24
+ATOM HE2 HP     0.26
+ATOM CZ  CA    -0.45
+ATOM CH  CT2   -0.28
+ATOM HH1 HA     0.09
+ATOM HH2 HA     0.09
+ATOM P1  P      1.90   ! NA ATOM TYPE
+ATOM O2  ON3   -1.13   ! NA ATOM TYPE
+ATOM O3  ON3   -1.13   ! NA ATOM TYPE
+ATOM O4  ON3   -1.13   ! NA ATOM TYPE
+
+BOND CZ   CH  CH   P1   P1   O2    P1   O3    P1   O4  
+BOND CH   HH1 CH   HH2  
+
+IC CE1   CE2  *CZ CH     0.0000  000.00  180.00   000.00   0.0000
+IC CE1   CZ   CH  P1     0.0000  000.00   90.00   000.00   0.0000
+IC CZ    CH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+IC CZ    P1   *CH HH1    0.0000  000.00  120.00   000.00   0.0000
+IC CZ    P1   *CH HH2    0.0000  000.00 -120.00   000.00   0.0000
+
+PRES TDF1      -1.00  ! patch to convert tyrosine to monoanionic difluoro phosphonate 
+                      ! ester O -> methylene (see RESI BDFH)
+                      !
+DELE ATOM 1OH
+DELE ATOM 1HH
+GROUP                          
+ATOM CE1 CA    -0.21
+ATOM HE1 HP     0.24
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.24
+ATOM CZ  CA    -0.40
+ATOM CH  CF2    0.21  
+ATOM FH1 F2    -0.17
+ATOM FH2 F2    -0.17
+ATOM P1  P      1.43   ! NA ATOM TYPE
+ATOM O2  ON4   -0.73   ! NA ATOM TYPE
+ATOM H2  HN4    0.37   ! NA ATOM TYPE
+ATOM O3  ON3   -0.80   ! NA ATOM TYPE
+ATOM O4  ON3   -0.80   ! NA ATOM TYPE
+
+BOND CZ   CH  CH   P1   P1   O2    P1   O3    P1   O4  
+BOND CH   FH1 CH   FH2  O2   H2
+
+IC CE1   CE2  *CZ CH     0.0000  000.00  180.00   000.00   0.0000
+IC CE1   CZ   CH  P1     0.0000  000.00   90.00   000.00   0.0000
+IC CZ    CH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+IC CZ    P1   *CH FH1    0.0000  000.00  120.00   000.00   0.0000
+IC CZ    P1   *CH FH2    0.0000  000.00 -120.00   000.00   0.0000
+IC CH    P1   O2  H2     0.0000  000.00  180.00   000.00   0.0000
+
+PRES TDF2      -2.00  ! patch to convert tyrosine to dianionic difluoro phosphonate 
+                      ! ester O -> methylene (see RESI BDFD)
+                      !
+DELE ATOM 1OH
+DELE ATOM 1HH
+GROUP                          
+ATOM CE1 CA    -0.24
+ATOM HE1 HP     0.26
+ATOM CE2 CA    -0.24
+ATOM HE2 HP     0.26
+ATOM CZ  CA    -0.36
+ATOM CH  CF2    0.24
+ATOM FH1 F2    -0.28
+ATOM FH2 F2    -0.28
+ATOM P1  P      2.00   ! NA ATOM TYPE
+ATOM O2  ON3   -1.12   ! NA ATOM TYPE
+ATOM O3  ON3   -1.12   ! NA ATOM TYPE
+ATOM O4  ON3   -1.12   ! NA ATOM TYPE
+
+BOND CZ   CH  CH   P1   P1   O2    P1   O3    P1   O4  
+BOND CH   FH1 CH   FH2  
+
+IC CE1   CE2  *CZ CH     0.0000  000.00  180.00   000.00   0.0000
+IC CE1   CZ   CH  P1     0.0000  000.00   90.00   000.00   0.0000
+IC CZ    CH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+IC CZ    P1   *CH FH1    0.0000  000.00  120.00   000.00   0.0000
+IC CZ    P1   *CH FH2    0.0000  000.00 -120.00   000.00   0.0000
+
+RESI PPH1      -1.00   ! phenol-phosphate residue
+GROUP
+ATOM CG  CA    -0.115  !
+ATOM HG  HP     0.115  !              HD1  HE1
+GROUP                  !               |    |
+ATOM CD1  CA   -0.115  !              CD1--CE1
+ATOM HD1  HP    0.115  !             //      \\
+GROUP                  !         HG--CG      CZ--OH    O2-H2 
+ATOM CD2  CA   -0.115  !              \  __  /     \  /
+ATOM HD2  HP    0.115  !              CD2--CE2      P1   (-)
+GROUP                  !               |    |     //  \\
+ATOM CE1 CA    -0.21   !              HD2  HE2   O4    O3
+ATOM HE1 HP     0.21   !
+GROUP
+ATOM CE2 CA    -0.21   
+ATOM HE2 HP     0.21   
+GROUP
+ATOM CZ  CA    -0.16
+ATOM OH  ON2B  -0.36   ! NA ATOM TYPE
+ATOM P1  P      1.40   ! NA ATOM TYPE
+ATOM O2  ON4   -0.76   ! NA ATOM TYPE
+ATOM H2  HN4    0.40   ! NA ATOM TYPE
+ATOM O3  ON3   -0.76   ! NA ATOM TYPE
+ATOM O4  ON3   -0.76   ! NA ATOM TYPE
+
+BOND CG   CD1    CG   CD2   CD1  CE1   CD2  CE2
+BOND CE1  CZ     CE2  CZ    CZ   OH  
+BOND CG   HG     CD1  HD1   CD2  HD2   CE1  HE1  CE2  HE2
+BOND P1   OH     P1   O2    P1   O3    P1   O4
+BOND O2   H2 
+
+! IC table
+IC CD2  CG   CD1  CE1  1.3750  120.00    0.00  120.00   1.3750
+IC CD1  CG   CD2  CE2  1.3750  120.00    0.00  120.00   1.3750
+IC CG   CD1  CE1  CZ   1.3750  120.00    0.00  120.00   1.3750
+IC CD1  CD2  *CG  HG   1.3750  120.00  180.00  120.00   1.0800
+IC CE1  CG   *CD1 HD1  1.3750  120.00  180.00  120.00   1.0800
+IC CE2  CG   *CD2 HD2  1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD1  *CE1 HE1  1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD2  *CE2 HE2  1.3750  120.00  180.00  120.00   1.0800
+IC CE2  CE1  *CZ  OH   1.3750  120.00  180.00  120.00   1.3800
+IC CE1  CZ   OH   P1   1.3750  120.00   90.00  120.00   1.6100
+IC CZ   OH   P1   O2   1.3800  120.00  300.00  108.00   1.5800
+IC O2   OH   *P1  O3   1.5800  108.00  120.00  103.00   1.4800
+IC O2   OH   *P1  O4   1.5800  108.00 -120.00  103.00   1.4800
+IC OH   P1   O2   H2   1.6100  108.00  180.00  115.00   0.9600
+
+RESI BMPH      -1.00   ! Benz.methylene phosphate
+GROUP
+ATOM CG  CA    -0.115  !       HD1  HE1
+ATOM HG  HP     0.115  !        |    |
+GROUP                  !       CD1--CE1  HH1      O2-H2
+ATOM CD1 CA    -0.115  !      //      \\    \     /
+ATOM HD1 HP     0.115  ! HG--CG        CZ---CH---P1   (-)
+GROUP                  !      \   __  /     /  //\\
+ATOM CD2 CA    -0.115  !       CD2--CE2  HH2  O4  O3
+ATOM HD2 HP     0.115  !        |    |
+GROUP                  !        HD2  HE2
+ATOM CE1 CA    -0.21  
+ATOM HE1 HP     0.24  
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.24
+ATOM CZ  CA    -0.44
+ATOM CH  CT2   -0.18
+ATOM HH1 HA     0.09
+ATOM HH2 HA     0.09
+ATOM P1  P      1.53   ! NA ATOM TYPE
+ATOM O2  ON4   -0.80   ! NA ATOM TYPE
+ATOM H2  HN4    0.37   ! NA ATOM TYPE
+ATOM O3  ON3   -0.86   ! NA ATOM TYPE
+ATOM O4  ON3   -0.86
+   ! NA ATOM TYPE
+BOND CG   CD1    CG   CD2   CD1  CE1   CD2  CE2
+BOND CE1  CZ     CE2  CZ    CZ   CH
+BOND CG   HG     CD1  HD1   CD2  HD2   CE1  HE1  CE2  HE2
+BOND CH   HH1    CH   HH2   CH   P1    P1   O2   P1   O3
+BOND P1   O4     O2   H2
+! IC table
+IC  CD2  CG   CD1  CE1    1.3750  120.00    0.00  120.00   1.3750
+IC  CD1  CG   CD2  CE2    1.3750  120.00    0.00  120.00   1.3750
+IC  CG   CD1  CE1  CZ     1.3750  120.00    0.00  120.00   1.3750
+IC  CE2  CE1  *CZ  CH     1.3750  120.00  180.00  122.30   1.4900
+IC  CD1  CD2  *CG  HG     1.3750  120.00  180.00  120.00   1.0800
+IC  CE1  CG   *CD1 HD1    1.3750  120.00  180.00  120.00   1.0800
+IC  CE2  CG   *CD2 HD2    1.3750  120.00  180.00  120.00   1.0800
+IC  CZ   CD1  *CE1 HE1    1.3750  120.00  180.00  120.00   1.0800
+IC  CZ   CD2  *CE2 HE2    1.3750  120.00  180.00  120.00   1.0800
+IC  CE1  CZ   CH   P1     1.3750  122.30  270.00  111.00   1.8800
+IC  P1   CZ   *CH  HH1    1.8800  111.00  120.00  107.50   1.1110
+IC  HH1  CZ   *CH  HH2    1.1110  107.50 -120.00  107.50   1.1110
+IC  CZ   CH   P1   O2     1.4900  111.00  180.00   93.00   1.5800
+IC  O2   CH   *P1  O3     1.5800   93.00  120.00  103.00   1.4800
+IC  O2   CH   *P1  O4     1.5800   93.00 -120.00  103.00   1.4800
+IC  CH   P1   O2   H2     1.8800   93.00  120.00  115.00   0.9600
+
+RESI BMPD      -2.00   ! Benz.methyl phosphate dianionic
+GROUP
+ATOM CG  CA    -0.115  !       HD1  HE1
+ATOM HG  HP     0.115  !        |    |
+GROUP                  !       CD1--CE1   HH1      O2
+ATOM CD1  CA   -0.115  !      //      \\    \     /
+ATOM HD1  HP    0.115  ! HG--CG        CZ---CH---P1  (-2)
+GROUP                  !      \   __  /     /   //\\
+ATOM CD2  CA   -0.115  !       CD2--CE2   HH2  O4  O3
+ATOM HD2  HP    0.115  !        |    |
+GROUP                          HD2  HE2
+ATOM CE1 CA    -0.24
+ATOM HE1 HP     0.26
+ATOM CE2 CA    -0.24
+ATOM HE2 HP     0.26
+ATOM CZ  CA    -0.45
+ATOM CH  CT2   -0.28
+ATOM HH1 HA     0.09
+ATOM HH2 HA     0.09
+ATOM P1  P      1.90   ! NA ATOM TYPE
+ATOM O2  ON3   -1.13   ! NA ATOM TYPE
+ATOM O3  ON3   -1.13   ! NA ATOM TYPE
+ATOM O4  ON3   -1.13   ! NA ATOM TYPE
+BOND CG   CD1    CG   CD2   CD1  CE1   CD2  CE2
+BOND CE1  CZ     CE2  CZ    CZ   CH
+BOND CG   HG     CD1  HD1   CD2  HD2   CE1  HE1  CE2  HE2
+BOND CH   HH1    CH   HH2   CH   P1    P1   O2   P1   O3
+BOND P1   O4     
+! IC table
+
+IC CE1   CZ   CH  P1     0.0000  000.00   90.00   000.00   0.0000
+IC CZ    CH   P1  O2     0.0000  000.00  180.00   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+IC O2    CH   *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+IC CD1   CE1  CZ  CH     0.0000  000.00  180.00   000.00   0.0000
+IC HD1   CD1  CG  CD2    0.0000  000.00  180.00   000.00   0.0000
+IC CG    CD1  CE1 CZ     0.0000  000.00    0.00   000.00   0.0000
+IC HG    CG   CD1 CE1    0.0000  000.00  180.00   000.00   0.0000
+IC CD2   CG   CD1 CE1    0.0000  000.00    0.00   000.00   0.0000
+IC HD2   CD2  CG  HG     0.0000  000.00    0.00   000.00   0.0000
+IC CE2   CD2  CG  CD1    0.0000  000.00    0.00   000.00   0.0000
+IC HH1   CH   P1  O3     0.0000  000.00  180.00   000.00   0.0000
+IC HH2   CH   P1  O3     0.0000  000.00    0.00   000.00   0.0000
+IC HE1   CE1  CD1 HD1    0.0000  000.00    0.00   000.00   0.0000
+IC HE2   CE2  CD2 HD2    0.0000  000.00    0.00   000.00   0.0000
+ 
+!                    
+!parameters for the following have not been optimized
+!
+!RESI BFPH      -1.00   ! Benz.fluor.phosphate
+! parameters never optimized for this compound
+!GROUP
+!ATOM CG  CA    -0.115  !          HD1  HE1
+!ATOM HG  HP     0.115  !           |    |
+!GROUP                             CD1--CE1   F         O2-H2
+!ATOM CD1  CA   -0.115  !         //      \\   \        /
+!ATOM HD1  HP    0.115  !    HG--CG        CZ---C2'---P1  (-)
+!GROUP                            \   __  /     /    //\\
+!ATOM CD2  CA   -0.115  !          CD2--CE2    H2' O4  O3
+!ATOM HD2  HP    0.115  !           |    |
+!GROUP                             HD2  HE2
+!ATOM CE1 CA    -0.21   !
+!ATOM HE1 HP     0.21   !
+!GROUP
+!ATOM CE2 CA    -0.21
+!ATOM HE2 HP     0.21
+!GROUP
+!ATOM CZ  CA    -0.16
+!ATOM C2' CN7D  -0.17
+!ATOM H2' HN7    0.09
+!ATOM F   F     -0.28
+!ATOM P1  P      1.40   ! NA ATOM TYPE
+!ATOM O2  ON4   -0.76   ! NA ATOM TYPE
+!ATOM H2  HN4    0.40   ! NA ATOM TYPE
+!ATOM O3  ON3   -0.76   ! NA ATOM TYPE
+!ATOM O4  ON3   -0.76   ! NA ATOM TYPE
+!BOND CG   CD1   CG   CD2   CD1  CE1  CD2  CE2
+!BOND CE1  CZ    CE2  CZ    CZ   C2'
+!BOND CG   HG    CD1  HD1   CD2  HD2  CE1  HE1  CE2  HE2
+!BOND C2'  H2'   C2'  F2'   C2'  P1   P1   O2   P1   O3
+!BOND P1   O4    O2   H2
+!! IC table
+!IC CE1   CZ   C2' P1     0.0000  000.00    0.00   000.00   0.0000
+!IC CZ    C2'  P1  O2     0.0000  000.00  180.00   000.00   0.0000
+!IC O2    C2'  *P1 O3     0.0000  000.00 -115.82   000.00   0.0000
+!IC O2    C2'  *P1 O4     0.0000  000.00  115.90   000.00   0.0000
+!IC H2    O2   P1  C2'    0.0000  000.00  180.00   000.00   0.0000
+!IC CD1   CE1  CZ  C2'    0.0000  000.00  180.00   000.00   0.0000
+!IC HD1   CD1  CG  CD2    0.0000  000.00  180.00   000.00   0.0000
+!IC CG    CD1  CE1 CZ     0.0000  000.00    0.00   000.00   0.0000
+!IC HG    CG   CD1 CE1    0.0000  000.00  180.00   000.00   0.0000
+!IC CD2   CG   CD1 CE1    0.0000  000.00    0.00   000.00   0.0000
+!IC HD2   CD2  CG  HG     0.0000  000.00    0.00   000.00   0.0000
+!IC CE2   CD2  CG  CD1    0.0000  000.00    0.00   000.00   0.0000
+!IC F     C2'  P1  O3     0.0000  000.00   180.00   000.00   0.0000
+!IC H2'   C2'  P1  O3     0.0000  000.00    0.00   000.00   0.0000
+!IC HE1   CE1  CD1 HD1    0.0000  000.00    0.00   000.00   0.0000
+!IC HE2   CE2  CD2 HD2    0.0000  000.00    0.00   000.00   0.0000
+
+
+RESI BDFP      -1.00   ! Benz.difluor.phosphate
+GROUP
+ATOM CG   CA   -0.115  !        HD1  HE1
+ATOM HG   HP    0.115  !         |    |
+GROUP                           CD1--CE1    F1       O2-H2
+ATOM CD1  CA   -0.115  !       //      \\    \      /
+ATOM HD1  HP    0.115  !  HG--CG        CZ---CF---P1  (-)
+GROUP                          \   __  /     /   //\\
+ATOM CD2  CA   -0.115  !        CD2--CE2    F2  O4  O3
+ATOM HD2  HP    0.115  !         |    |
+GROUP                           HD2  HE2
+ATOM CE1 CA    -0.21
+ATOM HE1 HP     0.24
+ATOM CE2 CA    -0.21
+ATOM HE2 HP     0.24
+ATOM CZ  CA    -0.40
+ATOM CF  CF2    0.21
+ATOM F1  F2    -0.17
+ATOM F2  F2    -0.17
+ATOM P1  P      1.43   ! NA ATOM TYPE
+ATOM O2  ON4   -0.73   ! NA ATOM TYPE
+ATOM H2  HN4    0.37   ! NA ATOM TYPE
+ATOM O3  ON3   -0.80   ! NA ATOM TYPE
+ATOM O4  ON3   -0.80
+
+BOND CG   CD1   CG   CD2   CD1  CE1  CD2  CE2
+BOND CE1  CZ    CE2  CZ    CZ   CF
+BOND CG   HG    CD1  HD1   CD2  HD2  CE1  HE1  CE2  HE2
+BOND CF   F1    CF   F2    CF   P1   P1   O2   P1   O3
+BOND P1   O4    O2   H2
+! IC table
+IC CD2  CG   CD1  CE1    1.3750  120.00    0.00  120.00   1.3750
+IC CD1  CG   CD2  CE2    1.3750  120.00    0.00  120.00   1.3750
+IC CG   CD1  CE1  CZ     1.3750  120.00    0.00  120.00   1.3750
+IC CE2  CE1  *CZ  CF     1.3750  120.00  180.00  120.00   1.4500
+IC CD1  CD2  *CG  HG     1.3750  120.00  180.00  120.00   1.0800
+IC CE1  CG   *CD1 HD1    1.3750  120.00  180.00  120.00   1.0800
+IC CE2  CG   *CD2 HD2    1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD1  *CE1 HE1    1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD2  *CE2 HE2    1.3750  120.00  180.00  120.00   1.0800
+IC CE1  CZ   CF   P1     1.3750  120.00  270.00  115.00   1.8800
+IC P1   CZ   *CF  F1     1.8800  115.00  120.00  118.00   1.3530
+IC F1   CZ   *CF  F2     1.3530  118.00 -120.00  118.00   1.3530
+IC CZ   CF   P1   O2     1.4500  115.00  180.00   86.00   1.5800
+IC O2   CF   *P1  O3     1.5800   86.00  120.00   95.00   1.4800
+IC O2   CF   *P1  O4     1.5800   86.00 -120.00   95.00   1.4800
+IC CF   P1   O2   H2     1.8800   86.00  180.00  115.00   0.9600
+
+RESI BDFD -2.00  ! Benz.difluor.phosphate dianionic, chris
+GROUP
+ATOM CG   CA   -0.115  !        HD1  HE1
+ATOM HG   HP    0.115  !         |    |
+GROUP                           CD1--CE1    F1      O2 
+ATOM CD1  CA   -0.115  !       //      \\    \     /
+ATOM HD1  HP    0.115  !  HG--CG        CZ---CF---P1    (-2)
+GROUP                          \   __  /     /   //\\
+ATOM CD2  CA   -0.115  !        CD2--CE2    F2  O4  O3
+ATOM HD2  HP    0.115  !         |    |
+GROUP                           HD2  HE2
+ATOM CE1 CA    -0.24
+ATOM HE1 HP     0.26
+ATOM CE2 CA    -0.24
+ATOM HE2 HP     0.26 
+ATOM CZ  CA    -0.36
+ATOM CF  CF2    0.24
+ATOM F1  F2    -0.28
+ATOM F2  F2    -0.28
+ATOM P1  P      2.00   ! NA ATOM TYPE
+ATOM O2  ON3   -1.12   ! NA ATOM TYPE
+ATOM O3  ON3   -1.12   ! NA ATOM TYPE
+ATOM O4  ON3   -1.12   ! NA ATOM TYPE
+
+BOND CG   CD1   CG   CD2   CD1  CE1  CD2  CE2
+BOND CE1  CZ    CE2  CZ    CZ   CF
+BOND CG   HG    CD1  HD1   CD2  HD2  CE1  HE1  CE2  HE2
+BOND CF   F1    CF   F2    CF   P1   P1   O2   P1   O3
+BOND P1   O4    
+
+! IC table
+IC CD2  CG   CD1  CE1    1.3750  120.00    0.00  120.00   1.3750
+IC CD1  CG   CD2  CE2    1.3750  120.00    0.00  120.00   1.3750
+IC CG   CD1  CE1  CZ     1.3750  120.00    0.00  120.00   1.3750
+IC CE2  CE1  *CZ  CF     1.3750  120.00  180.00  120.00   1.4500
+IC CD1  CD2  *CG  HG     1.3750  120.00  180.00  120.00   1.0800
+IC CE1  CG   *CD1 HD1    1.3750  120.00  180.00  120.00   1.0800
+IC CE2  CG   *CD2 HD2    1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD1  *CE1 HE1    1.3750  120.00  180.00  120.00   1.0800
+IC CZ   CD2  *CE2 HE2    1.3750  120.00  180.00  120.00   1.0800
+IC CE1  CZ   CF   P1     1.3750  120.00   90.00  115.00   1.8800
+IC P1   CZ   *CF  F1     1.8800  115.00  120.00  118.00   1.3530
+IC F1   CZ   *CF  F2     1.3530  118.00 -120.00  118.00   1.3530
+IC CZ   CF   P1   O2     1.4500  115.00  180.00   95.00   1.4800
+IC O2   CF   *P1  O3     1.4800   95.00  120.00   95.00   1.4800
+IC O2   CF   *P1  O4     1.4800   95.00 -120.00   95.00   1.4800
+
+PRES SP1        -1.00  ! convert serine to monoanionic phosphoserine
+                       ! use in a patch statement as follows
+! patch to convert serine to phosphoserine
+!PATCH SP1 segid resnum SETUP WARN
+!
+DELE ATOM 1HG1
+GROUP
+ATOM CB   CT2    -0.08  !
+ATOM HB1  HA      0.09  !
+ATOM HB2  HA      0.09  !
+ATOM OG   ON2    -0.62  !maintain NA atom type
+ATOM P    P       1.50
+ATOM O1P  ON3    -0.82
+ATOM O2P  ON3    -0.82
+ATOM OT   ON4    -0.68
+ATOM HT   HN4     0.34
+BOND OG   P    P   OT   OT  HT
+BOND P    O1P  P   O2P
+BILD CA    CB   OG  P      0.0000  000.00  180.00   000.00   0.0000
+BILD CB    OG   P   OT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG    P    OT  HT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG    OT   *P  O1P    0.0000  000.00 -120.00   000.00   0.0000
+BILD OG    OT   *P  O2P    0.0000  000.00  120.00   000.00   0.0000
+
+PRES SP2         -2.00  ! convert serine to dianionic phosphoserine
+                        ! use in a patch statement
+DELE ATOM 1HG1
+GROUP
+ATOM CB   CT2    -0.18  !
+ATOM HB1  HA      0.09  !
+ATOM HB2  HA      0.09  !
+ATOM OG   ON2    -0.40  !maintain NA atom type
+ATOM P    P       1.10
+ATOM O1P  ON3    -0.90
+ATOM O2P  ON3    -0.90
+ATOM OT   ON3    -0.90
+BOND OG   P    P   OT  
+BOND P    O1P  P   O2P
+BILD CA    CB   OG  P      0.0000  000.00  180.00   000.00   0.0000
+BILD CB    OG   P   OT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG    OT   *P  O1P    0.0000  000.00 -120.00   000.00   0.0000
+BILD OG    OT   *P  O2P    0.0000  000.00  120.00   000.00   0.0000
+
+PRES THP1       -1.00  ! convert threonine to monoanionic phosphothreonine
+                       ! use in a patch statement
+DELE ATOM 1HG1
+GROUP
+ATOM CB   CT1     0.01  !
+ATOM HB   HA      0.09  !
+ATOM OG1  ON2    -0.62  !maintain NA atom type
+ATOM P    P       1.50
+ATOM O1P  ON3    -0.82
+ATOM O2P  ON3    -0.82
+ATOM OT   ON4    -0.68
+ATOM HT   HN4     0.34
+BOND OG1  P    P   OT   OT  HT
+BOND P    O1P  P   O2P
+BILD CA    CB   OG1 P      0.0000  000.00  180.00   000.00   0.0000
+BILD CB    OG1  P   OT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG1   P    OT  HT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG1   OT   *P  O1P    0.0000  000.00 -120.00   000.00   0.0000
+BILD OG1   OT   *P  O2P    0.0000  000.00  120.00   000.00   0.0000
+
+PRES THP2        -2.00  ! convert threonine to dianionic phosphothreonine
+                        ! use in a patch statement
+DELE ATOM 1HG1
+GROUP
+ATOM CB   CT1    -0.09  !
+ATOM HB   HA      0.09  !
+ATOM OG1  ON2    -0.40  !maintain NA atom type
+ATOM P    P       1.10
+ATOM O1P  ON3    -0.90
+ATOM O2P  ON3    -0.90
+ATOM OT   ON3    -0.90
+BOND OG1  P    P   OT  
+BOND P    O1P  P   O2P
+BILD CA    CB   OG1 P      0.0000  000.00  180.00   000.00   0.0000
+BILD CB    OG1  P   OT     0.0000  000.00  180.00   000.00   0.0000
+BILD OG1   OT   *P  O1P    0.0000  000.00 -120.00   000.00   0.0000
+BILD OG1   OT   *P  O2P    0.0000  000.00  120.00   000.00   0.0000
+
+RESI EP_2        -2.00   ! Ethylphosphate, dianionic 
+!test CT3-CT2-ON2-P dihedral without complications from phosphate proton
+GROUP                    !                 H21
+ATOM P1   P       1.100  !                  |
+ATOM O1   ON2    -0.400  !            H23--C2--H22
+ATOM O2   ON3    -0.900  !                  |        
+ATOM O3   ON3    -0.900  !            H11--C1--H12
+ATOM O4   ON3    -0.900  !                  | 
+GROUP                    !                 O1
+ATOM C1   CN8    -0.180  !                  |
+ATOM H11  HN8     0.090  !        (-)  O4==P1==O3  (-)
+ATOM H12  HN8     0.090  !                 ||
+GROUP                    !                 O2
+ATOM C2   CN9    -0.270  !
+ATOM H21  HN9     0.090  !
+ATOM H22  HN9     0.090  !
+ATOM H23  HN9     0.090  !
+
+BOND P1   O1     P1   O2    P1   O3    P1   O4    O1   C1    
+BOND C1   H11    C1   H12   C1   C2
+BOND C2   H21    C2   H22   C2   H23  
+!
+IC C1  O1  P1    O2     0.0000    0.00  180.00    0.00   0.0000
+IC O2  O1  *P1   O3     0.0000    0.00  120.00    0.00   0.0000
+IC O2  O1  *P1   O4     0.0000    0.00 -120.00    0.00   0.0000
+IC O2  P1  O1    C1     0.0000    0.00  180.00    0.00   0.0000
+IC P1  O1  C1    C2     0.0000    0.00  180.00    0.00   0.0000
+IC C2  O1  *C1   H11    0.0000    0.00  120.00    0.00   0.0000
+IC H11 O1  *C1   H12    0.0000    0.00 -120.00    0.00   0.0000
+IC O1  C1  C2    H21    0.0000    0.00  180.00    0.00   0.0000
+IC H21 C1  *C2   H22    0.0000    0.00  120.00    0.00   0.0000
+IC H21 C1  *C2   H23    0.0000    0.00 -120.00    0.00   0.0000
+
+RESI IP_2        -2.00   ! isopropylphosphate, dianionic 
+!test CT3-CT1-ON2-P dihedral without complications from phosphate proton
+GROUP                    !                 H21
+ATOM P1   P       1.100  !                  |
+ATOM O1   ON2    -0.400  !            H23--C2--H22  H31
+ATOM O2   ON3    -0.900  !                  |      /    
+ATOM O3   ON3    -0.900  !            H11--C1----C3--H32
+ATOM O4   ON3    -0.900  !                  |      \
+GROUP                    !                 O1       H33
+ATOM C1   CN7    -0.090  !                  |
+ATOM H11  HN7     0.090  !        (-)  O4==P1==O3  (-)
+!                                          ||
+GROUP                    !                 O2
+ATOM C2   CN9    -0.270  !
+ATOM H21  HN9     0.090  !
+ATOM H22  HN9     0.090  !
+ATOM H23  HN9     0.090  !
+GROUP                    !
+ATOM C3   CN9    -0.270  !
+ATOM H31  HN9     0.090  !
+ATOM H32  HN9     0.090  !
+ATOM H33  HN9     0.090  !
+
+BOND P1   O1     P1   O2    P1   O3    P1   O4    O1   C1    
+BOND C1   H11    C1   C2    C1   C3
+BOND C2   H21    C2   H22   C2   H23  
+BOND C3   H31    C3   H32   C3   H33  
+!
+IC C1  O1  P1    O2     0.0000    0.00   60.00    0.00   0.0000
+IC O2  O1  *P1   O3     0.0000    0.00  120.00    0.00   0.0000
+IC O2  O1  *P1   O4     0.0000    0.00 -120.00    0.00   0.0000
+IC O2  P1  O1    C1     0.0000    0.00   60.00    0.00   0.0000
+IC P1  O1  C1    C2     0.0000    0.00  220.00    0.00   0.0000
+IC C2  O1  *C1   C3     0.0000    0.00 -120.00    0.00   0.0000
+IC C3  O1  *C1   H11    0.0000    0.00 -120.00    0.00   0.0000
+IC O1  C1  C2    H21    0.0000    0.00  -60.00    0.00   0.0000
+IC H21 C1  *C2   H22    0.0000    0.00  120.00    0.00   0.0000
+IC H21 C1  *C2   H23    0.0000    0.00 -120.00    0.00   0.0000
+IC O1  C1  C3    H31    0.0000    0.00  180.00    0.00   0.0000
+IC H31 C1  *C3   H32    0.0000    0.00  120.00    0.00   0.0000
+IC H31 C1  *C3   H33    0.0000    0.00 -120.00    0.00   0.0000
+ 
+PRES SAHC   0.00        ! Patch for ade to get S-adenosyl-homocysteine
+                        ! ade has to be generated prior to application of
+                        ! this patch in a separate patch command
+DELETE ATOM P
+DELETE ATOM O1P
+DELETE ATOM O2P
+DELETE ATOM O5'
+
+GROUP   
+ATOM N    NH3    -0.30  ! 
+ATOM HT1  HC      0.33  !    (2)    HT1
+ATOM HT2  HC      0.33  !     |    /
+ATOM HT3  HC      0.33  !(1)--CA--N--HT2 (+)
+ATOM CA   CT1     0.21  !     |    \
+ATOM HA   HB      0.10  !     HA    HT3
+GROUP                   !
+ATOM CB   CT2    -0.18  !
+ATOM HB1  HA      0.09  !              
+ATOM HB2  HA      0.09  !           HB1 HG1     H5'  H4'  O4'   Adenine
+GROUP                   !            |   |       |     \ /  \  /
+ATOM CG   CT2    -0.14  !       (1)--CB--CG--SD--C5'----C4'  C1'-H1'
+ATOM HG1  HA      0.09  !            |   |       |      |    |
+ATOM HG2  HA      0.09  !          HB2  HG2    H5'' H3'-C3'--C2'-H21'
+ATOM SD   S      -0.09  !                               |    | 
+ATOM C5'  CN8B   -0.13  !                          H3T--O3'  O2'-H2'
+ATOM H5'  HN8     0.09  !
+ATOM H5'' HN8     0.09  !
+GROUP   
+ATOM C    CC      0.34  !      OT2(-)
+ATOM OT1  OC     -0.67  !     /
+ATOM OT2  OC     -0.67  !(2)-C
+                        !    \\
+                        !     OT1
+GROUP
+ATOM  C3'  CN7     0.14
+ATOM  H3'  HN7     0.09
+ATOM  O3'  ON5    -0.66
+ATOM  H3T  HN5     0.43
+
+DOUB C   OT1
+BOND N   CA   O3' H3T
+BOND CB  CA   CG  CB   SD  CG   C5' SD  C  CA
+BOND CA  HA   CB  HB1  CB  HB2  CG  HG1 CG HG2   
+BOND HT1 N    HT2 N    HT3 N    OT2 C
+IMPR OT1 CA OT2 C
+
+!DONOR HT1 N
+!DONOR HT2 N
+!DONOR HT3 N
+!ACCEPTOR OT1 C
+!ACCEPTOR OT2 C
+
+IC N     CA    CB    CG     1.4863  111.52  -68.05  114.80   1.5438
+IC CA    CB    CG    SD     1.5495  114.80 -169.85  111.97   1.8249
+IC HT1   CA    *N    HT2    1.0633   98.00  113.14  109.99   1.0338
+IC HT1   CA    *N    HT3    1.0633   98.00 -117.28  113.48   1.0305
+IC HT1   N     CA    CB     1.0633   98.00 -136.27  111.52   1.5495
+IC CB    N     *CA   C      1.5495  111.52  123.39  106.34   1.5395
+IC CB    N     *CA   HA     1.5495  111.52 -122.64  109.49   1.0806
+IC CG    CA    *CB   HB1    1.5438  114.80  125.78  110.22   1.1112
+IC CG    CA    *CB   HB2    1.5438  114.80 -119.31  106.97   1.1179
+IC SD    CB    *CG   HG1    1.8249  111.97  120.25  107.22   1.1112
+IC SD    CB    *CG   HG2    1.8249  111.97 -122.78  110.68   1.1101
+IC CB    CG    SD    C5'    1.5438  111.97  149.65  104.32   1.8303
+IC CG    SD    C5'   C4'    1.8249  104.32  -59.34  117.91   1.5403
+IC C4'   SD    *C5'  H5'    1.5403  117.91  122.31  108.22   1.1127
+IC C4'   SD    *C5'  H5''   1.5403  117.91 -122.71  108.62   1.1118
+IC N     CA    C     OT1    1.4863  106.34 -166.34  117.88   1.2492
+IC OT1   CA    *C    OT2    1.2492  117.88 -178.37  117.42   1.2654
+IC SD    C5'   C4'   O4'    1.8303  117.91  169.12  108.69   1.4591
+IC O4'   C5'   *C4'  C3'    1.4591  108.69  118.83  122.55   1.5499
+IC O4'   C5'   *C4'  H4'    1.4591  108.69 -116.07  109.38   1.1099
+IC C5'   C4'   O4'   C1'    1.5403  108.69  133.30  108.22   1.4240
+IC C4'   O4'   C1'   N9     1.4591  108.22 -159.13  111.15   1.4614
+IC N9    O4'   *C1'  C2'    1.4614  111.15  124.24  102.39   1.5135
+IC N9    O4'   *C1'  H1'    1.4614  111.15 -119.53  107.46   1.1156
+IC C4    C1'   *N9   C8     1.3837  126.86  175.00  127.05   1.3697
+IC C1'   N9    C4    C5     1.4614  126.86  176.84  105.37   1.3831
+IC C5    N9    *C4   N3     1.3831  105.37  179.25  128.02   1.3472
+IC N9    C4    C5    C6     1.3837  105.37  179.94  116.97   1.4115
+IC C6    C4    *C5   N7     1.4115  116.97  179.52  110.80   1.3914
+IC N7    N9    *C8   H8     1.3073  113.91 -179.74  121.60   1.0918
+IC C4    C5    C6    N1     1.3831  116.97   -0.21  118.01   1.3524
+IC N1    C5    *C6   N6     1.3524  118.01 -179.35  123.62   1.3438
+IC N3    N1    *C2   H2     1.3403  129.44 -179.97  115.20   1.0945
+IC C5    C6    N6    H61    1.4115  123.62  179.97  117.15   0.9949
+IC C3'   C1'   *C2'  O2'    1.5132   95.49  115.41  113.17   1.4151
+IC C3'   C1'   *C2'  H2''   1.5132   95.49 -116.10  112.79   1.1120
+IC C1'   C2'   O2'   H2'    1.5135  113.17  177.31  109.89   0.9633
+IC C4'   C3'   O3'   H3T    1.5499  116.35  167.44  110.25   0.9629
+
+PRES SAM   1.00        ! Patch for ade to get S-adenosyl-methionine
+                        ! ade has to be generated prior to application of
+                        ! this patch in a separate patch command
+DELETE ATOM P
+DELETE ATOM O1P
+DELETE ATOM O2P
+DELETE ATOM O5'
+
+GROUP   
+ATOM N    NH3    -0.30  ! 
+ATOM HT1  HC      0.33  !    (2)    HT1
+ATOM HT2  HC      0.33  !     |    /
+ATOM HT3  HC      0.33  !(1)--CA--N--HT2 (+)
+ATOM CA   CT1     0.21  !     |    \
+ATOM HA   HB      0.10  !     HA    HT3
+GROUP                   !                      HGP2
+ATOM CB   CT2    -0.18  !                 HGP1 | HGP3
+ATOM HB1  HA      0.09  !                    \ | /  
+ATOM HB2  HA      0.09  !           HB1 HG1   CGP  H5'  H4'  O4'   Adenine
+GROUP                   !            |   |    |   |      \ /  \  /
+ATOM CG   CT2     0.03  !       (1)--CB--CG--SDP--C5'----C4'  C1'-H1'
+ATOM HG1  HA      0.09  !            |   |        |       |    |
+ATOM HG2  HA      0.09  !          HB2  HG2      H5'' H3'-C3'--C2'-H21'
+ATOM SDP  SP      0.36  !                                 |    | 
+ATOM C5'  CN8B    0.03  !                             H3T--O3'  O2'-H2'
+ATOM H5'  HN8     0.09  !
+ATOM H5'' HN8     0.09  !
+ATOM CGP  CT3    -0.05
+ATOM HGP1 HA      0.09
+ATOM HGP2 HA      0.09
+ATOM HGP3 HA      0.09
+GROUP   
+ATOM C    CC      0.34  !      OT2(-)
+ATOM OT1  OC     -0.67  !     /
+ATOM OT2  OC     -0.67  !(2)-C
+                        !    \\
+                        !     OT1
+GROUP
+ATOM  C3'  CN7     0.14
+ATOM  H3'  HN7     0.09
+ATOM  O3'  ON5    -0.66
+ATOM  H3T  HN5     0.43
+
+DOUB C   OT1
+BOND N   CA   O3' H3T
+BOND CB  CA   CG  CB   SDP  CG   C5' SDP  C  CA
+BOND SDP CGP  CGP HGP1 CGP  HGP2 CGP HGP3
+BOND CA  HA   CB  HB1  CB   HB2  CG  HG1  CG HG2   
+BOND HT1 N    HT2 N    HT3  N    OT2 C
+IMPR OT1 CA OT2 C
+
+IC C5'   C4'   C3'   O3'    1.5234  115.91   79.93  110.37   1.4304
+IC O4'   C3'   *C4'  C5'    1.4346  102.61 -120.58  115.91   1.5234
+IC C2'   C4'   *C3'  O3'    1.5424  104.09 -125.57  110.37   1.4304
+IC C4'   C3'   C2'   C1'    1.5226  104.09   14.37  102.90   1.5288
+IC C3'   C2'   C1'   N9     1.5424  102.90  133.87  112.82   1.4650
+IC O4'   C1'   N9    C4     1.4153  111.80 -107.70  125.37   1.3732
+IC C1'   C4    *N9   C8     1.4650  125.37 -179.62  105.88   1.3752
+IC C4    N9    C8    N7     1.3732  105.88   -0.81  113.71   1.3064
+IC C8    N9    C4    C5     1.3752  105.88    0.94  105.77   1.3832
+IC C8    N7    C5    C6     1.3064  104.03 -179.04  132.57   1.4111
+IC N7    C5    C6    N1     1.3896  132.57  179.89  117.63   1.3541
+IC C5    C6    N1    C2     1.4111  117.63   -0.28  118.64   1.3350
+IC N9    C5    *C4   N3     1.3732  105.77 -179.43  127.11   1.3405
+IC C5    N1    *C6   N6     1.4111  117.63  179.31  118.77   1.3451
+IC N1    C6    N6    H61    1.3541  118.77 -176.12  121.71   0.9960
+IC H61   C6    *N6   H62    0.9960  121.71  174.12  117.26   0.9963
+IC C5    N1    *C6   N6     1.4111  117.63  179.31  118.77   1.3451
+IC N1    C6    N6    H61    1.3541  118.77 -176.12  121.71   0.9960
+IC H61   C6    *N6   H62    0.9960  121.71  174.12  117.26   0.9963
+IC N9    N7    *C8   H8     1.3752  113.71  179.99  124.30   1.0920
+IC N1    N3    *C2   H2     1.3350  129.24 -179.89  115.49   1.0944
+IC C1'   C3'   *C2'  O2'    1.5288  102.90 -120.08  112.64   1.4131
+IC H2'   O2'   C2'   C3'    0.9653  110.72   44.95  112.64   1.5424
+IC O4'   C2'   *C1'  H1'    1.4153  107.09 -114.14  109.33   1.1164
+IC C1'   C3'   *C2'  H2''   1.5288  102.90  119.13  108.86   1.1116
+IC C2'   C4'   *C3'  H3'    1.5424  104.09  114.80  107.09   1.1125
+IC C3'   O4'   *C4'  H4'    1.5226  102.61 -113.93  106.25   1.1143
+IC HT1   CA    *N    HT2    1.0601   99.87 -113.55  111.45   1.0368
+IC HT1   CA    *N    HT3    1.0601   99.87  117.42  113.82   1.0324
+IC HT1   N     CA    CB     1.0601   99.87 -104.71  109.96   1.5670
+IC CB    N     *CA   C      1.5670  109.96  118.39  106.87   1.5345
+IC CB    N     *CA   HA     1.5670  109.96 -124.81  109.65   1.0831
+IC N     CA    CB    CG     1.4972  109.96  169.87  116.31   1.5650
+IC CG    CA    *CB   HB1    1.5650  116.31 -123.65  109.54   1.1114
+IC CG    CA    *CB   HB2    1.5650  116.31  120.05  107.16   1.1129
+IC CA    CB    CG    SDP    1.5670  116.31  -86.15  117.87   1.8507
+IC SDP   CB    *CG   HG1    1.8507  117.87 -122.43  107.08   1.1125
+IC SDP   CB    *CG   HG2    1.8507  117.87  123.34  107.23   1.1142
+IC CB    CG    SDP   C5'    1.5650  117.87 -174.35   99.89   1.8255
+IC C5'   CG    *SDP  CGP    1.8255   99.89  102.18   99.84   1.8185
+IC CG    SDP   C5'   C4'    1.8507   99.89  -93.23  113.36   1.5234
+IC C4'   SDP   *C5'  H5'    1.5234  113.36 -120.73  109.93   1.1118
+IC C4'   SDP   *C5'  H5''   1.5234  113.36  122.28  109.47   1.1127
+IC CG    SDP   CGP   HGP1   1.8507   99.84   71.44  110.85   1.1114
+IC HGP1  SDP   *CGP  HGP2   1.1114  110.85 -120.86  111.89   1.1101
+IC HGP1  SDP   *CGP  HGP3   1.1114  110.85  118.89  110.59   1.1120
+IC N     CA    C     OT1    1.4972  106.87  -17.54  117.69   1.2603
+IC OT1   CA    *C    OT2    1.2603  117.69 -177.96  117.51   1.2519
+IC SDP   C5'   C4'   O4'    1.8255  113.36  153.27  110.56   1.4346
+IC O4'   C5'   *C4'  C3'    1.4346  110.56  116.19  115.91   1.5226
+IC O4'   C5'   *C4'  H4'    1.4346  110.56 -118.35  112.11   1.1143
+IC C5'   C4'   O4'   C1'    1.5234  110.56  166.29  106.58   1.4153
+IC C4'   O4'   C1'   N9     1.4346  106.58 -157.41  111.80   1.4650
+IC N9    O4'   *C1'  C2'    1.4650  111.80  124.06  107.09   1.5288
+IC N9    O4'   *C1'  H1'    1.4650  111.80 -119.42  105.76   1.1164
+IC O4'   C1'   N9    C4     1.4153  111.80 -107.70  125.37   1.3732
+IC C4    C1'   *N9   C8     1.3732  125.37  179.53  128.76   1.3752
+IC C1'   N9    C4    C5     1.4650  125.37 -179.45  105.77   1.3832
+IC C5    N9    *C4   N3     1.3832  105.77  179.43  127.12   1.3405
+IC N9    C4    C5    C6     1.3732  105.77  178.67  116.82   1.4111
+IC C6    C4    *C5   N7     1.4111  116.82 -179.47  110.61   1.3896
+IC N7    N9    *C8   H8     1.3064  113.71 -179.99  121.99   1.0920
+IC C4    C5    C6    N1     1.3832  116.82    0.56  117.63   1.3541
+IC N1    C5    *C6   N6     1.3541  117.63 -179.27  123.61   1.3451
+IC C5    C6    N1    C2     1.4111  117.63   -0.28  118.64   1.3350
+IC N3    N1    *C2   H2     1.3387  129.24  179.89  115.26   1.0944
+IC C5    C6    N6    H61    1.4111  123.61    3.15  121.71   0.9960
+IC H61   C6    *N6   H62    0.9960  121.71  174.12  117.26   0.9963
+IC C3'   C1'   *C2'  O2'    1.5424  102.90  120.94  111.41   1.4131
+IC C3'   C1'   *C2'  H2''   1.5424  102.90 -116.83  112.14   1.1116
+IC C1'   C2'   O2'   H2'    1.5288  111.41  -70.10  110.72   0.9653
+IC C2'   C4'   *C3'  O3'    1.5424  104.09 -125.57  110.37   1.4304
+IC C2'   C4'   *C3'  H3'    1.5424  104.09  114.80  107.09   1.1125
+IC C4'   C3'   O3'   H3T    1.5226  110.37  165.88  110.05   0.9672
+
+RESI LYR           1.00    ! PROTONATED SCHIFF BASE
+!
+! Charges taken from:
+! -------------------
+! Hayashi, S. and I. Ohmine. 2000. Proton transfer in
+! bacteriorhodopsin: Structure, excitation and IR spectra,
+! and potential energy surface analyses by an ab initio
+! QM/MM method. J. Phys. Chem. B 104:10678 10691.
+!
+! Hayashi, S., E. Tajkhorshid, E. Pebay-Peyroula, A. Royant,
+! E. M. Landau, J. Navarro, and K. Schulten. 2001.
+! Structural determinants of spectral tuning in retinal proteins
+! bacteriorhodopsin vs sensory rhodopsin II. J. Phys. Chem. B
+! 105:10124 10131.
+!
+GROUP 
+ATOM N    NH1    -0.47000  ! ALLOW PEP     |
+ATOM HN   H       0.31000  ! ALLOW PEP  HN-N
+ATOM CA   CT1     0.07000  ! ALLOW PEP     |
+ATOM HA   HB      0.09000  ! ALLOW PEP     |
+GROUP                      !            HA-CA-----|
+ATOM C    C       0.51000  ! ALLOW PEP     |      |
+ATOM O    O      -0.51000  ! ALLOW PEP     |      |
+GROUP                      !             O=C      |
+ATOM CB   CT2    -0.18000  ! ALLOW ALI     |      |
+ATOM HB1  HA      0.09000  ! ALLOW ALI        HB2-CB-HB1
+ATOM HB2  HA      0.09000  ! ALLOW ALI            |
+GROUP
+ATOM CG   CT2    -0.18000  ! ALLOW ALI            |
+ATOM HG1  HA      0.09000  ! ALLOW ALI        HG2-CG-HG1
+ATOM HG2  HA      0.09000  ! ALLOW ALI            |
+GROUP
+ATOM CD   CT2    -0.18000  ! ALLOW ALI            |
+ATOM HD1  HA      0.09000  ! ALLOW ALI        HD2-CD-HD1
+ATOM HD2  HA      0.09000  ! ALLOW ALI            |
+GROUP
+ATOM CE   CT2     0.340 !  0.01  !                |
+ATOM HE1  HA      0.050 !  0.20  !            HE2-CE-HE1
+ATOM HE2  HA      0.050 !  0.20  !                |
+ATOM N16  NCH1   -0.727 ! -0.65  !           H16-N16+
+ATOM H16  HCR     0.505 !  0.45  !                \\
+ATOM C15  CR15    0.362 !  0.25  !                C15-H15
+ATOM H15  HPL1    0.189 !  0.29  !                 |
+ATOM C14  CR14   -0.180 ! -0.18  !     H20B       C14-H14
+ATOM H14  HPL     0.180 !  0.20  !       |       //
+ATOM C13  CR13    0.131 !  0.13  !   H20A-C20 -- C13
+ATOM C20  CT3    -0.170 ! -0.17  !       |       |
+ATOM H20A HA      0.090 !  0.09  !      H20C     C12-H12
+ATOM H20B HA      0.090 !  0.09  !                \\
+ATOM H20C HA      0.090 !  0.09  !             H11-C11
+ATOM C12  CR12   -0.110 ! -0.10  !                |
+ATOM H12  HPL     0.110 !  0.10  !      H19B    C10-H10
+ATOM C11  CR11   -0.090 ! -0.10  !        |      //
+ATOM H11  HPL     0.090 !  0.10  !   H19A-C19 -- C9
+                         !                |     |
+GROUP                    !               H19C   C8-H8
+ATOM C10  CR10   -0.100 !  -0.10  !            //
+ATOM H10   HPL    0.100 !   0.10  !          H7-C7
+                         !                        |
+GROUP                    !                        C6
+ATOM C9    CR9     0.00  !                        |
+ATOM C19   CT3    -0.27  !                        |
+ATOM H19A  HA      0.09  !
+ATOM H19B  HA      0.09  !                        |
+ATOM H19C  HA      0.09  !                        |
+
+GROUP
+ATOM C8    CR8    -0.10  !                        |
+ATOM H8    HPL     0.10  !                        |
+ATOM C7    CR7    -0.10  !                        |
+ATOM H7    HPL     0.10  !                        \
+                        !                            H17A  H17B
+GROUP                   !                          C6    \ /
+ATOM C6    CR6     0.00 !                        //   \   C17-H17C
+                        !            H18B       //     \  /    H16B
+GROUP                   !              |       //       \/      |
+ATOM C5    CR5     0.00 !        H18A-C18 -- C5         C1 -- C16-H16A
+ATOM C18   CT3    -0.27 !              |      |          |      |
+ATOM H18A  HA      0.09 !            H18C     |          |    H16C
+ATOM H18B  HA      0.09 !                 H4A-C4        C2-H2A
+ATOM H18C  HA      0.09 !                    / \        / \
+                        !                 H4B   \      /   H2B
+GROUP                   !                        \    /
+ATOM C4    CT2    -0.20 !                          C3-H3A
+ATOM H4A   HA      0.10 !                            \
+ATOM H4B   HA      0.10 !                            H3B
+
+GROUP
+ATOM C3    CT2    -0.20
+ATOM H3A   HA      0.10
+ATOM H3B   HA      0.10
+
+GROUP
+ATOM C2    CT2    -0.20
+ATOM H2A   HA      0.10
+ATOM H2B   HA      0.10
+
+GROUP
+ATOM C1    CT3     0.00
+ATOM C16   CT3    -0.27
+ATOM H16A  HA      0.09
+ATOM H16B  HA      0.09
+ATOM H16C  HA      0.09
+
+GROUP
+ATOM C17   CT3    -0.27
+ATOM H17A  HA      0.09
+ATOM H17B  HA      0.09
+ATOM H17C  HA      0.09
+
+
+BOND CB CA CG CB CD CG CE CD N16 CE
+BOND N HN N CA O C C CA
+BOND C +N CA HA CB HB1 CB HB2 CG HG1
+BOND CG HG2 CD HD1 CD HD2 CE HE1 CE HE2
+BOND C1  C2      C1  C6      C1  C16     C1  C17
+BOND C2  C3      C2  H2A     C2  H2B
+BOND C3  C4      C3  H3A     C3  H3B
+BOND C4  C5      C4  H4A     C4  H4B
+BOND C5  C6      C5  C18
+BOND C6  C7
+BOND C7  C8      C7  H7
+BOND C8  C9      C8  H8
+BOND C9  C10     C9  C19
+BOND C10 C11     C10 H10
+BOND C11 C12     C11 H11
+BOND C12 C13     C12 H12
+BOND C13 C14     C13 C20
+BOND C14 C15     C14 H14
+BOND C15 N16     C15 H15     N16  H16
+BOND C16 H16A    C16 H16B    C16 H16C
+BOND C17 H17A    C17 H17B    C17 H17C
+BOND C18 H18A    C18 H18B    C18 H18C
+BOND C19 H19A    C19 H19B    C19 H19C
+BOND C20 H20A    C20 H20B    C20 H20C
+IMPR N -C CA HN C CA +N O
+IMPR C5   C6  C4  C18
+IMPR C6   C1  C5  C7
+IMPR C7   C8  C6  H7
+IMPR C8   C7  C9  H8
+IMPR C9   C10 C8  C19
+IMPR C10  C9  C11 H10
+IMPR C11  C12 C10 H11
+IMPR C12  C11 C13 H12
+IMPR C13  C14 C12 C20
+IMPR C14  C13 C15 H14
+IMPR C15 N16 C14 H15
+IMPR N16 CE C15 H16
+DONOR HN N
+DONOR H16 N16
+ACCEPTOR O C
+IC -C   CA   *N   HN    1.3482 123.5700  180.0000 115.1100  0.9988
+IC -C   N    CA   C     1.3482 123.5700  180.0000 107.2900  1.5187
+IC N    CA   C    +N    1.4504 107.2900  180.0000 117.2700  1.3478
+IC +N   CA   *C   O     1.3478 117.2700  180.0000 120.7900  1.2277
+IC CA   C    +N   +CA   1.5187 117.2700  180.0000 124.9100  1.4487
+IC N    C    *CA  CB    1.4504 107.2900  122.2300 111.3600  1.5568
+IC N    C    *CA  HA    1.4504 107.2900 -116.8800 107.3600  1.0833
+IC N    CA   CB   CG    1.4504 111.4700  180.0000 115.7600  1.5435
+IC CG   CA   *CB  HB1   1.5435 115.7600  120.9000 107.1100  1.1146
+IC CG   CA   *CB  HB2   1.5435 115.7600 -124.4800 108.9900  1.1131
+IC CA   CB   CG   CD    1.5568 115.7600  180.0000 113.2800  1.5397
+IC CD   CB   *CG  HG1   1.5397 113.2800  120.7400 109.1000  1.1138
+IC CD   CB   *CG  HG2   1.5397 113.2800 -122.3400 108.9900  1.1143
+IC CB   CG   CD   CE    1.5435 113.2800  180.0000 112.3300  1.5350
+IC CE   CG   *CD  HD1   1.5350 112.3300  122.2500 108.4100  1.1141
+IC CE   CG   *CD  HD2   1.5350 112.3300 -121.5900 108.1300  1.1146
+IC CG   CD   CE   N16    1.5397 112.3300  180.0000 110.4600  1.4604
+IC N16   CD   *CE  HE1   1.4604 110.4600  119.9100 110.5100  1.1128
+IC N16   CD   *CE  HE2   1.4604 110.4600 -120.0200 110.5700  1.1123
+
+IC CD   CE   N16   H16  1.53  109 103.66  120  1.10
+IC CD   CE   N16   C15  1.53  109 -76.44  120  1.35
+IC CE   N16   C15  C14  1.46  120 180.00  120  1.10
+IC CE   N16   C15  H15  1.46  120   0.00  120  1.10
+IC  C1   C2   C3   C4   1.58  0.00 0.00 0.00 1.58
+IC  C2   C3   C4   C5   1.58  0.00 0.00 0.00 0.0000
+IC  C2   C1   C6   C5   1.58  0.00 0.00 0.00 0.0000
+IC  C3   C4   C5   C6   1.58  0.00 0.00 0.00 0.0000
+IC  C3   C4   C5   C18  1.58  0.00 0.00 0.00 0.0000
+IC  C3   C2   C1   C6   1.58  0.00 0.00 0.00 0.0000
+IC  C3   C2   C1   C16  1.58  0.00 0.00 0.00 0.0000
+IC  C3   C2   C1   C17  1.58  0.00 0.00 0.00 0.0000
+IC  C4   C5   C6   C1   1.58  0.00 0.00 0.00 0.0000
+IC  C5   C6   C1   C2   1.58  0.00 0.00 0.00 0.0000
+IC  C5   C6   C1   C17  1.58  0.00 0.00 0.00 0.0000
+IC  C5   C6   C1   C16  1.58  0.00 0.00 0.00 0.0000
+IC  C7   C6   C1   C17  1.58  0.00 0.00 0.00 0.0000
+IC  C7   C6   C1   C16  1.58  0.00 0.00 0.00 0.0000
+IC  C2   C1   C6   C7   1.58  0.00 0.00 0.00 0.0000
+IC  C4   C5   C6   C7   1.58  0.00 0.00 0.00 0.0000
+IC  C1   C6   C7   C8   1.58  0.00 0.00 0.00 0.0000
+IC  C5   C6   C7   C8   1.58  0.00 0.00   120   1.58
+IC  C6   C7   C8   C9   1.58   120  180   120  1.58
+IC  C7   C8  C9   C10   1.58   120  180   120  1.58
+IC  C8   C9  C10  C11   1.58   120  180   120  1.58
+IC  C9   C10 C11  C12   1.58   120  180   120  1.58
+IC  C10  C11 C12  C13   1.58   120  0.00  120  1.58  ! cis
+IC  C11  C12 C13  C14   1.58   120  180   120  1.58
+IC  C12  C13 C14  C15   1.58   120  180   120  1.58
+IC  C13  C14 C15  N16   1.58   120  180   120  1.35
+IC  C7   C8  C9   C19   1.58   120  0.00  120  1.58
+IC  C19  C9  C10  C11   1.58   120  0.00  120  1.58
+IC  C19  C9  C8   C7    1.58   120  0.00  120  1.58
+IC  C20  C13 C12  C11   1.58   120  0.00  120  1.58
+IC  C20  C13 C14  C15   1.58   120  0.00  120  1.58
+! all hydrogen atoms
+!IC  H14  C14 C15  N16   1.10  120    0.00  120  1.35
+IC  C15   CE  *N16  H16  1.58  120  180.00  120  1.10
+!IC  H14  C14 C15  H15   1.10  120  180.00  120  1.10
+!IC  C14  N16  *C15  H15  1.58  120  180.00  120  1.10 ! let psfgen guess this one
+IC  H14  C14 C13  C20   1.10  120  180.00  120  1.58
+!IC  H14  C14 C13  C12   1.10  120    0.00  120  1.58
+IC  C15  C13  *C14  H14  1.58  120  180.00  120  1.10
+IC  C14  C13 C20  H20A  1.58  120  180.00  109  1.10
+IC  C14  C13 C20  H20B  1.58  120   60.00  109  1.10
+IC  C14  C13 C20  H20C  1.58  120  -60.00  109  1.10
+!IC  C20  C13 C12  H12   1.58  120  180.00  109  1.10
+!IC  H12  C12 C11  C10   1.10  120  180.00  120  1.58
+IC  C13  C11  *C12  H12   1.58  120  180.00  120  1.10
+!IC  H11  C11 C10  C9    1.10  120     0.00  120  1.58
+!IC  H11  *C11 C12  C10    1.10  120  180.00  120  1.58
+IC  C10  C12 *C11  H11    1.58  120  180.00  120  1.10
+!IC  H10  C10 C9   C19   1.10  120  180.00  120  1.58
+!IC  H10  C10 C9   C8    1.10  120    0.00  120  1.58
+IC  C9  C11  *C10  H10  1.58  120   180.00 120  1.10
+IC  C10  C9  C19  H19A  1.58  120  180.00  109  1.10
+IC  C10  C9  C19  H19B  1.58  120   60.00  109  1.10
+IC  C10  C9  C19  H19C  1.58  120  -60.00  109  1.10
+!IC  C10  C9  C8  H8     1.58  120    0.00  120  1.10
+!IC  H8   C8  C7   C6    1.10  120    0.00  120  1.58
+IC  C7   C9  *C8  H8     1.58  120  180.00  120  1.10
+!IC  H7   C7  C6   C1    1.10  120    0.00  120  1.58
+!IC  H7   C7  C6   C5    1.10  120  180.00  120  1.58
+!IC  H7   C7  C8   C9    1.10  120    0.00  120  1.58
+IC  C6   C8  *C7  H7    1.58  120  180.00  120  1.10
+IC  C6   C1  C17  H17A  1.58  125  180.00  109  1.10
+IC  C6   C1  C17  H17B  1.58  0.00  60.00  109  1.10
+IC  C6   C1  C17  H17C  1.58  0.00 -60.00  109  1.10
+IC  C6   C1  C16  H16A  1.58  0.00 180.00  109  1.10
+IC  C6   C1  C16  H16B  1.58  0.00  60.00  109  1.10
+IC  C6   C1  C16  H16C  1.58  111.68 -60.00  109  1.10
+IC  C17  C1  C2   H2A   1.58  100.40 -60.00 109  1.10
+IC  C17  C1  C2   H2B   1.58  100.40  60.00 109  1.10
+IC  C1   C2  C3   H3A   1.58  113.17 -60.00 109  1.10
+IC  C1   C2  C3   H3B   1.58  113.17 180.00 109  1.10
+IC  H4A  C4  C5   C18   1.10  109  -20.00 112.17 1.58
+IC  H4B  C4  C5   C18   1.10  109  100.00 112.17 1.58
+IC  C4   C5  C18  H18A  1.58  112.17  180.00  109  1.10
+IC  C4   C5  C18  H18B  1.58  112.17  -60.00  109  1.10
+IC  C4   C5  C18  H18C  1.58  112.17   60.00  109  1.10
+!
+!
+PATCH FIRST NONE LAST NONE
+
+end
+
+read para card append
+* additional parameters for phosphorylated amino acids
+*
+
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+CA   ON2b  340.0       1.38    !phenol phosphate, 6/94, adm jr.
+ON2b P     270.0       1.61    !phenol phosphate, 6/94, adm jr.
+CT2  P     270.0       1.890   !Benz.Meth.Phosphate, Sasha
+F1  CF1    420.0       1.374   !Benz.Difl.Phosphate
+F2  CF2    349.0       1.353   !Benz.Difl.Phosphate
+CF2 CA     198.0       1.450   !Benz.Difl.Phosphate
+CF2 P      270.0       1.880   !Benz.Difl.Phosphate
+!terms for serine/threonine phosphate
+CT1  ON2   310.0       1.433  !from CN7  ON2
+CT2  ON2   320.0       1.44   !from CN8B ON2
+!CN7  CN9   222.5       1.516  !from CN7 CN8
+!sahc
+CN8B S      240.000     1.8160 ! sahc
+!sam
+CN8B SP     198.000     1.8160
+CT2  SP     198.000     1.8160
+CT3  SP     240.000     1.8160
+!ret
+NCH1 CT2     340.00      1.49
+NCH1 HCR     430.00      1.00
+NCH1 CR15    490.00      1.32
+
+CR15 HPL1    370.00      1.07
+CR15 CR14    430.00      1.37
+CR14 HPL     370.00      1.07
+CR14 CR13    550.00      1.40
+CR13 CT3     320.00      1.52
+CR13 CR12    430.00      1.40
+CR12 HPL     370.00      1.07
+CR12 CR11    550.00      1.37
+CR11 HPL     370.00      1.07
+CR11 CR10    430.00      1.41
+CR10 HPL     370.00      1.07
+CR10 CR9     550.00      1.37
+CR9  CT3     320.00      1.52
+CR9  CR8     430.00      1.45
+CR8  HPL     370.00      1.07
+CR8  CR7     550.00      1.34
+CR7  HPL     370.00      1.07
+CR7  CR6     430.00      1.47
+CR6  CT3     320.00      1.54
+CR6  CR5     550.00      1.34
+CR5  CT3     320.00      1.52
+CR5  CT2     320.00      1.52
+qqh  ct2       0.0       1.0    ! Link atom
+qqh  cr12      0.0       1.0    ! Link atom
+qqh  cr13      0.0       1.0    ! Link atom
+qqh  nc2       0.0       1.0    ! Link atom
+
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+CA   CA   ON2b  75.0     120.0  !phenol phosphate, 6/94, adm jr.
+CA   ON2b P     90.0     120.0  20.   2.30 !phenol phosphate, 6/94, adm jr.
+ON4  P    ON2b  48.1     108.0  !phenol phosphate, 6/94, adm jr.
+ON3  P    ON2b  98.9     103.0  !phenol phosphate, 6/94, adm jr.
+! Benz.Meth.Phos, Sasha, Chris, adm jr.
+HA   CT2  P     90.0    110.00    5.40  1.802 !
+CA   CT2  P     90.0    111.0     20.0  2.30  !
+CT2  P    ON4   90.1     94.0                 !
+CT2  P    ON3   98.9    103.0                 !
+! Benz.Difl.Phos
+F2   CF2  F2   150.0    107.00   10.0   2.170 !
+CA   CA   CF2  100.0    120.00                !
+CA   CF2  F2    50.0    115.00   30.0   2.357 !
+CA   CF2  P     90.0    117.0    20.0   2.30  !
+F2   CF2  P     50.0    122.00   30.0   2.357 !
+CF2  P    ON4   90.1     90.0                 !
+CF2  P    ON3   98.9     94.0                 !
+!terms for serine/threonine phosphates
+CT1  CT1  ON2     115.0    109.7  !Ser-Phos, from CN7  CN7  ON2
+CT3  CT1  ON2     115.0    109.7  !Ser-Phos, from CN8  CN7  ON2
+CT1  CT2  ON2      70.0    108.4  !Ser-Phos, from CN7  CN8B ON2
+CT3  CT2  ON2      70.0    108.4  !Thr-Phos, from CN7  CN8B ON2
+CN9  CN8  ON2      70.0    108.4  !Thr-Phos, from CN7  CN8B ON2
+CT1  ON2  P        20.0    120.0   35.00   2.33 ! from CN7 ON2 P
+CT2  ON2  P        20.0    120.0   35.00   2.33 ! from CN8B ON2 P
+HA   CT1  ON2      60.0    109.5  ! from HN7  CN7  ON2
+HA   CT2  ON2      60.0    109.5  ! from HN8  CN8B ON2
+CN9  CN7  CN9      58.35   113.60  11.16   2.561 !alkane, from CN8  CN7  CN8    
+ON2  CN7  CN9     115.0    109.7  ! from CN7  CN8  ON2
+!CN7  CN9  HN9      34.53   110.10  22.53   2.179 !alkane, from HN8  CN8  CN7
+!CN9  CN7  HN7      34.53   110.10  22.53   2.179 !alkane, from HN8  CN8  CN7
+!sahc
+S    CN8B CN7     58.000   114.5000
+CN8B S    CT2     34.000    95.0000
+S    CN8B HN8     46.100   111.3000
+!sam
+SP   CT2   HA     46.100   111.3000
+SP   CT2   CT2    58.000   114.5000
+CT2  SP    CT3    34.000    95.0000
+CT2  SP    CN8B   34.000    95.0000
+SP   CT3   HA     46.100   111.3000
+CT3  SP    CN8B   34.000    95.0000
+SP   CN8B  CN7    58.000   114.5000
+SP   CN8B  HN8    46.100   111.3000
+!ret
+CT2   CT2   NCH1     80.00    111.20
+HCR   NCH1  CT2      35.00    118.40
+CT2   NCH1  CR15     50.00    123.20
+CR15  NCH1  HCR      35.00    120.00
+HA    CT2   NCH1     50.00    109.50
+NCH1  CR15  HPL1     35.00    119.10
+NCH1  CR15  CR14     95.00    122.90
+CR15  CR14  HPL      35.00    119.70
+CR14  CR15  HPL1     35.00    119.70
+CR15  CR14  CR13     95.00    122.90
+CR14  CR13  CT3      70.00    119.70
+CR13  CR14  HPL      35.00    119.70
+CR13  CT3   HA       50.00    109.50
+CR14  CR13  CR12     95.00    122.90
+CR13  CR12  HPL      35.00    119.70
+CR12  CR13  CT3      70.00    119.70
+CR13  CR12  CR11     95.00    122.90
+CR12  CR11  HPL      35.00    119.70
+CR11  CR12  HPL      35.00    119.70
+CR12  CR11  CR10     95.00    122.90
+CR11  CR10  HPL      35.00    119.70
+CR10  CR11  HPL      35.00    119.70
+CR11  CR10  CR9      95.00    122.90
+CR10  CR9   CT3      70.00    119.70
+CR9   CT3   HA       50.00    109.50
+CR9   CR10  HPL      35.00    119.70
+CR10  CR9   CR8      95.00    122.90
+CR9   CR8   HPL      35.00    119.70
+CR8   CR9   CT3      70.00    119.70
+CR9   CR8   CR7      95.00    122.90
+CR8   CR7   HPL      35.00    119.70
+CR7   CR8   HPL      35.00    119.70
+CR8   CR7   CR6      95.00    122.90
+CR7   CR6   CT3      70.00    119.70
+CR6   CR7   HPL      35.00    119.70
+CR7   CR6   CR5      95.00    122.90
+CR6   CR5   CT3      70.00    119.70 ! ?
+CR6   CR5   CT2      70.00    119.70 ! ?
+CT3   CR5   CT2      70.00    119.70
+CR5   CT2   HA       50.00    109.50 ! ?
+CR5   CT3   HA       50.00    109.50 ! ?
+CR6   CT3   CT2      63.00    111.10 ! ?
+CR6   CT3   CT3      63.00    111.10 ! ?
+CR5   CT2   CT2      63.00    111.10
+CR5   CR6   CT3      70.00    119.70
+CT3   CT3   CT3      63.00    109.50 ! reg. tetrahedron, force
+CT2   CT3   CT3      63.00    109.50 ! constant from CR5-CT3-CT3
+qqh   ct2   ct1       0.0       0.0    ! Link atom
+qqh   ct2   ct2       0.0       0.0    ! Link atom
+qqh   ct2   nch1      0.0       0.0    ! Link atom
+qqh   cr13  cr14      0.0       0.0    ! Link atom
+qqh   cr13  ct3       0.0       0.0    ! Link atom
+qqh   cr13  cr12      0.0       0.0    ! Link atom
+qqh   cr12  h12       0.0       0.0    ! Link atom
+qqh   cr12  cr11      0.0       0.0    ! Link atom
+qqh   nc2   ct2       0.0       0.0    ! Link atom
+
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+CA   CA   CA   ON2b      3.10    2   180.0  !phenol phosphate, 6/94, adm jr.
+HP   CA   CA   ON2b      4.20    2   180.0  !phenol phosphate, 6/94, adm jr.
+CA   CA   ON2b P         1.40    2   180.0  !phenol phosphate, 6/94, adm jr.
+CA   CA   ON2b P         0.20    3   180.0  !phenol phosphate, 6/94, adm jr.
+CA   ON2b P    ON4       0.95    2     0.0  !phenol phosphate, 6/94, adm jr.
+CA   ON2b P    ON4       0.50    3     0.0  !phenol phosphate, 6/94, adm jr.
+CA   ON2b P    ON3       0.10    3     0.0  !phenol phosphate, 6/94, adm jr.
+! Phenolphosphate, 10/02 fix, adm jr.
+ON2B P    ON4  HN4       1.60    1  180.0  !
+ON2B P    ON4  HN4       0.90    2    0.0  !
+! Benz.Meth.Phosphate, Sasha, Chris, adm jr.
+CA   CA   CT2  P         0.20    2  180.0  !
+CA   CT2  P    ON4       0.50    2    0.0  !
+CA   CT2  P    ON4       1.65    1  180.0  !
+HA   CT2  P    ON4       0.10    3    0.0  !
+CA   CT2  P    ON3       0.05    3    0.0  !
+HA   CT2  P    ON3       0.10    3    0.0  !
+CT2  P    ON4  HN4       0.60    1  180.0  !
+CT2  P    ON4  HN4       1.10    2    0.0  !
+! Benz.Difl.Phosphate
+CA   CA   CA   CF2       3.10    2  180.0  !
+HP   CA   CA   CF2       4.20    2  180.0  !
+CA   CA   CF2  F2        0.40    3    0.0  !
+CA   CA   CF2  F2        0.30    2    0.0  !
+CA   CA   CF2  P         0.15    2  180.0  !
+CA   CF2  P    ON4       0.10    2    0.0  !
+CA   CF2  P    ON4       0.40    3    0.0  !
+F2   CF2  P    ON4       0.10    3    0.0  !
+CA   CF2  P    ON3       0.00    3    0.0  !
+F2   CF2  P    ON3       0.00    3    0.0  !
+CF2  P    ON4  HN4       0.20    1  180.0  ! 10/02 fix, adm jr.
+CF2  P    ON4  HN4       1.60    2    0.0  ! 10/02 fix, adm jr.
+
+!terms for serine/threonine phosphates
+CT1  CT1  ON2  P     0.40    1   180.0 !phosphothreonine, from dianionic isopropylphosphate
+CT1  CT1  ON2  P     0.30    2     0.0 !
+CT1  CT1  ON2  P     0.10    3     0.0 !
+CT3  CT1  ON2  P     0.40    1   180.0 !phosphothreonine, from dianionic isopropylphosphate
+CT3  CT1  ON2  P     0.30    2     0.0 !
+CT3  CT1  ON2  P     0.10    3     0.0 !
+CN9  CN7  ON2  P     0.40    1   180.0 !dianionic isopropylphosphate
+CN9  CN7  ON2  P     0.30    2     0.0 !
+CN9  CN7  ON2  P     0.10    3     0.0 !
+CT1  CT2  ON2  P     0.60    1   180.0 !phosphoserine, from dianionic ethylphosphate
+CT1  CT2  ON2  P     0.65    2     0.0 !
+CT1  CT2  ON2  P     0.05    3     0.0 !
+CN9  CN8  ON2  P     0.60    1   180.0 !dianionic ethylphosphate
+CN9  CN8  ON2  P     0.65    2     0.0 !
+CN9  CN8  ON2  P     0.05    3     0.0 !
+!
+CT1  ON2  P    ON3   0.10    3     0.0 !from ON3  P    ON2  CN7
+CT2  ON2  P    ON3   0.10    3     0.0 !from ON3  P    ON2  CN8B
+CT1  ON2  P    ON4   0.95    2     0.0 !from ON4  P    ON2  CN8B
+CT1  ON2  P    ON4   0.50    3     0.0 !from ON4  P    ON2  CN8B
+CT2  ON2  P    ON4   0.95    2     0.0 !from ON4  P    ON2  CN8B
+CT2  ON2  P    ON4   0.50    3     0.0 !from ON4  P    ON2  CN8B
+HA   CT1  ON2  P     0.00    3     0.0 !from P    ON2  CN7 HN7
+HA   CT2  ON2  P     0.00    3     0.0 !from P    ON2  CN8B HN8
+!HN7  CN7  CN9  HN9   0.195   3     0.0 !from HN7  CN7  CN7B HN7
+CN9  CN7  CN9  HN9   0.195   3     0.0
+ON2  CN7  CN9  HN9   0.195   3     0.0
+!sahc
+CN8B S    CT2  CT2       0.2400  1       180.0 ! sahc, nilesh, from ALOW    ALI SUL ION
+CN7  CN8B S    CT2       0.2     1       120.0 ! sahc, nilesh, from bet C4'-C5'-O5'-P, adm jr.
+ON6B CN7  CN8B S         3.4     1       180.0 ! sahc, nilesh, from gam, RNA
+CN7  CN7  CN8B S         0.20    4       180.0 ! sahc, nilesh, from gam adm jr.
+CN7  CN7  CN8B S         0.80    3       180.0 ! sahc, nilesh, from gam C3'-C4'-C5'-O5'
+CN7  CN7  CN8B S         0.40    2         0.0 ! sahc, nilesh, from gam
+CN7  CN7  CN8B S         2.50    1       180.0 ! sahc, nilesh, from gam
+HN7  CN7  CN8B S         0.195   3         0.0 ! sahc, nilesh, from gam H-C4'-C5'-O5'
+CT2  S    CN8B HN8       0.28    3         0.0 ! sahc, nilesh, from ALLOW   ALI SUL ION
+HA   CT2  S    CN8B      0.28    3         0.0 ! sahc, nilesh, from ALLOW   ALI SUL ION
+!sam
+CT3  SP   CN8B CN7      0.391   1       180.0
+CT3  SP   CN8B CN7      0.373   3         0.0
+CT3  SP   CT2  CT2      0.391   1       180.0
+CT3  SP   CT2  CT2      0.373   3         0.0
+CN8B SP   CT2  CT2      0.391   1       180.0
+CN8B SP   CT2  CT2      0.373   3         0.0
+CN7  CN8B SP   CT2      0.391   1       180.0
+CN7  CN8B SP   CT2      0.373   3         0.0
+CT2  SP   CT3  HA       0.28    3         0.0
+HA   CT2  SP   CT3      0.28    3         0.0
+CN8B SP   CT3  HA       0.28    3         0.0
+HN8  CN8B SP   CT3      0.28    3         0.0
+ON6B CN7  CN8B SP        3.4     1       180.0 ! sahc, nilesh, from gam, RNA
+CN7  CN7  CN8B SP        0.20    4       180.0 ! sahc, nilesh, from gam adm jr.
+CN7  CN7  CN8B SP        0.80    3       180.0 ! sahc, nilesh, from gam C3'-C4'-C5'-O5'
+CN7  CN7  CN8B SP        0.40    2         0.0 ! sahc, nilesh, from gam
+CN7  CN7  CN8B SP        2.50    1       180.0 ! sahc, nilesh, from gam
+HN7  CN7  CN8B SP        0.195   3         0.0 ! sahc, nilesh, from gam H-C4'-C5'-O5'
+CT2  SP   CN8B HN8       0.28    3         0.0 ! sahc, nilesh, from ALLOW   ALI SUL ION
+HA   CT2  SP   CN8B      0.28    3         0.0 ! sahc, nilesh, from ALLOW   ALI SUL ION
+!ret
+X    CT2  NCH1 X                0.0       2        0.0
+X    NCH1 CR15 X                3.6       2      180.0  ! double
+X    CR15 CR14 X                3.8       2      180.0
+
+X    CR14 CR13 X                3.68      2      180.0  ! double
+X    CT3  CR13 X                0.0       2      180.0
+X    CR13 CR12 X                3.54      2      180.0
+X    CR12 CR11 X                4.385     2      180.0  ! double
+X    CR11 CR10 X                2.81      2      180.0
+X    CR10 CR9  X                4.66      2      180.0  ! double
+X    CT3  CR9  X                0.0       2      180.0
+X    CR9  CR8  X                2.13      2      180.0
+X    CR8  CR7  X                5.0       2      180.0  ! double
+X    CR7  CR6  X                1.405     2      180.0
+X    CR6  CR5  X                5.0       2      180.0  ! double
+X    CT2  CR5  X                0.0       2      180.0  ! ?
+X    CT3  CR5  X                0.0       2      180.0  ! ?
+X    CT3  CR6  X                0.0       2      180.0
+
+IMPROPER
+!ret
+CR15  CR14  NCH1  HPL1    100.00     0  0.000
+CR14  CR13  CR15  HPL     100.00     0  0.000
+CR13  CR12  CR14  CT3     100.00     0  0.000
+CR12  CR11  CR13  HPL     100.00     0  0.000
+CR11  CR10  CR12  HPL     100.00     0  0.000
+CR10  CR9   CR11  HPL     100.00     0  0.000
+CR9   CR8   CR10  CT3     100.00     0  0.00
+CR8   CR7   CR9   HPL     100.00     0  0.00
+CR7   CR6   CR8   HPL     100.00     0  0.00
+CR6   CR5   CR7   CT3     100.00     0  0.00
+CR5   CR6   CT2   CT3     100.00     0  0.00
+CR6   CT3   CR5   CR7     100.00     0  0.00
+CR7   CR8   CR6   HPL     100.00     0  0.00
+CR9   CR10  CR8   CT3     100.00     0  0.00
+CR11  CR12  CR10  HPL     100.00     0  0.00
+CR13  CR14  CR12  CT3     100.00     0  0.00
+
+CR15 NCH1  CR14 HPL1   100.000     0  0.000
+NCH1  CT2  CR15 HCR    45.000     0  0.000 ! AMIDES PROTON OOP
+
+NONBONDED  NBXMOD 5  ATOM CDIEL FSHIFT VATOM VDISTANCE VFSWITCH -
+     CUTNB 14.0  CTOFNB 12.0  CTONNB 10.0  EPS 1.0  E14FAC 1.0  WMIN 1.5
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+
+!The following atom types are unique to the phosphotyrosine analags and
+!have been added to the nucleic acid rtf and parameter files.  In
+!future versions of charmm, if the ability to append MASSes is added
+!these atom types should be removed from the original topology and
+!the following lines uncommented.
+!ON2B     0.0       -0.1521    1.77   !from ON2
+!SP       0.0       -0.4500    2.20   !charged S in S-adenosylmethionine (SAM)
+!ret
+CTR    0.000000  -0.156200     1.800000 ! Retinal Schiff base
+                ! methyl group ( idem CT ) Mafalda
+CR*    0.000000  -0.110000  2.100000  0.000 -0.110000 1.600000 !last 2  v14
+                ! RETINAL from ab initio calc's (J. Baudry) Sept. 1996
+HAR    0.000000  -0.007800     1.468000 !  Retinal Schiff base
+                !  methyl group E-N-methyl-2-propenylidenimine
+HCR    0.000000  -0.046    0.224500
+                ! RETINAL from ab initio calc's (Mafalda)
+HPL    0.000000  -0.046000     0.87000
+                ! RETINAL from ab initio calc's (Mafalda)
+HPL1   0.000000  -0.0078000     0.87000
+                ! RETINAL from ab initio calc's (Mafalda)
+NCH1   0.000000  -0.200000     1.950000
+                ! RETINAL from ab initio calc's (Mafalda)
+qqh    0.000000   0.000000     0.000000 ! Link atom
+end

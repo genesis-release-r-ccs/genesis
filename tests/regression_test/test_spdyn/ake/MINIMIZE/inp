@@ -2,7 +2,7 @@
 prmtopfile = ../../../build/ake/ake.top
 ambcrdfile = ../../../build/ake/ake.rst
 ambreffile = ../../../build/ake/ake.crd
-rstfile = ../../../build/ake/restart.rst
+rstfile    = ../../../build/ake/rst
 
 [OUTPUT]
  

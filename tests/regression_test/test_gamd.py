@@ -4,10 +4,10 @@
 #
 # A python script for GENESIS regression tests
 #
-# (c) Copyright 2019 RIKEN. All rights reserved.
+# (c) Copyright 2022 RIKEN. All rights reserved.
 #
 
-import commands
+import subprocess
 import os
 import os.path
 import sys
@@ -62,7 +62,7 @@ test_dirs = []
 ###### parse command line
 
 if len(sys.argv) == 1:
-    genesis_command = 'mpirun -np 8 spdyn'
+    genesis_command = 'mpirun -np 8 atdyn'
 elif len(sys.argv) == 2:
     genesis_command = sys.argv[1]
 else:
@@ -83,34 +83,51 @@ else:
         test_dirs = sys.argv[2:]
 
 if (genesis_command == "-h") or (genesis_command == "--help"):
-    print """    usage:
+    print("""    usage:
     $ ./test.py ["genesis command"] [parallel_io or tolerance_value or directories]
     
     examples:
-    # run tests using the default command ("mpirun -np 8 spdyn")
+    # run tests using the default command ("mpirun -np 8 atdyn")
     $ ./test_gamd.py
+
+    # run atdyn tests
+    $ ./test_gamd.py "mpirun -np 8 /path/to/genesis/bin/atdyn"
 
     # run spdyn tests
     $ ./test_gamd.py "mpirun -np 8 /path/to/genesis/bin/spdyn"
 
     # run with specfic tolerance value
-    $ ./test_gamd.py "mpirun -np 8 /path/to/genesis/bin/spdyn" 0.1
+    $ ./test_gamd.py "mpirun -np 8 /path/to/genesis/bin/atdyn" 0.1
 
-    """
+    """)
     sys.exit(3)
 
 genesis_command_split = genesis_command.split()
 genesis_command_last = genesis_command_split[-1]
 if not os.path.exists(os.path.expanduser(genesis_command_last)):
-    print "Error: %s does not exist" % genesis_command_last
+    print("Error: %s does not exist" % genesis_command_last)
     sys.exit(3)
 
 if (is_fugaku):
     genesis_mpi_number = 8
 else:
-    genesis_mpi_number = genesis_command_split[-2]
-    if not int(genesis_mpi_number) in [1, 2, 4, 8]:
-        print "Error: Number of MPI processes should be 1, 2, 4, or 8"
+    is_mpi=False
+    genesis_mpi_number = -1
+    for options in genesis_command_split:
+        if is_mpi:
+            genesis_mpi_number = int(options)
+            is_mpi=False
+            break
+        if options == "-n":
+            is_mpi = True
+        if options == "-np":
+            is_mpi = True
+
+    if int(genesis_mpi_number) < 0:
+        genesis_mpi_number = genesis_command_split[-2]
+
+    if not int(genesis_mpi_number) == 8:
+        print("Error: Number of MPI processes %d should be 8" % int(genesis_mpi_number))
         sys.exit(3)
 
 # if given path is relpath, change it to abspath
@@ -125,20 +142,20 @@ elif genesis_command[-5:] == "spdyn":
 ###### setup test directories
 
 if is_atdyn:
-    print "Error: atdyn is not available."
+    test_dirs = getdirs(os.path.dirname(__file__) + "/test_gamd_atdyn")
 elif is_spdyn:
     test_dirs = getdirs(os.path.dirname(__file__) + "/test_gamd_spdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
-        print "Error: %s, this test directory does not exist" % dir
+        print("Error: %s, this test directory does not exist" % dir)
         sys.exit(3)
 
 ###### run tests
 if (is_atdyn or is_spdyn):
-    print "======================================================================="
-    print " Regression tests for GaMD"
-    print "======================================================================="
+    print("=======================================================================")
+    print(" Regression tests for GaMD")
+    print("=======================================================================")
     
     cwdname = os.getcwd()
     for test_each in test_dirs:
@@ -150,8 +167,8 @@ if (is_atdyn or is_spdyn):
         os.chdir(dirname)
         
         # run MD
-        print "-----------------------------------------------------------------------"
-        print "Running %s..." % (dirname + "/")
+        print("-----------------------------------------------------------------------")
+        print("Running %s..." % (dirname + "/"))
 
         for fl in glob.glob("test*"):
             os.remove(fl)
@@ -164,21 +181,21 @@ if (is_atdyn or is_spdyn):
             commandline = '%s -stdout %s -stderr error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
         else:
             commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, testname)
-        print "$ %s" % commandline
-        status = commands.getstatusoutput(commandline)
+        print("$ %s" % commandline)
+        status = subprocess.getstatusoutput(commandline)
         
         if (status[0] > 0) and (status[0] != 1024):
-            print
-            print "Aborted..."
-            print
+            print()
+            print("Aborted...")
+            print()
             iaborted = iaborted + 1
             continue
         
         # parse the result
         #if status[0] == 0:
-        print
-        print "Checking %s" % test_each
-        print
+        print()
+        print("Checking %s" % test_each)
+        print()
 
         test = Genesis()
         test.read(testname)
@@ -197,12 +214,12 @@ if (is_atdyn or is_spdyn):
         ref.read(refname)
  
         # check the result
-        print
-        print "Checking %s" % test_each
-        print "Checking diff between %s and %s..." % (refname, testname)
-        print
+        print()
+        print("Checking %s" % test_each)
+        print("Checking diff between %s and %s..." % (refname, testname))
+        print()
         ref.test_diff(test, tolerance_cur, tolerance_cur_virial)
-        print
+        print()
         if ref.is_passed:
             ipassed = ipassed + 1
         else:
@@ -212,11 +229,11 @@ if (is_atdyn or is_spdyn):
 
 ###### finalization
 if (itried > 0):
-    print "-----------------------------------------------------------------------"
-    print "Passed  %d / %d" % (ipassed,  itried)
-    print "Failed  %d / %d" % (ifailed,  itried)
-    print "Aborted %d / %d" % (iaborted, itried)
-    print "-----------------------------------------------------------------------"
+    print("-----------------------------------------------------------------------")
+    print("Passed  %d / %d" % (ipassed,  itried))
+    print("Failed  %d / %d" % (ifailed,  itried))
+    print("Aborted %d / %d" % (iaborted, itried))
+    print("-----------------------------------------------------------------------")
 
 if iaborted > 0:
     sys.exit(2)

@@ -1,9 +1,9 @@
 [INPUT]
-topfile = ../../../param/top_all27_na.rtf
-parfile = ../../../param/par_all27_na.prm
-rstfile = ../../../build//dna//rst
-psffile = ../../../build//dna/dna.psf
-pdbfile = ../../../build//dna/dna.pdb
+topfile          = ../../../param/top_all27_na.rtf
+parfile          = ../../../param/par_all27_na.prm
+rstfile          = ../../../build/dna/rst
+psffile          = ../../../build/dna/dna.psf
+pdbfile          = ../../../build/dna/dna.pdb
 
 [OUTPUT]
  
@@ -22,7 +22,6 @@ nsteps           =  20
 timestep         = 0.001
 eneout_period    =  2
 nbupdate_period  =  5
-iseed            = 314159
 verbose          = yes
 
 [CONSTRAINTS]
@@ -34,6 +33,7 @@ shake_tolerance  = 1.0e-10
 ensemble         = NVE
 tpcontrol        = NO
 temperature      = 0
+group_tp         = NO   # This option is used only for regression tests.
  
 [BOUNDARY]
 type  = PBC

@@ -40,13 +40,15 @@ contains
   !  Subroutine    compute_energy_nonbond_tbl_lnr_fugaku
   !> @brief        calculate nonbonded energy with lookup table
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -66,7 +68,6 @@ contains
     real(dp),                 intent(inout) :: virial(:,:,:)
     real(dp),                 intent(inout) :: eelec(nthread)
     real(dp),                 intent(inout) :: evdw(nthread)
-
 
     ! local variables
     real(wp)                  :: dij(1:3), rij2
@@ -94,6 +95,7 @@ contains
     integer,          pointer :: natom(:), start_atom(:)
     integer,          pointer :: num_nb15_calc(:,:)
     integer,          pointer :: nb15_calc_list(:,:,:)
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -224,11 +226,14 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_lnr_fugaku
   !> @brief        calculate nonbonded force without solvents with lookup table
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : flag for NPT or not
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -246,6 +251,7 @@ contains
     real(wp),                 intent(inout) :: coord_pbc(:,:,:)
     real(wp),                 intent(inout) :: force(:,:,:,:)
     real(dp),                 intent(inout) :: virial(:,:,:)
+
 
     if (npt) then
       call compute_force_nonbond_tbl_lnr_fugaku_npt( &  
@@ -266,11 +272,13 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_lnr_fugaku_npt
   !> @brief        calculate nonbonded force with virial
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -313,6 +321,7 @@ contains
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
 
     real(dp)                  :: sas,eae
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -382,14 +391,14 @@ contains
         !
         if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(ixx,1) ) then
 !ocl prefetch_read(nb15_calc_list(k+128,  ixx,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
         if((num_nb15_calc(ixx,1)<=64.and.k==1) .or. &
            k==(num_nb15_calc(ixx,1)-64) ) then
 !ocl prefetch_read(nb15_calc_list(1,  ixx+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, ixx+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,ixx,1)
 
@@ -458,11 +467,12 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_lnr_fugaku_nonpt
   !> @brief        calculate nonbonded force without solvents with charmm
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -504,6 +514,7 @@ contains
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
 
     real(dp)                  :: sas,eae
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -570,14 +581,14 @@ contains
         !
         if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(kki,1) ) then
 !ocl prefetch_read(nb15_calc_list(k+128,  kki,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
         if((num_nb15_calc(kki,1)<=64.and.k==1) .or. &
            k==(num_nb15_calc(kki,1)-64) ) then
 !ocl prefetch_read(nb15_calc_list(1,  kki+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, kki+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,kki,1)
 
@@ -638,13 +649,15 @@ contains
   !  Subroutine    compute_energy_nonbond_notbl_fugaku
   !> @brief        calculate nonbonded energy with lookup table for elec
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -825,11 +838,14 @@ contains
   !  Subroutine    compute_force_nonbond_notbl_fugaku
   !> @brief        calculate nonbonded force without solvents with lookup table
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : flag for NPT or not
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -865,14 +881,16 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_force_nonbond_tbl_lnr_fugaku_npt
+  !  Subroutine    compute_force_nonbond_notbl_fugaku_npt
   !> @brief        calculate nonbonded force with virial
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -915,6 +933,7 @@ contains
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
 
     real(dp)                  :: sas,eae
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -984,14 +1003,14 @@ contains
         !
         if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(ixx,1) ) then
 !ocl prefetch_read(nb15_calc_list(k+128,  ixx,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
         if((num_nb15_calc(ixx,1)<=64.and.k==1) .or. &
             k==(num_nb15_calc(ixx,1)-64) ) then
 !ocl prefetch_read(nb15_calc_list(1,  ixx+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, ixx+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,ixx,1)
 
@@ -1059,14 +1078,15 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_force_nonbond_tbl_lnr_fugaku_nonpt
+  !  Subroutine    compute_force_nonbond_notbl_fugaku_nonpt
   !> @brief        calculate nonbonded force without solvents with charmm
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1108,6 +1128,7 @@ contains
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
 
     real(dp)                  :: sas,eae
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -1173,16 +1194,16 @@ contains
 
         ! prefetch for this ix loop prefetch
         !
-        if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(kki,1) ) then
+        if (mod(k,64)==1 .and. (k+128)<=num_nb15_calc(kki,1)) then
 !ocl prefetch_read(nb15_calc_list(k+128,  kki,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
-        if((num_nb15_calc(kki,1)<=64.and.k==1) .or. &
-            k==(num_nb15_calc(kki,1)-64) ) then
+        if ((num_nb15_calc(kki,1)<=64.and.k==1) .or. &
+             k==(num_nb15_calc(kki,1)-64)) then
 !ocl prefetch_read(nb15_calc_list(1,  kki+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, kki+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,kki,1)
 
@@ -1246,13 +1267,15 @@ contains
   !  Subroutine    compute_energy_nonbond_tbl_ljpme_fugaku
   !> @brief        calculate nonbonded energy with lookup table
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] eelec      : electrostatic energy of target systems
+  !! @param[inout] evdw       : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1299,6 +1322,7 @@ contains
     integer,          pointer :: natom(:), start_atom(:)
     integer,          pointer :: num_nb15_calc(:,:)
     integer,          pointer :: nb15_calc_list(:,:,:)
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -1397,7 +1421,7 @@ contains
         term_lj6  = table_ene(L1  ) + R*(table_ene(L1+2)-table_ene(L1  ))
         term_elec = table_ene(L1+1) + R*(table_ene(L1+3)-table_ene(L1+1))
         evdw_temp = evdw_temp + inv_r12*lj12 - term_temp*lj6 - term_lj6*lj6_ij
-        elec_temp = elec_temp + qtmp*charge(iy,i)*term_elec
+        elec_temp = elec_temp + qtmp*jqtmp*term_elec
 
         term_lj12 = -12.0_wp*inv_r12*inv_r2
         term_temp = -6.0_wp*inv_r6*inv_r2
@@ -1444,11 +1468,14 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_ljpme_fugaku
   !> @brief        calculate nonbonded force without solvents with lookup table
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[in]    npt        : flag for NPT or not
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1490,11 +1517,13 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_ljpme_fugaku_npt
   !> @brief        calculate nonbonded force with virial
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
+  !! @param[inout] virial     : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1536,6 +1565,7 @@ contains
     integer,          pointer,contiguous :: natom(:), start_atom(:)
     integer,          pointer,contiguous :: num_nb15_calc(:,:)
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -1607,16 +1637,16 @@ contains
 
         ! prefetch for this ix loop prefetch
         !
-        if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(ixx,1) ) then
+        if (mod(k,64) == 1 .and. (k+128) <= num_nb15_calc(ixx,1)) then
 !ocl prefetch_read(nb15_calc_list(k+128,  ixx,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
-        if((num_nb15_calc(ixx,1)<=64.and.k==1) .or. &
-           k==(num_nb15_calc(ixx,1)-64) ) then
+        if ((num_nb15_calc(ixx,1)<=64.and.k==1) .or. &
+            k==(num_nb15_calc(ixx,1)-64)) then
 !ocl prefetch_read(nb15_calc_list(1,  ixx+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, ixx+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,ixx,1)
 
@@ -1692,11 +1722,12 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_ljpme_fugaku_nonpt
   !> @brief        calculate nonbonded force with virial
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain     : domain information
+  !! @param[in]    enefunc    : potential energy functions
+  !! @param[in]    pairlist   : interaction list in each domain
+  !! @param[inout] atmcls_pbc : atom class number
+  !! @param[inout] coord_pbc  : pbc oriented coordinates
+  !! @param[inout] force      : forces for each cell
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1737,6 +1768,7 @@ contains
     integer,          pointer,contiguous :: natom(:), start_atom(:)
     integer,          pointer,contiguous :: num_nb15_calc(:,:)
     integer,          pointer,contiguous :: nb15_calc_list(:,:,:)
+
 
     atmcls          => domain%atom_cls_no
     natom           => domain%num_atom
@@ -1805,16 +1837,16 @@ contains
 
         ! prefetch for this ix loop prefetch
         !
-        if( mod(k,64)==1 .and. (k+128)<=num_nb15_calc(ixx,1) ) then
+        if (mod(k,64) == 1 .and. (k+128) <= num_nb15_calc(ixx,1)) then
 !ocl prefetch_read(nb15_calc_list(k+128,  ixx,1),level=1,strong=1)
-        endif
+        end if
 
         ! prefetch for next ix loop prefetch
-        if((num_nb15_calc(ixx,1)<=64.and.k==1) .or. &
-           k==(num_nb15_calc(ixx,1)-64) ) then
+        if ((num_nb15_calc(ixx,1) <= 64 .and. k == 1) .or. &
+            k==(num_nb15_calc(ixx,1)-64)) then
 !ocl prefetch_read(nb15_calc_list(1,  ixx+1,1),level=1,strong=1)
 !ocl prefetch_read(nb15_calc_list(65, ixx+1,1),level=1,strong=1)
-        endif
+        end if
 
         ij = nb15_calc_list(k+64,ixx,1)
 

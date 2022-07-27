@@ -23,8 +23,10 @@ module string_mod
   ! variables
   integer,      public, parameter :: MaxLine          = 1500
   integer,      public, parameter :: MaxLineLong      = 50000
+  integer,      public, parameter :: MaxLineLong_CV   = 100000
   integer,      public, parameter :: LineBuffer       = 128
   integer,      public, parameter :: MaxFilename      = MaxLine
+  integer,      public, parameter :: MaxFilenameLong  = MaxLineLong
   integer,      public, parameter :: MaxMultiFilename = MaxLine
 
   ! subroutines and functions
@@ -40,6 +42,7 @@ module string_mod
   public  :: extract
   public  :: tolower
   public  :: toupper
+  public  :: parse_tristate_string
 
   private :: is_blank
   private :: not_blank
@@ -312,7 +315,7 @@ contains
 
     do j = 1, nc
       do k = 1, NumAlpha
-        if (ccc(j:j) == csmall(k)) &
+        if (ccc(j:j) .eq. csmall(k)) &
           ccc(j:j) = clarge(k)
       end do
     end do
@@ -356,7 +359,7 @@ contains
     exist = .false.
     
     do i = nsta, nend
-      if (line(i:i) == '!') then
+      if (line(i:i) .eq. '!') then
         nread = i + 1
         exist = .true.
         exit
@@ -409,6 +412,9 @@ contains
       end if
 
     end do
+    if (not_blank(line(nend:nend)) .and. exist) then
+      ndata = ndata + 1
+    endif
 
     return
 
@@ -455,7 +461,7 @@ contains
       end if
     end do
 
-    if (chr(len:len) == char(9)) split_num = split_num - 1
+    if (chr(len:len) .eq. char(9)) split_num = split_num - 1
 
     return
 
@@ -534,7 +540,7 @@ contains
 
 
     do i = 1, len(str)
-      if (str(i:i) >= 'A' .and. str(i:i) <= 'Z') then
+      if (str(i:i) .ge. 'A' .and. str(i:i) .le. 'Z') then
         str(i:i) = char(ichar(str(i:i)) + 32)
       end if
     end do
@@ -562,7 +568,7 @@ contains
 
 
     do i = 1, len(str)
-      if (str(i:i) >= 'a' .and. str(i:i) <= 'z') then
+      if (str(i:i) .ge. 'a' .and. str(i:i) .le. 'z') then
         str(i:i) = char(ichar(str(i:i)) - 32)
       end if
     end do
@@ -590,7 +596,7 @@ contains
     character,               intent(in)    :: c
 
 
-    is_blank = (c == ' ' .or. c == char(9))
+    is_blank = (c .eq. ' ' .or. c .eq. char(9))
     return
 
   end function is_blank
@@ -614,7 +620,7 @@ contains
     character,               intent(in) :: c
 
 
-    not_blank = (c /= ' ' .and. c /= char(9))
+    not_blank = (c .ne. ' ' .and. c .ne. char(9))
     return
 
   end function not_blank
@@ -646,7 +652,7 @@ contains
     ib = 1
     do i = 1, nval
 
-      do while(chr(ib:ib) == ' ')
+      do while(chr(ib:ib) .eq. ' ')
         ib = ib + 1
         if (ib >= len(chr)) &
           exit
@@ -655,7 +661,7 @@ contains
         exit
 
       ie = ib + 1
-      do while(chr(ie:ie) /= ' ')
+      do while(chr(ie:ie) .ne. ' ')
         ie = ie + 1
         if (ie > len(chr)) &
           exit
@@ -748,5 +754,48 @@ contains
 999 call error_msg('Split_real> internal-read failed')
 
   end subroutine split_real
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      parse_tristate_string
+  !> @brief        convert string to tristate value
+  !! @authors      DS
+  !! @param[in]    string : character string
+  !! @return       tristate(integer) value
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function parse_tristate_string(string) result(tristate)
+
+    ! return value
+    integer                                :: tristate
+
+    ! formal arguments
+    character(*),            intent(in)    :: string
+
+    ! local variables
+    character(len(string))                 :: string_lower
+
+
+    if (string == '') then
+      tristate = tristate_NOT_SET
+      return
+    end if
+
+    string_lower = string
+    call tolower(string_lower)
+
+    select case(string_lower)
+    case ("true", "yes", "1", "y", "t")
+      tristate = tristate_TRUE
+    case ("false", "no", "0", "n", "f")
+      tristate = tristate_FALSE
+    case default
+      call error_msg('parse_tristate_string> invalid value')
+    end select
+
+    return
+
+  end function parse_tristate_string
 
 end module string_mod

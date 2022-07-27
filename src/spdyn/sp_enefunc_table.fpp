@@ -47,7 +47,6 @@ contains
   !> @brief        define lookup table of potential energy function
   !! @authors      JJ
   !! @param[in]    ene_info : ENERGY section control parameters information
-  !! @param[in]    molecule : molecule information
   !! @param[inout] enefunc  : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -147,7 +146,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine setup_table_general_pme_linear(ene_info, cutoff2, &
-                                        cutoff_int, cutoff_int1, enefunc)
+                                            cutoff_int, cutoff_int1, enefunc)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info
@@ -184,7 +183,9 @@ contains
     ! set lennard-jones parameters
     !
     switchdist2 = switchdist * switchdist
-    switch_int  = int(1.0_wp/switchdist2*cutoff2*density)
+    if (switchdist2 > 0.0_wp) then
+      switch_int  = int(1.0_wp/switchdist2*cutoff2*density)
+    end if
 
     table_ene  (1:3*cutoff_int1) = 0.0_wp
     table_ecor (1:cutoff_int1)   = 0.0_wp
@@ -210,8 +211,8 @@ contains
     else if (enefunc%vdw == VDWCutoff) then
 
       enefunc%vdw_no_switch = .true.
-      call table_pme_linear_noswitch(cutoff_int, density, cutoff2, el_fact,  &
-                                     alpha, alpha2sp, alpha2m, table_ene,    &
+      call table_pme_linear_noswitch(cutoff_int, density, cutoff2, el_fact, &
+                                     alpha, alpha2sp, alpha2m, table_ene,   &
                                      table_grad, table_ecor, table_decor)
 
     else if (enefunc%forcefield == ForcefieldGROAMBER .or.                 &
@@ -264,7 +265,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine setup_table_general_cutoff_cubic(ene_info, cutoff2,  &
-                                        cutoff_int, cutoff_int1, enefunc)
+                                              cutoff_int, cutoff_int1, enefunc)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info
@@ -281,6 +282,7 @@ contains
 
     real(wp),        pointer :: table_ene(:)
     real(wp),        pointer :: table_grad(:)
+
 
     density     = enefunc%table%density
     table_ene  => enefunc%table%table_ene
@@ -353,6 +355,5 @@ contains
     return
 
   end subroutine setup_table_general_cutoff_cubic
-
 
 end module sp_enefunc_table_mod

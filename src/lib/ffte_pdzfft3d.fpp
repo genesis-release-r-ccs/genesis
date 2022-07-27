@@ -78,7 +78,7 @@
                            NX,NY,NZ,ICOMM,ME,NPU,IOPT)
       USE CONSTANTS_MOD
       IMPLICIT REAL(WP) (A-H,O-Z)
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       INCLUDE 'mpif.h'
 #endif
       INCLUDE 'ffte_param.h'
@@ -205,7 +205,7 @@
   280 CONTINUE
 !$omp BARRIER
 !$omp MASTER
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALLV(A,ISCNT,ISDSP,MPI_WP_COMPLEX, &
                          B,IRCNT,IRDSP,MPI_WP_COMPLEX, &
                          ICOMM,IERR)
@@ -270,7 +270,7 @@
       IF (IOPT .EQ. -2) RETURN
 !$omp BARRIER
 !$omp MASTER
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       CALL MPI_ALLTOALLV(A,IRCNT,IRDSP,MPI_WP_COMPLEX, &
                          B,ISCNT,ISDSP,MPI_WP_COMPLEX, &
                          ICOMM,IERR)

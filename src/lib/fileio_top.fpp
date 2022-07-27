@@ -50,6 +50,9 @@ module fileio_top_mod
   ! parameters
   integer,     private, parameter :: MAXROW = 80
 
+  ! local variables
+  logical,                private :: vervose = .true.
+
   ! subroutines
   public  :: input_top
   public  :: init_top
@@ -81,7 +84,7 @@ contains
     ! local variables
     type(s_top)              :: top0
     integer                  :: unit_no, i
-    character(100)           :: filename
+    character(MaxFilename)   :: filename
 
 
     call init_top(top)
@@ -107,12 +110,13 @@ contains
 
     end do
 
-    if (main_rank) then
+    if (main_rank .and. vervose) then 
       write(MsgOut,'(A)') 'Input_Top> Summary of Topfile'
       write(MsgOut,'(A20,I10,A20,I10)') &
            '  num_atom_class  = ', top%num_atom_cls, &
            '  num_resi_type   = ', top%num_res_type
       write(MsgOut,'(A)') ' '
+      vervose = .false.
     end if
 
     return
@@ -350,7 +354,7 @@ contains
 
       call char_line(MAXROW, line, nchar)
 
-      if (line(1:4) == 'MASS') then
+      if (line(1:4) .eq. 'MASS') then
 
         !  Read MASS section 
         !
@@ -361,13 +365,13 @@ contains
 
         num_cls = num_cls + 1
 
-      else if (line(1:4) == 'RESI' .or. line(1:4) == 'PRES') then
+      else if (line(1:4) .eq. 'RESI' .or. line(1:4) .eq. 'PRES') then
 
         !  read RESI section
         !
         num_res_type = num_res_type + 1
 
-      else if (line(1:3) == 'end' .or. line(1:3) == 'END') then
+      else if (line(1:3) .eq. 'end' .or. line(1:3) .eq. 'END') then
 
         exit
 
@@ -399,7 +403,7 @@ contains
 
       call char_line(MAXROW, line, nchar)
 
-      if (line(1:4) == 'MASS') then
+      if (line(1:4) .eq. 'MASS') then
 
         !  read atom_class section and store the information
         !
@@ -419,7 +423,7 @@ contains
         end if
         call read_comment(linebk, 1, MAXROW, top%atom_cls_comment(ia))
 
-      else if (line(1:4) == 'RESI' .or. line(1:4) == 'PRES') then
+      else if (line(1:4) .eq. 'RESI' .or. line(1:4) .eq. 'PRES') then
 
         !  read RESI section
         !
@@ -432,7 +436,7 @@ contains
         top%res_atom_cls_bgn(ir) = 1
         top%res_atom_cls_end(ir) = num_cls
 
-      else if (line(1:3) == 'end' .or. line(1:3) == 'END') then
+      else if (line(1:3) .eq. 'end' .or. line(1:3) .eq. 'END') then
 
 #ifdef DEBUG
         if (main_rank) then
@@ -506,11 +510,11 @@ contains
 
       ! multiple definition check
       do j = 1, top%num_atom_cls
-        if (top0%atom_cls_name(i) /= top%atom_cls_name(j)) &
+        if (top0%atom_cls_name(i) .ne. top%atom_cls_name(j)) &
           cycle
 
         if (top0%atom_cls_mass(i) /= top%atom_cls_mass(j) .or. &
-             top0%atom_ele_name(i) /= top%atom_ele_name(j)) then
+             top0%atom_ele_name(i) .ne. top%atom_ele_name(j)) then
 
           if (main_rank .and. top0%atom_cls_mass(i) /= top%atom_cls_mass(j)) &
                write(MsgOut,'(3a,f8.4,a,f8.4)') &
@@ -518,7 +522,7 @@ contains
                trim(top%atom_cls_name(j)), '" Mass: ', &
                top0%atom_cls_mass(i), ' <=> ', top%atom_cls_mass(j)
 
-          if (main_rank .and. top0%atom_ele_name(i) /= top%atom_ele_name(j)) &
+          if (main_rank .and. top0%atom_ele_name(i) .ne. top%atom_ele_name(j))&
                write(MsgOut,'(6a)') &
                ' Merge_Top> WARNING: Multiple definition: "', &
                trim(top%atom_cls_name(j)), '" Element: ', &
@@ -552,7 +556,7 @@ contains
     ii = 0
     do i = 1, top0%num_res_type
       do j = 1, top%num_res_type
-        if (top0%res_name(i) /= top%res_name(j)) &
+        if (top0%res_name(i) .ne. top%res_name(j)) &
           cycle
         if (main_rank) &
           write(MsgOut,'(3a)')' Merge_Top> WARNING: RESI: Multiple definition: "', &
@@ -575,7 +579,7 @@ contains
                           top0%res_atom_cls_bgn(i) + top%num_atom_cls
         topw%res_atom_cls_end(ii+top%num_res_type) = &
                           top0%res_atom_cls_end(i) + top%num_atom_cls
-      endif
+      end if
     end do
 
     n = ii + top%num_res_type

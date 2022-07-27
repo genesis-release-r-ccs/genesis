@@ -1,8 +1,8 @@
-!--------1---------2---------3---------4---------5---------6---------7---------8
+! --------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   fileio_grotop_mod
 !> @brief   read GROMACS topology file
-!! @authors Norio Takase (NT)
+!! @authors Norio Takase (NT), Cheng Tan (CT)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -20,6 +20,9 @@ module fileio_grotop_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef HAVE_MPI_GENESIS
+  use mpi
+#endif
 
   implicit none
   private
@@ -38,6 +41,8 @@ module fileio_grotop_mod
     real(wp)                       :: charge        = 0.0_wp
     real(wp)                       :: mass          = 0.0_wp
     real(wp)                       :: stokes_r      = 0.0_wp
+    real(wp)                       :: v             = 0.0_wp
+    real(wp)                       :: w             = 0.0_wp
   end type s_atom
 
   ! bond data
@@ -59,6 +64,14 @@ module fileio_grotop_mod
     real(wp)                       :: kt            = 0.0_wp
     real(wp)                       :: r13           = 0.0_wp !nm
     real(wp)                       :: kub           = 0.0_wp
+    !CK
+    real(wp)                       :: theta_01      = 0.0_wp !deg.
+    real(wp)                       :: kt1           = 0.0_wp
+    real(wp)                       :: cgamma        = 0.0_wp !deg.
+    real(wp)                       :: epsa          = 0.0_wp
+    ! shinobu-edited
+    real(wp)                       :: w             = 0.0_wp
+    integer                        :: types         = 0
   end type s_angl
 
   ! dihedral data
@@ -72,6 +85,10 @@ module fileio_grotop_mod
     real(wp)                       :: kp            = 0.0_wp
     integer                        :: multiplicity  = 0
     real(wp)                       :: c(6)          = 0.0_wp
+    !shinobu-edited
+    real(wp)                       :: w             = 0.0_wp
+    real(wp)                       :: theta_0       = 0.0_wp
+    integer                        :: types         = 0
   end type s_dihe
 
   ! cmap data
@@ -108,6 +125,8 @@ module fileio_grotop_mod
     real(wp)                       :: v             = 0.0_wp
     real(wp)                       :: w             = 0.0_wp
     real(wp)                       :: khh           = 0.0_wp
+    !shinobu-edited
+    real(wp)                       :: r0            = 0.0_wp
   end type s_pair
 
   ! settle data
@@ -170,6 +189,66 @@ module fileio_grotop_mod
     real(wp)                       :: kz            = 0.0_wp
   end type s_posres
 
+  ! pair data for multi
+  !    func_type = 1  : LJ
+  type, public :: s_mcont
+    integer                        :: atom_idx1     = 0
+    integer                        :: atom_idx2     = 0
+    integer                        :: func          = 0
+    integer                        :: model         = 0
+    real(wp)                       :: v             = 0.0_wp
+    real(wp)                       :: w             = 0.0_wp
+  end type s_mcont
+
+  ! pair data for multi
+  !    func_type = 1  : LJ
+  type, public :: s_morph_pair
+    integer                        :: atom_idx1     = 0
+    integer                        :: atom_idx2     = 0
+    real(wp)                       :: rmin          = 0.0_wp
+    real(wp)                       :: rmin_other    = 0.0_wp
+  end type s_morph_pair
+
+  ! CG: PWMcos pairs
+  type, public :: s_pwmcos
+    integer                        :: func          = 0
+    integer                        :: protein_idx   = 0
+    real(wp)                       :: r0            = 0.0_wp
+    real(wp)                       :: theta1        = 0.0_wp
+    real(wp)                       :: theta2        = 0.0_wp
+    real(wp)                       :: theta3        = 0.0_wp
+    real(wp)                       :: ene_A         = 0.0_wp
+    real(wp)                       :: ene_C         = 0.0_wp
+    real(wp)                       :: ene_G         = 0.0_wp
+    real(wp)                       :: ene_T         = 0.0_wp
+    real(wp)                       :: gamma         = 0.0_wp
+    real(wp)                       :: eps_shift     = 0.0_wp
+  end type s_pwmcos
+
+  ! CG: PWMcos-ns pairs
+  type, public :: s_pwmcosns
+    integer                        :: func          = 0
+    integer                        :: protein_idx   = 0
+    real(wp)                       :: r0            = 0.0_wp
+    real(wp)                       :: theta1        = 0.0_wp
+    real(wp)                       :: theta2        = 0.0_wp
+    real(wp)                       :: ene           = 0.0_wp
+  end type s_pwmcosns
+
+  ! ~CG~ protein IDR HPS region
+  !
+  type, public :: s_idr_hps
+    integer                        :: grp_start  = 0
+    integer                        :: grp_end    = 0
+  end type s_idr_hps
+
+  ! ~CG~ protein IDR KH region
+  !
+  type, public :: s_idr_kh
+    integer                        :: grp_start  = 0
+    integer                        :: grp_end    = 0
+  end type s_idr_kh
+
   ! molecule definition data
   type, public :: s_grotop_mol
     integer                        :: num_atoms     = 0
@@ -185,6 +264,13 @@ module fileio_grotop_mod
     integer                        :: num_vsites4   = 0
     integer                        :: num_vsitesn   = 0
     integer                        :: num_posress   = 0
+    integer                        :: num_mcontacts = 0
+    integer                        :: num_morph_bb  = 0
+    integer                        :: num_morph_sc  = 0
+    integer                        :: num_pwmcos    = 0
+    integer                        :: num_pwmcosns  = 0
+    integer                        :: num_idr_hps   = 0
+    integer                        :: num_idr_kh   = 0
     type(s_atom),      allocatable :: atoms(:)
     type(s_bond),      allocatable :: bonds(:)
     type(s_angl),      allocatable :: angls(:)
@@ -199,6 +285,13 @@ module fileio_grotop_mod
     type(s_vsite4),    allocatable :: vsites4(:)
     type(s_vsiten),    allocatable :: vsitesn(:)
     type(s_posres),    allocatable :: posress(:)
+    type(s_mcont),     allocatable :: mcontact(:)
+    type(s_morph_pair),allocatable :: morph_bb(:)
+    type(s_morph_pair),allocatable :: morph_sc(:)
+    type(s_pwmcos),    allocatable :: pwmcos(:)
+    type(s_pwmcosns),  allocatable :: pwmcosns(:)
+    type(s_idr_hps),   allocatable :: idr_hps(:)
+    type(s_idr_kh),    allocatable :: idr_kh(:)
   end type s_grotop_mol
 
 
@@ -267,6 +360,7 @@ module fileio_grotop_mod
     integer                        :: multiplicity = 0
     real(wp)                       :: c(6)         = 0.0_wp
     logical                        :: four_type    = .false.
+    integer                        :: wild_num
   end type s_dihetype
 
   ! constraint type data
@@ -316,28 +410,210 @@ module fileio_grotop_mod
     type(s_moltype),     pointer   :: moltype      => null()
   end type s_mols
 
+  !Ck made
+  ! gomodel data
+  type, public :: s_gomodel
+    integer                        :: go_func         = 1
+    integer                        :: num_basins      = 1
+  end type s_gomodel
+
+  !Ck made
+  ! gomodel data
+  type, public :: s_itpread
+    character(MaxLine)             :: itp             = ''
+  end type s_itpread
+
+  ! Ezmembrane type data
+  type, public :: s_ezmembrane
+    character(6)                   :: atom_type    = ''
+    integer                        :: func         = 0
+    real(wp)                       :: de           = 0.0_wp
+    real(wp)                       :: zmin         = 0.0_wp
+    real(wp)                       :: polym        = 0.0_wp
+  end type s_ezmembrane
+
+  ! Ezmembrane type data
+  type, public :: s_flangltype
+    character(6)                   :: atom_type    = ''
+    integer                        :: func         = 0
+    real(wp),          allocatable :: theta(:)
+    real(wp),          allocatable :: efunc(:)
+    real(wp),          allocatable :: d2func(:)
+  end type s_flangltype
+
+  type, public :: s_fldihetype
+    character(6)                   :: atom_type1   = ''
+    character(6)                   :: atom_type2   = ''
+    integer                        :: func         = 0
+    real(wp),          allocatable :: coef(:)
+  end type s_fldihetype
+
+  ! ~CG~ 3SPN.2C DNA: intra-strand base stacking
+  !
+  type, public :: s_basestacktype
+    character(6)                   :: base_type5 = '' ! 5' Base type
+    character(6)                   :: base_type3 = '' ! 3' Base type
+    integer                        :: func       = 0
+    real(wp)                       :: epsilon    = 0.0_wp
+    real(wp)                       :: sigma      = 0.0_wp
+    real(wp)                       :: theta_bs   = 0.0_wp ! degree
+  end type s_basestacktype
+
+  ! ~CG~ 3SPN.2C DNA: intra/inter-strand base pairing
+  !
+  type, public :: s_basepairtype
+    character(6)                   :: base_type_a = ''
+    character(6)                   :: base_type_b = ''
+    integer                        :: func        = 0
+    real(wp)                       :: theta_1     = 0.0_wp ! degree
+    real(wp)                       :: theta_2     = 0.0_wp ! degree
+    real(wp)                       :: theta_3     = 0.0_wp ! degree
+    real(wp)                       :: phi_1       = 0.0_wp ! degree
+    real(wp)                       :: sigma       = 0.0_wp ! nm
+    real(wp)                       :: epsilon     = 0.0_wp ! kJ/mol
+  end type s_basepairtype
+
+  ! ~CG~ 3SPN.2C DNA: base cross-stacking
+  !
+  type, public :: s_basecrosstype
+    character(6)                   :: base_type_a = ''
+    character(6)                   :: base_type_b = ''
+    integer                        :: func        = 0
+    real(wp)                       :: epsilon     = 0.0_wp
+    real(wp)                       :: sigma       = 0.0_wp
+    real(wp)                       :: theta_cs    = 0.0_wp ! degree
+  end type s_basecrosstype
+
+  ! ~CG~ 3SPN.2C DNA: excluded volume
+  !
+  type, public :: s_cgdnaexvtype
+    character(6)                   :: base_type   = ''
+    integer                        :: func        = 0
+    real(wp)                       :: sigma       = 0.0_wp
+  end type s_cgdnaexvtype
+
+  ! ~CG~ debye-huckel ele interaction mol-mol pairs
+  !
+  type, public :: s_cg_ele_mol_pair
+    integer                        :: func        = -1
+    integer                        :: grp1_start  = 0
+    integer                        :: grp1_end    = 0
+    integer                        :: grp2_start  = 0
+    integer                        :: grp2_end    = 0
+    logical                        :: is_intermol = .true.
+  end type s_cg_ele_mol_pair
+
+  ! ~CG~ PWMcos mol-mol pairs
+  !
+  type, public :: s_pwmcos_mol_pair
+    integer                        :: func        = -1
+    integer                        :: grp1_start  = 0
+    integer                        :: grp1_end    = 0
+    integer                        :: grp2_start  = 0
+    integer                        :: grp2_end    = 0
+  end type s_pwmcos_mol_pair
+
+  ! ~CG~ PWMcos-ns mol-mol pairs
+  !
+  type, public :: s_pwmcosns_mol_pair
+    integer                        :: func        = -1
+    integer                        :: grp1_start  = 0
+    integer                        :: grp1_end    = 0
+    integer                        :: grp2_start  = 0
+    integer                        :: grp2_end    = 0
+  end type s_pwmcosns_mol_pair
+
+  ! ~CG~ KH mol-mol pairs
+  !
+  type, public :: s_cg_kh_mol_pair
+    integer                        :: func        = -1
+    integer                        :: grp1_start  = 0
+    integer                        :: grp1_end    = 0
+    integer                        :: grp2_start  = 0
+    integer                        :: grp2_end    = 0
+    logical                        :: is_intermol = .true.
+  end type s_cg_kh_mol_pair
+
+  ! ~CG~ protein IDR HPS model params
+  !
+  type, public :: s_cg_IDR_HPS_atomtype
+    character(6)                   :: type_name    = ''
+    real(wp)                       :: mass         = 0.0_wp
+    real(wp)                       :: charge       = 0.0_wp
+    real(wp)                       :: sigma        = 0.0_wp
+    real(wp)                       :: lambda       = 0.0_wp
+  end type s_cg_IDR_HPS_atomtype
+
+  ! ~CG~ protein KH model params
+  !
+  type, public :: s_cg_KH_atomtype
+    character(6)                   :: type_name    = ''
+    real(wp)                       :: mass         = 0.0_wp
+    real(wp)                       :: charge       = 0.0_wp
+    real(wp)                       :: sigma        = 0.0_wp
+  end type s_cg_KH_atomtype
+
+  ! ~CG~ protein-protein Miyazawa-Jernigan model epsilons
+  !
+  type, public :: s_cg_pair_MJ_eps
+    character(6)                   :: type_name_1    = ''
+    character(6)                   :: type_name_2    = ''
+    real(wp)                       :: epsilon        = 0.0_wp
+  end type s_cg_pair_MJ_eps
+
   ! topology data
   type, public :: s_grotop
-    integer                        :: num_atomtypes   = 0
-    integer                        :: num_bondtypes   = 0
-    integer                        :: num_angltypes   = 0
-    integer                        :: num_dihetypes   = 0
-    integer                        :: num_constrtypes = 0
-    integer                        :: num_cmaptypes   = 0
-    integer                        :: num_nbonparms   = 0
-    integer                        :: num_moltypes    = 0
-    integer                        :: num_molss       = 0
-    logical                        :: alias_atomtype  = .false.
-    type(s_defaults)               :: defaults
-    type(s_atomtype),  allocatable :: atomtypes(:)
-    type(s_bondtype),  allocatable :: bondtypes(:)
-    type(s_angltype),  allocatable :: angltypes(:)
-    type(s_dihetype),  allocatable :: dihetypes(:)
-    type(s_constrtype),allocatable :: constrtypes(:)
-    type(s_cmaptype),  allocatable :: cmaptypes(:)
-    type(s_nbonparm),  allocatable :: nbonparms(:)
-    type(s_moltype),   allocatable :: moltypes(:)
-    type(s_mols),      allocatable :: molss(:)
+    integer                               :: num_atomtypes      = 0
+    integer                               :: num_bondtypes      = 0
+    integer                               :: num_angltypes      = 0
+    integer                               :: num_flangltypes    = 0
+    integer                               :: num_dihetypes      = 0
+    integer                               :: num_fldihetypes    = 0
+    integer                               :: num_constrtypes    = 0
+    integer                               :: num_cmaptypes      = 0
+    integer                               :: num_nbonparms      = 0
+    integer                               :: num_moltypes       = 0
+    integer                               :: num_molss          = 0
+    integer                               :: num_membranetypes  = 0
+    integer                               :: num_basestacktypes = 0
+    integer                               :: num_basepairtypes  = 0
+    integer                               :: num_basecrosstypes = 0
+    integer                               :: num_cgdnaexvtypes  = 0
+    integer                               :: num_cgelemolpairs  = 0
+    integer                               :: num_cgkhmolpairs  = 0
+    integer                               :: num_pwmcosmolpairs = 0
+    integer                               :: num_pwmcosnsmolpairs = 0
+    integer                               :: num_cg_IDR_HPS_atomtypes = 0
+    integer                               :: num_cg_KH_atomtypes = 0
+    integer                               :: num_cg_pair_MJ_eps = 0
+    logical                               :: alias_atomtype     = .false.
+    type(s_defaults)                      :: defaults
+    type(s_atomtype),         allocatable :: atomtypes(:)
+    type(s_bondtype),         allocatable :: bondtypes(:)
+    type(s_angltype),         allocatable :: angltypes(:)
+    type(s_dihetype),         allocatable :: dihetypes(:)
+    type(s_constrtype),       allocatable :: constrtypes(:)
+    type(s_cmaptype),         allocatable :: cmaptypes(:)
+    type(s_nbonparm),         allocatable :: nbonparms(:)
+    type(s_moltype),          allocatable :: moltypes(:)
+    type(s_mols),             allocatable :: molss(:)
+    type(s_ezmembrane),       allocatable :: ez_membrane(:)
+    type(s_flangltype),       allocatable :: flangltypes(:)
+    type(s_fldihetype),       allocatable :: fldihetypes(:)
+    type(s_basestacktype),    allocatable :: basestacktypes(:)
+    type(s_basepairtype),     allocatable :: basepairtypes(:)
+    type(s_basecrosstype),    allocatable :: basecrosstypes(:)
+    type(s_cgdnaexvtype),     allocatable :: cgdnaexvtypes(:)
+    type(s_cg_ele_mol_pair),  allocatable :: cg_ele_mol_pairs(:)
+    type(s_pwmcos_mol_pair),  allocatable :: pwmcos_mol_pairs(:)
+    type(s_pwmcosns_mol_pair),  allocatable :: pwmcosns_mol_pairs(:)
+    type(s_cg_kh_mol_pair),   allocatable :: cg_kh_mol_pairs(:)
+    type(s_cg_IDR_HPS_atomtype),  allocatable :: cg_IDR_HPS_atomtypes(:)
+    type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
+
+    type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
+    type(s_gomodel)                       :: gomodel
+    type(s_itpread)                       :: itpread
   end type s_grotop
 
   ! parameters for TOP molecule structure allocatable variables
@@ -354,55 +630,108 @@ module fileio_grotop_mod
   integer,      public, parameter :: GMGroMolVsites4  = 111
   integer,      public, parameter :: GMGroMolVsitesn  = 112
   integer,      public, parameter :: GMGroMolPosres   = 113
+  integer,      public, parameter :: GMGroMolMcont    = 114
+  integer,      public, parameter :: GMGroMolMorphBB  = 115
+  integer,      public, parameter :: GMGroMolMorphSC  = 116
+  integer,      public, parameter :: GMGroMolPWMcos   = 117
+  integer,      public, parameter :: GMGroMolPWMcosns = 118
+  integer,      public, parameter :: GMGroMolIDRHPS   = 119
+  integer,      public, parameter :: GMGroMolIDRKH    = 120
 
   ! parameters for TOP structure allocatable variables
-  integer,      public, parameter :: GroTopAtomType   = 1
-  integer,      public, parameter :: GroTopBondType   = 2
-  integer,      public, parameter :: GroTopAnglType   = 3
-  integer,      public, parameter :: GroTopDiheType   = 4
-  integer,      public, parameter :: GroTopConstrType = 5
-  integer,      public, parameter :: GroTopCmapType   = 6
-  integer,      public, parameter :: GroTopNbonParm   = 7
-  integer,      public, parameter :: GroTopMolType    = 8
-  integer,      public, parameter :: GroTopMols       = 9
+  integer,      public, parameter :: GroTopAtomType      = 1
+  integer,      public, parameter :: GroTopBondType      = 2
+  integer,      public, parameter :: GroTopAnglType      = 3
+  integer,      public, parameter :: GroTopDiheType      = 4
+  integer,      public, parameter :: GroTopConstrType    = 5
+  integer,      public, parameter :: GroTopCmapType      = 6
+  integer,      public, parameter :: GroTopNbonParm      = 7
+  integer,      public, parameter :: GroTopMolType       = 8
+  integer,      public, parameter :: GroTopMols          = 9
+  integer,      public, parameter :: GroTopEzMembrane    = 10
+  integer,      public, parameter :: GroTopFlAnglType    = 11
+  integer,      public, parameter :: GroTopBaseStackType = 12
+  integer,      public, parameter :: GroTopBasePairType  = 13
+  integer,      public, parameter :: GroTopBaseCrossType = 14
+  integer,      public, parameter :: GroTopCGDNAExvType  = 15
+  integer,      public, parameter :: GroTopFlDiheType    = 16
+  integer,      public, parameter :: GroTopCGEleMolPair  = 17
+  integer,      public, parameter :: GroTopPWMcosMolPair = 18
+  integer,      public, parameter :: GroTopPWMcosnsMolPair  = 19
+  integer,      public, parameter :: GroTopCGIDRHPSAtomType = 20
+  integer,      public, parameter :: GroTopCGKHAtomType  = 21
+  integer,      public, parameter :: GroTopCGPairMJEpsilon  = 22
+  integer,      public, parameter :: GroTopCGKHMolPair   = 23
 
   ! parameters for directive
-  integer,     private, parameter :: DDefaults        = 1
-  integer,     private, parameter :: DAtomTypes       = 2
-  integer,     private, parameter :: DBondTypes       = 3
-  integer,     private, parameter :: DAngleTypes      = 4
-  integer,     private, parameter :: DDihedralTypes   = 5
-  integer,     private, parameter :: DConstrTypes     = 6
-  integer,     private, parameter :: DCmapTypes       = 7
-  integer,     private, parameter :: DNonbondParams   = 8
+  integer,     private, parameter :: DDefaults             = 1
+  integer,     private, parameter :: DAtomTypes            = 2
+  integer,     private, parameter :: DBondTypes            = 3
+  integer,     private, parameter :: DAngleTypes           = 4
+  integer,     private, parameter :: DDihedralTypes        = 5
+  integer,     private, parameter :: DConstrTypes          = 6
+  integer,     private, parameter :: DCmapTypes            = 7
+  integer,     private, parameter :: DNonbondParams        = 8
   !    molecule directive
-  integer,     private, parameter :: DMoleculeType    = 9
-  integer,     private, parameter :: DAtoms           = 10
-  integer,     private, parameter :: DBonds           = 11
-  integer,     private, parameter :: DAngles          = 12
-  integer,     private, parameter :: DDihedrals       = 13
-  integer,     private, parameter :: DCmap            = 14
-  integer,     private, parameter :: DExclusions      = 15
-  integer,     private, parameter :: DConstraints     = 16
-  integer,     private, parameter :: DPairs           = 17
-  integer,     private, parameter :: DSettles         = 18
-  integer,     private, parameter :: DVirtualSites2   = 19
-  integer,     private, parameter :: DVirtualSites3   = 20
-  integer,     private, parameter :: DVirtualSites4   = 21
-  integer,     private, parameter :: DVirtualSitesN   = 22
-  integer,     private, parameter :: DPosition_Restraints = 23
+  integer,     private, parameter :: DMoleculeType         = 9
+  integer,     private, parameter :: DAtoms                = 10
+  integer,     private, parameter :: DBonds                = 11
+  integer,     private, parameter :: DAngles               = 12
+  integer,     private, parameter :: DDihedrals            = 13
+  integer,     private, parameter :: DCmap                 = 14
+  integer,     private, parameter :: DExclusions           = 15
+  integer,     private, parameter :: DConstraints          = 16
+  integer,     private, parameter :: DPairs                = 17
+  integer,     private, parameter :: DSettles              = 18
+  integer,     private, parameter :: DVirtualSites2        = 19
+  integer,     private, parameter :: DVirtualSites3        = 20
+  integer,     private, parameter :: DVirtualSites4        = 21
+  integer,     private, parameter :: DVirtualSitesN        = 22
+  integer,     private, parameter :: DPosition_Restraints  = 23
   !    system directive
-  integer,     private, parameter :: DSystem          = 24
-  integer,     private, parameter :: DMolecules       = 25
+  integer,     private, parameter :: DSystem               = 24
+  integer,     private, parameter :: DMolecules            = 25
+  !    CK made directive
+  integer,     private, parameter :: DGomodel              = 26
+  integer,     private, parameter :: DCg_Atoms             = 27
+  integer,     private, parameter :: DMulticontact         = 28
+  integer,     private, parameter :: DMorphBB              = 29
+  integer,     private, parameter :: DMorphSC              = 30
+  integer,     private, parameter :: DEzMembrane           = 31
+  integer,     private, parameter :: DFlexible_Local_Angle = 32
+  integer,     private, parameter :: DFlexible_Local_Dihedral_Angle = 33
   !    unknown directive
-  integer,     private, parameter :: DUnknown         = 26
+  integer,     private, parameter :: DUnknown              = 34
+  !    3SPN.2C DNA interaction type directive
+  integer,     private, parameter :: DBaseStackTypes       = 35
+  integer,     private, parameter :: DBasePairTypes        = 36
+  integer,     private, parameter :: DBaseCrossTypes       = 37
+  integer,     private, parameter :: DCGDNAExvTypes        = 38
+  integer,     private, parameter :: DCGEleMolPairs        = 39
+  integer,     private, parameter :: DCGPWMcos             = 40
+  integer,     private, parameter :: DCGPWMcosMolPairs     = 41
+  integer,     private, parameter :: DCGPWMcosns           = 42
+  integer,     private, parameter :: DCGPWMcosnsMolPairs   = 43
+  integer,     private, parameter :: DCGIDRHPSAtomTypes    = 44
+  integer,     private, parameter :: DCGIDRHPSRegion       = 45
+  integer,     private, parameter :: DCGKHAtomTypes        = 46
+  integer,     private, parameter :: DCGIDRKHRegion        = 47
+  integer,     private, parameter :: DCGPairMJEpsilon      = 48
+  integer,     private, parameter :: DCGKHMolPairs         = 49
 
   ! parameters
   logical,     private, parameter :: VerboseOn        = .false.
 
+  ! for duplicated dihedrals
+  integer,     private, parameter :: MAX_MULTIPLY_NUM = 15
+
+  ! local variables
+  logical,                private :: vervose = .true.
+
   ! subroutines
   public  :: input_grotop
   public  :: output_grotop
+  public  :: output_grotop_aadome
 
   public  :: init_grotop
   public  :: init_grotop_mol
@@ -416,9 +745,22 @@ module fileio_grotop_mod
   private :: read_atom_types
   private :: read_bond_types
   private :: read_angle_types
+  private :: read_flangle_types
   private :: read_dihedral_types
+  private :: read_fldihe_types
   private :: read_constraint_types
   private :: read_cmap_types
+  private :: read_base_stack_types
+  private :: read_base_pair_types
+  private :: read_base_cross_types
+  private :: read_base_exv_types
+  private :: read_cg_ele_mol_pairs
+  private :: read_cg_kh_mol_pairs
+  private :: read_pwmcos_mol_pairs
+  private :: read_pwmcosns_mol_pairs
+  private :: read_cg_IDR_HPS_atom_types
+  private :: read_cg_KH_atom_types
+  private :: read_cg_pair_MJ_eps
   private :: read_nonbond_parms
   private :: read_molecule_type
   private :: read_atoms
@@ -437,25 +779,53 @@ module fileio_grotop_mod
   private :: read_position_restraints
   private :: read_system
   private :: read_molecules
+  private :: read_gomodel
+  private :: read_cgatoms
+  private :: read_multicontact
+  private :: read_morph_bb
+  private :: read_morph_sc
+  private :: read_membrane_type
+  private :: read_pwmcos
+  private :: read_pwmcosns
+  private :: read_idr_hps
+  private :: read_idr_kh
 
   private :: write_grotop
   private :: write_defaults
   private :: write_atom_types
   private :: write_bond_types
+  private :: write_bond_types_aa
   private :: write_angle_types
+  private :: write_angle_types_aa
   private :: write_dihedral_types
+  private :: write_dihedral_types_aa
   private :: write_constraint_types
   private :: write_cmap_types
+  private :: write_base_stack_types
+  private :: write_base_pair_types
+  private :: write_base_cross_types
+  private :: write_base_exv_types
+  private :: write_cg_IDR_HPS_atom_types
+  private :: write_cg_KH_atom_types
   private :: write_nonbond_parms
   private :: write_molecule_type
+  private :: write_molecule_type_aa
   private :: write_atoms
   private :: write_bonds
+  private :: write_bonds_aa
   private :: write_angles
+  private :: write_angles_aa
   private :: write_dihedrals
+  private :: write_dihedrals_aa
   private :: write_cmaps
   private :: write_exclusions
   private :: write_constraints
   private :: write_pairs
+  private :: write_multicontact
+  private :: write_morph_pairs_bb
+  private :: write_morph_pairs_sc
+  private :: write_pwmcos
+  private :: write_pwmcosns
   private :: write_settles
   private :: write_virtual_sites2
   private :: write_virtual_sites3
@@ -463,6 +833,7 @@ module fileio_grotop_mod
   private :: write_virtual_sitesn
   private :: write_position_restraints
   private :: write_system
+  private :: write_gomodel
   private :: write_molecules
 
   private :: check_section_count
@@ -471,7 +842,9 @@ module fileio_grotop_mod
   private :: size_grotop_mol
   private :: error_msg_grotop
   private :: search_atom_mass
+  private :: search_atom_vw
   private :: search_stokes_r
+  private :: search_atom_charge
   private :: search_bond_param
   private :: search_angl_param
   private :: search_dihe_param
@@ -502,10 +875,10 @@ contains
 
     ! local variables
     integer                  :: file, nstr
+    integer                  :: ierr
     character(MaxLine)       :: error
 
     character(100), allocatable :: strs(:)
-
 
     ! parse filename string
     !
@@ -519,9 +892,8 @@ contains
     ! open GROMACS TOP file
     !
     file = gro_pp_open_file(strs(1), strs(1:nstr), error)
-    if (file == InvalidUnitNo) &
+    if (file == 0) &
       call error_msg('Input_Grotop> '//trim(error))
-
 
     ! read GROMACS TOP file
     !
@@ -530,6 +902,11 @@ contains
 
     ! close GROMACS TOP file
     !
+#ifdef HAVE_MPI_GENESIS
+    if (nproc_country > 1) then
+      call mpi_barrier(mpi_comm_world, ierr) ! barrier is required to unlink.
+    endif
+#endif
     call gro_pp_close_file(file)
 
 
@@ -579,6 +956,45 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    output_grotop_aadome
+  !> @brief        a driver subroutine for writing GRO TOP file
+  !! @authors      CK
+  !! @param[in]    grotop_filename : filename of GRO TOP file
+  !! @param[in]    grotop          : structure of GRO TOP data
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_grotop_aadome(grotop_filename, grotop)
+
+    ! formal arguments
+    character(*),            intent(in)    :: grotop_filename
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: file
+
+
+    ! open GROMACS TOP file
+    !
+    call open_file(file, grotop_filename, IOFileOutputNew)
+
+
+    ! write GROMACS TOP file
+    !
+    call write_grotop_aadome(file, grotop)
+
+
+    ! close GROMACS TOP file
+    !
+    call close_file(file)
+
+    return
+
+  end subroutine output_grotop_aadome
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    init_grotop
   !> @brief        initialize GROMACS TOP information
   !! @authors      NT
@@ -592,16 +1008,30 @@ contains
     type(s_grotop),          intent(inout) :: grotop
 
 
-    grotop%num_atomtypes   = 0
-    grotop%num_bondtypes   = 0
-    grotop%num_angltypes   = 0
-    grotop%num_dihetypes   = 0
-    grotop%num_constrtypes = 0
-    grotop%num_cmaptypes   = 0
-    grotop%num_nbonparms   = 0
-    grotop%num_moltypes    = 0
-    grotop%num_molss       = 0
-    grotop%alias_atomtype  = .false.
+    grotop%num_atomtypes      = 0
+    grotop%num_bondtypes      = 0
+    grotop%num_angltypes      = 0
+    grotop%num_flangltypes    = 0
+    grotop%num_dihetypes      = 0
+    grotop%num_fldihetypes    = 0
+    grotop%num_constrtypes    = 0
+    grotop%num_cmaptypes      = 0
+    grotop%num_nbonparms      = 0
+    grotop%num_moltypes       = 0
+    grotop%num_molss          = 0
+    grotop%num_membranetypes  = 0
+    grotop%num_basestacktypes = 0
+    grotop%num_basepairtypes  = 0
+    grotop%num_basecrosstypes = 0
+    grotop%num_cgdnaexvtypes  = 0
+    grotop%num_cgelemolpairs  = 0
+    grotop%num_cgkhmolpairs   = 0
+    grotop%num_pwmcosmolpairs = 0
+    grotop%num_pwmcosnsmolpairs = 0
+    grotop%num_cg_IDR_HPS_atomtypes = 0
+    grotop%num_cg_KH_atomtypes= 0
+    grotop%num_cg_pair_MJ_eps = 0
+    grotop%alias_atomtype     = .false.
 
     return
 
@@ -622,19 +1052,26 @@ contains
     type(s_grotop_mol),  intent(inout) :: gromol
 
 
-    gromol%num_atoms   = 0
-    gromol%num_bonds   = 0
-    gromol%num_angls   = 0
-    gromol%num_dihes   = 0
-    gromol%num_cmaps   = 0
-    gromol%num_excls   = 0
-    gromol%num_constrs = 0
-    gromol%num_pairs   = 0
-    gromol%num_vsites2 = 0
-    gromol%num_vsites3 = 0
-    gromol%num_vsites4 = 0
-    gromol%num_vsitesn = 0
-    gromol%num_posress = 0
+    gromol%num_atoms     = 0
+    gromol%num_bonds     = 0
+    gromol%num_angls     = 0
+    gromol%num_dihes     = 0
+    gromol%num_cmaps     = 0
+    gromol%num_excls     = 0
+    gromol%num_constrs   = 0
+    gromol%num_pairs     = 0
+    gromol%num_vsites2   = 0
+    gromol%num_vsites3   = 0
+    gromol%num_vsites4   = 0
+    gromol%num_vsitesn   = 0
+    gromol%num_posress   = 0
+    gromol%num_mcontacts = 0
+    gromol%num_morph_bb  = 0
+    gromol%num_morph_sc  = 0
+    gromol%num_pwmcos    = 0
+    gromol%num_pwmcosns  = 0
+    gromol%num_idr_hps   = 0
+    gromol%num_idr_kh    = 0
 
     return
 
@@ -662,15 +1099,29 @@ contains
     integer                  :: alloc_stat
     integer                  :: old_size
 
-    type(s_atomtype),        allocatable :: atomtypes(:)
-    type(s_bondtype),        allocatable :: bondtypes(:)
-    type(s_angltype),        allocatable :: angltypes(:)
-    type(s_dihetype),        allocatable :: dihetypes(:)
-    type(s_constrtype),      allocatable :: constrtypes(:)
-    type(s_cmaptype),        allocatable :: cmaptypes(:)
-    type(s_nbonparm),        allocatable :: nbonparms(:)
-    type(s_moltype),         allocatable :: moltypes(:)
-    type(s_mols),            allocatable :: molss(:)
+    type(s_atomtype),         allocatable :: atomtypes(:)
+    type(s_bondtype),         allocatable :: bondtypes(:)
+    type(s_angltype),         allocatable :: angltypes(:)
+    type(s_flangltype),       allocatable :: flangltypes(:)
+    type(s_dihetype),         allocatable :: dihetypes(:)
+    type(s_fldihetype),       allocatable :: fldihetypes(:)
+    type(s_constrtype),       allocatable :: constrtypes(:)
+    type(s_cmaptype),         allocatable :: cmaptypes(:)
+    type(s_nbonparm),         allocatable :: nbonparms(:)
+    type(s_moltype),          allocatable :: moltypes(:)
+    type(s_mols),             allocatable :: molss(:)
+    type(s_ezmembrane),       allocatable :: ez_membrane(:)
+    type(s_basestacktype),    allocatable :: basestacktypes(:)
+    type(s_basepairtype),     allocatable :: basepairtypes(:)
+    type(s_basecrosstype),    allocatable :: basecrosstypes(:)
+    type(s_cgdnaexvtype),     allocatable :: cgdnaexvtypes(:)
+    type(s_cg_ele_mol_pair),  allocatable :: cg_ele_mol_pairs(:)
+    type(s_cg_kh_mol_pair),   allocatable :: cg_kh_mol_pairs(:)
+    type(s_pwmcos_mol_pair),  allocatable :: pwmcos_mol_pairs(:)
+    type(s_pwmcosns_mol_pair),allocatable :: pwmcosns_mol_pairs(:)
+    type(s_cg_IDR_HPS_atomtype), allocatable :: cg_IDR_HPS_atomtypes(:)
+    type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
+    type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
 
 
     select case(variable)
@@ -762,6 +1213,35 @@ contains
           call error_msg_alloc
       end if
 
+    case(GroTopFlAnglType)
+      if (allocated(grotop%flangltypes)) then
+
+        old_size = size(grotop%flangltypes)
+        if (old_size == var_size) &
+          return
+        allocate(flangltypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        flangltypes(:) = grotop%flangltypes(:)
+        deallocate(grotop%flangltypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(grotop%flangltypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%flangltypes(1:var_size) = flangltypes(1:var_size)
+        else
+          grotop%flangltypes(1:old_size) = flangltypes(1:old_size)
+        end if
+        deallocate(flangltypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%flangltypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
     case(GroTopDiheType)
       if (allocated(grotop%dihetypes)) then
 
@@ -787,6 +1267,35 @@ contains
       else
         old_size = 0
         allocate(grotop%dihetypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
+    case(GroTopFlDiheType)
+      if (allocated(grotop%fldihetypes)) then
+
+        old_size = size(grotop%fldihetypes)
+        if (old_size == var_size) &
+          return
+        allocate(fldihetypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        fldihetypes(:) = grotop%fldihetypes(:)
+        deallocate(grotop%fldihetypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(grotop%fldihetypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%fldihetypes(1:var_size) = fldihetypes(1:var_size)
+        else
+          grotop%fldihetypes(1:old_size) = fldihetypes(1:old_size)
+        end if
+        deallocate(fldihetypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%fldihetypes(var_size), stat = alloc_stat)
         if (alloc_stat /= 0) &
           call error_msg_alloc
       end if
@@ -936,6 +1445,357 @@ contains
           call error_msg_alloc
       end if
 
+    case(GroTopEzMembrane)
+      if (allocated(grotop%ez_membrane)) then
+
+        old_size = size(grotop%ez_membrane)
+        if (old_size == var_size) &
+          return
+        allocate(ez_membrane(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        ez_membrane(:) = grotop%ez_membrane(:)
+        deallocate(grotop%ez_membrane, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(grotop%ez_membrane(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%ez_membrane(1:var_size) = ez_membrane(1:var_size)
+        else
+          grotop%ez_membrane(1:old_size) = ez_membrane(1:old_size)
+        end if
+        deallocate(molss, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%ez_membrane(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
+    ! ~CG~ 3SPN.2C DNA: base-base interaction types...
+    case(GroTopBaseStackType)
+      if (allocated(grotop%basestacktypes)) then
+
+        old_size = size(grotop%basestacktypes)
+        if (old_size == var_size) &
+              return
+        allocate(basestacktypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        basestacktypes(:) = grotop%basestacktypes(:)
+        deallocate(grotop%basestacktypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%basestacktypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%basestacktypes(1:var_size) = basestacktypes(1:var_size)
+        else
+          grotop%basestacktypes(1:old_size) = basestacktypes(1:old_size)
+        end if
+        deallocate(basestacktypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%basestacktypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopBasePairType)
+      if (allocated(grotop%basepairtypes)) then
+
+        old_size = size(grotop%basepairtypes)
+        if (old_size == var_size) &
+              return
+        allocate(basepairtypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        basepairtypes(:) = grotop%basepairtypes(:)
+        deallocate(grotop%basepairtypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%basepairtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%basepairtypes(1:var_size) = basepairtypes(1:var_size)
+        else
+          grotop%basepairtypes(1:old_size) = basepairtypes(1:old_size)
+        end if
+        deallocate(basepairtypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%basepairtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopBaseCrossType)
+      if (allocated(grotop%basecrosstypes)) then
+
+        old_size = size(grotop%basecrosstypes)
+        if (old_size == var_size) &
+              return
+        allocate(basecrosstypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        basecrosstypes(:) = grotop%basecrosstypes(:)
+        deallocate(grotop%basecrosstypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%basecrosstypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%basecrosstypes(1:var_size) = basecrosstypes(1:var_size)
+        else
+          grotop%basecrosstypes(1:old_size) = basecrosstypes(1:old_size)
+        end if
+        deallocate(basecrosstypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%basecrosstypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGDNAExvType)
+      if (allocated(grotop%cgdnaexvtypes)) then
+
+        old_size = size(grotop%cgdnaexvtypes)
+        if (old_size == var_size) &
+              return
+        allocate(cgdnaexvtypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cgdnaexvtypes(:) = grotop%cgdnaexvtypes(:)
+        deallocate(grotop%cgdnaexvtypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cgdnaexvtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cgdnaexvtypes(1:var_size) = cgdnaexvtypes(1:var_size)
+        else
+          grotop%cgdnaexvtypes(1:old_size) = cgdnaexvtypes(1:old_size)
+        end if
+        deallocate(cgdnaexvtypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cgdnaexvtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGEleMolPair)
+      if (allocated(grotop%cg_ele_mol_pairs)) then
+
+        old_size = size(grotop%cg_ele_mol_pairs)
+        if (old_size == var_size) &
+              return
+        allocate(cg_ele_mol_pairs(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cg_ele_mol_pairs(:) = grotop%cg_ele_mol_pairs(:)
+        deallocate(grotop%cg_ele_mol_pairs, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cg_ele_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cg_ele_mol_pairs(1:var_size) = cg_ele_mol_pairs(1:var_size)
+        else
+          grotop%cg_ele_mol_pairs(1:old_size) = cg_ele_mol_pairs(1:old_size)
+        end if
+        deallocate(cg_ele_mol_pairs, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cg_ele_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGKHMolPair)
+      if (allocated(grotop%cg_kh_mol_pairs)) then
+
+        old_size = size(grotop%cg_kh_mol_pairs)
+        if (old_size == var_size) &
+              return
+        allocate(cg_kh_mol_pairs(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cg_kh_mol_pairs(:) = grotop%cg_kh_mol_pairs(:)
+        deallocate(grotop%cg_kh_mol_pairs, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cg_kh_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cg_kh_mol_pairs(1:var_size) = cg_kh_mol_pairs(1:var_size)
+        else
+          grotop%cg_kh_mol_pairs(1:old_size) = cg_kh_mol_pairs(1:old_size)
+        end if
+        deallocate(cg_kh_mol_pairs, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cg_kh_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopPWMcosMolPair)
+      if (allocated(grotop%pwmcos_mol_pairs)) then
+
+        old_size = size(grotop%pwmcos_mol_pairs)
+        if (old_size == var_size) &
+              return
+        allocate(pwmcos_mol_pairs(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        pwmcos_mol_pairs(:) = grotop%pwmcos_mol_pairs(:)
+        deallocate(grotop%pwmcos_mol_pairs, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%pwmcos_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%pwmcos_mol_pairs(1:var_size) = pwmcos_mol_pairs(1:var_size)
+        else
+          grotop%pwmcos_mol_pairs(1:old_size) = pwmcos_mol_pairs(1:old_size)
+        end if
+        deallocate(pwmcos_mol_pairs, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%pwmcos_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopPWMcosnsMolPair)
+      if (allocated(grotop%pwmcosns_mol_pairs)) then
+
+        old_size = size(grotop%pwmcosns_mol_pairs)
+        if (old_size == var_size) &
+              return
+        allocate(pwmcosns_mol_pairs(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        pwmcosns_mol_pairs(:) = grotop%pwmcosns_mol_pairs(:)
+        deallocate(grotop%pwmcosns_mol_pairs, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%pwmcosns_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%pwmcosns_mol_pairs(1:var_size) = pwmcosns_mol_pairs(1:var_size)
+        else
+          grotop%pwmcosns_mol_pairs(1:old_size) = pwmcosns_mol_pairs(1:old_size)
+        end if
+        deallocate(pwmcosns_mol_pairs, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%pwmcosns_mol_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGIDRHPSAtomType)
+      if (allocated(grotop%cg_IDR_HPS_atomtypes)) then
+
+        old_size = size(grotop%cg_IDR_HPS_atomtypes)
+        if (old_size == var_size) &
+              return
+        allocate(cg_IDR_HPS_atomtypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cg_IDR_HPS_atomtypes(:) = grotop%cg_IDR_HPS_atomtypes(:)
+        deallocate(grotop%cg_IDR_HPS_atomtypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cg_IDR_HPS_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cg_IDR_HPS_atomtypes(1:var_size) = cg_IDR_HPS_atomtypes(1:var_size)
+        else
+          grotop%cg_IDR_HPS_atomtypes(1:old_size) = cg_IDR_HPS_atomtypes(1:old_size)
+        end if
+        deallocate(cg_IDR_HPS_atomtypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cg_IDR_HPS_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGKHAtomType)
+      if (allocated(grotop%cg_KH_atomtypes)) then
+
+        old_size = size(grotop%cg_KH_atomtypes)
+        if (old_size == var_size) &
+              return
+        allocate(cg_KH_atomtypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cg_KH_atomtypes(:) = grotop%cg_KH_atomtypes(:)
+        deallocate(grotop%cg_KH_atomtypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cg_KH_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cg_KH_atomtypes(1:var_size) = cg_KH_atomtypes(1:var_size)
+        else
+          grotop%cg_KH_atomtypes(1:old_size) = cg_KH_atomtypes(1:old_size)
+        end if
+        deallocate(cg_KH_atomtypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cg_KH_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGPairMJEpsilon)
+      if (allocated(grotop%cg_pair_MJ_eps)) then
+
+        old_size = size(grotop%cg_pair_MJ_eps)
+        if (old_size == var_size) return
+
+        allocate(cg_pair_MJ_eps(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+        cg_pair_MJ_eps(:) = grotop%cg_pair_MJ_eps(:)
+
+        deallocate(grotop%cg_pair_MJ_eps, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+        allocate(grotop%cg_pair_MJ_eps(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          grotop%cg_pair_MJ_eps(1:var_size) = cg_pair_MJ_eps(1:var_size)
+        else
+          grotop%cg_pair_MJ_eps(1:old_size) = cg_pair_MJ_eps(1:old_size)
+        end if
+
+        deallocate(cg_pair_MJ_eps, stat = alloc_stat)
+
+      else
+
+        old_size = 0
+        allocate(grotop%cg_pair_MJ_eps(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+      end if
+
     case default
 
       call error_msg('Realloc_Grotop> bad variable')
@@ -981,7 +1841,13 @@ contains
     type(s_vsite4),          allocatable   :: vsites4(:)
     type(s_vsiten),          allocatable   :: vsitesn(:)
     type(s_posres),          allocatable   :: posress(:)
-
+    type(s_mcont),           allocatable   :: mcontact(:)
+    type(s_morph_pair),      allocatable   :: morph_bb(:)
+    type(s_morph_pair),      allocatable   :: morph_sc(:)
+    type(s_pwmcos),          allocatable   :: pwmcos(:)
+    type(s_pwmcosns),        allocatable   :: pwmcosns(:)
+    type(s_idr_hps),         allocatable   :: idr_hps(:)
+    type(s_idr_kh),          allocatable   :: idr_kh(:)
 
     select case(variable)
 
@@ -1362,6 +2228,217 @@ contains
           call error_msg_alloc
       end if
 
+    case(GMGroMolMcont)
+      if (allocated(gromol%mcontact)) then
+
+        old_size = size(gromol%mcontact)
+        if (old_size == var_size) &
+          return
+        allocate(mcontact(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        mcontact(:) = gromol%mcontact(:)
+        deallocate(gromol%mcontact, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(gromol%mcontact(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%mcontact(1:var_size) = mcontact(1:var_size)
+        else
+          gromol%mcontact(1:old_size) = mcontact(1:old_size)
+        end if
+        deallocate(mcontact, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%mcontact(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
+    case(GMGroMolMorphBB)
+      if (allocated(gromol%morph_bb)) then
+
+        old_size = size(gromol%morph_bb)
+        if (old_size == var_size) &
+          return
+        allocate(morph_bb(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        morph_bb(:) = gromol%morph_bb(:)
+        deallocate(gromol%morph_bb, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(gromol%morph_bb(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%morph_bb(1:var_size) = morph_bb(1:var_size)
+        else
+          gromol%morph_bb(1:old_size) = morph_bb(1:old_size)
+        end if
+        deallocate(morph_bb, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%morph_bb(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
+    case(GMGroMolMorphSC)
+      if (allocated(gromol%morph_sc)) then
+
+        old_size = size(gromol%morph_sc)
+        if (old_size == var_size) &
+          return
+        allocate(morph_sc(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        morph_sc(:) = gromol%morph_sc(:)
+        deallocate(gromol%morph_sc, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_dealloc
+        allocate(gromol%morph_sc(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%morph_sc(1:var_size) = morph_sc(1:var_size)
+        else
+          gromol%morph_sc(1:old_size) = morph_sc(1:old_size)
+        end if
+        deallocate(morph_sc, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%morph_sc(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+          call error_msg_alloc
+      end if
+
+    case(GMGroMolPWMcos)
+      if (allocated(gromol%pwmcos)) then
+
+        old_size = size(gromol%pwmcos)
+        if (old_size == var_size) &
+            return
+
+        allocate(pwmcos(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+        pwmcos(:) = gromol%pwmcos(:)
+
+        deallocate(gromol%pwmcos, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+
+        allocate(gromol%pwmcos(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          gromol%pwmcos(1:var_size) = pwmcos(1:var_size)
+        else
+          gromol%pwmcos(1:old_size) = pwmcos(1:old_size)
+        end if
+
+        deallocate(pwmcos, stat = alloc_stat)
+
+      else
+
+        old_size = 0
+        allocate(gromol%pwmcos(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+      end if
+
+    case(GMGroMolPWMcosns)
+      if (allocated(gromol%pwmcosns)) then
+
+        old_size = size(gromol%pwmcosns)
+        if (old_size == var_size) &
+            return
+
+        allocate(pwmcosns(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+        pwmcosns(:) = gromol%pwmcosns(:)
+
+        deallocate(gromol%pwmcosns, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+
+        allocate(gromol%pwmcosns(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          gromol%pwmcosns(1:var_size) = pwmcosns(1:var_size)
+        else
+          gromol%pwmcosns(1:old_size) = pwmcosns(1:old_size)
+        end if
+
+        deallocate(pwmcosns, stat = alloc_stat)
+
+      else
+
+        old_size = 0
+        allocate(gromol%pwmcosns(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+      end if
+
+    case(GMGroMolIDRHPS)
+      if (allocated(gromol%idr_hps)) then
+
+        old_size = size(gromol%idr_hps)
+        if (old_size == var_size) &
+              return
+        allocate(idr_hps(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        idr_hps(:) = gromol%idr_hps(:)
+        deallocate(gromol%idr_hps, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(gromol%idr_hps(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%idr_hps(1:var_size) = idr_hps(1:var_size)
+        else
+          gromol%idr_hps(1:old_size) = idr_hps(1:old_size)
+        end if
+        deallocate(idr_hps, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%idr_hps(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GMGroMolIDRKH)
+      if (allocated(gromol%idr_kh)) then
+
+        old_size = size(gromol%idr_kh)
+        if (old_size == var_size) &
+            return
+        allocate(idr_kh(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+        idr_kh(:) = gromol%idr_kh(:)
+        deallocate(gromol%idr_kh, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_dealloc
+        allocate(gromol%idr_kh(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%idr_kh(1:var_size) = idr_kh(1:var_size)
+        else
+          gromol%idr_kh(1:old_size) = idr_kh(1:old_size)
+        end if
+        deallocate(idr_kh, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%idr_kh(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+      end if
+
     case default
 
       call error_msg('Realloc_Grotop_Mol> bad variable')
@@ -1408,8 +2485,20 @@ contains
         call error_msg_dealloc
     end if
 
+    if (allocated(grotop%flangltypes)) then
+      deallocate(grotop%flangltypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
     if (allocated(grotop%dihetypes)) then
       deallocate(grotop%dihetypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%fldihetypes)) then
+      deallocate(grotop%fldihetypes, stat = dealloc_stat)
       if (dealloc_stat /= 0) &
         call error_msg_dealloc
     end if
@@ -1445,6 +2534,78 @@ contains
       deallocate(grotop%molss, stat = dealloc_stat)
       if (dealloc_stat /= 0) &
         call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%ez_membrane)) then
+      deallocate(grotop%ez_membrane, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%basestacktypes)) then
+      deallocate(grotop%basestacktypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+            call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%basepairtypes)) then
+      deallocate(grotop%basepairtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+            call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%basecrosstypes)) then
+      deallocate(grotop%basecrosstypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+            call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cgdnaexvtypes)) then
+      deallocate(grotop%cgdnaexvtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_ele_mol_pairs)) then
+      deallocate(grotop%cg_ele_mol_pairs, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_kh_mol_pairs)) then
+      deallocate(grotop%cg_kh_mol_pairs, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%pwmcos_mol_pairs)) then
+      deallocate(grotop%pwmcos_mol_pairs, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%pwmcosns_mol_pairs)) then
+      deallocate(grotop%pwmcosns_mol_pairs, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_IDR_HPS_atomtypes)) then
+      deallocate(grotop%cg_IDR_HPS_atomtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_KH_atomtypes)) then
+      deallocate(grotop%cg_KH_atomtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_pair_MJ_eps)) then
+      deallocate(grotop%cg_pair_MJ_eps, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
     end if
 
     return
@@ -1547,6 +2708,54 @@ contains
         call error_msg_dealloc
     end if
 
+    if (allocated(gromol%posress)) then
+      deallocate(gromol%posress, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%mcontact)) then
+      deallocate(gromol%mcontact, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%morph_bb)) then
+      deallocate(gromol%morph_bb, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%morph_sc)) then
+      deallocate(gromol%morph_sc, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+        call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%pwmcos)) then
+      deallocate(gromol%pwmcos, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%pwmcosns)) then
+      deallocate(gromol%pwmcosns, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%idr_hps)) then
+      deallocate(gromol%idr_hps, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(gromol%idr_kh)) then
+      deallocate(gromol%idr_kh, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
     return
 
   end subroutine dealloc_grotop_mol_all
@@ -1570,6 +2779,7 @@ contains
     ! local variables
     integer                     :: directive, i, j, nmol
     character(MaxLine)          :: line
+    character(100)              :: err
     logical                     :: unk, omit
 
     type(s_grotop_mol), pointer :: gromol
@@ -1579,7 +2789,8 @@ contains
     unk = .false.
 
     do while(.true.)
-      read(file,'(A)',end=100) line
+      if (.not. gro_pp_next_line(file, line, err)) &
+        goto 100
 
       ! check directive
       if (.not. check_directive(line, directive)) &
@@ -1600,14 +2811,65 @@ contains
       case (DAngleTypes)
         call read_angle_types(file, grotop)
 
+      case (DFlexible_Local_Angle)
+        call read_flangle_types(file, grotop)
+
       case (DDihedralTypes)
         call read_dihedral_types(file, grotop)
+
+      case (DFlexible_Local_Dihedral_Angle)
+        call read_fldihe_types(file, grotop)
 
       case (DConstrTypes)
         call read_constraint_types(file, grotop)
 
       case (DCmapTypes)
         call read_cmap_types(file, grotop)
+
+      case (DBaseStackTypes)
+        call read_base_stack_types(file, grotop)
+
+      case (DBasePairTypes)
+        call read_base_pair_types(file, grotop)
+
+      case (DBaseCrossTypes)
+        call read_base_cross_types(file, grotop)
+
+      case (DCGDNAExvTypes)
+        call read_base_exv_types(file, grotop)
+
+      case (DCGEleMolPairs)
+        call read_cg_ele_mol_pairs(file, grotop)
+
+      case (DCGKHMolPairs)
+        call read_cg_kh_mol_pairs(file, grotop)
+
+      case (DCGPWMcosMolPairs)
+        call read_pwmcos_mol_pairs(file, grotop)
+
+      case (DCGPWMcosnsMolPairs)
+        call read_pwmcosns_mol_pairs(file, grotop)
+
+      case (DCGPWMcos)
+        call read_PWMcos(file, grotop, gromol)
+
+      case (DCGPWMcosns)
+        call read_PWMcosns(file, grotop, gromol)
+
+      case (DCGIDRHPSAtomTypes)
+        call read_cg_IDR_HPS_atom_types(file, grotop)
+
+      case (DCGIDRHPSRegion)
+        call read_idr_hps(file, grotop, gromol)
+
+      case (DCGKHAtomTypes)
+        call read_cg_KH_atom_types(file, grotop)
+
+      case (DCGIDRKHRegion)
+        call read_idr_kh(file, grotop, gromol)
+
+      case (DCGPairMJEpsilon)
+        call read_cg_pair_MJ_eps(file, grotop)
 
       case (DNonbondParams)
         call read_nonbond_parms(file, grotop)
@@ -1631,16 +2893,16 @@ contains
         call read_cmaps(file, grotop, gromol)
 
       case (DExclusions)
-        call read_exclusions(file, gromol)
+        call read_exclusions(file, grotop, gromol)
 
       case (DConstraints)
         call read_constraints(file, grotop, gromol)
 
       case (DPairs)
-        call read_pairs(file, gromol)
+        call read_pairs(file, grotop, gromol)
 
       case (DSettles)
-        call read_settles(file, gromol)
+        call read_settles(file, grotop, gromol)
 
       case (DVirtualSites2)
         call read_virtual_sites2(file, gromol)
@@ -1655,13 +2917,31 @@ contains
         call read_virtual_sitesn(file, gromol)
 
       case (DPosition_Restraints)
-        call read_position_restraints(file, gromol)
+        call read_position_restraints(file, grotop, gromol)
 
       case (DSystem)
         call read_system()
 
       case (DMolecules)
         call read_molecules(file, grotop)
+
+      case (DGomodel)
+        call read_gomodel(file, grotop)
+
+      case (DCg_Atoms)
+        call read_cgatoms(file, grotop, gromol)
+
+      case (DMulticontact)
+        call read_multicontact(file, grotop, gromol)
+
+      case (DMorphBB)
+        call read_morph_bb(file, grotop, gromol)
+
+      case (DMorphSC)
+        call read_morph_sc(file, grotop, gromol)
+
+      case (DEzMembrane)
+        call read_membrane_type(file, grotop)
 
       case (DUnknown)
         if (main_rank) &
@@ -1670,20 +2950,35 @@ contains
         unk = .true.
 
       end select
-
     end do
 
 100 continue
+    if (err /= 'end of file.') &
+      call error_msg('Read_gro_top> '//err)
 
-    grotop%num_atomtypes   = size_grotop(grotop, GroTopAtomType)
-    grotop%num_bondtypes   = size_grotop(grotop, GroTopBondType)
-    grotop%num_angltypes   = size_grotop(grotop, GroTopAnglType)
-    grotop%num_dihetypes   = size_grotop(grotop, GroTopDiheType)
-    grotop%num_constrtypes = size_grotop(grotop, GroTopConstrType)
-    grotop%num_cmaptypes   = size_grotop(grotop, GroTopCmapType)
-    grotop%num_nbonparms   = size_grotop(grotop, GroTopNbonParm)
-    grotop%num_moltypes    = size_grotop(grotop, GroTopMolType)
-    grotop%num_molss       = size_grotop(grotop, GroTopMols)
+    grotop%num_atomtypes      = size_grotop(grotop, GroTopAtomType)
+    grotop%num_bondtypes      = size_grotop(grotop, GroTopBondType)
+    grotop%num_angltypes      = size_grotop(grotop, GroTopAnglType)
+    grotop%num_flangltypes    = size_grotop(grotop, GroTopFlAnglType)
+    grotop%num_dihetypes      = size_grotop(grotop, GroTopDiheType)
+    grotop%num_fldihetypes    = size_grotop(grotop, GroTopFlDiheType)
+    grotop%num_constrtypes    = size_grotop(grotop, GroTopConstrType)
+    grotop%num_cmaptypes      = size_grotop(grotop, GroTopCmapType)
+    grotop%num_nbonparms      = size_grotop(grotop, GroTopNbonParm)
+    grotop%num_moltypes       = size_grotop(grotop, GroTopMolType)
+    grotop%num_molss          = size_grotop(grotop, GroTopMols)
+    grotop%num_membranetypes  = size_grotop(grotop, GroTopEzMembrane)
+    grotop%num_basestacktypes = size_grotop(grotop, GroTopBaseStackType)
+    grotop%num_basepairtypes  = size_grotop(grotop, GroTopBasePairType)
+    grotop%num_basecrosstypes = size_grotop(grotop, GroTopBaseCrossType)
+    grotop%num_cgdnaexvtypes  = size_grotop(grotop, GroTopCGDNAExvType)
+    grotop%num_cgelemolpairs  = size_grotop(grotop, GroTopCGEleMolPair)
+    grotop%num_cgkhmolpairs   = size_grotop(grotop, GroTopCGKHMolPair)
+    grotop%num_pwmcosmolpairs = size_grotop(grotop, GroTopPWMcosMolPair)
+    grotop%num_pwmcosnsmolpairs = size_grotop(grotop, GroTopPWMcosnsMolPair)
+    grotop%num_cg_IDR_HPS_atomtypes = size_grotop(grotop, GroTopCGIDRHPSAtomType)
+    grotop%num_cg_KH_atomtypes= size_grotop(grotop, GroTopCGKHAtomType)
+    grotop%num_cg_pair_MJ_eps = size_grotop(grotop, GroTopCGPairMJEpsilon)
 
     ! bind molecule and type
     !
@@ -1707,7 +3002,8 @@ contains
       if (unk) &
         write(MsgOut,'(A)') ''
 
-      write(MsgOut,'(A)') 'Read_Grotop> Summy of Grotopfile'
+      !shinobu-edited
+      write(MsgOut,'(A)') 'Read_Grotop> Summary of Grotopfile'
       write(MsgOut,'(A20,I10)') &
            '  num_moltypes    = ', grotop%num_moltypes
 
@@ -1746,6 +3042,14 @@ contains
                'num_vsitesn = ', grotop%moltypes(i)%mol%num_vsitesn
           write(MsgOut,'(6X,A14,I10)') &
                'num_posress = ', grotop%moltypes(i)%mol%num_posress
+          write(MsgOut,'(6X,A14,I10)') &
+               'num_PWMcos  = ', grotop%moltypes(i)%mol%num_pwmcos
+          write(MsgOut,'(6X,A14,I10)') &
+               'num_PWMcosns= ', grotop%moltypes(i)%mol%num_pwmcosns
+          write(MsgOut,'(6X,A14,I10)') &
+               'num_IDR_HPS = ', grotop%moltypes(i)%mol%num_idr_hps
+          write(MsgOut,'(6X,A14,I10)') &
+               'num_IDR_KH  = ', grotop%moltypes(i)%mol%num_idr_kh
         else
           omit = .true.
         end if
@@ -1758,12 +3062,14 @@ contains
       do i = 1, grotop%num_molss
         nmol = nmol + grotop%molss(i)%count
       end do
+
       write(MsgOut,'(A20,I10)') &
            '  num_molecules   = ', nmol
       do i = 1, grotop%num_molss
         write(MsgOut,'(4X,A20,A,I0)') &
              grotop%molss(i)%name(1:20), '  :  ', grotop%molss(i)%count
       end do
+
       write(MsgOut,'(A)') ''
 
       write(MsgOut,'(A20,I10,A20,I10)') &
@@ -1772,11 +3078,64 @@ contains
       write(MsgOut,'(A20,I10,A20,I10)') &
            '  num_angltypes   = ', grotop%num_angltypes,   &
            '  num_dihetypes   = ', grotop%num_dihetypes
+      if (grotop%num_flangltypes > 0) then
+        write(MsgOut,'(A20,I10)') &
+           '  num_flangltypes   = ', grotop%num_flangltypes
+      endif
+      if (grotop%num_fldihetypes > 0) then
+        write(MsgOut,'(A20,I10)') &
+           '  num_fldihetypes   = ', grotop%num_fldihetypes
+      endif
       write(MsgOut,'(A20,I10,A20,I10)') &
            '  num_constrtypes = ', grotop%num_constrtypes, &
            '  num_cmaptypes   = ', grotop%num_cmaptypes
       write(MsgOut,'(A20,I10)') &
            '  num_nbonparms   = ', grotop%num_nbonparms
+      if (grotop%num_basestacktypes > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_basestacktypes  = ', grotop%num_basestacktypes
+      endif
+      if (grotop%num_basepairtypes > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_basepairtypes   = ', grotop%num_basepairtypes
+      endif
+      if (grotop%num_basecrosstypes > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_basecrosstypes  = ', grotop%num_basecrosstypes
+      endif
+      if (grotop%num_cgdnaexvtypes > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_cgdnaexvtypes   = ', grotop%num_cgdnaexvtypes
+      endif
+      if (grotop%num_cgelemolpairs > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_cgelemolpairs   = ', grotop%num_cgelemolpairs
+      endif
+      if (grotop%num_cgkhmolpairs > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_cgkhmolpairs   = ', grotop%num_cgkhmolpairs
+      endif
+      if (grotop%num_pwmcosmolpairs > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_pwmcosmolpairs  = ', grotop%num_pwmcosmolpairs
+      endif
+      if (grotop%num_pwmcosnsmolpairs > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_pwmcosnsmolpairs  = ', grotop%num_pwmcosnsmolpairs
+      endif
+      if (grotop%num_cg_IDR_HPS_atomtypes > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '  num_cg_IDR_HPS_atomtypes  = ', grotop%num_cg_IDR_HPS_atomtypes
+      endif
+      if (grotop%num_cg_KH_atomtypes > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_cg_KH_atomtypes  = ', grotop%num_cg_KH_atomtypes
+      endif
+      write(MsgOut,'(A)') ''
+      if (grotop%num_cg_pair_MJ_eps > 0) then
+        write(MsgOut,'(A24,I6)') &
+            '  num_cg_pair_MJ_eps   = ', grotop%num_cg_pair_MJ_eps
+      endif
       write(MsgOut,'(A)') ''
 
     end if
@@ -1805,12 +3164,11 @@ contains
     character(100)           :: line
     character(10)            :: yesno
 
-
     yesno = 'no'
     grotop%defaults%fudge_lj = 1.0_wp
     grotop%defaults%fudge_qq = 1.0_wp
 
-    read(file,'(a)') line
+    call gro_pp_next_line_s(file, line)
     read(line,*,err=1,end=1) grotop%defaults%nonb_func,  &
                              grotop%defaults%combi_rule, &
                              yesno,                      &
@@ -1843,9 +3201,9 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_atomtype), pointer :: at
-
 
     ! check count
     !
@@ -1865,7 +3223,8 @@ contains
     do i = 1, cnt
       at => grotop%atomtypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SNNSNNNN')) then
 
@@ -1973,6 +3332,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_bondtype), pointer :: bt
 
@@ -1996,7 +3356,8 @@ contains
 
       bt => grotop%bondtypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SSNNN')) then
 
@@ -2044,6 +3405,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_angltype), pointer :: at
 
@@ -2067,7 +3429,8 @@ contains
 
       at => grotop%angltypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SSSNNNNN')) then
 
@@ -2115,6 +3478,93 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    read_flangle_types
+  !> @brief        read section [flexible_local_angle] #original in GENESIS-Cafemol
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_flangle_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, j, cnt, old_cnt, loop
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_flangltype), pointer :: at
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop(grotop, GroTopFlAnglType)
+    call realloc_grotop(grotop, GroTopFlAnglType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop> [flexible_local_angle] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      at => grotop%flangltypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNNN')) then
+
+        read(line,*)      &
+           at%atom_type,  &
+           at%func,       &
+           loop
+
+        if (at%func /= 1)  then
+          if (main_rank) then
+            write(MsgOut,'(" Read_Grotop> Error: [flexible_local_angle] '// &
+               'not supported function type. [", i3, "]")') at%func
+          endif
+          goto 900
+        endif
+
+        allocate(at%theta(loop))
+        allocate(at%efunc(loop))
+        allocate(at%d2func(loop))
+
+        read(line,*)      &
+           at%atom_type,  &
+           at%func,       &
+           loop,          &
+           (at%theta(j), &
+            at%efunc(j), &
+            at%d2func(j), j = 1, loop)
+
+     else
+
+        goto 900
+
+      end if
+
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [flexible_local_angle]')
+
+  end subroutine read_flangle_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    read_dihedral_types
   !> @brief        read section [dihedraltypes]
   !! @authors      NT
@@ -2132,6 +3582,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_dihetype), pointer :: dt
 
@@ -2157,7 +3608,8 @@ contains
 
       dt => grotop%dihetypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SS1NNN') .or. &
           match_format(line, 'SS4NNN') .or. &
@@ -2203,16 +3655,16 @@ contains
              dt%c(1:6)
         dt%four_type = .false.
 
-!     else if (match_format(line, 'SSN')) then
+      else if (match_format(line, 'SSN')) then
 
-!       ! unknown (two atom type)
-!       read(line,*) &
-!            dt%atom_type1, &
-!            dt%atom_type2, &
-!            dt%func
+        ! unknown (two atom type)
+        read(line,*) &
+             dt%atom_type1, &
+             dt%atom_type2, &
+             dt%func
 
-!       write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
-!            'not supported function type. [", i3, "]")') dt%func
+        write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
+             'not supported function type. [", i3, "]")') dt%func
 
       else if (match_format(line, 'SSSS1NNN') .or. &
                match_format(line, 'SSSS4NNN') .or. &
@@ -2268,18 +3720,98 @@ contains
         write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
              'not supported function type. [", i3, "]")') dt%func
 
-      else if (match_format(line, 'SSN')) then
-
-        ! unknown (two atom type)
-        read(line,*) &
-             dt%atom_type1, &
-             dt%atom_type2, &
-             dt%func
-
-        write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
-             'not supported function type. [", i3, "]")') dt%func
-
       else
+
+        goto 900
+
+      end if
+
+      dt%wild_num = 0
+      if (dt%atom_type1 == 'X') dt%wild_num = dt%wild_num + 1
+      if (dt%atom_type2 == 'X') dt%wild_num = dt%wild_num + 1
+      if (dt%atom_type4 == 'X') dt%wild_num = dt%wild_num + 1
+
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [dihedraltypes]')
+
+  end subroutine read_dihedral_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_fldihe_types
+  !> @brief        read section [flexible_local_dihedral_angle]
+  !                #original in GENESIS-Cafemol
+  !! @authors      JJ
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_fldihe_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, j, cnt, old_cnt, loop
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_fldihetype), pointer :: at
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop(grotop, GroTopFlDiheType)
+    call realloc_grotop(grotop, GroTopFlDiheType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop> [flexible_local_dihedral_angle] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      at => grotop%fldihetypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SSNNN')) then
+
+        read(line,*)      &
+           at%atom_type1, &
+           at%atom_type2, &
+           at%func,       &
+           loop
+
+        if (at%func /= 1)  then
+          if (main_rank) then
+            write(MsgOut,'(" Read_Grotop> Error: [flexible_local_dihedral_angle] '// &
+               'not supported function type. [", i3, "]")') at%func
+          endif
+          goto 900
+        endif
+
+        allocate(at%coef(loop))
+
+        read(line,*)      &
+           at%atom_type1, &
+           at%atom_type2, &
+           at%func,       &
+           loop,          &
+           (at%coef(j), j = 1, loop)
+
+     else
 
         goto 900
 
@@ -2289,9 +3821,9 @@ contains
 
     return
 
-900 call error_msg_grotop(file, 'Read_Grotop> read error. [dihedraltypes]')
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [flexible_local_dihedral_angle]')
 
-  end subroutine read_dihedral_types
+  end subroutine read_fldihe_types
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2312,6 +3844,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_constrtype), pointer :: ct
 
@@ -2333,7 +3866,8 @@ contains
 
       ct => grotop%constrtypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SSNN')) then
 
@@ -2380,6 +3914,7 @@ contains
     ! local variables
     integer                  :: i, j, k, cnt, old_cnt, nrow, ncol
     character(10000)         :: line
+    character(100)           :: error
 
     type(s_cmaptype), pointer :: ct
 
@@ -2403,7 +3938,8 @@ contains
 
       ct => grotop%cmaptypes(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SSSSSNNN')) then
 
@@ -2450,6 +3986,826 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    read_base_stack_types
+  !> @brief        read section [ basestacktypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_base_stack_types(file, grotop)
+
+    ! formal arguments
+    integer,                       intent(in)             :: file
+    type(s_grotop),                target, intent(inout)  :: grotop
+
+    ! local variables
+    integer                                               :: i, cnt, old_cnt
+    character(MaxLine)                                    :: line
+    character(100)                                        :: error
+
+    type(s_basestacktype),         pointer                :: bs
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopBaseStackType)
+
+    call realloc_grotop(grotop, GroTopBaseStackType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ basestacktypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    do i = 1, cnt
+      bs => grotop%basestacktypes(old_cnt+i)
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+      if (match_format(line, 'SS1NNN')) then
+        read(line,*)         &
+          bs%base_type5, &
+          bs%base_type3, &
+          bs%func,       &
+          bs%epsilon,    &
+          bs%sigma,      &
+          bs%theta_bs
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ basestacktypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ basestacktypes ]')
+
+  end subroutine read_base_stack_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_base_pair_types
+  !> @brief        read section [ basepairtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_base_pair_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)             :: file
+    type(s_grotop),  target, intent(inout)  :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_basepairtype), pointer :: bp
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopBasePairType)
+
+    call realloc_grotop(grotop, GroTopBasePairType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ basepairtypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      bp => grotop%basepairtypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SS1NNNNNN')) then
+        read(line,*)        &
+            bp%base_type_a, &
+            bp%base_type_b, &
+            bp%func,        &
+            bp%theta_1,     &
+            bp%theta_2,     &
+            bp%phi_1,       &
+            bp%theta_3,     &
+            bp%sigma,       &
+            bp%epsilon
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ basepairtypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ basepairtypes ]')
+
+  end subroutine read_base_pair_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_base_cross_types
+  !> @brief        read section [ basecrosstypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_base_cross_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)             :: file
+    type(s_grotop),  target, intent(inout)  :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_basecrosstype), pointer :: cs
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopBaseCrossType)
+
+    call realloc_grotop(grotop, GroTopBaseCrossType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ basecrosstypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      cs => grotop%basecrosstypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SS1NNN') .or. &
+          match_format(line, 'SS2NNN')) then
+        read(line,*)        &
+            cs%base_type_a, &
+            cs%base_type_b, &
+            cs%func,        &
+            cs%epsilon,     &
+            cs%sigma,       &
+            cs%theta_cs
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ basecrosstypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ basecrosstypes ]')
+
+  end subroutine read_base_cross_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_base_exv_types
+  !> @brief        read section [ cgdnaexvtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_base_exv_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)     :: file
+    type(s_grotop),  target, intent(inout)  :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cgdnaexvtype), pointer :: exv
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGDNAExvType)
+
+    call realloc_grotop(grotop, GroTopCGDNAExvType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cgdnaexvtypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      exv => grotop%cgdnaexvtypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNN')) then
+        read(line,*)       &
+            exv%base_type, &
+            exv%func,      &
+            exv%sigma
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cgdnaexvtypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cgdnaexvtypes ]')
+
+  end subroutine read_base_exv_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_IDR_HPS_atomtypes
+  !> @brief        read section [ cg_IDR_HPS_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_IDR_HPS_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cg_IDR_HPS_atomtype), pointer :: hps
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGIDRHPSAtomType)
+
+    call realloc_grotop(grotop, GroTopCGIDRHPSAtomType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_IDR_HPS_atomtypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      hps => grotop%cg_IDR_HPS_atomtypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNNNN')) then
+        read(line,*)       &
+            hps%type_name, &
+            hps%mass,      &
+            hps%charge,    &
+            hps%sigma,     &
+            hps%lambda
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_HPS_atomtypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_HPS_atomtypes ]')
+
+  end subroutine read_cg_IDR_HPS_atom_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_KH_atomtypes
+  !> @brief        read section [ cg_KH_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_KH_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cg_KH_atomtype), pointer :: kh
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGKHAtomType)
+
+    call realloc_grotop(grotop, GroTopCGKHAtomType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_KH_atomtypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      kh => grotop%cg_KH_atomtypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNNN')) then
+        read(line,*)       &
+            kh%type_name, &
+            kh%mass,      &
+            kh%charge,    &
+            kh%sigma
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_KH_atomtypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_KH_atomtypes ]')
+
+  end subroutine read_cg_KH_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_pair_MJ_eps
+  !> @brief        read section [ cg_pair_energy_MJ_96 ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_pair_MJ_eps(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cg_pair_MJ_eps), pointer :: mj
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGPairMJEpsilon)
+
+    call realloc_grotop(grotop, GroTopCGPairMJEpsilon, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_pair_energy_MJ_96 ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      mj => grotop%cg_pair_MJ_eps(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SSN')) then
+        read(line,*)        &
+            mj%type_name_1, &
+            mj%type_name_2, &
+            mj%epsilon
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_pair_energy_MJ_96 ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_pair_energy_MJ_96 ]')
+
+  end subroutine read_cg_pair_MJ_eps
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_ele_mol_pairs
+  !> @brief        read section [ cg_ele_mol_pairs ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_ele_mol_pairs(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character                :: chr_tmp_hyphen
+    character                :: chr_tmp_intermol
+    character(3)             :: chr_tmp_switch
+
+    type(s_cg_ele_mol_pair), pointer :: elepair
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGEleMolPair)
+
+    call realloc_grotop(grotop, GroTopCGEleMolPair, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_ele_chain_pairs ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      elepair => grotop%cg_ele_mol_pairs(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SN-NSN-N')) then
+        read(line,*)            &
+            chr_tmp_switch,     &
+            elepair%grp1_start, &
+            chr_tmp_hyphen,     &
+            elepair%grp1_end,   &
+            chr_tmp_intermol,   &
+            elepair%grp2_start, &
+            chr_tmp_hyphen,     &
+            elepair%grp2_end
+        if ( chr_tmp_intermol /= ':' ) then
+          call error_msg_grotop(file, 'Read_Grotop> interaction format error. [ cg_ele_chain_pairs ]')
+        end if
+        if ( chr_tmp_switch == 'ON' ) then
+          elepair%func = 1
+        else if ( chr_tmp_switch == 'OFF' ) then
+          elepair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ cg_ele_chain_pairs ]')
+        end if
+      else if (match_format(line, 'SN-N')) then
+        elepair%is_intermol = .false.
+        read(line,*)            &
+            chr_tmp_switch,     &
+            elepair%grp1_start, &
+            chr_tmp_hyphen,     &
+            elepair%grp1_end
+        if ( chr_tmp_switch == 'ON' ) then
+          elepair%func = 1
+        else if ( chr_tmp_switch == 'OFF' ) then
+          elepair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ cg_ele_chain_pairs ]')
+        end if
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ cg_ele_chain_pairs ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_ele_chain_pairs ]')
+
+  end subroutine read_cg_ele_mol_pairs
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_kh_mol_pairs
+  !> @brief        read section [ cg_kh_mol_pairs ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_kh_mol_pairs(file, grotop)
+
+    ! formal arguments
+    integer,                intent(in)             :: file
+    type(s_grotop),         target, intent(inout)  :: grotop
+
+    ! local variables
+    integer                 :: i, cnt, old_cnt
+    character(MaxLine)      :: line
+    character(100)          :: error
+    character               :: chr_tmp_hyphen
+    character               :: chr_tmp_intermol
+    character(3)            :: chr_tmp_switch
+
+    type(s_cg_kh_mol_pair), pointer :: khpair
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGKHMolPair)
+
+    call realloc_grotop(grotop, GroTopCGKHMolPair, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_kh_chain_pairs ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      khpair => grotop%cg_kh_mol_pairs(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SN-NSN-N')) then
+        read(line,*)           &
+            chr_tmp_switch,    &
+            khpair%grp1_start, &
+            chr_tmp_hyphen,    &
+            khpair%grp1_end,   &
+            chr_tmp_intermol,  &
+            khpair%grp2_start, &
+            chr_tmp_hyphen,    &
+            khpair%grp2_end
+        if ( chr_tmp_intermol /= ':' ) then
+          call error_msg_grotop(file, 'Read_Grotop> interaction format error. [ cg_kh_chain_pairs ]')
+        end if
+        if ( chr_tmp_switch == 'A' ) then
+          khpair%func = 1
+        else if ( chr_tmp_switch == 'B' ) then
+          khpair%func = 2
+        else if ( chr_tmp_switch == 'C' ) then
+          khpair%func = 3
+        else if ( chr_tmp_switch == 'D' ) then
+          khpair%func = 4
+        else if ( chr_tmp_switch == 'E' ) then
+          khpair%func = 5
+        else if ( chr_tmp_switch == 'F' ) then
+          khpair%func = 6
+        else if ( chr_tmp_switch == 'OFF' ) then
+          khpair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ cg_kh_chain_pairs ]')
+        end if
+      else if (match_format(line, 'SN-N')) then
+        khpair%is_intermol = .false.
+        read(line,*)           &
+            chr_tmp_switch,    &
+            khpair%grp1_start, &
+            chr_tmp_hyphen,    &
+            khpair%grp1_end
+        if ( chr_tmp_switch == 'A' ) then
+          khpair%func = 1
+        else if ( chr_tmp_switch == 'B' ) then
+          khpair%func = 2
+        else if ( chr_tmp_switch == 'C' ) then
+          khpair%func = 3
+        else if ( chr_tmp_switch == 'D' ) then
+          khpair%func = 4
+        else if ( chr_tmp_switch == 'E' ) then
+          khpair%func = 5
+        else if ( chr_tmp_switch == 'F' ) then
+          khpair%func = 6
+        else if ( chr_tmp_switch == 'OFF' ) then
+          khpair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ cg_kh_chain_pairs ]')
+        end if
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ cg_kh_chain_pairs ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_kh_chain_pairs ]')
+
+  end subroutine read_cg_kh_mol_pairs
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_pwmcos_mol_pairs
+  !> @brief        read section [ pwmcos_mol_pairs ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_pwmcos_mol_pairs(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character                :: chr_tmp_hyphen
+    character                :: chr_tmp_intermol
+    character(3)             :: chr_tmp_switch
+
+    type(s_pwmcos_mol_pair), pointer :: pwmcospair
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopPWMcosMolPair)
+
+    call realloc_grotop(grotop, GroTopPWMcosMolPair, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ pwmcos_chain_pairs ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pwmcospair => grotop%pwmcos_mol_pairs(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SN-NSN-N')) then
+        read(line,*)            &
+            chr_tmp_switch,     &
+            pwmcospair%grp1_start, &
+            chr_tmp_hyphen,     &
+            pwmcospair%grp1_end,   &
+            chr_tmp_intermol,   &
+            pwmcospair%grp2_start, &
+            chr_tmp_hyphen,     &
+            pwmcospair%grp2_end
+        if ( chr_tmp_intermol /= ':' ) then
+          call error_msg_grotop(file, 'Read_Grotop> interaction format error. [ pwmcos_chain_pairs ]')
+        end if
+        if ( chr_tmp_switch == 'ON' ) then
+          pwmcospair%func = 1
+        else if ( chr_tmp_switch == 'OFF' ) then
+          pwmcospair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ pwmcos_chain_pairs ]')
+        end if
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ pwmcos_chain_pairs ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ pwmcos_chain_pairs ]')
+
+  end subroutine read_pwmcos_mol_pairs
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_pwmcosns_mol_pairs
+  !> @brief        read section [ pwmcosns_mol_pairs ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_pwmcosns_mol_pairs(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character                :: chr_tmp_hyphen
+    character                :: chr_tmp_intermol
+    character(3)             :: chr_tmp_switch
+
+    type(s_pwmcosns_mol_pair), pointer :: pwmcosnspair
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopPWMcosnsMolPair)
+
+    call realloc_grotop(grotop, GroTopPWMcosnsMolPair, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ pwmcosns_chain_pairs ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pwmcosnspair => grotop%pwmcosns_mol_pairs(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SN-NSN-N')) then
+        read(line,*)            &
+            chr_tmp_switch,     &
+            pwmcosnspair%grp1_start, &
+            chr_tmp_hyphen,     &
+            pwmcosnspair%grp1_end,   &
+            chr_tmp_intermol,   &
+            pwmcosnspair%grp2_start, &
+            chr_tmp_hyphen,     &
+            pwmcosnspair%grp2_end
+        if ( chr_tmp_intermol /= ':' ) then
+          call error_msg_grotop(file, 'Read_Grotop> interaction format error. [ pwmcosns_chain_pairs ]')
+        end if
+        if ( chr_tmp_switch == 'ON' ) then
+          pwmcosnspair%func = 1
+        else if ( chr_tmp_switch == 'OFF' ) then
+          pwmcosnspair%func = 0
+        else
+          call error_msg_grotop(file, 'Read_Grotop> switch format error. [ pwmcosns_chain_pairs ]')
+        end if
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ pwmcosns_chain_pairs ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ pwmcosns_chain_pairs ]')
+
+  end subroutine read_pwmcosns_mol_pairs
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    read_nonbond_parms
   !> @brief        read section [nonbond_parms]
   !! @authors      NT
@@ -2467,6 +4823,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_nbonparm), pointer :: np
 
@@ -2490,7 +4847,8 @@ contains
 
       np => grotop%nbonparms(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'SSNNN')) then
 
@@ -2539,6 +4897,8 @@ contains
 
     ! local variables
     integer                     :: old_cnt, alloc_stat
+    character(MaxLine)          :: line
+    character(100)              :: error
     type(s_moltype),   pointer  :: mt
 
 
@@ -2557,7 +4917,9 @@ contains
     mt%mol => gromol
 
     ! read molecule name, exclude nbon
-    read(file,*,err=900,end=900) mt%name, mt%exclude_nbon
+    if (.not. gro_pp_next_line(file, line, error)) &
+      goto 900
+    read(line,*) mt%name, mt%exclude_nbon
 
     if (VerboseOn .and. main_rank) &
       write(MsgOut,'(" Read_Grotop> [moleculetype] "'// &
@@ -2567,6 +4929,76 @@ contains
 900 call error_msg_grotop(file, 'Read_Grotop> read error. [moleculetype]')
 
   end subroutine read_molecule_type
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_membrane_type
+  !> @brief        read section [ez_membrane]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_membrane_type(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop), target,  intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(20)            :: read_name
+
+    type(s_ezmembrane),    pointer :: ez
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop(grotop, GroTopEzMembrane)
+    call realloc_grotop(grotop, GroTopEzMembrane, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop>   [ez_membrane] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      ez => grotop%ez_membrane(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNNNN')) then
+
+        read(line,*)       &
+             ez%atom_type, &
+             ez%func,      &
+             ez%de,        &
+             ez%zmin,      &
+             ez%polym
+
+      else
+
+        goto 900
+
+      end if
+
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ez_membrane]')
+
+  end subroutine read_membrane_type
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2589,10 +5021,10 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
     character(20)            :: read_name
 
     type(s_atom),    pointer :: at
-
 
     ! check count
     !
@@ -2601,11 +5033,13 @@ contains
     ! allocate memory
     !
     old_cnt = size_grotop_mol(gromol, GMGroMolAtom)
+
     call realloc_grotop_mol(gromol, GMGroMolAtom, old_cnt+cnt)
 
     if (VerboseOn .and. main_rank) &
       write(MsgOut,'(" Read_Grotop>   [atoms] :"'// &
            ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
 
     ! read data
     !
@@ -2613,7 +5047,8 @@ contains
 
       at => gromol%atoms(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NSNSSNNNN')) then
 
@@ -2669,6 +5104,31 @@ contains
           call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
                'atom type not found: '//at%atom_type)
 
+      else if (match_format(line, 'NSNSSN')) then
+
+        read(line,*)          &
+             at%atom_no,      &
+             read_name,       &
+             at%residue_no,   &
+             at%residue_name, &
+             at%atom_name,    &
+             at%charge_group
+
+        call rename_atom_type_name(grotop, read_name, at%atom_type)
+
+        if (.not. search_atom_mass(grotop%atomtypes, at%atom_type, at%mass)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+
+        if (.not.search_atom_charge(grotop%atomtypes, at%atom_type, at%charge)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+
+        if (.not.search_stokes_r(grotop%atomtypes, at%atom_type, at%stokes_r)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+
+
       else
 
         goto 900
@@ -2706,10 +5166,10 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
     character(6)             :: at1, at2
 
     type(s_bond),    pointer :: bd
-
 
     ! check count
     !
@@ -2730,10 +5190,13 @@ contains
 
       bd => gromol%bonds(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NN1NN') .or. &
-          match_format(line, 'NN2NN')) then
+          match_format(line, 'NN2NN') .or. &
+          ! ~CG~ 3SPN.2C DNA: read in param also for quartic bonds
+          match_format(line, 'NNNNN')) then
 
         read(line,*)       &
              bd%atom_idx1, &
@@ -2806,10 +5269,12 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
     character(6)             :: at1, at2, at3
+    !shinobu-edited
+    character(6)             :: fnerr
 
     type(s_angl), pointer    :: an
-
 
     ! check count
     !
@@ -2830,7 +5295,8 @@ contains
 
       an => gromol%angls(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNN5NNNN')) then
 
@@ -2843,6 +5309,26 @@ contains
              an%kt,        &
              an%r13,       &
              an%kub
+
+      else if (match_format(line, 'NNNNNNNNNN')) then
+
+        read(line,*)       &
+             an%atom_idx1, &
+             an%atom_idx2, &
+             an%atom_idx3, &
+             an%func,      &
+             an%theta_0,   &
+             an%theta_01,  &
+             an%kt,        &
+             an%kt1,       &
+             an%cgamma,    &
+             an%epsa
+
+        if (an%func /= 10) then
+          write(fnerr,'(i3)') an%func
+          call error_msg_grotop(file, 'Read_Grotop> [angles] '// &
+               'not supported function type: '//fnerr)
+        endif
 
       else if (match_format(line, 'NNN5')) then
 
@@ -2872,6 +5358,31 @@ contains
              an%theta_0,   &
              an%kt
 
+      ! shinobu-edited
+      else if (match_format(line, 'NNNNNNN')) then
+
+        ! AICG2+ Gaussian (local) angle
+        read(line,*)       &
+             an%atom_idx1, &
+             an%atom_idx2, &
+             an%atom_idx3, &
+             an%func
+
+        if (an%func /= 21) then
+          write(fnerr,'(i3)') an%func
+          call error_msg_grotop(file, 'Read_Grotop> [angles] '// &
+               'not supported function type: '//fnerr)
+        endif
+
+      read(line,*)       &
+             an%atom_idx1, &
+             an%atom_idx2, &
+             an%atom_idx3, &
+             an%func,      &
+             an%theta_0,   &
+             an%kt,        &
+             an%w
+
       else if (match_format(line, 'NNN1') .or. &
                match_format(line, 'NNN2')) then
 
@@ -2889,6 +5400,31 @@ contains
              at1, at2, at3, an%func, an%theta_0, an%kt)) &
           call error_msg_grotop(file, 'Read_Grotop> [angles] '// &
                'atom type not found: '//at1//at2//at3)
+
+      !shinobu-edited
+      else if (match_format(line, 'NNNN')) then
+        ! AICG2+ Flexible angle
+        read(line,*)       &
+             an%atom_idx1, &
+             an%atom_idx2, &
+             an%atom_idx3, &
+             an%func
+
+        if (an%func /= 22) then
+          write(fnerr,'(i3)') an%func
+          call error_msg_grotop(file, 'Read_Grotop> [angles] '// &
+               'not supported function type: '//fnerr)
+        endif
+
+        at1 = gromol%atoms(an%atom_idx1)%atom_type
+        at2 = gromol%atoms(an%atom_idx2)%atom_type
+        at3 = gromol%atoms(an%atom_idx3)%atom_type
+
+        if (.not.search_flangl_param(grotop%flangltypes,     &
+             at1, at2, at3, an%func, an%types)) &
+          call error_msg_grotop(file, 'Read_Grotop> [angles] '// &
+               'flexible angle atom type not found: '//at2)
+
 
       else if (match_format(line, 'NNNN')) then
 
@@ -2941,21 +5477,24 @@ contains
     integer                  :: cnt_tri, old_dihedcnt, cur_size, ii
     integer                  :: iold, ix
     character(MaxLine)       :: line
+    character(100)           :: error
     character(6)             :: at1, at2, at3, at4
+    !shinobu-edited
+    character(6)             :: fnerr
 
     type(s_dihe),    pointer :: dh
-
 
     ! check count
     !
     cnt = check_section_count(file)
 
-    cnt_tri      = cnt*5
+    cnt_tri      = cnt*MAX_MULTIPLY_NUM
     old_dihedcnt = gromol%num_dihes
 
     ! allocate memory
     !
     old_cnt = size_grotop_mol(gromol, GMGroMolDihe)
+
     if (old_cnt < old_dihedcnt+cnt_tri) then
       call realloc_grotop_mol(gromol, GMGroMolDihe, old_cnt+cnt_tri)
     end if
@@ -2972,14 +5511,15 @@ contains
     do i = 1, cnt
 
       ii = ii+1
-      if (ii+5 > cur_size) then
+      if (ii+MAX_MULTIPLY_NUM > cur_size) then
         call realloc_grotop_mol(gromol, GMGroMolDihe, cur_size+cnt_tri)
         cur_size = size_grotop_mol(gromol, GMGroMolDihe)
       end if
 
       dh => gromol%dihes(old_dihedcnt+ii)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNNN1NNN')) then
 
@@ -3161,6 +5701,80 @@ contains
           dh%atom_idx4 = gromol%dihes(old_dihedcnt+iold)%atom_idx4
         end do
 
+      else if (match_format(line, 'NNNNNNNN')) then
+
+        ! AICG2+ Gaussian (local) dihedral
+        read(line,*) &
+            dh%atom_idx1, &
+            dh%atom_idx2, &
+            dh%atom_idx3, &
+            dh%atom_idx4, &
+            dh%func
+
+        if (dh%func /= 21 &
+            .and. dh%func /= 31 &
+            .and. dh%func /= 32 &
+            .and. dh%func /= 33 &
+            .and. dh%func /= 41 &
+            .and. dh%func /= 43 &
+            .and. dh%func /= 52 &
+            ) then
+          write(fnerr,'(i3)') dh%func
+          call error_msg_grotop(file, 'Read_Grotop> [dihedrals] '// &
+              'not supported function type: '//fnerr)
+        end if
+
+        if (dh%func == 21 .or. dh%func == 41 .or. dh%func == 43) then
+          read(line,*) &
+              dh%atom_idx1, &
+              dh%atom_idx2, &
+              dh%atom_idx3, &
+              dh%atom_idx4, &
+              dh%func,      &
+              dh%theta_0,   &
+              dh%kp,        &
+              dh%w
+        end if
+
+        if (dh%func == 31 .or. dh%func == 32 .or. dh%func == 33) then
+          read(line,*) &
+              dh%atom_idx1, &
+              dh%atom_idx2, &
+              dh%atom_idx3, &
+              dh%atom_idx4, &
+              dh%func, &
+              dh%ps,   &
+              dh%kp,   &
+              dh%multiplicity
+          end if
+
+
+      else if (match_format(line, 'NNNNN')) then
+        ! AICG2+ Flexible dihedral angle
+        read(line,*)       &
+             dh%atom_idx1, &
+             dh%atom_idx2, &
+             dh%atom_idx3, &
+             dh%atom_idx4, &
+             dh%func
+
+        if (dh%func /= 22 .and. dh%func /= 52) then
+          write(fnerr,'(i3)') dh%func
+          call error_msg_grotop(file, 'Read_Grotop> [dihedrals] '// &
+               'not supported function type: '//fnerr)
+        endif
+
+        at1 = gromol%atoms(dh%atom_idx1)%atom_type
+        at2 = gromol%atoms(dh%atom_idx2)%atom_type
+        at3 = gromol%atoms(dh%atom_idx3)%atom_type
+        at4 = gromol%atoms(dh%atom_idx4)%atom_type
+
+        if (.not.search_fldihe_param(grotop%fldihetypes,     &
+             at1, at2, at3, at4, dh%func, dh%types)) &
+          call error_msg_grotop(file, 'Read_Grotop> [dihedral] '// &
+               'flexible dihedral angle atom types not found: '//at2// &
+               'and '//at3)
+
       else if (match_format(line, 'NNNNN')) then
 
         ! unknown
@@ -3171,8 +5785,15 @@ contains
              dh%atom_idx4, &
              dh%func
 
-        write(MsgOut,'(" Read_Grotop> WARNING: [dihedrals] '// &
+       if (dh%func == 22) then
+         write(MsgOut,'(" Read_Grotop> Underconstructed ")')
+
+       else
+
+         write(MsgOut,'(" Read_Grotop> WARNING: [dihedrals] '// &
               'not supported function type. [", i3, "]")') dh%func
+
+       endif
 
       else
 
@@ -3211,6 +5832,7 @@ contains
     ! local variables
     integer                  :: i, j, k, cnt, old_cnt, nrow, ncol
     character(10000)         :: line
+    character(100)           :: error
     character(6)             :: at1, at2, at3, at4, at5
 
     type(s_cmap), pointer    :: cm
@@ -3235,7 +5857,8 @@ contains
 
       cm => gromol%cmaps(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNNNN1NN')) then
 
@@ -3303,19 +5926,26 @@ contains
   !> @brief        read section [exclusions]
   !! @authors      NT
   !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
   !! @param[inout] gromol : GROMACS TOP molecule information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine read_exclusions(file, gromol)
+  subroutine read_exclusions(file, grotop, gromol)
 
     ! formal arguments
     integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
     type(s_grotop_mol),      pointer       :: gromol
 
     ! local variables
     integer                  :: i, j, cnt, cnt2, cnt3, old_cnt
-    character(1000)          :: line
+!!!original
+!!!!!!    character(1000)          :: line
+!!!original
+!!!develop
+    character(MaxLine)       :: line
+!!!develop
 
     integer,     allocatable :: v(:)
 
@@ -3325,15 +5955,15 @@ contains
 
     cnt = check_section_count(file)
 
+    call gro_pp_record_pos(file)
+
     cnt2 = 0
     do i = 1, cnt
-      read(file,'(A)') line
+      call gro_pp_next_line_s(file, line)
       cnt2 = cnt2 + split_num(line) - 1
     end do
 
-    do i = 1, cnt
-      backspace(file)
-    end do
+    call gro_pp_restore_pos(file)
 
     ! allocate memory
     !
@@ -3348,11 +5978,11 @@ contains
     ! read data
     !
 
-    cnt2 = 0
+    cnt2 = old_cnt
 
     do i = 1, cnt
 
-      read(file,'(a)') line
+      call gro_pp_next_line_s(file, line)
       cnt3 = split_num(line)
       allocate(v(cnt3))
 
@@ -3395,6 +6025,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
     character(6)             :: at1, at2
 
     type(s_constr),  pointer :: cd
@@ -3419,7 +6050,8 @@ contains
 
       cd => gromol%constrs(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NN1N') .or. &
           match_format(line, 'NN2N')) then
@@ -3479,22 +6111,25 @@ contains
   !> @brief        read section [pairs]
   !! @authors      NT
   !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
   !! @param[inout] gromol : GROMACS TOP molecule information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine read_pairs(file, gromol)
+  subroutine read_pairs(file, grotop, gromol)
 
     ! formal arguments
     integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
     type(s_grotop_mol),      pointer       :: gromol
 
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
+    character(6)             :: at1, at2
 
     type(s_pair),    pointer :: pd
-
 
     ! check count
     !
@@ -3515,7 +6150,8 @@ contains
 
       pd => gromol%pairs(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNNNNN')) then
 
@@ -3539,12 +6175,27 @@ contains
 
       else if (match_format(line, 'NNNNN')) then
 
+!shinobu-edited
         read(line,*) &
              pd%atom_idx1, &
              pd%atom_idx2, &
-             pd%func,      &
-             pd%v,         &
-             pd%w
+             pd%func
+
+        if(pd%func==21) then
+             read(line,*) &
+                pd%atom_idx1, &
+                pd%atom_idx2, &
+                pd%func,      &
+                pd%r0,        &
+                pd%khh
+        else
+             read(line,*) &
+                pd%atom_idx1, &
+                pd%atom_idx2, &
+                pd%func,      &
+                pd%v,         &
+                pd%w
+        endif
 
       else if (match_format(line, 'NN1') .or. &
                match_format(line, 'NN2')) then
@@ -3587,21 +6238,30 @@ contains
   !> @brief        read section [settles]
   !! @authors      NT
   !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
   !! @param[inout] gromol : GROMACS TOP molecule information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine read_settles(file, gromol)
+  subroutine read_settles(file, grotop, gromol)
 
     ! formal arguments
     integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
     type(s_grotop_mol),      pointer       :: gromol
 
+    ! local variables
+    character(MaxLine)       :: line
+    character(100)           :: error
 
-    read(file,*,err=900,end=900) gromol%settles%ow,   &
-                                 gromol%settles%func, &
-                                 gromol%settles%doh,  &
-                                 gromol%settles%dhh
+
+    if (.not. gro_pp_next_line(file, line, error)) &
+      goto 900
+
+    read(line,*) gromol%settles%ow,   &
+                 gromol%settles%func, &
+                 gromol%settles%doh,  &
+                 gromol%settles%dhh
 
     return
 
@@ -3628,6 +6288,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_vsite2),  pointer :: vs2
 
@@ -3651,7 +6312,8 @@ contains
 
       vs2 => gromol%vsites2(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNN1N')) then
 
@@ -3709,6 +6371,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(MaxLine)       :: error
 
     type(s_vsite3),  pointer :: vs3
 
@@ -3732,7 +6395,8 @@ contains
 
       vs3 => gromol%vsites3(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNNN1NN')) then
 
@@ -3827,6 +6491,7 @@ contains
     ! local variables
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_vsite4),  pointer :: vs4
 
@@ -3850,7 +6515,8 @@ contains
 
       vs4 => gromol%vsites4(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'NNNNN2NNN')) then
 
@@ -3918,6 +6584,7 @@ contains
     integer                  :: i, cnt, old_cnt, fcnt
     integer                  :: froms(MaxFroms)
     character(MaxLine)       :: line
+    character(100)           :: error
 
     type(s_vsiten),  pointer :: vsn
 
@@ -3941,7 +6608,8 @@ contains
 
       vsn => gromol%vsitesn(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'N1N') .or. &
           match_format(line, 'N2N') .or. &
@@ -3995,20 +6663,24 @@ contains
   !> @brief        read section [position_restraints]
   !! @authors      NT
   !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
   !! @param[inout] gromol : GROMACS TOP molecule information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine read_position_restraints(file, gromol)
+  subroutine read_position_restraints(file, grotop, gromol)
 
     ! formal arguments
     integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
     type(s_grotop_mol),      pointer       :: gromol
 
     ! local variables
     integer                  :: aidx
     integer                  :: i, cnt, old_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
+    character(6)             :: at1, at2
 
     type(s_posres),  pointer :: pd
 
@@ -4032,7 +6704,8 @@ contains
 
       pd => gromol%posress(old_cnt+i)
 
-      read(file,'(A)',err=900,end=900) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
 
       if (match_format(line, 'N1NNN')) then
 
@@ -4107,36 +6780,729 @@ contains
     type(s_grotop),          intent(inout) :: grotop
 
     ! local variables
-    integer                  :: directive, cnt, sz
+    integer                  :: directive, i, cnt, sz, mol_cnt
     character(MaxLine)       :: line
+    character(100)           :: error
     character(20)            :: name
 
+
+    ! checko count
+    !
+    cnt = check_section_count(file)
 
     if (VerboseOn .and. main_rank) &
       write(MsgOut,'(" Read_Grotop> [molecules]")')
 
-    do while(.true.)
-      read(file,'(A)',end=100) line
-      if (check_directive(line, directive)) &
-        exit
-      read(line,*,err=900,end=900) name, cnt
+    do i = 1, cnt
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      read(line,*,err=900,end=900) name, mol_cnt
 
       sz = size_grotop(grotop, GroTopMols) + 1
       call realloc_grotop(grotop, GroTopMols, sz)
       grotop%molss(sz)%name = name
-      grotop%molss(sz)%count = cnt
+      grotop%molss(sz)%count = mol_cnt
 
       if (VerboseOn .and. main_rank) &
-        write(MsgOut,'(" Read_Grotop>   ",a20,"  count:",i5)') name, cnt
+        write(MsgOut,'(" Read_Grotop>   ",a20,"  count:",i5)') name, mol_cnt
     end do
-
-100 backspace(file)
 
     return
 
 900 call error_msg_grotop(file, 'Read_Grotop> read error. [molecules]')
 
   end subroutine read_molecules
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_gomodel
+  !> @brief        read section [gomodel]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_gomodel(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    character(100)           :: line, error
+
+
+    if (.not. gro_pp_next_line(file, line, error)) &
+      goto 900
+    read(line,*,err=900,end=900) grotop%gomodel%go_func,  &
+                                 grotop%gomodel%num_basins
+
+    return
+
+900 call error_msg_grotop(file, 'read_grotop> read error. [gomodel]')
+
+  end subroutine read_gomodel
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cgatoms
+  !> @brief        read section [cg_atoms]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cgatoms(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(20)            :: read_name
+
+    type(s_atom),    pointer :: at
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop_mol(gromol, GMGroMolAtom)
+    call realloc_grotop_mol(gromol, GMGroMolAtom, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop>   [cg_atoms] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      at => gromol%atoms(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NSNSSNNNNN')) then
+
+        read(line,*)          &
+             at%atom_no,      &
+             read_name,       &
+             at%residue_no,   &
+             at%residue_name, &
+             at%atom_name,    &
+             at%charge_group, &
+             at%charge,       &
+             at%mass,         &
+             at%v,            &
+             at%w
+
+        call rename_atom_type_name(grotop, read_name, at%atom_type)
+
+      else if (match_format(line, 'NSNSSNNN')) then
+
+        read(line,*)          &
+             at%atom_no,      &
+             read_name,       &
+             at%residue_no,   &
+             at%residue_name, &
+             at%atom_name,    &
+             at%charge_group, &
+             at%charge,       &
+             at%mass
+
+        call rename_atom_type_name(grotop, read_name, at%atom_type)
+
+        if (.not. search_atom_vw(grotop%atomtypes, at%atom_type,             &
+                                 at%v, at%w)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+
+      else if (match_format(line, 'NSNSSNN')) then
+
+        read(line,*)          &
+             at%atom_no,      &
+             read_name,       &
+             at%residue_no,   &
+             at%residue_name, &
+             at%atom_name,    &
+             at%charge_group, &
+             at%charge
+
+        call rename_atom_type_name(grotop, read_name, at%atom_type)
+
+        if (.not. search_atom_mass(grotop%atomtypes, at%atom_type, at%mass)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+
+        if (.not. search_atom_vw(grotop%atomtypes, at%atom_type,             &
+                                 at%v, at%w)) &
+          call error_msg_grotop(file, 'Read_Grotop> [atoms] '// &
+               'atom type not found: '//at%atom_type)
+      else
+
+        goto 900
+
+      end if
+
+    end do
+
+    gromol%num_atoms = size_grotop_mol(gromol, GMGroMolAtom)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [cg_atoms]')
+
+  end subroutine read_cgatoms
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_multicontact
+  !> @brief        read section [multicontact]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_multicontact(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(6)             :: at1, at2
+
+    type(s_mcont),   pointer :: pd
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop_mol(gromol, GMGroMolMcont)
+    call realloc_grotop_mol(gromol, GMGroMolMcont, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop>   [multicontact] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pd => gromol%mcontact(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NN2NNN')) then
+
+        read(line,*) &
+             pd%atom_idx1, &
+             pd%atom_idx2, &
+             pd%func,      &
+             pd%model,     &
+             pd%v,         &
+             pd%w
+
+      else
+
+        goto 900
+
+      end if
+
+    end do
+
+    gromol%num_mcontacts = size_grotop_mol(gromol, GMGroMolMcont)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [multicontact]')
+
+  end subroutine read_multicontact
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_morph_bb
+  !> @brief        read section [moprh_bb]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_morph_bb(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(6)             :: at1, at2
+
+    type(s_morph_pair), pointer :: pd
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop_mol(gromol, GMGroMolMorphBB)
+    call realloc_grotop_mol(gromol, GMGroMolMorphBB, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop>   [morph_bb] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pd => gromol%morph_bb(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NNN')) then
+
+        read(line,*) &
+             pd%atom_idx1, &
+             pd%atom_idx2, &
+             pd%rmin
+
+      else if (match_format(line, 'NNNN')) then
+
+        read(line,*) &
+             pd%atom_idx1, &
+             pd%atom_idx2, &
+             pd%rmin,      &
+             pd%rmin_other
+      else
+
+        goto 900
+
+      end if
+
+    end do
+
+    gromol%num_morph_bb = size_grotop_mol(gromol, GMGroMolMorphBB)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [morph_bb]')
+
+  end subroutine read_morph_bb
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_morph_sc
+  !> @brief        read section [moprh_sc]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_morph_sc(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(6)             :: at1, at2
+
+    type(s_morph_pair), pointer :: pd
+
+
+    ! check count
+    !
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    !
+    old_cnt = size_grotop_mol(gromol, GMGroMolMorphSC)
+    call realloc_grotop_mol(gromol, GMGroMolMorphSC, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) &
+      write(MsgOut,'(" Read_Grotop>   [morph_sc] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pd => gromol%morph_sc(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NNN')) then
+
+        read(line,*) &
+             pd%atom_idx1, &
+             pd%atom_idx2, &
+             pd%rmin
+
+      else if (match_format(line, 'NNNN')) then
+
+        read(line,*) &
+             pd%atom_idx1, &
+             pd%atom_idx2, &
+             pd%rmin,      &
+             pd%rmin_other
+
+      else
+
+        goto 900
+
+      end if
+
+    end do
+
+    gromol%num_morph_sc = size_grotop_mol(gromol, GMGroMolMorphSC)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [morph_sc]')
+
+  end subroutine read_morph_sc
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_pwmcos
+  !> @brief        read section [ pwmcos ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS itp information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_pwmcos(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+    type(s_grotop_mol), pointer :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    ! character                :: chr_tmp_hyphen
+    ! character                :: chr_tmp_intermol
+    ! character(3)             :: chr_tmp_switch
+
+    type(s_pwmcos),         pointer              :: pc
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+
+    old_cnt = size_grotop_mol(gromol, GMGroMolPWMcos)
+    call realloc_grotop_mol(gromol, GMGroMolPWMcos, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ pwmcos ] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pc => gromol%pwmcos(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'N1NNNNNNNNNN')) then
+        read(line,*)        &
+            pc%protein_idx, &
+            pc%func,        &
+            pc%r0,          &
+            pc%theta1,      &
+            pc%theta2,      &
+            pc%theta3,      &
+            pc%ene_A,       &
+            pc%ene_C,       &
+            pc%ene_G,       &
+            pc%ene_T,       &
+            pc%gamma,       &
+            pc%eps_shift
+      ! else if (match_format(line, 'N2NNNNN')) then
+      !   read(line,*)        &
+      !       pc%protein_idx, &
+      !       pc%func,        &
+      !       pc%r0,          &
+      !       pc%theta1,      &
+      !       pc%theta2,      &
+      !       pc%theta3,      &
+      !       pc%ene_A,       &
+      !       pc%ene_C,       &
+      !       pc%ene_G,       &
+      !       pc%ene_T,       &
+      !       pc%gamma,       &
+      !       pc%eps_shift
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ pwmcos ]')
+      end if
+    end do
+
+    gromol%num_pwmcos = size_grotop_mol(gromol, GMGroMolPWMcos)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ pwmcos ]')
+
+  end subroutine read_pwmcos
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_pwmcosns
+  !> @brief        read section [ pwmcosns ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS itp information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_pwmcosns(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    ! character                :: chr_tmp_hyphen
+    ! character                :: chr_tmp_intermol
+    ! character(3)             :: chr_tmp_switch
+
+    type(s_pwmcosns), pointer :: pc
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+
+    old_cnt = size_grotop_mol(gromol, GMGroMolPWMcosns)
+    call realloc_grotop_mol(gromol, GMGroMolPWMcosns, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ pwmcosns ] :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      pc => gromol%pwmcosns(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'N2NNNN')) then
+        read(line,*)        &
+            pc%protein_idx, &
+            pc%func,        &
+            pc%r0,          &
+            pc%theta1,      &
+            pc%theta2,      &
+            pc%ene
+      else
+        call error_msg_grotop(file, 'Read_Grotop> format error. [ pwmcosns ]')
+      end if
+    end do
+
+    gromol%num_pwmcosns = size_grotop_mol(gromol, GMGroMolPWMcosns)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ pwmcosns ]')
+
+  end subroutine read_pwmcosns
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_idr_hps
+  !> @brief        read section [ idr_hps ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS ITP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_idr_hps(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(3)             :: chr_tmp
+
+    type(s_idr_hps), pointer :: hps
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop_mol(gromol, GMGroMolIDRHPS)
+    call realloc_grotop_mol(gromol, GMGroMolIDRHPS, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Gromol> [ cg_IDR_HPS_region ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      hps => gromol%idr_hps(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NN')) then
+        read(line,*) hps%grp_start, hps%grp_end
+      else if (match_format(line, 'N')) then
+        read(line,*) hps%grp_start
+        hps%grp_end = hps%grp_start
+      else
+        call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_HPS_region ]')
+      end if
+    end do
+
+    gromol%num_idr_hps = size_grotop_mol(gromol, GMGroMolIDRHPS)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_HPS_region ]')
+
+  end subroutine read_idr_hps
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_idr_kh
+  !> @brief        read section [ idr_kh ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS ITP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_idr_kh(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(3)             :: chr_tmp
+
+    type(s_idr_kh), pointer :: kh
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop_mol(gromol, GMGroMolIDRKH)
+    call realloc_grotop_mol(gromol, GMGroMolIDRKH, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Gromol> [ cg_IDR_KH_region ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      kh => gromol%idr_kh(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NN')) then
+        read(line,*) kh%grp_start, kh%grp_end
+      else if (match_format(line, 'N')) then
+        read(line,*) kh%grp_start
+        kh%grp_end = kh%grp_start
+      else
+        call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_KH_region ]')
+      end if
+    end do
+
+    gromol%num_idr_kh = size_grotop_mol(gromol, GMGroMolIDRKH)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_KH_region ]')
+
+  end subroutine read_idr_kh
+
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4176,6 +7542,24 @@ contains
     ! cmap type
     call write_cmap_types(file, grotop)
 
+    ! basestack type
+    call write_base_stack_types(file, grotop)
+
+    ! basepair type
+    call write_base_pair_types(file, grotop)
+
+    ! basecross type
+    call write_base_cross_types(file, grotop)
+
+    ! cgdnaexv type
+    call write_base_exv_types(file, grotop)
+
+    ! cg IDR HPS atom type
+    call write_cg_IDR_HPS_atom_types(file, grotop)
+
+    ! cg KH atom type
+    call write_cg_KH_atom_types(file, grotop)
+
     ! nonbond parameter
     call write_nonbond_parms(file, grotop)
 
@@ -4191,6 +7575,61 @@ contains
     return
 
   end subroutine write_grotop
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_grotop_aadome
+  !> @brief        write a GROMACS TOP file
+  !! @authors      CK
+  !! @param[in]    file   : unit number of GROTOP file
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_grotop_aadome(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! itp files
+    call write_itp(file, grotop)
+
+    call write_gomodel(file, grotop)
+
+    ! defaults
+    call write_defaults(file, grotop)
+
+!    ! atom type
+!    call write_atom_types(file, grotop)
+
+    ! bond type
+    call write_bond_types_aa(file, grotop)
+
+    ! angle type
+    call write_angle_types_aa(file, grotop)
+
+    ! dihedral type
+    call write_dihedral_types_aa(file, grotop)
+
+    ! constraint type
+    call write_constraint_types(file, grotop)
+
+    ! nonbond parameter
+    call write_nonbond_parms(file, grotop)
+
+    ! molecule type
+    call write_molecule_type_aa(file, grotop)
+
+    ! system
+    call write_system(file, grotop)
+
+    ! molecules
+    call write_molecules(file, grotop)
+
+    return
+
+  end subroutine write_grotop_aadome
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4235,6 +7674,66 @@ contains
     return
 
   end subroutine write_defaults
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_gomodel
+  !> @brief        write section [gomodel]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_gomodel(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(in)    :: grotop
+
+    ! local variables
+    character(100)           :: line
+
+
+    write(file, '(a)') &
+         '[ gomodel ]'
+    write(file, '(a)') &
+         '; nbfunc  num_basins'
+    write(file,'(i10,1x,i10)') grotop%gomodel%go_func,  &
+                               grotop%gomodel%num_basins
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_gomodel
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_itp
+  !> @brief        write section for itp files
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_itp(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+
+    if (grotop%itpread%itp /= '') then
+      write(file, '(a,a,a)') '#include "',trim(adjustl(grotop%itpread%itp)),'"'
+
+      write(file, '(a)') ''
+    end if
+
+    return
+
+  end subroutine write_itp
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4444,6 +7943,67 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    write_bond_types_aa
+  !> @brief        write section [bondtypes]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_bond_types_aa(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopBondType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%bondtypes(i)%func) then
+
+        func = grotop%bondtypes(i)%func
+
+        write(file, '(a)') '[ bondtypes ]'
+
+        select case (func)
+
+        case (1, 2)
+          write(file,'(a)') ';i  j  func  b0  kb'
+
+        case default
+          write(str,*) func
+          call error_msg('Write_Bond_Types> Unknown function type.'//trim(str))
+
+        end select
+
+      end if
+
+      write(file, '(a8,1x,a8,1x,i8)') &
+           grotop%bondtypes(i)%atom_type1,  &
+           grotop%bondtypes(i)%atom_type2,  &
+           grotop%bondtypes(i)%func
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_bond_types_aa
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    write_angle_types
   !> @brief        write section [angletypes]
   !! @authors      NT
@@ -4526,6 +8086,69 @@ contains
     return
 
   end subroutine write_angle_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_angle_types_aa
+  !> @brief        write section [angletypes]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_angle_types_aa(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopAnglType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%angltypes(i)%func) then
+
+        func = grotop%angltypes(i)%func
+
+        write(file, '(a)') '[ angletypes ]'
+
+        select case (func)
+
+        case (1, 2)
+          write(file,'(a)') ';i  j  k  func  th0  cth'
+
+        case default
+          write(str,*) func
+          call error_msg('Write_Angle_Types> Unknown function type.'//trim(str))
+
+        end select
+
+      end if
+
+      write(file, '(a8,1x,a8,1x,a8,1x,i8)') &
+           grotop%angltypes(i)%atom_type1,     &
+           grotop%angltypes(i)%atom_type2,     &
+           grotop%angltypes(i)%atom_type3,     &
+           grotop%angltypes(i)%func
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_angle_types_aa
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4690,6 +8313,113 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    write_dihedral_types_aa
+  !> @brief        write section [dihedraltypes]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_dihedral_types_aa(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopDiheType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%dihetypes(i)%func) then
+
+        func = grotop%dihetypes(i)%func
+
+        write(file, '(a)') '[ dihedraltypes ]'
+
+        if (grotop%dihetypes(i)%four_type) then
+
+          select case (func)
+
+          case (1, 4, 9)
+            ! dihedral
+            write(file,'(a)') ';i  j  k  l  func  ps  kp  mult'
+          case (2)
+            ! improper dihedral
+            write(file,'(a)') ';i  j  k  l  func  ps  kp'
+          case (3)
+            ! Ryckaert-Bellemans dihedral
+            write(file,'(a)') ';i  j  k  l  func  c1  c2 .. c6'
+          case default
+            write(str,*) func
+            call error_msg('Write_Dihedral_Types> Unknown function type.'//&
+                 trim(str))
+
+          end select
+
+        else
+
+          select case (func)
+
+          case (1, 4, 9)
+            ! dihedral
+            write(file,'(a)') ';j  k  func  ps  kp  mult'
+          case (2)
+            ! improper dihedral
+            write(file,'(a)') ';i  l  func  ps  kp'
+          case (3)
+            ! Ryckaert-Bellemans dihedral
+            write(file,'(a)') ';j  k  func  c1  c2 .. c6'
+          case default
+            write(str,*) func
+            call error_msg('Write_Dihedral_Types> Unknown function type.'//&
+                 trim(str))
+
+          end select
+
+        end if
+
+      end if
+
+      if (grotop%dihetypes(i)%four_type) then
+
+        ! dihedral
+        write(file,'(a8,1x,a8,1x,a8,1x,a8,1x,i8)') &
+             grotop%dihetypes(i)%atom_type1, &
+             grotop%dihetypes(i)%atom_type2, &
+             grotop%dihetypes(i)%atom_type3, &
+             grotop%dihetypes(i)%atom_type4, &
+             grotop%dihetypes(i)%func
+
+      else
+
+        ! dihedral
+        write(file,'(a8,1x,a8,1x,i8)') &
+             grotop%dihetypes(i)%atom_type2, &
+             grotop%dihetypes(i)%atom_type3, &
+             grotop%dihetypes(i)%func
+
+      end if
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_dihedral_types_aa
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    write_constraint_types
   !> @brief        write section [constrainttypes]
   !! @authors      NT
@@ -4832,6 +8562,324 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    write_base_stack_types
+  !> @brief        write section [ basestacktypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_base_stack_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopBaseStackType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%basestacktypes(i)%func) then
+        func = grotop%basestacktypes(i)%func
+        write(file,'(A)') '[ basestacktypes ]'
+        write(file,'(A)') '; DNA - Base Stacking'
+        write(file,'(A)') ";   5\'    3\' func   epsilon     sigma thetha_bs"
+      end if
+
+      write(file,'(a6,a6,i5,f10.2,f10.3,f10.2)') &
+        grotop%basestacktypes(i)%base_type5, &
+        grotop%basestacktypes(i)%base_type3, &
+        grotop%basestacktypes(i)%func,       &
+        grotop%basestacktypes(i)%epsilon,    &
+        grotop%basestacktypes(i)%sigma,      &
+        grotop%basestacktypes(i)%theta_bs
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_base_stack_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_base_pair_types
+  !> @brief        write section [ basepairtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_base_pair_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopBasePairType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%basepairtypes(i)%func) then
+        func = grotop%basepairtypes(i)%func
+        write(file, '(a)') '[ basepairtypes ]'
+        write(file,'(a)') '; DNA - Base Pairing'
+        write(file,'(a)') ';    a     b func   thetha1   thetha2      phi1     sigma   epsilon'
+      end if
+
+      write(file,'(a6,a6,i5,f10.2,f10.2,f10.2,f10.2,f10.2)') &
+          grotop%basepairtypes(i)%base_type_a,               &
+          grotop%basepairtypes(i)%base_type_b,               &
+          grotop%basepairtypes(i)%func,                      &
+          grotop%basepairtypes(i)%theta_1,                   &
+          grotop%basepairtypes(i)%theta_2,                   &
+          grotop%basepairtypes(i)%phi_1,                     &
+          grotop%basepairtypes(i)%sigma,                     &
+          grotop%basepairtypes(i)%epsilon
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_base_pair_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_base_cross_types
+  !> @brief        write section [ basecrosstypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_base_cross_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopBaseCrossType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    write(file, '(a)') '[ basecrosstypes ]'
+
+    do i = 1, cnt
+
+      if (func /= grotop%basecrosstypes(i)%func) then
+        func = grotop%basecrosstypes(i)%func
+        select case (func)
+        case (1)
+          write(file,'(a)') ";DNA - Base Cross-Stacking up5\'-down5\'"
+        case (2)
+          write(file,'(a)') ";DNA - Base Cross-Stacking down3\'-up3\'"
+        case default
+          call error_msg('Write_Base_Cross_Types> Unknown function type.')
+        end select
+        write(file,'(a)') ';    a     b func   epsilon     sigma   thetha3 thetha_cs'
+      end if
+
+      write(file,'(a6,a6,i5,f10.3,f10.3,f10.2,f10.2)') &
+        grotop%basecrosstypes(i)%base_type_a,      &
+        grotop%basecrosstypes(i)%base_type_b,      &
+        grotop%basecrosstypes(i)%func,             &
+        grotop%basecrosstypes(i)%epsilon,          &
+        grotop%basecrosstypes(i)%sigma,            &
+        grotop%basecrosstypes(i)%theta_cs
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_base_cross_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_base_exv_types
+  !> @brief        write section [ cgdnaexvtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_base_exv_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGDNAExvType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    do i = 1, cnt
+
+      if (func /= grotop%cgdnaexvtypes(i)%func) then
+        func = grotop%cgdnaexvtypes(i)%func
+        write(file, '(a)') '[ cgdnaexvtypes ]'
+        write(file,'(a)') '; DNA - Base Exving'
+        write(file,'(a)') ';    a func     sigma'
+      end if
+
+      write(file,'(a6,i5,f10.2)')           &
+          grotop%cgdnaexvtypes(i)%base_type, &
+          grotop%cgdnaexvtypes(i)%func,      &
+          grotop%cgdnaexvtypes(i)%sigma
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_base_exv_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_IDR_HPS_atom_types
+  !> @brief        write section [ cg_IDR_HPS_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_IDR_HPS_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGIDRHPSAtomType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_IDR_HPS_atomtypes ]'
+
+    do i = 1, cnt
+
+      if (func == -1) then
+        write(file,'(a)') ';name      mass  charge  sigma   lambda'
+        func = 1
+      end if
+
+      write(file,'(a5,f10.3,f8.1,f7.2,f8.3)')     &
+        grotop%cg_IDR_HPS_atomtypes(i)%type_name, &
+        grotop%cg_IDR_HPS_atomtypes(i)%mass,      &
+        grotop%cg_IDR_HPS_atomtypes(i)%charge,    &
+        grotop%cg_IDR_HPS_atomtypes(i)%sigma,     &
+        grotop%cg_IDR_HPS_atomtypes(i)%lambda
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_IDR_HPS_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_KH_atom_types
+  !> @brief        write section [ cg_KH_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_KH_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGKHAtomType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_KH_atomtypes ]'
+
+    do i = 1, cnt
+
+      if (func == -1) then
+        write(file,'(a)') ';name      mass  charge  sigma   lambda'
+        func = 1
+      end if
+
+      write(file,'(a5,f10.3,f8.1,f8.1)')     &
+        grotop%cg_KH_atomtypes(i)%type_name, &
+        grotop%cg_KH_atomtypes(i)%mass,      &
+        grotop%cg_KH_atomtypes(i)%charge,    &
+        grotop%cg_KH_atomtypes(i)%sigma
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_KH_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    write_nonbond_parms
   !> @brief        write section [nonbond_params]
   !! @authors      NT
@@ -4914,6 +8962,9 @@ contains
     integer,                 intent(in)    :: file
     type(s_grotop),          intent(in)    :: grotop
 
+    ! constants
+    integer,       parameter :: MaxFroms = 100
+
     ! local variables
     integer                  :: i, cnt
 
@@ -4960,6 +9011,12 @@ contains
       ! pairs
       call write_pairs(file, grotop%moltypes(i)%mol)
 
+      ! morph pairs_bb
+      call write_morph_pairs_bb(file, grotop%moltypes(i)%mol)
+
+      ! morph pairs_sc
+      call write_morph_pairs_sc(file, grotop%moltypes(i)%mol)
+
       ! settles
       call write_settles(file, grotop%moltypes(i)%mol)
 
@@ -4983,6 +9040,86 @@ contains
     return
 
   end subroutine write_molecule_type
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_molecule_type_aa
+  !> @brief        write section [moleculetype]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_molecule_type_aa(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop(grotop, GroTopMolType)
+    if (cnt == 0) &
+      return
+
+    do i = 1, cnt
+
+      write(file,'(a)') '[ moleculetype ]'
+      write(file,'(a)') '; molname  nrexcl'
+
+!      write(file,'(a20,1x,i)')      &
+!           grotop%moltypes(i)%name, &
+!           grotop%moltypes(i)%exclude_nbon
+      write(file,'(a20,1x,$)')      &
+           grotop%moltypes(i)%name
+      write(file,*) grotop%moltypes(i)%exclude_nbon
+
+      write(file,'(a)') ''
+
+      ! atoms
+      call write_atoms(file, grotop%moltypes(i)%mol)
+
+      ! bonds
+      call write_bonds_aa(file, grotop%moltypes(i)%mol)
+
+      ! angles
+      call write_angles_aa(file, grotop%moltypes(i)%mol)
+
+      ! dihedrals
+      call write_dihedrals_aa(file, grotop%moltypes(i)%mol)
+
+      ! exclusions
+      call write_exclusions(file, grotop%moltypes(i)%mol)
+
+      ! constraints
+      call write_constraints(file, grotop%moltypes(i)%mol)
+
+      ! pairs
+      call write_pairs(file, grotop%moltypes(i)%mol)
+
+      ! multi-pairs
+      call write_multicontact(file, grotop%moltypes(i)%mol)
+
+      ! morph pairs bb
+      call write_morph_pairs_bb(file, grotop%moltypes(i)%mol)
+
+      ! morph pairs sc
+      call write_morph_pairs_sc(file, grotop%moltypes(i)%mol)
+
+      ! settles
+      call write_settles(file, grotop%moltypes(i)%mol)
+
+      ! position restraints
+      call write_position_restraints(file, grotop%moltypes(i)%mol)
+
+    end do
+
+    return
+
+  end subroutine write_molecule_type_aa
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -5020,7 +9157,12 @@ contains
 
     write(file,'(a)') '[ atoms ]'
 
-    if (mass) then
+!!!original
+!!!!!!    if (mass) then
+!!!original
+!!!develop
+    if (gromol%atoms(1)%mass /= 0.0_wp) then
+!!!develop
       if (stok) then
         write(file,'(a)') &
         '; id  at-type  res-nr  res-name at-name  cg-nr  charge  mass stokes_r'
@@ -5035,7 +9177,12 @@ contains
 
     do i = 1, cnt
 
-      if (mass) then
+!!!original
+!!!!!!      if (mass) then
+!!!original
+!!!develop
+      if (gromol%atoms(i)%mass /= 0.0_wp) then
+!!!develop
 
         if (stok) then
 
@@ -5132,6 +9279,48 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    write_bonds_aa
+  !> @brief        write section [bonds]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_bonds_aa(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolBond)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ bonds ]'
+    write(file,'(a)') '; i  j  funct'
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,i8)') &
+           gromol%bonds(i)%atom_idx1, &
+           gromol%bonds(i)%atom_idx2, &
+           gromol%bonds(i)%func
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_bonds_aa
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    write_angles
   !> @brief        write section [angles]
   !! @authors      NT
@@ -5155,7 +9344,9 @@ contains
       return
 
     write(file,'(a)') '[ angles ]'
+!!! value i is not initilized in GET_CG_2018
 
+    i = 1
     select case(gromol%angls(i)%func)
 
     case (1,2)
@@ -5201,6 +9392,49 @@ contains
     return
 
   end subroutine write_angles
+
+ !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_angles_aa
+  !> @brief        write section [angles]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_angles_aa(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolAngl)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ angles ]'
+    write(file,'(a)') '; i  j  k  funct'
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,i8,1x,i8)') &
+           gromol%angls(i)%atom_idx1, &
+           gromol%angls(i)%atom_idx2, &
+           gromol%angls(i)%atom_idx3, &
+           gromol%angls(i)%func
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_angles_aa
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -5295,6 +9529,53 @@ contains
     return
 
   end subroutine write_dihedrals
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_dihedrals_aa
+  !> @brief        write section [dihedrals]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_dihedrals_aa(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+    character(20)            :: str
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolDihe)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ dihedrals ]'
+
+      ! dihedral
+    write(file,'(a)') '; ai  aj  ak  al  funct'
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,i8,1x,i8,1x,i8)') &
+           gromol%dihes(i)%atom_idx1, &
+           gromol%dihes(i)%atom_idx2, &
+           gromol%dihes(i)%atom_idx3, &
+           gromol%dihes(i)%atom_idx4, &
+           gromol%dihes(i)%func
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_dihedrals_aa
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -5426,6 +9707,7 @@ contains
 
     ! local variables
     integer                  :: i, cnt
+    logical                  :: mass, stok
 
 
     cnt = size_grotop_mol(gromol, GMGroMolConstr)
@@ -5518,6 +9800,237 @@ contains
     return
 
   end subroutine write_pairs
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_multicontact
+  !> @brief        write section [pairs]
+  !! @authors      NT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_multicontact(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolMcont)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ multicontact ]'
+    write(file,'(a)') '; i  j  func  model v  w'
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,i8,1x,i8,1x,e16.9,1x,e16.9)') &
+           gromol%mcontact(i)%atom_idx1, &
+           gromol%mcontact(i)%atom_idx2, &
+           gromol%mcontact(i)%func,      &
+           gromol%mcontact(i)%model,     &
+           gromol%mcontact(i)%v,         &
+           gromol%mcontact(i)%w
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_multicontact
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_morph_pairs_bb
+  !> @brief        write section [morph_bb]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_morph_pairs_bb(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolMorphBB)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ morph_bb ]'
+    write(file,'(a)') '; i  j  length '
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,e16.9)') &
+           gromol%morph_bb(i)%atom_idx1, &
+           gromol%morph_bb(i)%atom_idx2, &
+           gromol%morph_bb(i)%rmin,    &
+           gromol%morph_bb(i)%rmin_other
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_morph_pairs_bb
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_morph_pairs_sc
+  !> @brief        write section [morph_sc]
+  !! @authors      CK
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_morph_pairs_sc(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+    logical                  :: mass, stok
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolMorphSC)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ morph_sc ]'
+    write(file,'(a)') '; i  j  length '
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,e16.9)') &
+           gromol%morph_sc(i)%atom_idx1, &
+           gromol%morph_sc(i)%atom_idx2, &
+           gromol%morph_sc(i)%rmin,      &
+           gromol%morph_bb(i)%rmin_other
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_morph_pairs_sc
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_pwmcos
+  !> @brief        write section [ pwmcos ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_pwmcos(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolPWMcos)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ pwmcos ]'
+    write(file,'(a)') '; i  j  length '
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,10e15.4)') &
+          gromol%pwmcos(i)%protein_idx,   &
+          gromol%pwmcos(i)%func,          &
+          gromol%pwmcos(i)%r0,            &
+          gromol%pwmcos(i)%theta1,        &
+          gromol%pwmcos(i)%theta2,        &
+          gromol%pwmcos(i)%theta3,        &
+          gromol%pwmcos(i)%ene_A,         &
+          gromol%pwmcos(i)%ene_C,         &
+          gromol%pwmcos(i)%ene_G,         &
+          gromol%pwmcos(i)%ene_T,         &
+          gromol%pwmcos(i)%gamma,         &
+          gromol%pwmcos(i)%eps_shift
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_pwmcos
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_pwmcosns
+  !> @brief        write section [ pwmcosns ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    gromol : GROMACS TOP molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_pwmcosns(file, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop_mol),      intent(in)    :: gromol
+
+    ! local variables
+    integer                  :: i, cnt
+
+
+    cnt = size_grotop_mol(gromol, GMGroMolPWMcosns)
+    if (cnt == 0) &
+      return
+
+    write(file,'(a)') '[ pwmcosns ]'
+    write(file,'(a)') '; i  j  length '
+
+    do i = 1, cnt
+
+      write(file,'(i8,1x,i8,1x,4e15.4)') &
+          gromol%pwmcosns(i)%protein_idx,   &
+          gromol%pwmcosns(i)%func,          &
+          gromol%pwmcosns(i)%r0,            &
+          gromol%pwmcosns(i)%theta1,        &
+          gromol%pwmcosns(i)%theta2,        &
+          gromol%pwmcosns(i)%ene
+
+    end do
+
+    write(file,'(a)') ''
+
+    return
+
+  end subroutine write_pwmcosns
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -5976,20 +10489,21 @@ contains
     ! local variables
     integer                  :: i, cnt, directive
     character(MaxLine)       :: line
+    character(100)           :: error
 
 
     cnt = 0
+    call gro_pp_record_pos(file)
 
     do while(.true.)
-      read(file,'(A)',end=100) line
+      if (.not. gro_pp_next_line(file, line, error)) &
+        exit
       if (check_directive(line, directive)) &
         exit
       cnt = cnt + 1
     end do
 
-100 do i = 1, cnt + 1
-      backspace(file)
-    end do
+    call gro_pp_restore_pos(file)
 
     check_section_count = cnt
     return
@@ -6018,7 +10532,7 @@ contains
 
     ! local variables
     integer                  :: idxb, idxe
-    character(20)            :: dir_str
+    character(30)            :: dir_str
 
 
     check_directive = .false.
@@ -6044,12 +10558,46 @@ contains
       directive = DBondTypes
     case ('angletypes')
       directive = DAngleTypes
+    case ('flexible_local_angle')
+      directive = DFlexible_Local_Angle
     case ('dihedraltypes')
       directive = DDihedralTypes
+    case ('flexible_local_dihedral_angle')
+      directive = DFlexible_Local_Dihedral_Angle
     case ('constrainttypes')
       directive = DConstrTypes
     case ('cmaptypes')
       directive = DCmapTypes
+    case ('basestacktypes')
+      directive = DBaseStackTypes
+    case ('basepairtypes')
+      directive = DBasePairTypes
+    case ('basecrosstypes')
+      directive = DBaseCrossTypes
+    case ('cgdnaexvtypes')
+      directive = DCGDNAExvTypes
+    case ('cg_ele_chain_pairs')
+      directive = DCGEleMolPairs
+    case ('cg_KH_chain_pairs')
+      directive = DCGKHMolPairs
+    case ('pwmcos')
+      directive = DCGPWMcos
+    case ('pwmcosns')
+      directive = DCGPWMcosns
+    case ('cg_IDR_HPS_atomtypes')
+      directive = DCGIDRHPSAtomTypes
+    case ('cg_IDR_HPS_region')
+      directive = DCGIDRHPSRegion
+    case ('cg_KH_atomtypes')
+      directive = DCGKHAtomTypes
+    case ('cg_IDR_KH_region')
+      directive = DCGIDRKHRegion
+    case ('cg_pair_energy_MJ_96')
+      directive = DCGPairMJEpsilon
+    case ('pwmcos_chain_pairs')
+      directive = DCGPWMcosMolPairs
+    case ('pwmcosns_chain_pairs')
+      directive = DCGPWMcosnsMolPairs
     case ('nonbond_params')
       directive = DNonbondParams
     case ('moleculetype')
@@ -6088,6 +10636,18 @@ contains
       directive = DSystem
     case ('molecules')
       directive = DMolecules
+    case ('gomodel')
+      directive = DGomodel
+    case ('cg_atoms')
+      directive = DCg_Atoms
+    case ('multicontact')
+      directive = DMulticontact
+    case ('morph_bb')
+      directive = DMorphBB
+    case ('morph_sc')
+      directive = DMorphSC
+    case ('ez_membrane')
+      directive = DEzMembrane
     case default
       directive = DUnknown
     end select
@@ -6134,9 +10694,17 @@ contains
       if (allocated(grotop%angltypes)) &
         size_grotop = size(grotop%angltypes)
 
+    case(GroTopFlAnglType)
+      if (allocated(grotop%flangltypes)) &
+        size_grotop = size(grotop%flangltypes)
+
     case(GroTopDiheType)
       if (allocated(grotop%dihetypes)) &
         size_grotop = size(grotop%dihetypes)
+
+    case(GroTopFlDiheType)
+      if (allocated(grotop%fldihetypes)) &
+        size_grotop = size(grotop%fldihetypes)
 
     case(GroTopConstrType)
       if (allocated(grotop%constrtypes)) &
@@ -6145,6 +10713,50 @@ contains
     case(GroTopCmapType)
       if (allocated(grotop%cmaptypes)) &
         size_grotop = size(grotop%cmaptypes)
+
+    case(GroTopBaseStackType)
+      if (allocated(grotop%basestacktypes)) &
+        size_grotop = size(grotop%basestacktypes)
+
+    case(GroTopBasePairType)
+      if (allocated(grotop%basepairtypes)) &
+        size_grotop = size(grotop%basepairtypes)
+
+    case(GroTopBaseCrossType)
+      if (allocated(grotop%basecrosstypes)) &
+        size_grotop = size(grotop%basecrosstypes)
+
+    case(GroTopCGDNAExvType)
+      if (allocated(grotop%cgdnaexvtypes)) &
+          size_grotop = size(grotop%cgdnaexvtypes)
+
+    case(GroTopCGEleMolPair)
+      if (allocated(grotop%cg_ele_mol_pairs)) &
+          size_grotop = size(grotop%cg_ele_mol_pairs)
+
+    case(GroTopCGKHMolPair)
+      if (allocated(grotop%cg_kh_mol_pairs)) &
+          size_grotop = size(grotop%cg_kh_mol_pairs)
+
+    case(GroTopPWMcosMolPair)
+      if (allocated(grotop%pwmcos_mol_pairs)) &
+          size_grotop = size(grotop%pwmcos_mol_pairs)
+
+    case(GroTopPWMcosnsMolPair)
+      if (allocated(grotop%pwmcosns_mol_pairs)) &
+          size_grotop = size(grotop%pwmcosns_mol_pairs)
+
+    case(GroTopCGIDRHPSAtomType)
+      if (allocated(grotop%cg_IDR_HPS_atomtypes)) &
+          size_grotop = size(grotop%cg_IDR_HPS_atomtypes)
+
+    case(GroTopCGKHAtomType)
+      if (allocated(grotop%cg_KH_atomtypes)) &
+          size_grotop = size(grotop%cg_KH_atomtypes)
+
+    case(GroTopCGPairMJEpsilon)
+      if (allocated(grotop%cg_pair_MJ_eps)) &
+          size_grotop = size(grotop%cg_pair_MJ_eps)
 
     case(GroTopNbonParm)
       if (allocated(grotop%nbonparms)) &
@@ -6157,6 +10769,10 @@ contains
     case(GroTopMols)
       if (allocated(grotop%molss)) &
         size_grotop = size(grotop%molss)
+
+    case(GroTopEzMembrane)
+      if (allocated(grotop%ez_membrane)) &
+        size_grotop = size(grotop%ez_membrane)
 
     case default
       call error_msg('Size_Grotop> bad variable')
@@ -6186,7 +10802,6 @@ contains
     ! formal arguments
     type(s_grotop_mol),      intent(in)    :: gromol
     integer,                 intent(in)    :: variable
-
 
     size_grotop_mol = 0
 
@@ -6248,6 +10863,34 @@ contains
         size_grotop_mol =0
       end if
 
+    case (GMGroMolMcont)
+      if (allocated(gromol%mcontact)) then
+        size_grotop_mol = size(gromol%mcontact)
+      else
+        size_grotop_mol = 0
+      end if
+
+    case (GMGroMolPosres)
+      if (allocated(gromol%posress)) then
+        size_grotop_mol = size(gromol%posress)
+      else
+        size_grotop_mol =0
+      end if
+
+    case (GMGroMolMorphBB)
+      if (allocated(gromol%morph_bb)) then
+        size_grotop_mol = size(gromol%morph_bb)
+      else
+        size_grotop_mol = 0
+      end if
+
+    case (GMGroMolMorphSC)
+      if (allocated(gromol%morph_sc)) then
+        size_grotop_mol = size(gromol%morph_sc)
+      else
+        size_grotop_mol = 0
+      end if
+
     case (GMGroMolVsites2)
       if (allocated(gromol%vsites2)) then
         size_grotop_mol = size(gromol%vsites2)
@@ -6273,14 +10916,35 @@ contains
       if (allocated(gromol%vsitesn)) then
         size_grotop_mol = size(gromol%vsitesn)
       else
-        size_grotop_mol =0
+        size_grotop_mol = 0
       end if
 
-    case (GMGroMolPosres)
-      if (allocated(gromol%posress)) then
-        size_grotop_mol = size(gromol%posress)
+    case (GMGroMolPWMcos)
+      if (allocated(gromol%pwmcos)) then
+        size_grotop_mol = size(gromol%pwmcos)
       else
-        size_grotop_mol =0
+        size_grotop_mol = 0
+      end if
+
+    case (GMGroMolPWMcosns)
+      if (allocated(gromol%pwmcosns)) then
+        size_grotop_mol = size(gromol%pwmcosns)
+      else
+        size_grotop_mol = 0
+      end if
+
+    case(GMGroMolIDRHPS)
+      if (allocated(gromol%idr_hps)) then
+        size_grotop_mol = size(gromol%idr_hps)
+      else
+        size_grotop_mol = 0
+      end if
+
+    case(GMGroMolIDRKH)
+      if (allocated(gromol%idr_kh)) then
+        size_grotop_mol = size(gromol%idr_kh)
+      else
+        size_grotop_mol = 0
       end if
 
     case default
@@ -6354,6 +11018,86 @@ contains
     return
 
   end function search_atom_mass
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      search_atom_vw
+  !> @brief        search atom vdw
+  !! @authors      CK
+  !! @param[in]    atomtypes : data of atomtypes
+  !! @param[in]    at        : atom type name
+  !! @param[out]   mass      : mass of atoms
+  !! @return       flag for found or not
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function search_atom_vw(atomtypes, at, v, w)
+
+    ! return value
+    logical                  :: search_atom_vw
+
+    ! formal arguments
+    type(s_atomtype),        intent(in)    :: atomtypes(:)
+    character(*),            intent(in)    :: at
+    real(wp),                intent(out)   :: v
+    real(wp),                intent(out)   :: w
+
+    ! local variables
+    integer                  :: i
+
+
+    do i = 1, size(atomtypes)
+      if (atomtypes(i)%type_name == at) then
+        v = atomtypes(i)%v
+        w = atomtypes(i)%w
+        search_atom_vw = .true.
+        return
+      end if
+    end do
+
+    search_atom_vw = .false.
+    return
+
+  end function search_atom_vw
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      search_atom_charge
+  !> @brief        search atom charge
+  !! @authors      CK
+  !! @param[in]    atomtypes : data of atomtypes
+  !! @param[in]    at        : atom type name
+  !! @param[out]   charge    : mass of atoms
+  !! @return       flag for found or not
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function search_atom_charge(atomtypes, at, charge)
+
+    ! return value
+    logical                  :: search_atom_charge
+
+    ! formal arguments
+    type(s_atomtype),        intent(in)    :: atomtypes(:)
+    character(*),            intent(in)    :: at
+    real(wp),                intent(out)   :: charge
+
+    ! local variables
+    integer                  :: i
+
+
+    do i = 1, size(atomtypes)
+      if (atomtypes(i)%type_name == at) then
+        charge = atomtypes(i)%charge
+        search_atom_charge = .true.
+        return
+      end if
+    end do
+
+    search_atom_charge = .false.
+    return
+
+  end function search_atom_charge
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -6508,6 +11252,56 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Function      search_flangl_param
+  !> @brief        search flexible angle parameters
+  !! @authors      CK
+  !! @param[in]    flangltypes : data of flangletypes
+  !! @param[in]    at1       : atom 1 type name
+  !! @param[in]    at2       : atom 2 type name
+  !! @param[in]    at3       : atom 3 type name
+  !! @param[in]    func      : function type
+  !! @param[out]   types     : param types
+  !! @return       flag for found or not
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function search_flangl_param(flangltypes, at1, at2, at3, func, types)
+
+    ! return value
+    logical :: search_flangl_param
+
+    ! formal arguments
+    type(s_flangltype), target, intent(in)    :: flangltypes(:)
+    character(*),               intent(in)    :: at1
+    character(*),               intent(in)    :: at2
+    character(*),               intent(in)    :: at3
+    integer,                    intent(in)    :: func
+    integer,                    intent(out)   :: types
+
+    ! local variables
+    integer                   :: i
+    type(s_flangltype), pointer :: at
+
+
+    do i = 1, size(flangltypes)
+      at => flangltypes(i)
+!      if (at%func /= func) &
+!        cycle
+      if (at%atom_type .ne. at2) &
+        cycle
+
+      types = i
+      search_flangl_param = .true.
+      return
+    end do
+
+    search_flangl_param = .false.
+    return
+
+  end function search_flangl_param
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Function      search_dihe_param
   !> @brief        search dihedral parameters
   !! @authors      NT
@@ -6652,6 +11446,57 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Function      search_fldihe_param
+  !> @brief        search flexible dihedral angle parameters
+  !! @authors      JJ
+  !! @param[in]    flangltypes : data of flangletypes
+  !! @param[in]    at1       : atom 1 type name
+  !! @param[in]    at2       : atom 2 type name
+  !! @param[in]    at3       : atom 3 type name
+  !! @param[in]    at4       : atom 4 type name
+  !! @param[in]    func      : function type
+  !! @param[out]   types     : param types
+  !! @return       flag for found or not
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function search_fldihe_param(fldihetypes, at1, at2, at3, at4, func, types)
+
+    ! return value
+    logical :: search_fldihe_param
+
+    ! formal arguments
+    type(s_fldihetype), target, intent(in)    :: fldihetypes(:)
+    character(*),               intent(in)    :: at1
+    character(*),               intent(in)    :: at2
+    character(*),               intent(in)    :: at3
+    character(*),               intent(in)    :: at4
+    integer,                    intent(in)    :: func
+    integer,                    intent(out)   :: types
+
+    ! local variables
+    integer                   :: i
+    type(s_fldihetype), pointer :: dh
+
+    do i = 1, size(fldihetypes)
+      dh => fldihetypes(i)
+!      if (at%func /= func) &
+!        cycle
+      if (dh%atom_type1 .ne. at2 .or. dh%atom_type2 .ne. at3) &
+        cycle
+
+      types = i
+      search_fldihe_param = .true.
+      return
+    end do
+
+    search_fldihe_param = .false.
+    return
+
+  end function search_fldihe_param
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Function      search_dihe_param_duplicate
   !> @brief        search dihedral parameters with duplicate manner
   !! @authors      CK
@@ -6685,115 +11530,159 @@ contains
     ! local variables
     integer                   :: i, icn, iold
     type(s_dihetype), pointer :: dt
-    integer                   :: icnt(5)
+    integer                   :: icnt(MAX_MULTIPLY_NUM)
     logical                   :: four_atoms
 
     icn = 0
-    icnt(1:5) = 0
+    icnt(1:MAX_MULTIPLY_NUM) = 0
     iold = ind
     four_atoms = .false.
+
     do i = 1, size(dihetypes)
       dt => dihetypes(i)
 
       if (dt%func /= dihes(old+iold)%func) &
         cycle
 
-      if (dt%four_type) then
+      if (dt%wild_num == 0) then
 
-        if (dt%atom_type1 == 'X' .and. dt%atom_type4 == 'X' .and. &
-            .not. four_atoms) then
-
-          if ((dt%atom_type2 == at2 .and. &
-               dt%atom_type3 == at3) .or. &
-              (dt%atom_type2 == at3 .and. &
-               dt%atom_type3 == at2)) then
-            icn = icn+1
-            icnt(icn) = i
-          end if
-
-        else if (dt%atom_type1 == 'X' .and. dt%atom_type2 == 'X' .and. &
-            .not. four_atoms) then
-
-          if ((dt%atom_type3 == at3 .and. &
-               dt%atom_type4 == at4) .or. &
-              (dt%atom_type3 == at2 .and. &
-               dt%atom_type4 == at1)) then
-            icn = icn+1
-            icnt(icn) = i
-          end if
-
-        else if (dt%atom_type1 == 'X' .and. &
-            .not. four_atoms) then
-
-          if ((dt%atom_type2 == at2 .and. &
-               dt%atom_type3 == at3 .and. &
-               dt%atom_type4 == at4) .or. &
-              (dt%atom_type2 == at3 .and. &
-               dt%atom_type3 == at2 .and. &
-               dt%atom_type4 == at1)) then
-            icn = icn+1
-            icnt(icn) = i
-          end if
-
-        else if (dt%atom_type4 == 'X' .and. &
-            .not. four_atoms) then
+        if (dt%four_type) then
 
           if ((dt%atom_type1 == at1 .and. &
                dt%atom_type2 == at2 .and. &
-               dt%atom_type3 == at3) .or. &
+               dt%atom_type3 == at3 .and. &
+               dt%atom_type4 == at4) .or. &
               (dt%atom_type1 == at4 .and. &
                dt%atom_type2 == at3 .and. &
-               dt%atom_type3 == at2)) then
+               dt%atom_type3 == at2 .and. &
+               dt%atom_type4 == at1)) then
             icn = icn+1
             icnt(icn) = i
           end if
 
         else
 
-          if ((dt%atom_type1 == at1 .and. &
-               dt%atom_type2 == at2 .and. &
-               dt%atom_type3 == at3 .and. &
-               dt%atom_type4 == at4) .or. &
-              (dt%atom_type1 == at4 .and. &
-               dt%atom_type2 == at3 .and. &
-               dt%atom_type3 == at2 .and. &
-               dt%atom_type4 == at1)) then
-            four_atoms = .true.
-            icn = icn+1
-            icnt(icn) = i
-          end if
+          if (dt%func == 9) then
 
-        end if
+            ! proper dihedral
+            if ((dt%atom_type2 == at2 .and. &
+                 dt%atom_type3 == at3) .or. &
+                (dt%atom_type2 == at3 .and. &
+                 dt%atom_type3 == at2)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
 
-      else
-        if (dt%func == 9) then
+          else if (dt%func == 4) then ! if (dt%func == 2)
 
-          ! proper dihedral
-          if ((dt%atom_type2 == at2 .and. &
-               dt%atom_type3 == at3) .or. &
-              (dt%atom_type2 == at3 .and. &
-               dt%atom_type3 == at2)) then
-            icn = icn+1
-            icnt(icn) = i
-          end if
+            ! improper dihedral
+            if ((dt%atom_type1 == at1 .and. &
+                 dt%atom_type4 == at4) .or. &
+                (dt%atom_type1 == at4 .and. &
+                 dt%atom_type4 == at1)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
 
-        else if (dt%func == 4) then ! if (dt%func == 2)
-
-          ! improper dihedral
-          if ((dt%atom_type1 == at1 .and. &
-               dt%atom_type4 == at4) .or. &
-              (dt%atom_type1 == at4 .and. &
-               dt%atom_type4 == at1)) then
-            icn = icn+1
-            icnt(icn) = i
           end if
 
         end if
       end if
-      if (icn == 5) &
+
+      if (icn > MAX_MULTIPLY_NUM) &
         call error_msg('Search_dihe_param_duplicate> '// &
                        '[dihedraltypes] too much dihedral functions')
+
     end do
+
+    if (icn == 0) then
+
+      do i = 1, size(dihetypes)
+        dt => dihetypes(i)
+
+        if (dt%func /= dihes(old+iold)%func) &
+          cycle
+
+        if (dt%four_type .and. dt%wild_num == 1) then
+
+          if (dt%atom_type1 == 'X' .and. &
+              .not. four_atoms) then
+
+            if ((dt%atom_type2 == at2 .and. &
+                 dt%atom_type3 == at3 .and. &
+                 dt%atom_type4 == at4) .or. &
+                (dt%atom_type2 == at3 .and. &
+                 dt%atom_type3 == at2 .and. &
+                 dt%atom_type4 == at1)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
+
+          else if (dt%atom_type4 == 'X' .and. &
+              .not. four_atoms) then
+  
+            if ((dt%atom_type1 == at1 .and. &
+                 dt%atom_type2 == at2 .and. &
+                 dt%atom_type3 == at3) .or. &
+                (dt%atom_type1 == at4 .and. &
+                 dt%atom_type2 == at3 .and. &
+                 dt%atom_type3 == at2)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
+      
+          end if
+        end if
+        if (icn > MAX_MULTIPLY_NUM) &
+          call error_msg('Search_dihe_param_duplicate> '// &
+                         '[dihedraltypes] too much dihedral functions')
+      end do
+
+    end if
+
+    if (icn == 0) then
+
+      do i = 1, size(dihetypes)
+        dt => dihetypes(i)
+
+        if (dt%func /= dihes(old+iold)%func) &
+          cycle
+
+        if (dt%four_type .and. dt%wild_num == 2) then
+
+          if (dt%atom_type1 == 'X' .and. dt%atom_type4 == 'X' .and. &
+              .not. four_atoms) then
+
+            if ((dt%atom_type2 == at2 .and. &
+                 dt%atom_type3 == at3) .or. &
+                (dt%atom_type2 == at3 .and. &
+                 dt%atom_type3 == at2)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
+  
+          else if (dt%atom_type1 == 'X' .and. dt%atom_type2 == 'X' .and. &
+              .not. four_atoms) then
+  
+            if ((dt%atom_type3 == at3 .and. &
+                 dt%atom_type4 == at4) .or. &
+                (dt%atom_type3 == at2 .and. &
+                 dt%atom_type4 == at1)) then
+              icn = icn+1
+              icnt(icn) = i
+            end if
+
+          end if
+
+        end if
+
+        if (icn > MAX_MULTIPLY_NUM) &
+          call error_msg('Search_dihe_param_duplicate> '// &
+                         '[dihedraltypes] too much dihedral functions')
+
+      end do
+
+    end if
 
     if (icn >= 1) then
       search_dihe_param_duplicate = .true.

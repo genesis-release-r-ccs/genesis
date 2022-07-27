@@ -1,0 +1,11 @@
+qa_cg_analyze.o: qa_cg_analyze.fpp qa_cg_option_str_mod.mod 
+qa_cg_analyze_mod.mod: qa_cg_analyze.fpp qa_cg_analyze.o
+qa_cg_control.o: qa_cg_control.fpp qa_cg_option_mod.mod 
+qa_cg_control_mod.mod: qa_cg_control.fpp qa_cg_control.o
+qa_cg_main.o: qa_cg_main.fpp qa_cg_setup_mod.mod qa_cg_option_str_mod.mod qa_cg_control_mod.mod qa_cg_analyze_mod.mod 
+qa_cg_option.o: qa_cg_option.fpp qa_cg_option_str_mod.mod 
+qa_cg_option_mod.mod: qa_cg_option.fpp qa_cg_option.o
+qa_cg_option_str.o: qa_cg_option_str.fpp  
+qa_cg_option_str_mod.mod: qa_cg_option_str.fpp qa_cg_option_str.o
+qa_cg_setup.o: qa_cg_setup.fpp qa_cg_option_str_mod.mod qa_cg_control_mod.mod qa_cg_option_mod.mod 
+qa_cg_setup_mod.mod: qa_cg_setup.fpp qa_cg_setup.o

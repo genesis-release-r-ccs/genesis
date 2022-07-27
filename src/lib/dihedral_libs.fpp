@@ -17,6 +17,7 @@
 module dihedral_libs_mod
 
   use fileio_par_mod
+  use fileio_prmtop_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
@@ -25,10 +26,15 @@ module dihedral_libs_mod
   private
 
   public  :: calculate_dihedral
+  public  :: calculate_dihedral_pbc
   public  :: derive_cmap_coefficients_p   ! derive cmap parameters
                                           ! to calculate c_ij (periodic)
   public  :: derive_cmap_coefficients_np  ! derive cmap parameters
                                           ! to calculate c_ij (natural)
+  public  :: derive_cmap_amber_coefficients_p   ! derive cmap parameters
+                                                ! (periodic)
+  public  :: derive_cmap_amber_coefficients_np  ! derive cmap parameters
+                                                ! (natural)
 
   private :: prep_splin_matrix_p ! (for periodic spline)
   private :: prep_splin_vector_p ! (for periodic spline)
@@ -76,6 +82,7 @@ contains
     real(wp)                 :: inv_raijk2, inv_rajkl2, inv_raijkl
     real(wp)                 :: rjk, inv_rjk, dotpro_ijk, dotpro_jkl
       
+
     dij(1:3) = coord(1:3,aindex(1)) - coord(1:3,aindex(2))
     djk(1:3) = coord(1:3,aindex(2)) - coord(1:3,aindex(3))
     dlk(1:3) = coord(1:3,aindex(4)) - coord(1:3,aindex(3))
@@ -118,7 +125,7 @@ contains
     grad(7:9) =                   - tmp(2)*ajkl(1:3)
 
     do i = 1, 3
-      do j = i+1, 3
+      do j = i + 1, 3
       vtmp = - (grad(j)*dij(i) + grad(j+3)*djk(i) + grad(j+6)*dlk(i))
       v(j, i) = vtmp
       v(i, j) = vtmp
@@ -148,7 +155,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine derive_cmap_coefficients_p(cmap_type_id, par, c_ij )
+  subroutine derive_cmap_coefficients_p(cmap_type_id, par, c_ij)
    
     !  formal arguments
     integer,      intent(in)    :: cmap_type_id
@@ -185,7 +192,7 @@ contains
 
     ! (allocate an array for the extended on-grid-points Ecmap table)
     !
-    allocate(y_data(ngrid,ngrid), stat = alloc_stat)
+    allocate(y_data(ngrid, ngrid), stat = alloc_stat)
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
@@ -200,8 +207,8 @@ contains
     allocate(rmatrix  (ngrid, ngrid), &
              deriv_1  (ngrid, ngrid), &
              deriv_2  (ngrid, ngrid), &
-             deriv_12 (ngrid,ngrid),  &
-             deriv_tmp(ngrid,ngrid),  &
+             deriv_12 (ngrid, ngrid), &
+             deriv_tmp(ngrid, ngrid), &
              rvector  (ngrid),        &
              y_1d_vec (ngrid), stat = alloc_stat)
 
@@ -374,7 +381,7 @@ contains
 
     ! allocate an array for the extended on-grid-points Ecmap table
     !
-    allocate(y_data(ngrid,ngrid), stat = alloc_stat)
+    allocate(y_data(ngrid, ngrid), stat = alloc_stat)
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
@@ -393,8 +400,8 @@ contains
     allocate(rmatrix  (ngrid, ngrid), &
              deriv_1  (ngrid, ngrid), &
              deriv_2  (ngrid, ngrid), &
-             deriv_12 (ngrid,ngrid),  &
-             deriv_tmp(ngrid,ngrid),  &
+             deriv_12 (ngrid, ngrid), &
+             deriv_tmp(ngrid, ngrid), &
              rvector  (ngrid),        &
              y_1d_vec (ngrid), stat = alloc_stat)
     if (alloc_stat /= 0) then
@@ -480,8 +487,8 @@ contains
 
     allocate(deriv_10 (ngrid, ngrid), &
              deriv_20 (ngrid, ngrid), &
-             deriv_120(ngrid,ngrid),  &
-             y_data0  (ngrid,ngrid), stat = alloc_stat)
+             deriv_120(ngrid, ngrid), &
+             y_data0  (ngrid, ngrid), stat = alloc_stat)
     if (alloc_stat /= 0) then
       write(MsgOut,*) 'Derive_Cmap_Coefficients_Np> ERROR: allocation error.'
       call error_msg_alloc
@@ -523,6 +530,397 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    derive_cmap_amber_coefficients_p
+  !> @brief        evaluate coefficients (c_ij) values for cmap term (periodic)
+  !! @authors      TY, JJ
+  !! @param[in]    cmap_type_id : 1 <= cmap_type_id <= par%num_cmaps = 6
+  !! @param[in]    prmtop       : AMBER prmtop information
+  !! @param[out]   c_ij         : cmap coefficients for each type of cmap
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine derive_cmap_amber_coefficients_p(cmap_type_id, prmtop, c_ij)
+
+    !  formal arguments
+    integer,        intent(in)    :: cmap_type_id
+    type(s_prmtop), intent(in)    :: prmtop
+    real(wp),       intent(inout) :: c_ij(:,:,:,:)
+
+    !  local variables
+    real(wp)      :: dlt_x    ! distance between grid lines (degree)
+    real(wp)      :: rdum,rdum1,rdum2,rdum3
+    integer       :: ngrid0, ngrid
+    integer       :: alloc_stat, dealloc_stat, i, j, k, idih1, idih2
+
+    real(wp),     allocatable :: y_data(:,:)    ! extended on-grid Ecmap tab
+    real(wp),     allocatable :: deriv_1(:,:)   ! on-grid dEcmap/d(dih1)
+    real(wp),     allocatable :: deriv_2(:,:)   ! on-grid dEcmap/d(dih2)
+    real(wp),     allocatable :: deriv_12(:,:)  ! on-grid d2Ecmap/d(dih1)d(dih2)
+    real(wp),     allocatable :: deriv_tmp(:,:) ! on-grid d2Ecmap/d(dih2)d(dih1)
+    real(wp),     allocatable :: rmatrix(:,:)   ! matrix for simultaneous eq
+    real(wp),     allocatable :: rvector(:)     ! vector for simultaneous eq
+    real(wp),     allocatable :: y_1d_vec(:)
+
+
+    alloc_stat   = 0
+    dealloc_stat = 0
+
+    ! preparation for spline
+    !
+
+    ! (size of the cmap table)
+    !
+    ngrid0 = prmtop%cmap_resolution(cmap_type_id)
+    ngrid  = ngrid0 + 1
+    dlt_x  = 360.0_wp/real(ngrid0,wp)
+
+    ! (allocate an array for the extended on-grid-points Ecmap table)
+    !
+    allocate(y_data(ngrid, ngrid), stat = alloc_stat)
+    if (alloc_stat /= 0) &
+      call error_msg_alloc
+
+    ! (copy and extend the on-grid-points Ecmap table)
+    !
+    do i = 1, ngrid0
+      do j = 1, ngrid0
+        k = j + (i-1)*ngrid0
+        y_data(j,i) = prmtop%cmap_parameter(k,cmap_type_id)
+      end do
+    end do
+    do i = 1, ngrid0
+      y_data(ngrid,i) = y_data(1,i)
+      y_data(i,ngrid) = y_data(i,1)
+    end do
+
+    ! (allocate the other local arrays )
+    !
+    allocate(rmatrix  (ngrid, ngrid), &
+             deriv_1  (ngrid, ngrid), &
+             deriv_2  (ngrid, ngrid), &
+             deriv_12 (ngrid, ngrid), &
+             deriv_tmp(ngrid, ngrid), &
+             rvector  (ngrid),        &
+             y_1d_vec (ngrid), stat = alloc_stat)
+
+    if (alloc_stat /= 0) then
+      write(MsgOut,*) 'Derive_Cmap_Coefficients_P> ERROR: allocation error in derive_cmap_coefficients_p.'
+      call error_msg_alloc
+    end if
+
+    ! (prepare the matrix for the simultaneous equations)
+    !
+    call prep_splin_matrix_p(ngrid, rmatrix)
+
+    ! calculate dy/d(dih1) on grid points by cubic spline
+    !
+    do idih2 = 1, ngrid
+      y_1d_vec(1:ngrid) = y_data(1:ngrid, idih2)
+      call prep_splin_vector_p(ngrid, dlt_x, y_1d_vec, rvector)
+
+      ! (solve simultaneous equations for spline.  rvector will be d2y/d(dih1)2)
+      !
+      call simultaneous_eq(ngrid, rmatrix, rvector)
+
+      ! (calculate dy/d(dih1) using y and precalculated d2y/d(dih1)2 values)
+      !
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 0)
+
+      ! (set the resultant dy/d(dih1) values to array)
+      !
+      deriv_1(1:ngrid, idih2) = rvector(1:ngrid)
+    end do
+
+    ! calculate dy/d(dih2) on grid points by cubic spline
+    !
+    do idih1 = 1, ngrid
+      y_1d_vec(1:ngrid) = y_data(idih1, 1:ngrid)
+      call prep_splin_vector_p(ngrid, dlt_x, y_1d_vec, rvector)
+      call simultaneous_eq(ngrid, rmatrix, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 0)
+      deriv_2(idih1, 1:ngrid) = rvector(1:ngrid)
+    end do
+
+    ! calculate d2y/d(dih1)d(dih2) on grid points by cubic spline
+    !
+    do idih1 = 1, ngrid
+      y_1d_vec(1:ngrid) = deriv_1(idih1, 1:ngrid)
+      call prep_splin_vector_p(ngrid, dlt_x, y_1d_vec, rvector)
+      call simultaneous_eq(ngrid, rmatrix, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 0)
+      deriv_12(idih1, 1:ngrid) = rvector(1:ngrid)
+    end do
+
+    ! calculate d2y/d(dih2)d(dih1) on grid points by cubic spline
+    !
+    do idih2 = 1, ngrid
+      y_1d_vec(1:ngrid) = deriv_2(1:ngrid, idih2)
+      call prep_splin_vector_p(ngrid, dlt_x, y_1d_vec, rvector)
+      call simultaneous_eq(ngrid, rmatrix, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 0)
+      deriv_tmp(1:ngrid, idih2) = rvector(1:ngrid)
+    end do
+
+    ! examine the identity of cross derivative values
+    !
+    do i = 1, ngrid
+      do j = 1, ngrid
+        rdum1 = deriv_12(i,j)
+        rdum2 = deriv_tmp(i,j)
+        rdum  = 0.5_wp*(rdum1 + rdum2)
+
+        deriv_12(i,j) = rdum
+
+        if (rdum /= 0.0_wp) then
+          rdum3 = abs((rdum1 - rdum2)/rdum)
+        else
+          rdum3 = 0.0_wp
+        end if
+
+#ifdef DEBUG
+        if (rdum3 > 0.00010_wp) then
+          write(MsgOut,*) 'Derive_Cmap_Coefficients_P> WARN: d2y/dphidpsi seems to be inaccurate.'
+          write(MsgOut,*) i,j,rdum1, rdum2
+          write(MsgOut,*) ''
+        end if
+#endif
+      end do
+    end do
+
+    ! preparation for bicubic interpolation has been finished
+    !
+
+    ! execute bicubic interpolation
+    !
+    call cmap_cal_coefs(ngrid0, dlt_x, y_data, deriv_1, deriv_2, deriv_12, c_ij)
+
+    ! deallocate local arrays
+    !
+    deallocate(y_data,   &
+               rmatrix,  &
+               rvector,  &
+               y_1d_vec, &
+               deriv_1,  &
+               deriv_2,  &
+               deriv_12, &
+               deriv_tmp, stat = dealloc_stat)
+    if (dealloc_stat /= 0) &
+      call error_msg_dealloc
+
+    return
+
+  end subroutine derive_cmap_amber_coefficients_p
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    derive_cmap_coefficients_np
+  !> @brief        evaluate coefficients (c_ij)values for cmap term(no-periodic)
+  !! @authors      TY, JJ
+  !! @param[in]    cmap_type_id : 1 <= cmap_type_id <= par%num_cmaps = 6
+  !! @param[in]    prmtop       : AMBER prmtop information
+  !! @param[out]   c_ij         : cmap coefficients for each type of cmap
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine derive_cmap_amber_coefficients_np(cmap_type_id, prmtop, c_ij)
+
+    ! formal arguments
+    integer,        intent(in)    :: cmap_type_id
+    type(s_prmtop), intent(in)    :: prmtop
+    real(wp),       intent(inout) :: c_ij(:,:,:,:)
+
+    ! local variables
+    real(wp)      :: dlt_x    ! distance between grid lines (degree)
+    real(wp)      :: rdum, rdum1, rdum2, rdum3
+    integer       :: ngrid0, ngrid
+    integer       :: alloc_stat, dealloc_stat, i, j, k, idih1, idih2, i0, j0
+    integer       :: XM
+
+    real(wp),     allocatable :: y_data(:,:)    ! extended on-grid Ecmap tab
+    real(wp),     allocatable :: deriv_1(:,:)   ! on-grid dEcmap/d(dih1)
+    real(wp),     allocatable :: deriv_2(:,:)   ! on-grid dEcmap/d(dih2)
+    real(wp),     allocatable :: deriv_12(:,:)  ! on-grid d2Ecmap/d(dih1)d(dih2)
+    real(wp),     allocatable :: deriv_tmp(:,:) ! on-grid d2Ecmap/d(dih2)d(dih1)
+    real(wp),     allocatable :: rmatrix(:,:)   ! matrix for simultaneous eq
+    real(wp),     allocatable :: rvector(:)     ! vector for simultaneous eq
+    real(wp),     allocatable :: y_1d_vec(:)
+
+    real(wp),     allocatable :: y_data0(:,:)
+    real(wp),     allocatable :: deriv_10(:,:)
+    real(wp),     allocatable :: deriv_20(:,:)
+    real(wp),     allocatable :: deriv_120(:,:)
+
+
+    alloc_stat   = 0
+    dealloc_stat = 0
+
+    ! preparation for spline
+    !
+
+    ! size of the cmap table
+    ngrid0 = prmtop%cmap_resolution(cmap_type_id)
+
+    if (mod(ngrid0,2) == 0) then
+      XM = ngrid0/2
+    else
+      XM = ngrid0/2 + 1
+    end if
+
+    ngrid  = ngrid0 + 2*XM
+    dlt_x  = 360.0_wp/real(ngrid0,wp)
+
+    ! allocate an array for the extended on-grid-points Ecmap table
+    !
+    allocate(y_data(ngrid, ngrid), stat = alloc_stat)
+    if (alloc_stat /= 0) &
+      call error_msg_alloc
+
+    ! copy and extend the on-grid-points Ecmap table
+    !
+    do i = 1, ngrid
+      i0 = mod(i+ngrid0-XM-1, ngrid0) + 1
+      do j = 1, ngrid
+        j0 = mod(j+ngrid0-XM-1, ngrid0) + 1
+        k = i0 + (j0-1)*ngrid0
+        y_data(i,j) = prmtop%cmap_parameter(k, cmap_type_id)
+      end do
+    end do
+
+    ! allocate the other local arrays
+    !
+    allocate(rmatrix  (ngrid, ngrid), &
+             deriv_1  (ngrid, ngrid), &
+             deriv_2  (ngrid, ngrid), &
+             deriv_12 (ngrid, ngrid), &
+             deriv_tmp(ngrid, ngrid), &
+             rvector  (ngrid),        &
+             y_1d_vec (ngrid), stat = alloc_stat)
+    if (alloc_stat /= 0) then
+      write(MsgOut,*) 'Derive_Cmap_Coefficients_Np> ERROR: allocation error.'
+      call error_msg_alloc
+    end if
+
+    ! calculate dy/d(dih1) on grid points by cubic spline
+    !
+    do idih2 = 1, ngrid
+      y_1d_vec(1:ngrid) = y_data(1:ngrid, idih2)
+
+      ! solve simultaneous equations for spline.  rvector will be d2y/d(dih1)2
+      !
+      call solve_nspline(dlt_x, y_1d_vec, ngrid, rvector)
+
+      ! calculate dy/d(dih1) using y and precalculated d2y/d(dih1)2 values
+      !
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 1)
+
+      ! set the resultant dy/d(dih1) values to array
+      !
+      deriv_1(1:ngrid, idih2) = rvector(1:ngrid)
+    end do
+
+    ! calculate dy/d(dih2) on grid points by cubic spline
+    !
+    do idih1 = 1, ngrid
+      y_1d_vec(1:ngrid) = y_data(idih1, 1:ngrid)
+      call solve_nspline(dlt_x, y_1d_vec, ngrid, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 1)
+      deriv_2(idih1, 1:ngrid) = rvector(1:ngrid)
+    end do
+
+    ! calculate d2y/d(dih1)d(dih2) on grid points by cubic spline
+    !
+    do idih1 = 1, ngrid
+      y_1d_vec(1:ngrid) = deriv_1(idih1, 1:ngrid)
+      call solve_nspline(dlt_x, y_1d_vec, ngrid, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 1)
+      deriv_12(idih1, 1:ngrid) = rvector(1:ngrid)
+    end do
+
+    ! calculate d2y/d(dih2)d(dih1) on grid points by cubic spline
+    !
+    do idih2 = 1, ngrid
+      y_1d_vec(1:ngrid) = deriv_2(1:ngrid, idih2)
+      call solve_nspline(dlt_x, y_1d_vec, ngrid, rvector)
+      call cal_y1(ngrid, dlt_x, y_1d_vec, rvector, 1)
+      deriv_tmp(1:ngrid, idih2) = rvector(1:ngrid)
+    end do
+
+    ! examine the identity of cross derivative values
+    !
+    do i = 1, ngrid
+      do j = 1, ngrid
+        rdum1 = deriv_12(i,j)
+        rdum2 = deriv_tmp(i,j)
+        rdum  = 0.5_wp*(rdum1 + rdum2)
+
+        deriv_12(i,j) = rdum
+
+        if (rdum /= 0.0_wp) then
+          rdum3 = abs((rdum1 - rdum2)/rdum)
+        else
+          rdum3 = 0.0_wp
+        end if
+
+#ifdef DEBUG
+        if (rdum3 > EPS_CMAP) then
+          write(MsgOut,*) 'Derive_Cmap_Coefficients_Np> WARN: d2y/dphidpsi seems to be inaccurate.'
+          write(MsgOut,*) i,j,rdum1, rdum2
+          write(MsgOut,*) ''
+        end if
+#endif
+      end do
+    end do
+
+    !  copy back on-grid-point y and derivatives values to
+    !  (1+ngrid0)x(1+ngrid0) arrays
+    !
+    ngrid = ngrid0 + 1
+
+    allocate(deriv_10 (ngrid, ngrid), &
+             deriv_20 (ngrid, ngrid), &
+             deriv_120(ngrid, ngrid), &
+             y_data0  (ngrid, ngrid), stat = alloc_stat)
+    if (alloc_stat /= 0) then
+      write(MsgOut,*) 'Derive_Cmap_Coefficients_Np> ERROR: allocation error.'
+      call error_msg_alloc
+    end if
+
+    y_data0  (1:ngrid, 1:ngrid) = y_data  (XM+1:XM+ngrid, XM+1:XM+ngrid)
+    deriv_10 (1:ngrid, 1:ngrid) = deriv_1 (XM+1:XM+ngrid, XM+1:XM+ngrid)
+    deriv_20 (1:ngrid, 1:ngrid) = deriv_2 (XM+1:XM+ngrid, XM+1:XM+ngrid)
+    deriv_120(1:ngrid, 1:ngrid) = deriv_12(XM+1:XM+ngrid, XM+1:XM+ngrid)
+
+    ! preparation for bicubic interpolation has been finished
+    !
+
+    ! execute bicubic interpolation
+    !
+    call cmap_cal_coefs(ngrid0, dlt_x, y_data0, &
+                        deriv_10, deriv_20, deriv_120, c_ij)
+
+    ! deallocate local arrays
+    !
+    deallocate(y_data,    &
+               rmatrix,   &
+               rvector,   &
+               y_1d_vec,  &
+               deriv_1,   &
+               deriv_2,   &
+               deriv_12,  &
+               deriv_tmp, &
+               y_data0,   &
+               deriv_10,  &
+               deriv_20,  &
+               deriv_120, stat = dealloc_stat)
+    if (dealloc_stat /= 0) &
+      call error_msg_dealloc
+
+    return
+
+  end subroutine derive_cmap_amber_coefficients_np
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    prep_splin_matrix_p
   !> @brief        prepare the matrix that will be used for the simultaneous
   !!               equations for 1-d cubic spline interpolation with PERIODIC 
@@ -541,7 +939,7 @@ contains
     real(wp),                intent(out)   :: rmatrix(:,:)
    
     ! local variables
-    integer                  :: i,  nerr
+    integer                  :: i, nerr
 
 
     ! examine the size of the matrices
@@ -663,7 +1061,7 @@ contains
     ! local variables
     real(wp)                 :: rmatrix2(MAXGRID,MAXGRID)
     real(wp)                 :: rvector2(MAXGRID)
-    integer                  :: ipiv(MAXGRID) , info
+    integer                  :: ipiv(MAXGRID), info
 
 
     ! examine the size of arrays
@@ -779,11 +1177,11 @@ contains
 
     ! ( estimate dy/dx by two means )
     !
-    rdum1 = (y_1d_vec(2)-y_1d_vec(1))*fact1 &
-          - (2.0_wp*rvector(1)+rvector(2))*fact2
+    rdum1 = (y_1d_vec(2) - y_1d_vec(1))*fact1 &
+          - (2.0_wp*rvector(1) + rvector(2))*fact2
 
-    rdum2 = (y_1d_vec(ngrid)-y_1d_vec(ngrid - 1))*fact1 &
-          + (rvector(ngrid - 1)+2.0_wp*rvector(ngrid))*fact2
+    rdum2 = (y_1d_vec(ngrid) - y_1d_vec(ngrid - 1))*fact1 &
+          + (rvector(ngrid - 1) + 2.0_wp*rvector(ngrid))*fact2
 
     ! for periodic boundary condition
     !
@@ -894,7 +1292,7 @@ contains
         size(c_ij,2) /= 4      .or. &
         size(c_ij,3) /= ngrid0 .or. &
         size(c_ij,4) /= ngrid0) then
-      write(MsgOut,*) size(c_ij,1),size(c_ij,2),size(c_ij,3),size(c_ij,4)
+      write(MsgOut,*) size(c_ij,1), size(c_ij,2), size(c_ij,3), size(c_ij,4)
       call error_msg('Cmap_Cal_Coefs> ERROR: size of c_ij looks incorrect.')
     end if
 
@@ -905,10 +1303,10 @@ contains
     do idih2 = 1, ngrid0
       do idih1 = 1, ngrid0
 
-        call bicubic_coefs(y_data(idih1:idih1+1,idih2:idih2+1),       &
-                           deriv_1(idih1:idih1+1,idih2:idih2+1),      &
-                           deriv_2(idih1:idih1+1,idih2:idih2+1),      &
-                           deriv_12(idih1:idih1+1,idih2:idih2+1),     &
+        call bicubic_coefs(y_data(idih1:idih1+1,idih2:idih2+1),   &
+                           deriv_1(idih1:idih1+1,idih2:idih2+1),  &
+                           deriv_2(idih1:idih1+1,idih2:idih2+1),  &
+                           deriv_12(idih1:idih1+1,idih2:idih2+1), &
                            dlt_x, dlt_x, c) 
 
         do i = 1, 4
@@ -955,7 +1353,7 @@ contains
     real(wp)                 :: dlt_x1x2, cl(1:16), x(1:16)
     real(wp),         save   :: ainv(1:16,1:16)
     integer                  :: ainv_integer(1:16,1:16)
-    integer                  :: i,j,k
+    integer                  :: i, j, k
 
 
     ainv_integer( 1,1:16) = (/1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0/)
@@ -975,7 +1373,7 @@ contains
     ainv_integer(15,1:16) = (/-6,6,6,-6,-3,-3,3,3,-4,4,-2,2,-2,-2,-1,-1/)
     ainv_integer(16,1:16) = (/4,-4,-4,4,2,2,-2,-2,2,-2,2,-2,1,1,1,1/)
 
-    ainv(1:16,1:16) = real(ainv_integer(1:16,1:16),wp)
+    ainv(1:16,1:16) = real(ainv_integer(1:16,1:16), wp)
 
     dlt_x1x2 = dlt_x1*dlt_x2
 
@@ -984,7 +1382,12 @@ contains
     x(9:12)  = deriv_2(1:4)*dlt_x2
     x(13:16) = deriv_12(1:4)*dlt_x1x2
 
-    cl = matmul(ainv,x)
+    do i = 1, 16
+      cl(i) = 0.0_wp
+      do j = 1, 16
+        cl(i) = cl(i) + ainv(i,j)*x(j)
+      end do
+    end do
 
     k = 0
     do i = 1, 4
@@ -1234,7 +1637,7 @@ contains
 
     ! allocate local array
     !
-    allocate (dp(ngrid), stat = alloc_stat)
+    allocate(dp(ngrid), stat = alloc_stat)
     if (alloc_stat /= 0) &
       call error_msg_alloc
 
@@ -1278,5 +1681,145 @@ contains
     return
 
   end subroutine solve_nspline
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    calculate_dihedral_pbc
+  !> @brief        calculate dihedral angle with PBC coordinates
+  !! @authors      CK, CT
+  !! @param[in]    aindex  : potential energy functions information
+  !! @param[in]    coord   : PBC coordinates of target systems
+  !! @param[in]    bsize   : PBC box size
+  !! @param[inout] cos_dih : cosin of dihedral angles
+  !! @param[inout] sin_dih : sin of dihedral angles
+  !! @param[inout] grad    : gradient of dihedral angles
+  !! @note         Blondel and Karplus, J. Comput. Chem., 17, 1132-1141 (1996)
+  ! 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine calculate_dihedral_pbc(aindex, coord, bsize, cos_dih, sin_dih, grad, v)
+
+    ! formal arguments
+    integer,   intent(in)    :: aindex(:)
+    real(wp),  intent(in)    :: coord(:,:)
+    real(wp),  intent(in)    :: bsize(:)
+    real(wp),  intent(inout) :: cos_dih
+    real(wp),  intent(inout) :: sin_dih
+    real(wp),  intent(inout) :: grad(1:9)
+    real(wp),  intent(inout) :: v(1:3,1:3)
+
+    ! local variable
+    integer    :: i, j
+    real(wp)   :: dij(1:3), djk(1:3), dlk(1:3)
+    real(wp)   :: aijk(1:3), ajkl(1:3)
+    real(wp)   :: tmp(1:4)
+    real(wp)   :: raijk2, rajkl2, vtmp
+    real(wp)   :: inv_raijk2, inv_rajkl2, inv_raijkl
+    real(wp)   :: rjk, inv_rjk, dotpro_ijk, dotpro_jkl
+    real(wp)   :: half_bsize(3)
+
+
+    half_bsize(1:3) = 0.5_wp * bsize(1:3)
+
+    dij(1:3) = coord(1:3,aindex(1)) - coord(1:3,aindex(2))
+    if (dij(1) > half_bsize(1)) then
+      dij(1) = dij(1) - bsize(1)
+    else if (dij(1) < -half_bsize(1)) then
+      dij(1) = dij(1) + bsize(1)
+    end if
+    if (dij(2) > half_bsize(2)) then
+      dij(2) = dij(2) - bsize(2)
+    else if (dij(2) < -half_bsize(2)) then
+      dij(2) = dij(2) + bsize(2)
+    end if
+    if (dij(3) > half_bsize(3)) then
+      dij(3) = dij(3) - bsize(3)
+    else if (dij(3) < -half_bsize(3)) then
+      dij(3) = dij(3) + bsize(3)
+    end if
+
+    djk(1:3) = coord(1:3,aindex(2)) - coord(1:3,aindex(3))
+    if (djk(1) > half_bsize(1)) then
+      djk(1) = djk(1) - bsize(1)
+    else if (djk(1) < -half_bsize(1)) then
+      djk(1) = djk(1) + bsize(1)
+    end if
+    if (djk(2) > half_bsize(2)) then
+      djk(2) = djk(2) - bsize(2)
+    else if (djk(2) < -half_bsize(2)) then
+      djk(2) = djk(2) + bsize(2)
+    end if
+    if (djk(3) > half_bsize(3)) then
+      djk(3) = djk(3) - bsize(3)
+    else if (djk(3) < -half_bsize(3)) then
+      djk(3) = djk(3) + bsize(3)
+    end if
+
+    dlk(1:3) = coord(1:3,aindex(4)) - coord(1:3,aindex(3))
+    if (dlk(1) > half_bsize(1)) then
+      dlk(1) = dlk(1) - bsize(1)
+    else if (dlk(1) < -half_bsize(1)) then
+      dlk(1) = dlk(1) + bsize(1)
+    end if
+    if (dlk(2) > half_bsize(2)) then
+      dlk(2) = dlk(2) - bsize(2)
+    else if (dlk(2) < -half_bsize(2)) then
+      dlk(2) = dlk(2) + bsize(2)
+    end if
+    if (dlk(3) > half_bsize(3)) then
+      dlk(3) = dlk(3) - bsize(3)
+    else if (dlk(3) < -half_bsize(3)) then
+      dlk(3) = dlk(3) + bsize(3)
+    end if
+
+    aijk(1) = dij(2)*djk(3) - dij(3)*djk(2)
+    aijk(2) = dij(3)*djk(1) - dij(1)*djk(3)
+    aijk(3) = dij(1)*djk(2) - dij(2)*djk(1)
+
+    ajkl(1) = dlk(2)*djk(3) - dlk(3)*djk(2)
+    ajkl(2) = dlk(3)*djk(1) - dlk(1)*djk(3)
+    ajkl(3) = dlk(1)*djk(2) - dlk(2)*djk(1)
+
+    raijk2     = aijk(1)*aijk(1) + aijk(2)*aijk(2) + aijk(3)*aijk(3)
+    rajkl2     = ajkl(1)*ajkl(1) + ajkl(2)*ajkl(2) + ajkl(3)*ajkl(3)
+
+    inv_raijk2  = 1.0_wp / raijk2
+    inv_rajkl2  = 1.0_wp / rajkl2
+
+    inv_raijkl = sqrt(inv_raijk2*inv_rajkl2)
+
+    cos_dih = (aijk(1)*ajkl(1) + aijk(2)*ajkl(2) + aijk(3)*ajkl(3))*inv_raijkl
+
+    rjk     = sqrt(djk(1)*djk(1) + djk(2)*djk(2) + djk(3)*djk(3))
+    inv_rjk = 1.0_wp/rjk
+
+    tmp(1)  = aijk(1)*dlk(1) + aijk(2)*dlk(2) + aijk(3)*dlk(3)
+    sin_dih = tmp(1) * rjk * inv_raijkl
+
+    dotpro_ijk = dij(1)*djk(1) + dij(2)*djk(2) + dij(3)*djk(3)
+    dotpro_jkl = djk(1)*dlk(1) + djk(2)*dlk(2) + djk(3)*dlk(3)
+
+    tmp(1) = rjk*inv_raijk2
+    tmp(2) = rjk*inv_rajkl2
+
+    tmp(3) =  dotpro_ijk*inv_raijk2*inv_rjk
+    tmp(4) =  dotpro_jkl*inv_rajkl2*inv_rjk
+
+    grad(1:3) =  tmp(1)*aijk(1:3)
+    grad(4:6) = -tmp(3)*aijk(1:3) + tmp(4)*ajkl(1:3)
+    grad(7:9) =                   - tmp(2)*ajkl(1:3)
+
+    do i = 1, 3
+      do j = i + 1, 3
+      vtmp = - (grad(j)*dij(i) + grad(j+3)*djk(i) + grad(j+6)*dlk(i))
+      v(j, i) = vtmp
+      v(i, j) = vtmp
+      end do
+      vtmp = - (grad(i)*dij(i) + grad(i+3)*djk(i) + grad(i+6)*dlk(i))
+      v(i, i) = vtmp
+    end do
+
+    return
+  end subroutine calculate_dihedral_pbc
 
 end module dihedral_libs_mod

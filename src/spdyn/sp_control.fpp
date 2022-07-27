@@ -126,17 +126,17 @@ contains
     call getarg(1,arg1)
 
     if (iargc() < 1      .or. &
-         arg1 == '-help' .or. &
-         arg1 == '-h'    .or. &
-         arg1 == '-HELP' .or. &
-         arg1 == '-H') then
+         arg1 .eq. '-help' .or. &
+         arg1 .eq. '-h'    .or. &
+         arg1 .eq. '-HELP' .or. &
+         arg1 .eq. '-H') then
 
       if (main_rank) then
 
         call getarg(2, arg2)
         call tolower(arg2)
 
-        if (iargc() < 2 .or. arg2 /= 'ctrl' .and. arg2 /= 'ctrl_all') then
+        if (iargc() < 2 .or. arg2 .ne. 'ctrl' .and. arg2 .ne. 'ctrl_all') then
           write(MsgOut,'(A)') ' '
           write(MsgOut,'(A)') '# normal usage'
           write(MsgOut,'(A)') '  % mpirun -np XX ./spdyn INP'
@@ -166,7 +166,7 @@ contains
           write(MsgOut,'(A)') '  % ./spdyn -h ctrl_all rpath'
           write(MsgOut,'(A)') ' '
 
-        else if (arg2 == 'ctrl' .or. arg2 == 'ctrl_all') then
+        else if (arg2 .eq. 'ctrl' .or. arg2 .eq. 'ctrl_all') then
 
           call getarg(3, arg3)
           call tolower(arg3)
@@ -180,7 +180,7 @@ contains
 
       end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call MPI_Finalize(ierror)
 #endif
 
@@ -486,7 +486,6 @@ contains
     !
     call close_ctrlfile(handle)
 
-
     return
 
   end subroutine control_remd
@@ -583,11 +582,9 @@ contains
     !
     call close_ctrlfile(handle)
 
-
     return
 
   end subroutine control_rpath
-
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -609,10 +606,10 @@ contains
     logical                  :: show_all
 
 
-    if (run_mode /= 'md'  .and. &
-        run_mode /= 'min' .and. &
-        run_mode /= 'remd' .and. &
-        run_mode /= 'rpath') then
+    if (run_mode .ne. 'md'  .and. &
+        run_mode .ne. 'min' .and. &
+        run_mode .ne. 'remd' .and. &
+        run_mode .ne. 'rpath') then
 
       write(MsgOut,'(A)') ' '
       write(MsgOut,'(A)') '# check control parameters of md'
@@ -632,7 +629,7 @@ contains
     end if
       
 
-    show_all = (ctrl_str == 'ctrl_all')
+    show_all = (ctrl_str .eq. 'ctrl_all')
 
 
     ! show input section

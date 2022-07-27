@@ -1,5 +1,8 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Defined if BD is used. */
+#undef BLACS
+
 /* c compiler version */
 #undef COMPILE_CC_VER
 
@@ -57,11 +60,59 @@
 /* defined if --host=Fugaku is set. */
 #undef FUGAKU
 
+/* Define to 1 if you have the <bagel.h> header file. */
+#undef HAVE_BAGEL_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `mpi' library (-lmpi). */
+#undef HAVE_LIBMPI
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* defined if MPI is used. */
+#undef HAVE_MPI_GENESIS
+
+/* defined if MPI is used. */
+#undef HAVE_MPI_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
 /* defined if HM_DISK is used. */
 #undef HM_DISK
 
+/* defined if ifort version (>19) is used. */
+#undef IFORT19
+
 /* defined if Intel compiler is used. */
 #undef INTEL
+
+/* defined if INTERNAL LAPACK is used. */
+#undef INTERNAL_LAPACK
+
+/* defined if INTERNAL SCALAPACK is used. */
+#undef INTERNAL_SCALAPACK
 
 /* defined if K-computer compiler is used. */
 #undef KCOMP
@@ -69,8 +120,11 @@
 /* defined if LAPACK is used. */
 #undef LAPACK
 
-/* defined if MPI is used. */
-#undef MPI
+/* MPI WRAPPER TYPE */
+#undef MPITYPE
+
+/* defined if MS-MPI compiler is used. */
+#undef MSMPI
 
 /* defined if OpenMP is used. */
 #undef OMP
@@ -101,6 +155,12 @@
 
 /* defined if PKTIMER is used. */
 #undef PKTIMER
+
+/* defined if QSimulate is used. */
+#undef QSIMULATE
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
 
 /* defined if gpu is used. */
 #undef USE_GPU

@@ -61,6 +61,9 @@ module fileio_pdb_mod
   integer,      public, parameter :: PdbAtom    = 1
   integer,      public, parameter :: PdbTerLine = 2
 
+  ! local variables
+  logical,                private :: vervose = .true.
+
   ! subroutines
   public  :: input_pdb
   public  :: output_pdb
@@ -527,10 +530,10 @@ contains
 200 continue
 
     if (no_seg) then
-      if (main_rank) then
+      if (main_rank .and. vervose) then
         write(MsgOut,'(A)') 'Read_Pdb> there are no segment (renamed "A   ")'
         write(MsgOut,'(A)') ' '
-      endif
+      end if
     end if
 
     pdb%hetatm_rec = .true.
@@ -542,19 +545,20 @@ contains
 
     ! write summary of PDB information
     !
-    if (main_rank) then
+    if (main_rank .and. vervose) then
       write(MsgOut,'(A)') 'Read_Pdb> Summary of Data in PDB file'
       write(MsgOut,'(A20,I10)') '  num_atoms       = ', pdb%num_atoms
       write(MsgOut,'(A)') ' '
+      vervose = .false.
     end if
 
     return
 
-910 call error_msg('Read_Pdb> read error (read line)')
-911 call error_msg('Read_Pdb> read error (ATOM/HETATM record)')
-912 call error_msg('Read_Pdb> read error (TER record)')
-913 call error_msg('Read_Pdb> read error (CRYST record)')
-914 call error_msg('Read_Pdb> read error (MODEL record)')
+910 call error_msg('Read_Pdb> read error (read line) :'//line)
+911 call error_msg('Read_Pdb> read error (ATOM/HETATM record) :'//line)
+912 call error_msg('Read_Pdb> read error (TER record) :'//line)
+913 call error_msg('Read_Pdb> read error (CRYST record) :'//line)
+914 call error_msg('Read_Pdb> read error (MODEL record) :'//line)
 
   end subroutine read_pdb
 
@@ -577,9 +581,10 @@ contains
     ! local variables
     integer                  :: i, j, len
     integer                  :: iter, num_atoms, num_ters
-    character(80)            :: fmt_a, fmt_t
+    character(80)            :: fmt_a, fmt_b, fmt_t
     character(6)             :: crec
     character(4)             :: catm, cres, cstr, cseg
+    character(7)             :: nchar_atom
     logical                  :: use_cid
     
 
@@ -610,30 +615,32 @@ contains
     if (pdb%atom_col7) then
       if (pdb%res_col6) then
         use_cid = .false.
-        fmt_a   = '(a4,i7,1x,a4,1x,a4,i6,3x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a4,i7,6x,a4,i6,48x,a1)'
+        fmt_a   = '(a4,a7,1x,a4,1x,a4,i6,3x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a4,a7,6x,a4,i6,48x,a1)'
       else if (pdb%res_col5) then
         use_cid = .false.
-        fmt_a   = '(a4,i7,1x,a4,1x,a4,i5,4x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a4,i7,6x,a4,i5,49x,a1)'
+        fmt_a   = '(a4,a7,1x,a4,1x,a4,i5,4x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a4,a7,6x,a4,i5,49x,a1)'
       else
         use_cid = .true.
-        fmt_a   = '(a4,i7,1x,a4,1x,a4,a1,i4,4x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a4,i7,6x,a4,a1,i4,49x,a1)'
+        fmt_a   = '(a4,a7,1x,a4,1x,a4,a1,i4,4x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_b   = '(a6,a5,1x,a4,1x,a4,a1,i5,3x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a4,a7,6x,a4,a1,i4,49x,a1)'
       end if
     else
       if (pdb%res_col6) then
         use_cid = .false.
-        fmt_a   = '(a6,i5,1x,a4,1x,a4,i6,3x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a6,i5,6x,a4,i6,48x,a1)'
+        fmt_a   = '(a6,a5,1x,a4,1x,a4,i6,3x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a6,a5,6x,a4,i6,48x,a1)'
       else if (pdb%res_col5) then
         use_cid = .false.
-        fmt_a   = '(a6,i5,1x,a4,1x,a4,i5,4x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a6,i5,6x,a4,i5,49x,a1)'
+        fmt_a   = '(a6,a5,1x,a4,1x,a4,i5,4x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a6,a5,6x,a4,i5,49x,a1)'
       else
         use_cid = .true.
-        fmt_a   = '(a6,i5,1x,a4,1x,a4,a1,i4,4x,3f8.3,f6.2,f6.2,6x,a4)'
-        fmt_t   = '(a6,i5,6x,a4,a1,i4,49x,a1)'
+        fmt_a   = '(a6,a5,1x,a4,1x,a4,a1,i4,4x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_b   = '(a6,a5,1x,a4,1x,a4,a1,i5,3x,3f8.3,f6.2,f6.2,6x,a4)'
+        fmt_t   = '(a6,a5,6x,a4,a1,i4,49x,a1)'
       end if
     end if
 
@@ -666,6 +673,16 @@ contains
          crec = 'ATOM  '
       end if
 
+      if (pdb%atom_col7) then
+        write(nchar_atom,'(i7)') i
+      else
+        if (i <= 99999) then
+          write(nchar_atom,'(i5)') i
+        else
+          write(nchar_atom,'(a5)') '*****'
+        end if
+      end if
+
       read(pdb%atom_name(i), *) cstr
       len = len_trim(cstr)
       if (len < 4) then
@@ -691,21 +708,35 @@ contains
       end if
 
       if (use_cid) then
-        write(file, fmt=fmt_a)              &
-              crec,                         &
-              pdb%atom_no(i),               &
-              catm,                         &
-              cres,                         &
-              pdb%chain_id(i),              &
-              pdb%residue_no(i),            &
-              (pdb%atom_coord(j,i), j=1,3), &
-              pdb%atom_occupancy(i),        &
-              pdb%atom_temp_factor(i),      &
-              cseg
+        if (pdb%residue_no(i) < 10000) then
+          write(file, fmt=fmt_a)              &
+                crec,                         &
+                nchar_atom,                   &
+                catm,                         &
+                cres,                         &
+                pdb%chain_id(i),              &
+                pdb%residue_no(i),            &
+                (pdb%atom_coord(j,i), j=1,3), &
+                pdb%atom_occupancy(i),        &
+                pdb%atom_temp_factor(i),      &
+                cseg
+        else
+          write(file, fmt=fmt_b)              &
+                crec,                         &
+                nchar_atom,                   &
+                catm,                         &
+                cres,                         &
+                pdb%chain_id(i),              &
+                pdb%residue_no(i),            &
+                (pdb%atom_coord(j,i), j=1,3), &
+                pdb%atom_occupancy(i),        &
+                pdb%atom_temp_factor(i),      &
+                cseg
+        end if
       else
         write(file, fmt=fmt_a)              &
               crec,                         &
-              pdb%atom_no(i),               &
+              nchar_atom,                   &
               catm,                         &
               cres,                         &
               pdb%residue_no(i),            &
@@ -730,11 +761,20 @@ contains
           cycle
       end if
 
+      if (pdb%atom_col7) then
+        write(nchar_atom,'(i7)') pdb%atom_no(i)+1
+      else
+        if (i <= 99999) then
+          write(nchar_atom,'(i5)') pdb%atom_no(i)+1
+        else
+          write(nchar_atom,'(a5)') '*****'
+        end if
+      end if
       if (use_cid) then
 
         write(file, fmt=fmt_t)   &
              'TER   '          , &
-             pdb%atom_no(i)+1  , &
+             nchar_atom        , &
              cres              , &
              pdb%chain_id(i)   , &
              pdb%residue_no(i) , &
@@ -744,7 +784,7 @@ contains
 
         write(file, fmt=fmt_t)   &
              'TER   '          , &
-             pdb%atom_no(i)+1  , &
+             nchar_atom        , &
              cres              , &
              pdb%residue_no(i) , &
              ' '
@@ -823,7 +863,7 @@ contains
 
       read(file, fmt='(a80)', end=100, err=910) line
 
-      if (line(1:4) == 'ATOM' .or. line(1:4) == 'HETA') then
+      if (line(1:4) .eq. 'ATOM' .or. line(1:4) .eq. 'HETA') then
 
         num_read_atoms = num_read_atoms + 1
 
@@ -835,7 +875,7 @@ contains
 
         ! check atom number overflow
         c3 = line(11:11)
-        if (.not. no_atm .and. line(7:11) == '*****') then
+        if (.not. no_atm .and. line(7:11) .eq. '*****') then
           no_atm = .true.
         else if (.not. no_atm .and. (c3<'0' .or. c3>'9')) then
           no_atm = .true.
@@ -861,7 +901,7 @@ contains
           r_col6 = .true.
         end if
 
-      else if (line(1:4) == 'TER ') then
+      else if (line(1:4) .eq. 'TER ') then
 
         num_read_ters = num_read_ters + 1
 
@@ -871,7 +911,7 @@ contains
 
 100 rewind(file)
 
-    if (main_rank) then
+    if (main_rank .and. vervose) then
       if (no_atm) then
         write(MsgOut,'(A)') 'Check_Pdb> No atom serial number (Renumbered)'
         write(MsgOut,'(A)') ' '

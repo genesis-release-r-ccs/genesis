@@ -1,0 +1,35 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+pdb_avefile    = input_ave.pdb   # PDB file (Average coordinates)
+pdb_aftfile    = input_aft.pdb   # PDB file (Fitted Average coordinates)
+valfile        = input.val       # VAL file
+vecfile        = input.vec       # VEC file
+ 
+[OUTPUT]
+prjfile        = out      # PRJ file
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = an:CA           # selection group 1
+ 
+[FITTING]
+fitting_method = TR+ROT          # [NO,TR,TR+ROT,TR+ZROT,XYTR,XYTR+ZROT]
+fitting_atom   = 1               # atom group
+ 
+[OPTION]
+check_only     = no              # (YES/NO)
+num_pca        = 3               # # of principal components
+analysis_atom  = 1               # analysis target atom group
+vcv_matrix     = GLOBAL          # (GLOBAL/LOCAL)
+                                 # GLOBAL analyzes analysis_atoms
+                                 # LOCAL  analyzes fitting_atoms

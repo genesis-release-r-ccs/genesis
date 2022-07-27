@@ -59,6 +59,7 @@ module select_atoms_mod
   private :: quicksort
   private :: reselect_atom_
   private :: adjust_selection
+  private :: adjust_selection_alt
 
 contains
 
@@ -121,6 +122,7 @@ contains
   !! @param[in]    coord_new    : new atom coordinates
   !! @param[in]    selatoms_org : structure of selatoms
   !! @param[out]   selatoms_new : structure of selatoms
+  !! @param[in]    tool_name    : tool name (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -128,7 +130,8 @@ contains
                            expression,   &
                            coord_new,    &
                            selatoms_org, &
-                           selatoms_new)
+                           selatoms_new, &
+                           tool_name)
 
     ! parameters
     real(wp),                parameter     :: DecScale = 0.90_wp
@@ -140,6 +143,7 @@ contains
     real(wp),                intent(in)    :: coord_new(:,:)
     type(s_selatoms),        intent(in)    :: selatoms_org
     type(s_selatoms),        intent(inout) :: selatoms_new
+    character(len=*), optional, intent(in) :: tool_name
 
     ! local variables
     type(s_molecule)         :: molecule_new
@@ -154,8 +158,8 @@ contains
     ! check whether re-selection is necessary.
     !
     expr0 = expression
-    do i = 1, len(expr0)
-      if (expr0(i:i) >= 'A' .and. expr0(i:i) <= 'Z') then
+    do i = 1, len_trim(expr0)
+      if (expr0(i:i) .ge. 'A' .and. expr0(i:i) .le. 'Z') then
         expr0(i:i) = char(ichar(expr0(i:i)) + 32)
       end if
     end do
@@ -251,11 +255,22 @@ contains
 
         else if (norg > nnew0) then
 
-          call adjust_selection(norg, &
-                                molecule_new, &
-                                selatoms_new0, &
-                                selatoms_new)
+          if(present(tool_name)) then
+            call adjust_selection_alt(norg, &
+                                      molecule_new, &
+                                      selatoms_new0, &
+                                      selatoms_new)
+          else
+            call adjust_selection(norg, &
+                                  molecule_new, &
+                                  selatoms_new0, &
+                                  selatoms_new)
+          end if
           exit
+
+        else
+          
+          g_around_scale = g_around_scale * (IncScale+0.1_wp)
 
         end if
       end do
@@ -291,13 +306,24 @@ contains
 
         else if (norg < nnew0) then
 
-          call adjust_selection(norg, &
-                                molecule_new, &
-                                selatoms_new, &
-                                selatoms_new0)
+          if(present(tool_name)) then
+            call adjust_selection_alt(norg, &
+                                      molecule_new, &
+                                      selatoms_new, &
+                                      selatoms_new0)
+          else
+            call adjust_selection(norg, &
+                                  molecule_new, &
+                                  selatoms_new, &
+                                  selatoms_new0)
+          end if
           call alloc_selatoms(selatoms_new, size(selatoms_new0%idx))
           selatoms_new%idx(:) = selatoms_new0%idx(:)
           exit
+
+        else
+
+          g_around_scale = g_around_scale * (DecScale-0.1_wp)
 
         end if
       end do
@@ -1285,8 +1311,8 @@ contains
 
     nsel = 0
     do i = 1, natm
-      if ((atmnam(i)(1:1) == 'H' .and. sel_hyd) .or. &
-          (atmnam(i)(1:1) /= 'H' .and. .not. sel_hyd)) then
+      if ((atmnam(i)(1:1) .eq. 'H' .and. sel_hyd) .or. &
+          (atmnam(i)(1:1) .ne. 'H' .and. .not. sel_hyd)) then
         nsel = nsel + 1
         idx(nsel) = i
       end if
@@ -1834,5 +1860,265 @@ contains
     return
 
   end subroutine adjust_selection
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    adjust_selection_alt
+  !> @brief        alter adjust_selection not to use selection by atom
+  !! @authors      NT, KYMD
+  !! @param[in]    target_count : target count
+  !! @param[in]    molecule     : structure of molecule information
+  !! @param[in]    sa_base      : structure of base selatoms
+  !! @param[inout] sa_target    : structure of target selatoms
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine adjust_selection_alt(target_count, &
+                                  molecule, &
+                                  sa_base, &
+                                  sa_target)
+
+    ! parameter
+    real(wp),                parameter     :: AdjustDist = 10.0_wp
+
+    ! formal arguments
+    integer,                 intent(in)    :: target_count
+    type(s_molecule),        intent(in)    :: molecule
+    type(s_selatoms),        intent(in)    :: sa_base
+    type(s_selatoms),        intent(inout) :: sa_target
+
+    ! local variables
+    type(s_selatoms)         :: sa_adjust1, sa_adjust2,       &
+                                sa_target_org,                &
+                                sa_target_tmp, sa_adjust2_tmp, sa_adjust1_tmp
+    integer                  :: i, resno_now, resno_next, nadj2
+
+
+    ! copy
+    ! 
+    call alloc_selatoms(sa_target_org, size(sa_target%idx))
+    sa_target_org%idx(:) = sa_target%idx(:)                      ! supreme number
+
+    ! calculate adjust = target - base
+    !
+    call calc_selatoms_not_isect(sa_target, sa_base, sa_adjust1) ! adj1=sup-base
+
+    ! return value : sa_target
+    !
+    call alloc_selatoms(sa_target, size(sa_base%idx))            ! copy base to tar
+    sa_target%idx(:) = sa_base%idx(:)
+
+    ! by molecule
+    !
+    if (main_rank) then
+      write(MsgOut,'(A)')  &
+        'Adjust_Selection> adjust selection by molecule (make base):'
+    end if
+
+    call select_contacts(SelectModeMole, &
+                         molecule,   &
+                         molecule,   &
+                         sa_base,    &
+                         sa_adjust1, &
+                         AdjustDist, &
+                         sa_adjust2, &
+                         target_count - size(sa_target%idx), &
+                         .true.)
+
+    call calc_selatoms_union(sa_target, sa_adjust2, sa_target)
+
+    if (target_count == size(sa_target%idx)) then
+      if (main_rank) then
+        write(MsgOut,'(A,I7)') 'Adjust_Selection> adjusted : ',  &
+                     size(sa_adjust2%idx)
+      end if
+
+      call dealloc_selatoms(sa_adjust1)
+      call dealloc_selatoms(sa_adjust2)
+      call dealloc_selatoms(sa_target_org)
+      return
+    end if
+       
+
+    nadj2 = size(sa_adjust2%idx)
+    if (nadj2 == 0) &
+      call error_msg('Adjust_Selection> ERROR: cannot adjust selection.') 
+    do i = 1, nadj2 - 1
+      resno_now   = molecule%residue_no(sa_adjust2%idx(i))
+      resno_next  = molecule%residue_no(sa_adjust2%idx(i+1))
+      if(resno_now == resno_next) cycle
+      call alloc_selatoms(sa_adjust2_tmp, i) 
+      sa_adjust2_tmp%idx(1: i) = sa_adjust2%idx(1: i)
+
+      call calc_selatoms_union(sa_base, sa_adjust2_tmp, sa_target_tmp)         ! base + adj2
+
+      call calc_selatoms_not_isect(sa_adjust1, sa_adjust2_tmp, sa_adjust1_tmp) ! adj1=adj1-adj2
+
+      ! by residue
+      !
+      if (main_rank) then
+        write(MsgOut,'(A, i0, A)') &
+          'Adjust_Selection> adjust selection by residue (base atoms: ', i, '): '
+      end if
+
+      call select_contacts(SelectModeResi, &
+                           molecule,       &
+                           molecule,       &
+                           sa_base,        &
+                           sa_adjust1_tmp, &
+                           AdjustDist,     &
+                           sa_adjust2_tmp, &
+                           target_count - size(sa_target_tmp%idx), &
+                           .true.)
+
+
+      call calc_selatoms_union(sa_target_tmp, sa_adjust2_tmp, sa_target_tmp)
+
+      if (target_count == size(sa_target_tmp%idx)) then
+        if (main_rank) then
+          write(MsgOut,'(A,I7)') 'Adjust_Selection> adjusted : ',  &
+                       i + size(sa_adjust2_tmp%idx)
+          !KYMD  write(MsgOut, *)  sa_adjust2_tmp%idx(1: size(sa_adjust2_tmp%idx))
+        end if
+      
+        call alloc_selatoms(sa_target, size(sa_target_tmp%idx))
+        sa_target%idx(:) = sa_target_tmp%idx(:)
+
+        call dealloc_selatoms(sa_adjust1)
+        call dealloc_selatoms(sa_adjust2)
+        call dealloc_selatoms(sa_target_org)
+        call dealloc_selatoms(sa_target_tmp)
+        call dealloc_selatoms(sa_adjust1_tmp)
+        call dealloc_selatoms(sa_adjust2_tmp)
+        return
+      end if
+
+      if(i + size(sa_adjust2_tmp%idx) == nadj2) then ! res select = mol select
+        if (main_rank) then
+          write(MsgOut,'(1x, A, i0, A/, A)')  &
+           'Adjust_Selection> Any combination of species near the border cannot be ', target_count, '.', &
+           '                  Please try to change around radius, frame number, or reffile.'
+        end if
+        call error_msg('Adjust_Selection> ERROR: Cannot adjust selection.')
+      end if
+
+    end do 
+
+
+    !
+    ! reverse order of selection type
+    !
+    
+    call dealloc_selatoms(sa_adjust1)
+    call dealloc_selatoms(sa_adjust2)
+
+    ! calculate adjust = target - base (INITIALIZE)
+    !
+    call calc_selatoms_not_isect(sa_target_org, sa_base, sa_adjust1)
+
+    ! return value : sa_target         (INITIALIZE)
+    !
+    call alloc_selatoms(sa_target, size(sa_base%idx))
+    sa_target%idx(:) = sa_base%idx(:)
+
+    ! by residue
+    !
+    if (main_rank) then
+      write(MsgOut,'(A)') &
+        'Adjust_Selection> adjust selection by residue (Make base): '
+    end if
+
+    call select_contacts(SelectModeResi, &
+                         molecule,   &
+                         molecule,   &
+                         sa_base,    &
+                         sa_adjust1, &
+                         AdjustDist, &
+                         sa_adjust2, &
+                         target_count - size(sa_target%idx), &
+                         .true.)
+
+    call calc_selatoms_union(sa_target, sa_adjust2, sa_target) ! base + adj2
+
+    if (target_count == size(sa_target%idx)) then
+      if (main_rank) then
+        write(MsgOut,'(A,I7)') 'Adjust_Selection> adjusted : ', &
+                     size(sa_adjust2%idx)
+        !KYMD write(MsgOut, *) sa_adjust2%idx(1: size(sa_adjust2%idx))
+      end if
+
+      call dealloc_selatoms(sa_adjust1)
+      call dealloc_selatoms(sa_adjust2)
+      call dealloc_selatoms(sa_target_org)
+      call dealloc_selatoms(sa_target_tmp)
+      call dealloc_selatoms(sa_adjust1_tmp)
+      call dealloc_selatoms(sa_adjust2_tmp)
+      return
+    end if
+
+
+    nadj2 = size(sa_adjust2%idx)
+    if (nadj2 == 0) &
+      call error_msg('Adjust_Selection> ERROR: cannot adjust selection. ')
+    do i = 1, nadj2 - 1
+      resno_now  = molecule%residue_no(sa_adjust2%idx(i))
+      resno_next = molecule%residue_no(sa_adjust2%idx(i+1))
+      if(resno_now == resno_next) cycle
+      call alloc_selatoms(sa_adjust2_tmp, i) 
+      sa_adjust2_tmp%idx(1: i) = sa_adjust2%idx(1: i)
+
+      call calc_selatoms_union(sa_base, sa_adjust2_tmp, sa_target_tmp) ! base + adj2
+
+      call calc_selatoms_not_isect(sa_adjust1, sa_adjust2_tmp, sa_adjust1_tmp) ! adj1=adj1-adj2
+
+      ! by molecule
+      !
+      if (main_rank) then
+        write(MsgOut,'(A, i0, A)') &
+          'Adjust_Selection> adjust selection by molecule (base atoms: ', i, '):'
+      end if
+
+      call select_contacts(SelectModeMole, &
+                           molecule,       &
+                           molecule,       &
+                           sa_base,        &
+                           sa_adjust1_tmp, &
+                           AdjustDist,     &
+                           sa_adjust2_tmp, &
+                           target_count - size(sa_target_tmp%idx), &
+                           .true.)
+
+
+      call calc_selatoms_union(sa_target_tmp, sa_adjust2_tmp, sa_target_tmp)
+
+      if (target_count == size(sa_target_tmp%idx)) then
+        if (main_rank) then
+          write(MsgOut,'(A,I7)') 'Adjust_Selection> adjusted : ',  &
+                       i + size(sa_adjust2_tmp%idx)
+          !KYMD write(MsgOut, *) sa_adjust2_tmp%idx(1: size(sa_adjust2_tmp%idx))
+        end if
+      
+        call alloc_selatoms(sa_target, size(sa_target_tmp%idx))
+        sa_target%idx(:) = sa_target_tmp%idx(:)
+
+        call dealloc_selatoms(sa_adjust1)
+        call dealloc_selatoms(sa_adjust2)
+        call dealloc_selatoms(sa_target_org)
+        call dealloc_selatoms(sa_target_tmp)
+        call dealloc_selatoms(sa_adjust1_tmp)
+        call dealloc_selatoms(sa_adjust2_tmp)
+        return
+      end if
+
+    end do 
+
+
+    call error_msg('Adjust_Selection> ERROR: cannot adjust selection. '//&
+                   'Please change around radius and/or reffile.')
+
+    return
+
+  end subroutine adjust_selection_alt
 
 end module select_atoms_mod

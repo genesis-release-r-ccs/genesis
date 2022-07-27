@@ -1,0 +1,11 @@
+aa_analyze.o: aa_analyze.fpp aa_option_str_mod.mod 
+aa_analyze_mod.mod: aa_analyze.fpp aa_analyze.o
+aa_control.o: aa_control.fpp aa_option_mod.mod 
+aa_control_mod.mod: aa_control.fpp aa_control.o
+aa_main.o: aa_main.fpp aa_option_str_mod.mod aa_control_mod.mod aa_setup_mod.mod aa_analyze_mod.mod 
+aa_option.o: aa_option.fpp aa_option_str_mod.mod 
+aa_option_mod.mod: aa_option.fpp aa_option.o
+aa_option_str.o: aa_option_str.fpp  
+aa_option_str_mod.mod: aa_option_str.fpp aa_option_str.o
+aa_setup.o: aa_setup.fpp aa_option_mod.mod aa_option_str_mod.mod aa_control_mod.mod 
+aa_setup_mod.mod: aa_setup.fpp aa_setup.o

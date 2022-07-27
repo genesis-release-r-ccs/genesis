@@ -17,7 +17,7 @@ module random_mod
   use messages_mod
   use constants_mod
   use mpi_parallel_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -373,7 +373,7 @@ contains
 
     call get_size_of_dsfmt_t(dsfmt_size)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     call MPI_Comm_size(mpi_comm, comm_size, ierr)
     call MPI_Comm_rank(mpi_comm, comm_rank, ierr)
@@ -459,7 +459,7 @@ contains
 
     call get_size_of_dsfmt_t(dsfmt_size)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     call MPI_Comm_size(mpi_comm, comm_size, ierr)
     call MPI_Comm_rank(mpi_comm, comm_rank, ierr)
@@ -488,7 +488,7 @@ contains
     ! scatt all rank random stats
     !
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     call MPI_Scatter(bytes,         dsfmt_size, MPI_BYTE, &
                      g_dsfmt_stock, dsfmt_size, MPI_BYTE, &
@@ -514,9 +514,14 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine random_seed_initial_time(gseed)
+
+    ! formal arguments
     integer,                 intent(out)    :: gseed
+
+    ! local variables
     integer                  :: tval(8)
     integer(8)               :: yy, mm, dd, hh, nn, ss, ms
+
 
     call date_and_time(values=tval)
     yy  = int(tval(1),kind=8)

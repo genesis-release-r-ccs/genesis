@@ -1,0 +1,35 @@
+fileio_rst_old.o: fileio_rst_old.fpp  
+fileio_rst_old_mod.mod: fileio_rst_old.fpp fileio_rst_old.o
+ru_control.o: ru_control.fpp  
+ru_control_mod.mod: ru_control.fpp ru_control.o
+ru_main.o: ru_main.fpp ru_setup_mod.mod ru_upgrade_mod.mod ru_control_mod.mod 
+ru_setup.o: ru_setup.fpp ru_control_mod.mod 
+ru_setup_mod.mod: ru_setup.fpp ru_setup.o
+ru_upgrade.o: ru_upgrade.fpp sp_parallel_io_old_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod fileio_rst_old_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod sp_parallel_io_mod.mod sp_boundary_str_mod.mod 
+ru_upgrade_mod.mod: ru_upgrade.fpp ru_upgrade.o
+sp_boundary_str.o: sp_boundary_str.fpp  
+sp_boundary_str_mod.mod: sp_boundary_str.fpp sp_boundary_str.o
+sp_constraints_str.o: sp_constraints_str.fpp  
+sp_constraints_str_mod.mod: sp_constraints_str.fpp sp_constraints_str.o
+sp_domain_str.o: sp_domain_str.fpp  
+sp_domain_str_mod.mod: sp_domain_str.fpp sp_domain_str.o
+sp_dynamics_str.o: sp_dynamics_str.fpp  
+sp_dynamics_str_mod.mod: sp_dynamics_str.fpp sp_dynamics_str.o
+sp_dynvars_str.o: sp_dynvars_str.fpp sp_energy_str_mod.mod 
+sp_dynvars_str_mod.mod: sp_dynvars_str.fpp sp_dynvars_str.o
+sp_enefunc_str.o: sp_enefunc_str.fpp sp_domain_str_mod.mod 
+sp_enefunc_str_mod.mod: sp_enefunc_str.fpp sp_enefunc_str.o
+sp_energy_str.o: sp_energy_str.fpp  
+sp_energy_str_mod.mod: sp_energy_str.fpp sp_energy_str.o
+sp_ensemble_str.o: sp_ensemble_str.fpp  
+sp_ensemble_str_mod.mod: sp_ensemble_str.fpp sp_ensemble_str.o
+sp_pairlist_str.o: sp_pairlist_str.fpp sp_domain_str_mod.mod 
+sp_pairlist_str_mod.mod: sp_pairlist_str.fpp sp_pairlist_str.o
+sp_parallel_io.o: sp_parallel_io.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_dynvars_str_mod.mod sp_restraints_str_mod.mod sp_dynamics_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
+sp_parallel_io_mod.mod: sp_parallel_io.fpp sp_parallel_io.o
+sp_parallel_io_old.o: sp_parallel_io_old.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_ensemble_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_parallel_io_mod.mod sp_boundary_str_mod.mod 
+sp_parallel_io_old_mod.mod: sp_parallel_io_old.fpp sp_parallel_io_old.o
+sp_remd_str.o: sp_remd_str.fpp sp_energy_str_mod.mod 
+sp_remd_str_mod.mod: sp_remd_str.fpp sp_remd_str.o
+sp_restraints_str.o: sp_restraints_str.fpp  
+sp_restraints_str_mod.mod: sp_restraints_str.fpp sp_restraints_str.o

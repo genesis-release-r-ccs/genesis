@@ -45,6 +45,7 @@ contains
   !! @param[in]    enefunc     : potential energy functions
   !! @param[in]    pairlist    : interaction list in each domain
   !! @param[in]    npt         : flag for NPT or not
+  !! @param[inout] atmcls_pbc  : atom class number
   !! @param[inout] coord_pbc   : coordinates for each cell
   !! @param[inout] force_pbc   : forces for each cell
   !! @param[inout] virial_cell : virial term of target systems
@@ -116,14 +117,11 @@ contains
   !! @param[in]    domain      : domain information
   !! @param[in]    enefunc     : potential energy functions
   !! @param[in]    pairlist    : interaction list in each domain
-  !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] coord_pbc   : coordinates for each cell
   !! @param[inout] force_pbc   : forces for each cell
   !! @param[inout] virial_cell : virial term of target systems
-  !! @param[inout] virial      : virial term of target systems
   !! @param[inout] eelec       : electrostatic energy of target systems
   !! @param[inout] evdw        : van der Waals energy of target systems
-  !! @param[inout] ene_virial  : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -161,6 +159,7 @@ contains
   !! @param[in]    pairlist    : interaction list in each domain
   !! @param[in]    npt         : flag for NPT or not
   !! @param[in]    cpu_calc    : flag for cpu calculation or not
+  !! @param[inout] atmcls_pbc  : atom class number
   !! @param[inout] coord_pbc   : coordinates for each cell
   !! @param[inout] force       : forces for each cell
   !! @param[inout] force_pbc   : forces for each cell

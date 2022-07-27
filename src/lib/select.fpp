@@ -78,14 +78,45 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
   
-  subroutine show_ctrl_selection
+  subroutine show_ctrl_selection(tool_name)
 
-    write(MsgOut,'(A)') '[SELECTION]'
-    write(MsgOut,'(A)') '# group1         = all             # selection group 1'
-    write(MsgOut,'(A)') '# group2         = molname:protein # selection group 2'
-    write(MsgOut,'(A)') '# mole_name1     = protein  P1:1:TYR P1:5:MET'
-    write(MsgOut,'(A)') '# mole_name2     = lipid    OLEO:PCGL:OLEO'
-    write(MsgOut,'(A)') ' '
+    ! formal arguments
+    character(len=*), optional, intent(in) :: tool_name
+
+    if (.not.present(tool_name)) then
+      write(MsgOut,'(A)') '[SELECTION]'
+      write(MsgOut,'(A)') '# group1         = all             # selection group 1'
+      write(MsgOut,'(A)') '# group2         = molname:protein # selection group 2'
+      write(MsgOut,'(A)') '# mole_name1     = protein  P1:1:TYR P1:5:MET'
+      write(MsgOut,'(A)') '# mole_name2     = lipid    OLEO:PCGL:OLEO'
+      write(MsgOut,'(A)') ' '
+
+    else
+      select case (tool_name)
+
+      case ('qg') 
+        write(MsgOut,'(A)') '[SELECTION]'
+        write(MsgOut,'(A)') '# group1         = atomno:300-330              # selection group 1'
+        write(MsgOut,'(A)') '# group2         = resno:501-502               # selection group 2'
+        write(MsgOut,'(A)') '# group3         = segid:A                     # selection group 3'
+        write(MsgOut,'(A)') '# group4         = (resname:TIP3|segid:ION) &\ # selection group 4'
+        write(MsgOut,'(A)') '#                  (resno:502 around_mol:50.0) # selection group 4'
+        write(MsgOut,'(A)') '# group5         = segid:A and an:CA           # selection group 5'
+        !write(MsgOut,'(A)') '# group6         = molname:protein             # selection group 6'
+        !write(MsgOut,'(A)') '# mole_name1     = protein  P1:1:TYR P1:5:MET'
+        !write(MsgOut,'(A)') '# mole_name2     = lipid    OLEO:PCGL:OLEO'
+        write(MsgOut,'(A)') ' '
+
+      case default
+        write(MsgOut,'(A)') '[SELECTION]'
+        write(MsgOut,'(A)') '# group1         = all             # selection group 1'
+        write(MsgOut,'(A)') '# group2         = molname:protein # selection group 2'
+        write(MsgOut,'(A)') '# mole_name1     = protein  P1:1:TYR P1:5:MET'
+        write(MsgOut,'(A)') '# mole_name2     = lipid    OLEO:PCGL:OLEO'
+        write(MsgOut,'(A)') ' '
+
+      end select
+    end if  
 
     return
 

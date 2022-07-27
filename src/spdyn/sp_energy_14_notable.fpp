@@ -38,11 +38,15 @@ contains
   !  Subroutine    compute_energy_nonbond14_table
   !> @brief        calculate nonbonded14 energy without lookup table of vdw
   !  @authors      JJ
-  !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions
-  !! @param[inout] force   : forces for each cell
-  !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    atmcls    : atom class number for each cell
+  !! @param[in]    coord     : coordinates for each cell
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] force_pbc : pbc forces
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -59,6 +63,7 @@ contains
     real(dp),                intent(inout) :: virial(:,:,:)
     real(dp),                intent(inout) :: eelec(nthread)
     real(dp),                intent(inout) :: evdw(nthread)
+
 
     if (enefunc%nonb_limiter) then
 
@@ -100,7 +105,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number for each cell
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -139,6 +147,7 @@ contains
     integer,         pointer ::  natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -260,7 +269,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number for each cell
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -299,6 +311,7 @@ contains
     integer,         pointer ::  natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -421,7 +434,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number for each cell
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -462,6 +478,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -593,7 +610,9 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -633,6 +652,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -760,7 +780,9 @@ contains
   !  @authors      JJ, CK
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -801,6 +823,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -909,6 +932,5 @@ contains
     return
 
   end subroutine compute_energy_nonbond14_notable_gro_amber_check
-
 
 end module sp_energy_14_notable_mod

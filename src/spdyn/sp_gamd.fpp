@@ -25,7 +25,7 @@ module sp_gamd_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -42,8 +42,8 @@ module sp_gamd_mod
 
   integer, public, parameter      :: GamdThreshLower = 1
   integer, public, parameter      :: GamdThreshUpper = 2
-  character(*), public, parameter :: GamdThreshTypes(2)  = (/'LOWER           ', &
-                                                             'UPPER           '/)
+  character(*), public, parameter :: GamdThreshTypes(2)  = (/'LOWER         ', &
+                                                             'UPPER         '/)
 
   ! structures
   type, public :: s_gamd_info
@@ -86,6 +86,7 @@ contains
     ! formal arguments
     logical,                 intent(in)    :: show_all
     character(*),            intent(in)    :: run_mode
+
 
     if (show_all) then
 
@@ -157,6 +158,7 @@ contains
 
     ! local variables
 
+
     ! read parameters from control file
     !
     call begin_ctrlfile_section(handle, Section)
@@ -165,15 +167,15 @@ contains
                                gamd_info%gamd)
     call read_ctrlfile_logical(handle, Section, 'boost',  &
                                gamd_info%boost)
-    call read_ctrlfile_type   (handle, Section, 'boost_type',  &
+    call read_ctrlfile_type   (handle, Section, 'boost_type',   &
                                gamd_info%boost_type, GamdBoostTypes)
-    call read_ctrlfile_type   (handle, Section, 'thresh_type',  &
+    call read_ctrlfile_type   (handle, Section, 'thresh_type',   &
                                gamd_info%thresh_type, GamdThreshTypes)
-    call read_ctrlfile_real(handle, Section, 'sigma0_pot',       &
+    call read_ctrlfile_real   (handle, Section, 'sigma0_pot',    &
                                gamd_info%sigma0_pot)
-    call read_ctrlfile_real(handle, Section, 'sigma0_dih',       &
+    call read_ctrlfile_real   (handle, Section, 'sigma0_dih',    &
                                gamd_info%sigma0_dih)
-    call read_ctrlfile_integer(handle, Section, 'update_period',  &
+    call read_ctrlfile_integer(handle, Section, 'update_period', &
                                gamd_info%update_period)
 
     call read_ctrlfile_real(handle, Section, 'pot_max',       &
@@ -294,7 +296,7 @@ contains
   subroutine setup_gamd(gamd_info, dynamics, domain, enefunc, remd)
 
     ! formal arguments
-    type(s_gamd_info),          intent(in) :: gamd_info
+    type(s_gamd_info),       intent(in)    :: gamd_info
     type(s_dynamics),        intent(inout) :: dynamics
     type(s_domain),          intent(inout) :: domain
     type(s_enefunc),target,  intent(inout) :: enefunc
@@ -302,6 +304,7 @@ contains
 
     ! local varialbles
     type(s_enefunc_gamd), pointer :: gamd
+
 
     gamd => enefunc%gamd
 
@@ -438,6 +441,7 @@ contains
     end if
 
     return
+
   end subroutine setup_gamd
 
 end module sp_gamd_mod

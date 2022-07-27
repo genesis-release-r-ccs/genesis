@@ -1,0 +1,26 @@
+sa_boundary.o: sa_boundary.fpp sa_option_str_mod.mod sa_ensemble_str_mod.mod sa_boundary_str_mod.mod 
+sa_boundary_mod.mod: sa_boundary.fpp sa_boundary.o
+sa_boundary_str.o: sa_boundary_str.fpp  
+sa_boundary_str_mod.mod: sa_boundary_str.fpp sa_boundary_str.o
+sa_control.o: sa_control.fpp sa_option_mod.mod sa_boundary_mod.mod sa_ensemble_mod.mod 
+sa_control_mod.mod: sa_control.fpp sa_control.o
+sa_domain.o: sa_domain.fpp sa_ensemble_str_mod.mod sa_option_str_mod.mod sa_boundary_mod.mod sa_boundary_str_mod.mod sa_domain_str_mod.mod 
+sa_domain_mod.mod: sa_domain.fpp sa_domain.o
+sa_domain_str.o: sa_domain_str.fpp sa_boundary_str_mod.mod sa_option_str_mod.mod 
+sa_domain_str_mod.mod: sa_domain_str.fpp sa_domain_str.o
+sa_ensemble.o: sa_ensemble.fpp sa_ensemble_str_mod.mod 
+sa_ensemble_mod.mod: sa_ensemble.fpp sa_ensemble.o
+sa_ensemble_str.o: sa_ensemble_str.fpp  
+sa_ensemble_str_mod.mod: sa_ensemble_str.fpp sa_ensemble_str.o
+sa_option.o: sa_option.fpp sa_option_str_mod.mod 
+sa_option_mod.mod: sa_option.fpp sa_option.o
+sa_option_str.o: sa_option_str.fpp  
+sa_option_str_mod.mod: sa_option_str.fpp sa_option_str.o
+sa_setup.o: sa_setup.fpp sa_control_mod.mod sa_domain_str_mod.mod sa_boundary_mod.mod sa_ensemble_mod.mod sa_option_str_mod.mod sa_option_mod.mod sa_boundary_str_mod.mod sa_ensemble_str_mod.mod sa_domain_mod.mod 
+sa_setup_mod.mod: sa_setup.fpp sa_setup.o
+sa_setup_mpi.o: sa_setup_mpi.fpp  
+sa_setup_mpi_mod.mod: sa_setup_mpi.fpp sa_setup_mpi.o
+sa_timers.o: sa_timers.fpp  
+sa_timers_mod.mod: sa_timers.fpp sa_timers.o
+sa_tool.o: sa_tool.fpp sa_ensemble_str_mod.mod sa_boundary_mod.mod sa_option_str_mod.mod sa_boundary_str_mod.mod 
+sa_tool_mod.mod: sa_tool.fpp sa_tool.o

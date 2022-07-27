@@ -1,6 +1,6 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
-!  Module   sp_energy_nonbond_intel_haswell_mod
+!  Module   sp_energy_nonbond_k_generic_mod
 !> @brief   calculate nonbonded energy with table and with linear interpolation
 !! @authors Jaewoon Jung(JJ)
 !  
@@ -39,13 +39,14 @@ contains
   !  Subroutine    compute_energy_nonbond_tbl_lnr_k_generic
   !> @brief        calculate nonbonded energy with lookup table
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -96,6 +97,7 @@ contains
     integer,          pointer :: num_nb15_calc1(:,:), num_nb15_calc(:,:)
     integer,          pointer :: nb15_calc_list1(:,:), nb15_calc_list(:,:)
     integer(int1),    pointer :: virial_check(:,:)
+
 
     cell_pairlist   => domain%cell_pairlist1
     atmcls          => domain%atom_cls_no
@@ -317,11 +319,12 @@ contains
   !  Subroutine    compute_force_nonbond_tbl_lnr_k_generic
   !> @brief        calculate nonbonded force without solvents with lookup table
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -577,13 +580,14 @@ contains
   !  Subroutine    compute_energy_nonbond_notbl_k_generic
   !> @brief        calculate nonbonded energy without lookup table of vdw
   !! @authors      JJ, NT
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] eelec    : electrostatic energy of target systems
-  !! @param[inout] evdw     : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -866,11 +870,12 @@ contains
   !  Subroutine    compute_force_nonbond_notbl_k_generic
   !> @brief        calculate nonbonded force without lookup table of vdw
   !! @authors      JJ 
-  !! @param[in]    domain   : domain information
-  !! @param[in]    enefunc  : potential energy functions
-  !! @param[in]    pairlist : interaction list in each domain
-  !! @param[inout] force    : forces for each cell
-  !! @param[inout] virial   : virial term of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    pairlist  : interaction list in each domain
+  !! @param[inout] coord_pbc : pbc oriented coordinates
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] virial    : virial term of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 

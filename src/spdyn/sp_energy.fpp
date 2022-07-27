@@ -40,7 +40,7 @@ module sp_energy_mod
   use constants_mod
   use math_libs_mod
   use string_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -52,6 +52,7 @@ module sp_energy_mod
   ! structures
   type, public :: s_ene_info
     integer               :: forcefield       = ForcefieldCHARMM
+    character(20)         :: forcefield_char  = 'CHARMM'
     integer               :: electrostatic    = ElectrostaticPME
     integer               :: vdw              = VdwPME
     real(wp)              :: switchdist       = 10.0_wp
@@ -90,6 +91,8 @@ module sp_energy_mod
     real(wp)              :: efield_x = 0.0_wp
     real(wp)              :: efield_y = 0.0_wp
     real(wp)              :: efield_z = 0.0_wp
+    logical               :: efield_virial = .false.
+    logical               :: efield_normal = .false.
   end type s_ene_info
 
   ! varibles
@@ -171,6 +174,8 @@ contains
         write(MsgOut,'(A)') '# efield_x     # external electric field in x direction (V/anstrom)'
         write(MsgOut,'(A)') '# efield_y     # external electric field in y direction (V/anstrom)'
         write(MsgOut,'(A)') '# efield_z     # external electric field in z direction (V/anstrom)'
+        write(MsgOut,'(A)') '# efield_virial# calculate virial from electric field in NPT'
+        write(MsgOut,'(A)') '# efield_normal# normalized efield magnitue during NPT'
         write(MsgOut,'(A)') ' '
 
       end select
@@ -229,6 +234,8 @@ contains
 
     call read_ctrlfile_type   (handle, Section, 'forcefield',    &
                                ene_info%forcefield, ForceFieldTypes)
+    call read_ctrlfile_string (handle, Section, 'forcefield',    &
+                               ene_info%forcefield_char)
     call read_ctrlfile_type   (handle, Section, 'electrostatic', &
                                ene_info%electrostatic, ElectrostaticTypes)
     call read_ctrlfile_real   (handle, Section, 'switchdist',    &
@@ -285,9 +292,13 @@ contains
                                ene_info%efield_y)
     call read_ctrlfile_real   (handle, Section, 'efield_z', &
                                ene_info%efield_z)
+    call read_ctrlfile_logical(handle, Section, 'efield_virial', &
+                               ene_info%efield_virial)
+    call read_ctrlfile_logical(handle, Section, 'efield_normal', &
+                               ene_info%efield_normal)
     if (ene_info%contact_check) then
       ene_info%nonb_limiter=.true.
-    endif
+    end if
     call read_ctrlfile_logical(handle, Section, 'nonb_limiter',  &
                                ene_info%nonb_limiter)
     call read_ctrlfile_real   (handle, Section, 'minimum_contact', &
@@ -302,27 +313,30 @@ contains
     ! check table
     !
     if (ene_info%table) then
-      if (ene_info%electrostatic == ElectrostaticCutoff ) &
+      if (ene_info%electrostatic == ElectrostaticCutoff) &
           ene_info%table_order = 3
-      if (ene_info%electrostatic == ElectrostaticPME ) &
+      if (ene_info%electrostatic == ElectrostaticPME) &
           ene_info%table_order = 1
-    endif
+    end if
 
     ! error check for inputs
     !
     if (ene_info%switchdist > ene_info%cutoffdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> switchdist must be less than cutoffdist')
+         'Read_Ctrl_Energy> switchdist must be less than cutoffdist. '// &
+         'Please set switchdist shorter than cutoffdist.')
     end if
 
     if (ene_info%cutoffdist >= ene_info%pairlistdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist')
+         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist. '// &
+         'Please set cutoffdist shorter than pairlistdist.')
     end if
 
     if (ene_info%pme_nspline < 3 ) then
       call error_msg( &
-         'Read_Ctrl_Energy> "pme_nspline" is too small')
+         'Read_Ctrl_Energy> "pme_nspline" is too small. '// &
+         'Please set pme_nspline > 3.')
 
     else if (mod(ene_info%pme_nspline,2) == 1 ) then
       call error_msg( &
@@ -330,8 +344,37 @@ contains
 
     end if
 
+    if (ene_info%water_model /= "NONE" .and. &
+        ene_info%electrostatic == ElectrostaticCUTOFF) then
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Read_Ctrl_Energy>  WARNING: water_model is not available'
+
+          ene_info%water_model = "NONE"
+
+    end if
+
+#ifdef USE_GPU
+    if (ene_info%electrostatic == ElectrostaticCUTOFF) &
+      call error_msg( &
+         'Read_Ctrl_Energy> cutoff is not available with GPU. '// &
+         'Please use GENESIS compiled without enabling GPU.')
+
+    if (ene_info%water_model /= "NONE") ene_info%water_model = 'NONE'
+
+    if (ene_info%nonb_limiter) &
+      call error_msg( &
+         'Read_Ctrl_Energy> nonb_limiter is not available with GPU. '// &
+         'Please use GENESIS compiled without enabling GPU.')
+
+    if (ene_info%structure_check /= StructureCheckNone) &
+      call error_msg( &
+         'Read_Ctrl_Energy> structure_check is not available with GPU. '// &
+         'Please use GENESIS compiled without enabling GPU.')
+#endif
+
     call tolower(pme_alpha)
-    if (trim(pme_alpha) == "auto") then
+    if (trim(pme_alpha) .eq. "auto") then
       ene_info%pme_alpha = get_ewald_alpha(ene_info%cutoffdist, &
                                            ene_info%pme_alpha_tol)
     else
@@ -344,7 +387,7 @@ contains
 
       if (ene_info%electrostatic /= ElectrostaticPME) then
         call error_msg('Read_Ctrl_Energy> Electrostatic cutoff is not allowed in amber')
-      endif
+      end if
 
       if (ene_info%switchdist /= ene_info%cutoffdist) then
         if (main_rank)      &
@@ -352,7 +395,7 @@ contains
           'Read_Ctrl_Energy>  WARNING: switchdist should be equal to '//  &
           'cutoffdist if forcefield is AMBER'
           ene_info%switchdist = ene_info%cutoffdist
-      endif
+      end if
 
       if (ene_info%dispersion_corr /= Disp_corr_EPress) then
         if (main_rank)      &
@@ -360,9 +403,9 @@ contains
           'Read_Ctrl_Energy>  WARNING: dispersion correction should be '//&
           'set ene_info%cutoffdist if forcefield is AMBER'
           ene_info%dispersion_corr = Disp_corr_EPress
-      endif
+      end if
 
-    endif
+    end if
 
     if (ene_info%forcefield == ForcefieldCHARMM) then
 
@@ -372,14 +415,14 @@ contains
           'Read_Ctrl_Energy>  WARNING: dispersion correction can not be'//&
           ' set ene_info%cutoffdist if forcefield is CHARMM'
           ene_info%dispersion_corr = Disp_corr_NONE
-      endif
+      end if
 
-    endif
+    end if
 
     if (ene_info%forcefield == ForcefieldGROMARTINI) then
 
       ene_info%dsize_cg  = .true.
-      if (ene_info%dmin_size_cg < ene_info%pairlistdist ) then
+      if (ene_info%dmin_size_cg < ene_info%pairlistdist) then
         if (main_rank)      &
           write(MsgOut,'(A)') &
           'Read_Ctrl_Energy>  WARNING: dmin_size_cg is automatically'//     &
@@ -387,7 +430,7 @@ contains
           'dmin_size_cg < pairlistdist'
         ene_info%dmin_size_cg = ene_info%pairlistdist
 
-      endif
+      end if
 
       if (ene_info%electrostatic == ElectrostaticCUTOFF .and. &
           .not. ene_info%vdw_shift) then
@@ -396,9 +439,9 @@ contains
           'Read_Ctrl_Energy>  WARNING: vdW shift is automatically'//     &
           ' set if forcefield is GROMARTINI and CUTOFF'
           ene_info%vdw_shift = .true.
-      endif
+      end if
 
-    endif
+    end if
 
     ! In the case of LJ PME
     !
@@ -409,20 +452,20 @@ contains
           'Read_Ctrl_Energy>  WARNING: vdW_force_switch can not be'//     &
           ' set if dispersion_pme is YES'
         ene_info%vdw_force_switch = .false.
-      endif
+      end if
       if (ene_info%vdw_shift) then
         if (main_rank)      &
         write(MsgOut,'(A)') &
           'Read_Ctrl_Energy>  WARNING: vdW_shift can not be set'//        &
           ' if dispersion_pme is YES'
         ene_info%vdw_shift = .false.
-      endif
+      end if
       if (ene_info%electrostatic == ElectrostaticCutoff) then
         call error_msg( &
           'Read_Ctrl_Energy>  WARNING: Electrostatic should be PME'//     &
           ' if dispersion_pme is YES')
       end if
-    endif
+    end if
 
     ! Case of force switch
     !
@@ -433,8 +476,8 @@ contains
           'Read_Ctrl_Energy>  WARNING: vdW force switch can not be'//     &
           ' set if forcefield is not CHARMM'
           ene_info%vdw_force_switch = .false.
-      endif
-    endif
+      end if
+    end if
 
     if (ene_info%vdw_force_switch) then
       if (ene_info%vdw_shift) then
@@ -456,8 +499,8 @@ contains
           'Read_Ctrl_Energy>  WARNING: vdW shift can not be set'//        &
           ' if forcefield is not GROAMBER'
           ene_info%vdw_shift = .false.
-      endif
-    endif
+      end if
+    end if
 
     ! error check
     !
@@ -468,8 +511,8 @@ contains
           write(MsgOut,'(A)') &
        'Read_Ctrl_Energy>  WARNING: nonb_limiter is only in table'
         ene_info%nonb_limiter = .false.
-      endif
-    endif
+      end if
+    end if
 
     if (ene_info%nonb_limiter .and. .not. ene_info%contact_check) then
       if (main_rank)       &
@@ -477,11 +520,11 @@ contains
        'Read_Ctrl_Energy>  WARNING: contact_check is available in '//&
        'nonb_limiter=YES'
       ene_info%contact_check = .true.
-    endif
+    end if
     if (ene_info%contact_check .and.                            &
         ene_info%structure_check == StructureCheckNone) then
       ene_info%structure_check = StructureCheckFirst
-    endif
+    end if
 
     ! Decision of VDW types
     !
@@ -515,7 +558,7 @@ contains
       if (ene_info%forcefield == ForcefieldGROMARTINI) then
         write(MsgOut,'(A20,F15.3)')                &
              '  dmin_size_cg    = ', ene_info%dmin_size_cg
-      endif
+      end if
 
       write(MsgOut,'(A20,A15)')                            &
             '  VDW type        = ', trim(VDW_types(ene_info%vdw))
@@ -534,7 +577,7 @@ contains
                 '  pme_ngrid(x,y,z)= ', ene_info%pme_ngrid_x   &
                                       , ene_info%pme_ngrid_y   &
                                       , ene_info%pme_ngrid_z
-        endif
+        end if
         write(MsgOut,'(A20,I15)')                            &
               '  pme_nspline     = ', ene_info%pme_nspline
         if (trim(pme_alpha) == "auto") then
@@ -545,7 +588,7 @@ contains
         else
           write(MsgOut,'(A20,F15.5)')                &
               '  pme_alpha       = ', ene_info%pme_alpha
-        endif
+        end if
         write(MsgOut,'(A20,A15)')                            &
               '  pme_scheme      = ', trim(FFT_types(ene_info%pme_scheme))
 
@@ -587,19 +630,36 @@ contains
              ene_info%minimum_contact
       else
         write(MsgOut,'(A)') '  nonb_limiter    =              no'
-      endif
+      end if
       if (ene_info%contact_check) then
         write(MsgOut,'(A)') '  contact_check   =             yes'
         write(MsgOut,'(A,F15.3)') '  minimum_contact = ', &
              ene_info%minimum_contact
       else
         write(MsgOut,'(A)') '  contact_check   =              no'
-      endif
+      end if
       if (ene_info%structure_check /= StructureCheckNone) then
         write(MsgOut,'(A20,A6)')                             &
               '  structure_check = ',                        &
               trim(StructureCheckTypes(ene_info%structure_check))
-      endif
+      end if
+
+      write(MsgOut,'(A20,F15.3)') '  efield_x        = ', &
+             ene_info%efield_x
+      write(MsgOut,'(A20,F15.3)') '  efield_y        = ', &
+             ene_info%efield_y
+      write(MsgOut,'(A20,F15.3)') '  efield_z        = ', &
+             ene_info%efield_z
+      if (ene_info%efield_normal) then
+        write(MsgOut,'(A)') '  efield_normal   =             yes'
+      else
+        write(MsgOut,'(A)') '  efield_normal   =              no'
+      end if
+      if (ene_info%efield_virial) then
+        write(MsgOut,'(A)') '  efield_virial   =             yes'
+      else
+        write(MsgOut,'(A)') '  efield_virial   =              no'
+      end if
 
       write(MsgOut,'(A)') ' '
 
@@ -613,9 +673,9 @@ contains
       cutoff_int2    = int(cutoff2_water*ene_info%table_density)
       mind=cutoff2*ene_info%table_density/real(cutoff_int2,wp)+0.001_wp
       ene_info%err_minimum_contact=mind
-    endif
+    end if
 
-    ene_info%err_minimum_contact=ene_info%err_minimum_contact* \
+    ene_info%err_minimum_contact=ene_info%err_minimum_contact* &
                                  ene_info%err_minimum_contact
 
     return
@@ -635,14 +695,18 @@ contains
   !! @param[in]    npt           : flag for NPT or not
   !! @param[in]    reduce        : flag for reduce energy and virial
   !! @param[in]    nonb_ene      : flag for calculate nonbonded energy
+  !! @param[in]    merge_force   : flag for merge force
   !! @param[in]    nonb_limiter  : flag for nonbond limiter
   !! @param[inout] energy        : energy information
-  !! @param[input] coord_pbc     : !TODO
+  !! @param[inout] atmcls_pbc    : atom class number
+  !! @param[input] coord_pbc     : coordinates
   !! @param[inout] force         : forces of target systems
+  !! @param[inout] force_long    : forces of target systems in long range
   !! @param[inout] force_omp     : temprary forces of target systems
-  !! @param[inout] force_pbc     : !TODO
-  !! @param[inout] virial_cell   : !TODO
+  !! @param[inout] force_pbc     : forces
+  !! @param[inout] virial_cell   : virial term of target systems in cell
   !! @param[inout] virial        : virial term of target systems
+  !! @param[inout] virial_long   : virial term of target systems in long range
   !! @param[inout] virial_ext    : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -709,6 +773,7 @@ contains
 
       end if
 
+
     case (ForcefieldAMBER)
 
       if (enefunc%gamd_use) then 
@@ -767,7 +832,7 @@ contains
           virial(1,1) = virial(1,1) + real(energy%disp_corr_virial,dp)
           virial(2,2) = virial(2,2) + real(energy%disp_corr_virial,dp)
           virial(3,3) = virial(3,3) + real(energy%disp_corr_virial,dp)
-        endif
+        end if
       end if
 
     end if
@@ -792,13 +857,14 @@ contains
   !! @param[in]    pairlist    : pair list information
   !! @param[in]    boundary    : boundary information
   !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
+  !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : !TODO
+  !! @param[inout] atmcls_pbc  : atom class number
+  !! @param[input] coord_pbc   : coordinates
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : !TODO
-  !! @param[inout] virial_cell : !TODO
+  !! @param[inout] force_pbc   : forces
+  !! @param[inout] virial_cell : virial term of target systems in cell
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
@@ -870,16 +936,13 @@ contains
   !  Subroutine    compute_energy_long
   !> @brief        compute potential energy
   !! @authors      JJ
-  !! @param[in]    domain    : domain information
-  !! @param[in]    enefunc   : potential energy functions information
-  !! @param[in]    pairlist  : pair list information
-  !! @param[in]    boundary  : boundary information
-  !! @param[in]    coord     : coordinates of target systems
-  !! @param[in]    npt       : flag for NPT or not
-  !! @param[inout] energy    : energy information
-  !! @param[inout] force     : forces of target systems
-  !! @param[inout] force_omp : temprary forces of target systems
-  !! @param[inout] virial    : virial term of target systems
+  !! @param[in]    domain   : domain information
+  !! @param[inout] enefunc  : potential energy functions information
+  !! @param[in]    boundary : boundary information
+  !! @param[in]    npt      : flag for NPT or not
+  !! @param[inout] energy   : energy information
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -958,22 +1021,27 @@ contains
   !  Subroutine    compute_energy_charmm
   !> @brief        compute potential energy with charmm force field
   !! @authors      JJ
-  !! @param[in]    domain        : domain information
-  !! @param[in]    enefunc       : potential energy functions information
-  !! @param[in]    pairlist      : pair list information
-  !! @param[in]    boundary      : boundary information
-  !! @param[in]    coord         : coordinates of target systems
-  !! @param[in]    npt           : flag for NPT or not
-  !! @param[in]    reduce        : flag for reduce energy and virial
-  !! @param[in]    nonb_ene      : flag for calculate nonbonded energy
-  !! @param[inout] energy        : energy information
-  !! @param[input] coord_pbc     : pbc coordinate
-  !! @param[inout] force         : forces of target systems
-  !! @param[inout] force_omp     : temprary forces of target systems
-  !! @param[inout] force_pbc     : pbc force
-  !! @param[inout] virial_cell   : virial correction from pbc
-  !! @param[inout] virial        : virial term of target systems
-  !! @param[inout] virial_ext    : extern virial term of target systems
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    coord        : coordinates of target systems
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    reduce       : flag for reduce energy and virial
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    merge_force  : flag for merge force
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
+  !! @param[inout] energy       : energy information
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[input] coord_pbc    : coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force_omp    : temprary forces of target systems
+  !! @param[inout] force_pbc    : forces
+  !! @param[inout] virial_cell  : virial term of target systems in cell
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] virial_long  : virial term of target systems in long range
+  !! @param[inout] virial_ext   : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1025,6 +1093,7 @@ contains
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
     integer                  :: omp_get_thread_num
 
+
     ! number of cells and atoms
     !
     ncell = domain%num_cell_local + domain%num_cell_boundary
@@ -1047,15 +1116,9 @@ contains
     end do
     !$omp end parallel do
 
-    virial     (1,1)  = 0.0_dp 
-    virial     (2,2)  = 0.0_dp 
-    virial     (3,3)  = 0.0_dp 
-    virial_long(1,1)  = 0.0_dp 
-    virial_long(2,2)  = 0.0_dp 
-    virial_long(3,3)  = 0.0_dp 
-    virial_ext (1,1)  = 0.0_dp 
-    virial_ext (2,2)  = 0.0_dp 
-    virial_ext (3,3)  = 0.0_dp 
+    virial     (1:3,1:3) = 0.0_dp
+    virial_long(1:3,1:3) = 0.0_dp
+    virial_ext (1:3,1:3) = 0.0_dp
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
@@ -1513,7 +1576,6 @@ contains
 
     end do
 
-
     ! total energy
     !
     energy%total = energy%bond            &
@@ -1545,22 +1607,27 @@ contains
   !  Subroutine    compute_energy_amber
   !> @brief        compute potential energy with AMBER99 force field
   !! @authors      JJ
-  !! @param[in]    domain        : domain information
-  !! @param[in]    enefunc       : potential energy functions information
-  !! @param[in]    pairlist      : pair list information
-  !! @param[in]    boundary      : boundary information
-  !! @param[in]    coord         : coordinates of target systems
-  !! @param[in]    npt           : flag for NPT or not
-  !! @param[in]    reduce        : flag for reduce energy and virial
-  !! @param[in]    nonb_ene      : flag for calculate nonbonded energy
-  !! @param[inout] energy        : energy information
-  !! @param[input] coord_pbc     : pbc coordinate
-  !! @param[inout] force         : forces of target systems
-  !! @param[inout] force_omp     : temprary forces of target systems
-  !! @param[inout] force_pbc     : pbc force
-  !! @param[inout] virial_cell   : virial correction due to pbc
-  !! @param[inout] virial        : virial term of target systems
-  !! @param[inout] virial_ext    : extern virial term of target systems
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    coord        : coordinates of target systems
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    reduce       : flag for reduce energy and virial
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    merge_force  : flag for merge force
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
+  !! @param[inout] energy       : energy information
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[input] coord_pbc    : coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force_omp    : temprary forces of target systems
+  !! @param[inout] force_pbc    : pbc forces
+  !! @param[inout] virial_cell  : virial correction due to pbc
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] virial_long  : virial term of target systems in long range
+  !! @param[inout] virial_ext   : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1612,6 +1679,7 @@ contains
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
     integer                  :: omp_get_thread_num
 
+
     ! number of cells and atoms
     !
     ncell = domain%num_cell_local + domain%num_cell_boundary
@@ -1635,15 +1703,9 @@ contains
     end do
     !$omp end parallel
 
-    virial     (1,1)  = 0.0_dp
-    virial     (2,2)  = 0.0_dp
-    virial     (3,3)  = 0.0_dp
-    virial_long(1,1)  = 0.0_dp
-    virial_long(2,2)  = 0.0_dp
-    virial_long(3,3)  = 0.0_dp
-    virial_ext (1,1)  = 0.0_dp
-    virial_ext (2,2)  = 0.0_dp
-    virial_ext (3,3)  = 0.0_dp
+    virial     (1:3,1:3) = 0.0_dp
+    virial_long(1:3,1:3) = 0.0_dp
+    virial_ext (1:3,1:3) = 0.0_dp
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
@@ -1784,6 +1846,10 @@ contains
                               virial_omp, edihed_omp)
           end if
 
+          call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
+
         end if
 
       else
@@ -1797,6 +1863,10 @@ contains
                               domain, enefunc, coord, force_omp,     &
                               virial_omp, edihed_omp)
         end if
+
+        call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
 
       end if
 
@@ -2092,6 +2162,7 @@ contains
                  + energy%angle         &
                  + energy%urey_bradley  &
                  + energy%dihedral      &
+                 + energy%cmap          &
                  + energy%improper      &
                  + energy%electrostatic &
                  + energy%van_der_waals &
@@ -2115,22 +2186,27 @@ contains
   !  Subroutine    compute_energy_gro_amber
   !> @brief        compute potential energy with GROMACS-AMBER force field
   !! @authors      JJ
-  !! @param[in]    domain      : domain information
-  !! @param[in]    enefunc     : potential energy functions information
-  !! @param[in]    pairlist    : pair list information
-  !! @param[in]    boundary    : boundary information
-  !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    npt         : flag for NPT or not
-  !! @param[in]    reduce      : flag for reduce energy and virial
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
-  !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : pbc coordinate
-  !! @param[inout] force       : forces of target systems
-  !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : pbc force
-  !! @param[inout] virial_cell : pbc correction for virial
-  !! @param[inout] virial      : virial term of target systems
-  !! @param[inout] virial_ext  : extern virial term of target systems
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    coord        : coordinates of target systems
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    reduce       : flag for reduce energy and virial
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    merge_force  : flag for merge force
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
+  !! @param[inout] energy       : energy information
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[input] coord_pbc    : coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force_omp    : temprary forces of target systems
+  !! @param[inout] force_pbc    : pbc forces
+  !! @param[inout] virial_cell  : virial correction due to pbc
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] virial_long  : virial term of target systems in long range
+  !! @param[inout] virial_ext   : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2182,6 +2258,7 @@ contains
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
     integer                  :: omp_get_thread_num
 
+
     ! number of cells and atoms
     !
     ncell = domain%num_cell_local + domain%num_cell_boundary
@@ -2205,16 +2282,9 @@ contains
     end do
     !$omp end parallel
 
-    virial     (1,1)  = 0.0_dp
-    virial     (2,2)  = 0.0_dp
-    virial     (3,3)  = 0.0_dp
-    virial_long(1,1)  = 0.0_dp
-    virial_long(2,2)  = 0.0_dp
-    virial_long(3,3)  = 0.0_dp
-    virial_ext (1,1)  = 0.0_dp
-    virial_ext (2,2)  = 0.0_dp
-    virial_ext (3,3)  = 0.0_dp
-
+    virial     (1:3,1:3) = 0.0_dp
+    virial_long(1:3,1:3) = 0.0_dp
+    virial_ext (1:3,1:3) = 0.0_dp
 
     if (domain%nonbond_kernel /= NBK_GPU) then
 
@@ -2277,6 +2347,7 @@ contains
     eangle_omp    (1:nthread) = 0.0_dp
     eurey_omp     (1:nthread) = 0.0_dp
     edihed_omp    (1:nthread) = 0.0_dp
+    erbdihed_omp  (1:nthread) = 0.0_dp
     elec_omp      (1:nthread) = 0.0_dp
     evdw_omp      (1:nthread) = 0.0_dp
     eposi_omp     (1:nthread) = 0.0_dp
@@ -2634,22 +2705,25 @@ contains
   !  Subroutine    compute_energy_gro_martini
   !> @brief        compute potential energy with GROMACS-MARTINI force field
   !! @authors      JJ
-  !! @param[in]    domain      : domain information
-  !! @param[in]    enefunc     : potential energy functions information
-  !! @param[in]    pairlist    : pair list information
-  !! @param[in]    boundary    : boundary information
-  !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    npt         : flag for NPT or not
-  !! @param[in]    reduce      : flag for reduce energy and virial
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
-  !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : pbc coordinate
-  !! @param[inout] force       : forces of target systems
-  !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : pbc force
-  !! @param[inout] virial_cell : pbc correction for virial
-  !! @param[inout] virial      : virial term of target systems
-  !! @param[inout] virial_ext  : extern virial term of target systems
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    coord        : coordinates of target systems
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    reduce       : flag for reduce energy and virial
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
+  !! @param[inout] energy       : energy information
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[input] coord_pbc    : coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force_omp    : temprary forces of target systems
+  !! @param[inout] force_pbc    : pbc forces
+  !! @param[inout] virial_cell  : virial correction due to pbc
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] virial_ext   : extern virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2844,18 +2918,20 @@ contains
   !  Subroutine    compute_energy_charmm_short
   !> @brief        compute potential energy with charmm force field
   !! @authors      JJ
+
   !! @param[in]    domain      : domain information
   !! @param[in]    enefunc     : potential energy functions information
   !! @param[in]    pairlist    : pair list information
   !! @param[in]    boundary    : boundary information
   !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
+  !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : pbc coordiante
+  !! @param[inout] atmcls_pbc  : atom class number
+  !! @param[input] coord_pbc   : coordinates
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : pfb force
-  !! @param[inout] virial_cell : pbc correction for virial
+  !! @param[inout] force_pbc   : forces
+  !! @param[inout] virial_cell : virial term of target systems in cell
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
@@ -2900,6 +2976,7 @@ contains
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
     integer                  :: omp_get_thread_num
+
 
     ! number of cells and atoms
     !
@@ -3259,13 +3336,14 @@ contains
   !! @param[in]    pairlist    : pair list information
   !! @param[in]    boundary    : boundary information
   !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
+  !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : pbc coordinate
+  !! @param[inout] atmcls_pbc  : atom class number
+  !! @param[input] coord_pbc   : coordinates
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : pbc force
-  !! @param[inout] virial_cell : pbc correction for virial
+  !! @param[inout] force_pbc   : forces
+  !! @param[inout] virial_cell : virial term of target systems in cell
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
@@ -3309,6 +3387,7 @@ contains
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
     integer                  :: omp_get_thread_num
+
 
     ! number of cells and atoms
     !
@@ -3447,6 +3526,12 @@ contains
     call compute_energy_improp_cos( &
                               domain, enefunc, coord, force_omp,     &
                               virial_omp, eimprop_omp)
+
+    ! cmap energy
+    !
+    call compute_energy_cmap( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ecmap_omp)
 
     ! 1-4 interaction with linear table
     !
@@ -3633,13 +3718,14 @@ contains
   !! @param[in]    pairlist    : pair list information
   !! @param[in]    boundary    : boundary information
   !! @param[in]    coord       : coordinates of target systems
-  !! @param[in]    nonb_ene    : flag for calculate nonbonded energy
+  !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] energy      : energy information
-  !! @param[input] coord_pbc   : pbc coordinate
+  !! @param[inout] atmcls_pbc  : atom class number
+  !! @param[input] coord_pbc   : coordinates
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
-  !! @param[inout] force_pbc   : pbc force
-  !! @param[inout] virial_cell : pbc correction for virial
+  !! @param[inout] force_pbc   : forces
+  !! @param[inout] virial_cell : virial term of target systems in cell
   !! @param[inout] virial      : virial term of target systems
   !! @param[inout] virial_ext  : extern virial term of target systems
   !
@@ -3683,6 +3769,7 @@ contains
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
     integer                  :: omp_get_thread_num
+
 
     ! number of cells and atoms
     !
@@ -4002,16 +4089,13 @@ contains
   !  Subroutine    compute_energy_general_long
   !> @brief        compute long range interaction
   !! @authors      JJ
-  !! @param[in]    domain     : domain information
-  !! @param[in]    enefunc    : potential energy functions information
-  !! @param[in]    pairlist   : pair list information
-  !! @param[in]    boundary   : boundary information
-  !! @param[in]    coord      : coordinates of target systems
-  !! @param[in]    npt        : flag for NPT or not
-  !! @param[inout] energy     : energy information
-  !! @param[inout] force      : forces of target systems
-  !! @param[inout] force_omp  : temprary forces of target systems
-  !! @param[inout] virial     : virial term of target systems
+  !! @param[in]    domain   : domain information
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    boundary : boundary information
+  !! @param[in]    npt      : flag for NPT or not
+  !! @param[inout] energy   : energy information
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial term of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4172,7 +4256,7 @@ contains
       write(category(ifm),frmt) 'BOND'
       values(ifm) = energy%bond
       ifm = ifm+1
-    endif
+    end if
 
     if (enefunc%num_angl_all > 0) then
       write(category(ifm),frmt) 'ANGLE'
@@ -4183,30 +4267,30 @@ contains
         write(category(ifm),frmt) 'UREY-BRADLEY'
         values(ifm) = energy%urey_bradley
         ifm = ifm+1
-      endif
-    endif
+      end if
+
+    end if
 
     if (enefunc%num_dihe_all > 0 .or. enefunc%num_rb_dihe_all > 0) then
       write(category(ifm),frmt) 'DIHEDRAL'
       values(ifm) = energy%dihedral
       ifm = ifm+1
-    endif
+    end if
 
     if (enefunc%num_impr_all > 0 ) then
       write(category(ifm),frmt) 'IMPROPER'
       values(ifm) = energy%improper
       ifm = ifm+1
-    endif
+    end if
 
-    if (enefunc%forcefield == ForcefieldCHARMM) then
-
+    if (enefunc%forcefield == ForcefieldCHARMM .or. &
+        enefunc%forcefield == ForcefieldAMBER) then
       if (enefunc%num_cmap_all > 0 ) then
-
         write(category(ifm),frmt) 'CMAP'
         values(ifm) = energy%cmap
         ifm = ifm+1
-      endif
-    endif
+      end if
+    end if
 
     write(category(ifm),frmt) 'VDWAALS'
     values(ifm) = energy%van_der_waals
@@ -4216,7 +4300,7 @@ contains
       write(category(ifm),frmt) 'DISP-CORR_ENE'
       values(ifm) = energy%disp_corr_energy
       ifm = ifm+1
-    endif
+    end if
 
     write(category(ifm),frmt) 'ELECT'
     values(ifm) = energy%electrostatic
@@ -4233,7 +4317,7 @@ contains
         write(category(ifm),frmt) 'RMSD'
         values(ifm) = energy%rmsd
         ifm = ifm+1
-      endif
+      end if
 
       ene_restraint =   energy%restraint_distance &
                       + energy%restraint_position &
@@ -4242,7 +4326,7 @@ contains
       values(ifm) = ene_restraint
       ifm = ifm+1
 
-    endif
+    end if
 
     if (enefunc%gamd_use) then
       if (enefunc%gamd%boost_pot) then
@@ -4273,7 +4357,7 @@ contains
           write(MsgOut,frmt) category(i)
         else
           write(MsgOut,frmt_cont) category(i)
-        endif
+        end if
       end do
 
       write(MsgOut,'(A80)') ' --------------- --------------- --------------- --------------- ---------------'
@@ -4287,7 +4371,7 @@ contains
         write(MsgOut,rfrmt) values(i)
       else
         write(MsgOut,rfrmt_cont) values(i)
-      endif
+      end if
     end do
 
     write(MsgOut,'(A)') ''
@@ -4375,7 +4459,7 @@ contains
       end if
       if (enefunc%dispersion_corr /= Disp_Corr_NONE) then
         write(MsgOut,'(A79)') 'DYNA  DISP:       Disp-Corr                                                    '
-      endif
+      end if
 
       write(MsgOut,'(A79)') 'DYNA EXTERN:        VDWaals         ELEC       HBONds          ASP         USER'
 
@@ -4440,7 +4524,7 @@ contains
   !  Subroutine    output_energy_namd
   !> @brief        output energy in NAMD style
   !! @authors      YS, CK
-  !! @param[in]    step    : step
+  !! @param[in]    step   : step
   !! @param[in]    energy : energy information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -4502,8 +4586,8 @@ contains
   !  Subroutine    output_energy_gromacs
   !> @brief        output energy in GROMACS style
   !! @authors      NT
-  !! @param[in]    step    : step
-  !! @param[in]    energy  : energy information
+  !! @param[in]    step   : step
+  !! @param[in]    energy : energy information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -4592,7 +4676,7 @@ contains
     type(s_energy),          intent(inout) :: energy
     real(dp),                intent(inout) :: virial(3,3)
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     real(dp)                 :: before_reduce(20), after_reduce(20)
@@ -4621,8 +4705,12 @@ contains
     before_reduce(19) = energy%restraint_position
     before_reduce(20) = energy%total
 
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(before_reduce, after_reduce, 20, mpi_real8,  &
                        mpi_sum, mpi_comm_country, ierror)
+#else
+    after_reduce(1:20) = before_reduce(1:20)
+#endif
 
     n = 0
     do i = 1, 3
@@ -4655,11 +4743,12 @@ contains
   !  Subroutine    compute_stats
   !> @brief        compute statistical quantities for RPATH
   !! @authors      YM
-  !! @param[inout] enefunc    : potential energy functions information
+  !! @param[inout] enefunc : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_stats(enefunc)
+
     ! formal arguments
     type(s_enefunc),         intent(inout) :: enefunc
 
@@ -4671,21 +4760,24 @@ contains
     real(dp)                 :: d(1:3)
     real(wp),    allocatable :: collection(:)
 
+
     if (enefunc%rpath_pos_func > 0) then
 
       allocate(collection(enefunc%stats_dimension))
 
       collection(:) = 0.0_wp 
 
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(enefunc%stats_delta, collection, enefunc%stats_dimension,&
                          mpi_wp_real, mpi_sum, mpi_comm_country, ierror)
+#endif
 
     end if
 
     if (.not. replica_main_rank) then
       if (allocated(collection)) deallocate(collection)
       return
-    endif
+    end if
 
     do i = 1, enefunc%stats_dimension
 
@@ -4704,7 +4796,6 @@ contains
         2.0_dp * real(enefunc%restraint_const(1,ifunc),dp) * dtmp
 
       end if
-
 
     end do
 

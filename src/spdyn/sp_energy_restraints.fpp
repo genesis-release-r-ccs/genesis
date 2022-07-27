@@ -28,11 +28,16 @@ module sp_energy_restraints_mod
   use timers_mod
   use messages_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
   implicit none
+#ifdef HAVE_MPI_GENESIS
+#ifdef MSMPI
+!GCC$ ATTRIBUTES DLLIMPORT :: MPI_BOTTOM, MPI_IN_PLACE
+#endif
+#endif
   private
 
   ! subroutines
@@ -54,14 +59,21 @@ contains
   !  Subroutine    compute_energy_restraints
   !> @brief        calculate restraint energy
   !! @authors      JJ, TM
+  !! @param[in]    get_coord  : flag for whether to get coordinates
+  !! @param[in]    calc_force : flag for whether to calculate forces
   !! @param[in]    domain     : domain information
+  !! @param[in]    boundary   : boundary information
   !! @param[inout] enefunc    : potential energy functions information
   !! @param[in]    coord      : coordinates of target systems
   !! @param[inout] force      : forces of target systems
   !! @param[inout] virial     : virial term of target systems
   !! @param[inout] virial_ext : virial term of target systems
   !! @param[inout] eposi      : point restraint energy of target systems
-  !! @param[inout] edist      : distance restraint energy of target systems
+  !! @param[inout] ermsd      : rmsd restraint energy of target systems
+  !! @param[inout] rmsd       : rmsd
+  !! @param[inout] ebonds     : 
+  !! @param[inout] eemfit     :
+  !! @param[inout] emcorr     :
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -121,7 +133,7 @@ contains
 
     if (enefunc%restraint_rmsd) &
     call compute_energy_restraints_rmsd(domain, enefunc, coord,             &
-                                        force, virial, virial_ext, ermsd, rmsd)
+                                       force, virial, virial_ext, ermsd, rmsd)
 
     call compute_energy_restraints_dist(calc_force, enefunc, bonds_coord,   &
                                        bonds_force, virial, edist)
@@ -142,7 +154,7 @@ contains
     call compute_energy_restraints_fb(calc_force, enefunc, boundary, &
                                     bonds_coord, bonds_force, virial, efb)
 
-    ebonds = ebonds + edist + eangle + edihed + erepul + efb
+    ebonds = ebonds + edist + eangle + edihed + erepul + efb 
  
     if (calc_force) then
       call get_restraint_forces(domain, enefunc, bonds_to_atom,             &
@@ -160,13 +172,14 @@ contains
   !  Subroutine    compute_energy_restraints_pos
   !> @brief        calculate position restraint energy
   !! @authors      JJ
-  !! @param[in]    domain      : domain information
-  !! @param[in]    enefunc     : potential energy functions information
-  !! @param[in]    coord       : coordinates of target systems
-  !! @param[out]   force       : forces of target systems
-  !! @param[out]   virial      : virial term of target systems
-  !! @param[out]   virial_ext  : external virial term of target systems
-  !! @param[out]   erest       : restraint energy of target systems
+  !! @param[in]    calc_force : flag for whether to calculate forces
+  !! @param[in]    domain     : domain information
+  !! @param[inout] enefunc    : potential energy functions information
+  !! @param[in]    coord      : coordinates of target systems
+  !! @param[inout] force      : forces of target systems
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] virial_ext : virial term of target systems
+  !! @param[out]   erest      : restraint energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -294,10 +307,10 @@ contains
         ! rpath
         !
         if (enefunc%rpath_sum_mf_flag .and. enefunc%rpath_pos_func > 0) then
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 2) = real(d2(1),wp)
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) ) - 1) = real(d2(2),wp)
-          enefunc%stats_delta(3*id_atm2cv( restraint_atom(ix,i) )    ) = real(d2(3),wp)
-        endif
+          enefunc%stats_delta(3*id_atm2cv(restraint_atom(ix,i)) - 2) = real(d2(1),wp)
+          enefunc%stats_delta(3*id_atm2cv(restraint_atom(ix,i)) - 1) = real(d2(2),wp)
+          enefunc%stats_delta(3*id_atm2cv(restraint_atom(ix,i))    ) = real(d2(3),wp)
+        end if
 
       end do
       if (calc_force .and. .not. enefunc%pressure_position) &
@@ -318,8 +331,8 @@ contains
         enefunc%stats_grad (1,i,3*i-2) = 1.0_dp
         enefunc%stats_grad (2,i,3*i-1) = 1.0_dp
         enefunc%stats_grad (3,i,3*i  ) = 1.0_dp
-      enddo
-    endif
+      end do
+    end if
 
     return
 
@@ -337,6 +350,7 @@ contains
   !! @param[out]   virial      : virial term of target systems
   !! @param[out]   virial_ext  : external virial term of target systems
   !! @param[out]   ermsd       : rmsd restraint energy
+  !! @param[out]   rmsd        : rmsd
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -430,8 +444,10 @@ contains
       end do
       values(1) = rmsd
       values(2) = tot_mass
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, values, 2, mpi_real8, mpi_sum, &
                          mpi_comm_city, ierror)
+#endif
       rmsd     = values(1)
       tot_mass = values(2)
       rmsd = sqrt(rmsd/tot_mass)
@@ -446,8 +462,10 @@ contains
           rmsd = rmsd + dsub(1)*dsub(1)+dsub(2)*dsub(2)+dsub(3)*dsub(3)
         end do
       end do
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, rmsd, 1, mpi_real8, mpi_sum, &
                          mpi_comm_city, ierror)
+#endif
       rmsd = sqrt(rmsd/real(Natom,dp))
     end if
 
@@ -467,11 +485,11 @@ contains
             dsub(1:3) = coord(1:3,i1,i)-rotated_coord(1:3,ix,i)
             if (enefunc%fitting_method == FittingMethodXYTR_ZROT) &
               dsub(3)=0.0_dp
-            factor = Krmsd*mass(i1,i)*(1.0_dp-rmsd0/rmsd)
+            factor = Krmsd*mass(i1,i)*(1.0_wp-rmsd0/rmsd)
             ermsd  = ermsd + factor*dsub(1)*dsub(1) &
                            + factor*dsub(2)*dsub(2) &
                            + factor*dsub(3)*dsub(3)
-            factor = -2.0_dp*factor
+            factor = -2.0_wp*factor
             force(1:3,i1,i,1) = force(1:3,i1,i,1) + factor*dsub(1:3)
             viri_local(1:3) = viri_local(1:3) + coord(1:3,ix,i)*factor*dsub(1:3)
           end do
@@ -486,19 +504,21 @@ contains
             dsub(1:3) = coord(1:3,i1,i)-rotated_coord(1:3,ix,i)
             if (enefunc%fitting_method == FittingMethodXYTR_ZROT) &
               dsub(3)=0.0_dp
-            factor = Krmsd*(1.0_dp-rmsd0/rmsd)
+            factor = Krmsd*(1.0_wp-rmsd0/rmsd)
             ermsd  = ermsd + factor*dsub(1)*dsub(1) &
                            + factor*dsub(2)*dsub(2) &
                            + factor*dsub(3)*dsub(3)
-            factor = -2.0_dp*factor
+            factor = -2.0_wp*factor
             force(1:3,i1,i,1) = force(1:3,i1,i,1) + factor*dsub(1:3)
             viri_local(1:3) = viri_local(1:3) + coord(1:3,ix,i)*factor*dsub(1:3)
           end do
         end do
 
       end if
+#ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, ermsd, 1, mpi_real8, mpi_sum, &
                          mpi_comm_city, ierror)
+#endif
 
     else
 
@@ -530,7 +550,7 @@ contains
       virial(1,1,1) = virial(1,1,1) + viri_local(1)
       virial(2,2,1) = virial(2,2,1) + viri_local(2)
       virial(3,3,1) = virial(3,3,1) + viri_local(3)
-    endif
+    end if
 
     return
 
@@ -541,6 +561,7 @@ contains
   !  Subroutine    compute_energy_restraints_dist
   !> @brief        calculate distance restraint energy
   !! @authors      JJ, CK
+  !! @param[in]    calc_force : flag for whether to calculate forces
   !! @param[in]    enefunc    : potential energy functions information
   !! @param[in]    dist_coord : restraint bonds coordinates
   !! @param[inout] dist_force : restraint bonds forces
@@ -736,7 +757,7 @@ contains
             enefunc%stats_grad(2,2,i_rpath_dim) = tmp_wp
             tmp_wp = -dij(3, 1) / rij(1)
             enefunc%stats_grad(3,2,i_rpath_dim) = tmp_wp
-          endif
+          end if
         end if
 
       end if
@@ -752,6 +773,7 @@ contains
   !  Subroutine    compute_energy_restraints_angle
   !> @brief        calculate angle restraint energy
   !! @authors      CK
+  !! @param[in]    calc_force  : flag for whether to calculate forces
   !! @param[in]    enefunc     : potential energy functions information
   !! @param[in]    angle_coord : restraint bonds coordinates
   !! @param[inout] angle_force : restraint bonds forces
@@ -856,8 +878,8 @@ contains
         inv_rkj2 = 1.0_wp /rkj2
 
         cos_t = (dij(1)*dkj(1) + dij(2)*dkj(2) + dij(3)*dkj(3) )*inv_rijrkj
-        cos_t  = min(  1.0_wp, cos_t )
-        cos_t  = max( -1.0_wp, cos_t )
+        cos_t  = min( 1.0_wp, cos_t)
+        cos_t  = max(-1.0_wp, cos_t)
         theta = acos(cos_t)
 
         if (theta < radref(1)) then
@@ -896,14 +918,14 @@ contains
         
         sin_t = (1.0_wp-cos_t*cos_t)
         sin_t = sqrt(sin_t)
-        sin_t  = max( EPS, sin_t )
+        sin_t  = max(EPS, sin_t)
         grad_coef = -grad_coef / sin_t
   
-        work(1:3) = grad_coef * ( dkj(1:3) * inv_rijrkj -  &
-                                  dij(1:3) * cos_t * inv_rij2 )
+        work(1:3) = grad_coef * (dkj(1:3) * inv_rijrkj -  &
+                                 dij(1:3) * cos_t * inv_rij2)
 
-        work(4:6) = grad_coef * ( dij(1:3) * inv_rijrkj -  &
-                                  dkj(1:3) * cos_t * inv_rkj2 )
+        work(4:6) = grad_coef * (dij(1:3) * inv_rijrkj -  &
+                                 dkj(1:3) * cos_t * inv_rkj2)
      
         ! compute force
         !
@@ -916,7 +938,7 @@ contains
      
           do j = 1,numatoms(grplist(2,inum))
             iatm = bondslist(j,grplist(2,inum))
-            angle_force(1:3,iatm) = angle_force(1:3,iatm) +                     &
+            angle_force(1:3,iatm) = angle_force(1:3,iatm) +                   &
                                   (work(1:3) + work(4:6))*coefgrp(j,2)
           end do
      
@@ -954,7 +976,8 @@ contains
   !  Subroutine    compute_energy_restraints_dihed
   !> @brief        calculate dihedral restraint energy
   !! @authors      CK
-  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[in]    calc_force  : flag for whether to calculate forces
+  !! @param[inout] enefunc     : potential energy functions information
   !! @param[in]    dihed_coord : restraint bonds coordinates
   !! @param[inout] dihed_force : restraint bonds forces
   !! @param[inout] virial      : virial term of target systems
@@ -1055,7 +1078,7 @@ contains
           theta = asin(sin_dih)
         else
           theta = sign(1.0_wp,sin_dih)*acos(cos_dih)
-        endif
+        end if
        
         if (theta < radref(1)) then
           ind = 1
@@ -1075,7 +1098,7 @@ contains
           diffphi = asin(sindif)
         else
           diffphi = sign(1.0_wp,sindif)*acos(cosdif)
-        endif
+        end if
       
         if (iexpo == 2) then
           coef       = const(ind,inum) 
@@ -1103,7 +1126,7 @@ contains
               vtmp = grad_coef*v(j,j)
               virial(j,j,1) = virial(j,j,1) + vtmp
             end do
-          endif
+          end if
           if (abs(theta) < 1e-10_wp) then
             grad_coef = 0.0_wp
           end if
@@ -1182,17 +1205,18 @@ contains
   !  Subroutine    compute_energy_restraints_repul
   !> @brief        calculate repulsive restraint energy
   !! @authors      HO
-  !! @param[in]    enefunc    : potential energy functions information
-  !! @param[in]    boundary   : boundary condition information
-  !! @param[in]    repul_coord: restraint bonds coordinates
-  !! @param[inout] repul_force: restraint bonds forces
-  !! @param[inout] virial     : virial term of target systems
-  !! @param[inout] erepul     : repulsive restraint energy of target systems
+  !! @param[in]    calc_force  : flag for whether to calculate forces
+  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    repul_coord : restraint bonds coordinates
+  !! @param[inout] repul_force : restraint bonds forces
+  !! @param[inout] virial      : virial term of target systems
+  !! @param[inout] erepul      : repulsive restraint energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_restraints_repul(calc_force, enefunc, boundary, repul_coord, &
-      repul_force, virial, erepul)
+  subroutine compute_energy_restraints_repul(calc_force, enefunc, boundary, &
+                                       repul_coord, repul_force, virial, erepul)
 
     ! formal arguments
     logical,                 intent(in)    :: calc_force
@@ -1224,6 +1248,7 @@ contains
     integer,         pointer :: funcgrp(:)
     integer,         pointer :: expo(:)
 
+
     num_funcs => enefunc%num_restraintfuncs
     funcgrp   => enefunc%restraint_funcgrp
     const     => enefunc%restraint_const
@@ -1244,7 +1269,7 @@ contains
 
     do inum = 1, num_funcs
       if (kind(inum) == RestraintsFuncREPUL .or. &
-        kind(inum) == RestraintsFuncREPULCOM) then
+          kind(inum) == RestraintsFuncREPULCOM) then
 
         ! initialization
         !
@@ -1347,6 +1372,7 @@ contains
     end do
 
     return
+
   end subroutine compute_energy_restraints_repul
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1354,17 +1380,18 @@ contains
   !  Subroutine    compute_energy_restraints_fb
   !> @brief        calculate flat bottom restraint energy
   !! @authors      HO
-  !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    boundary : boundary condition information
-  !! @param[in]    fb_coord : restraint bonds coordinates
-  !! @param[inout] fb_force : restraint bonds forces
-  !! @param[inout] virial   : virial term of target systems
-  !! @param[inout] efb      : flat bottom restraint energy of target systems
+  !! @param[in]    calc_force : flag for whether to calculate forces
+  !! @param[in]    enefunc    : potential energy functions information
+  !! @param[in]    boundary   : boundary condition information
+  !! @param[in]    fb_coord   : restraint bonds coordinates
+  !! @param[inout] fb_force   : restraint bonds forces
+  !! @param[inout] virial     : virial term of target systems
+  !! @param[inout] efb        : flat bottom restraint energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_restraints_fb(calc_force, enefunc, boundary, fb_coord, &
-      fb_force, virial, efb)
+  subroutine compute_energy_restraints_fb(calc_force, enefunc, boundary, &
+                                          fb_coord, fb_force, virial, efb)
 
     ! formal arguments
     logical,                 intent(in)    :: calc_force
@@ -1396,6 +1423,7 @@ contains
     integer,         pointer :: funcgrp(:)
     integer,         pointer :: expo(:)
 
+
     num_funcs => enefunc%num_restraintfuncs
     funcgrp   => enefunc%restraint_funcgrp
     const     => enefunc%restraint_const
@@ -1416,7 +1444,7 @@ contains
 
     do inum = 1, num_funcs
       if (kind(inum) == RestraintsFuncFB .or. &
-        kind(inum) == RestraintsFuncFBCOM) then
+          kind(inum) == RestraintsFuncFBCOM) then
 
         ! initialization
         !
@@ -1520,6 +1548,7 @@ contains
     end do
 
     return
+
   end subroutine compute_energy_restraints_fb
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1569,7 +1598,7 @@ contains
       end if
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, bonds_coord, &
                        3*enefunc%num_atoms_bonds_restraint, &
                        mpi_wp_real, mpi_sum, mpi_comm_country, ierror)
@@ -1584,7 +1613,6 @@ contains
   !  Subroutine    get_restraint_forces
   !> @brief        get restraint forces
   !! @authors      JJ
-  !! @param[in]
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1644,7 +1672,7 @@ contains
     before_reduce(4:6) = val2(1:3)
     before_reduce(7)   = val3
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(before_reduce, after_reduce, 7, mpi_real8, &
                        mpi_sum, mpi_comm_city, ierror)
 #else

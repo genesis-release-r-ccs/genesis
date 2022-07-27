@@ -39,6 +39,7 @@ module fileio_grocrd_mod
 
   ! parameters for allocatable variables
   integer, parameter :: GrocrdAtom    = 1
+  integer            :: grocrd_colm   = 20
 
   ! subroutines
   public  :: input_grocrd
@@ -302,11 +303,10 @@ contains
     type(s_grocrd),          intent(inout) :: grocrd
 
     ! local variables
-    integer                  :: i, j, num_atoms
+    integer                  :: i, j, num_atoms, k, icl, kall
     character(MaxLine)       :: line
     character(5)             :: atom_name
     character(5)             :: resi_name
-
 
     read(file,'(a)') line
     read(file,*) num_atoms
@@ -314,14 +314,54 @@ contains
     call alloc_grocrd(grocrd, GroCRDAtom, num_atoms)
 
     do i = 1, num_atoms
-      read(file,'(i5,a5,a5,i5,3f8.3,3f8.3)') &
-           grocrd%residue_no(i), &
-           resi_name, &
-           atom_name, &
-           grocrd%atom_no(i), &
+!      read(file,'(i5,a5,a5,i5,3f8.3,3f8.3)') &
+      read(file, '(a)') line
+      kall = split_num(line)
+      if (kall == 7 .or. kall==10) then
+
+        read(line(1:10), '(i5,a5)') &
+             grocrd%residue_no(i), &
+             resi_name
+        icl=11
+        do while (line(icl:icl) .ne. " ") 
+          icl = icl + 1
+        end do
+    
+        k = split_num(line(icl:grocrd_colm))
+        do while (k < 2) 
+          grocrd_colm = grocrd_colm + 1
+          k = split_num(line(icl:grocrd_colm))
+        end do
+        if (k > 2) call error_msg('Read_Grocrd> incorrect format of grocrd')
+    
+!        read(line(1:20), '(i5,a5,a5,i5)') &
+        read(line(icl:grocrd_colm), *) &
+             atom_name, &
+             grocrd%atom_no(i)
+      else
+        grocrd_colm=20
+        read(line(1:grocrd_colm), '(i5,a5,a5,i5)') &
+             grocrd%residue_no(i), &
+             resi_name, &
+             atom_name, &
+             grocrd%atom_no(i)
+      endif
+
+      k = split_num(line(grocrd_colm+1:))
+      if (k == 3) then
+        read(line(grocrd_colm+1:),*) &
+           (grocrd%atom_coord(j,i),j=1,3) 
+      else if (k == 6) then
+        read(line(grocrd_colm+1:),*) &
            (grocrd%atom_coord(j,i),j=1,3), &
            (grocrd%atom_velocity(j,i),j=1,3)
-
+      else
+        call error_msg(" ")
+      endif
+!      read(file,*) &
+!           (grocrd%atom_coord(j,i),j=1,3), &
+!           (grocrd%atom_velocity(j,i),j=1,3)
+!
       read(resi_name,*) grocrd%residue_name(i)
       read(atom_name,*) grocrd%atom_name(i)
     end do

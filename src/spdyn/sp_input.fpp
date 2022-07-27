@@ -291,75 +291,75 @@ contains
     if (main_rank) then
       write(MsgOut,'(A)') 'Read_Ctrl_Input> Input Files'
 
-      if (inp_info%topfile /= '') then
+      if (inp_info%topfile .ne. '') then
         write(MsgOut,*) ' topfile = ', trim(inp_info%topfile)
       end if
 
-      if (inp_info%parfile /= '') then
+      if (inp_info%parfile .ne. '') then
         write(MsgOut,*) ' parfile = ', trim(inp_info%parfile)
       end if
 
-      if (inp_info%strfile /= '') then
+      if (inp_info%strfile .ne. '') then
         write(MsgOut,*) ' strfile = ', trim(inp_info%strfile)
       end if
 
-      if (inp_info%psffile /= '') then
+      if (inp_info%psffile .ne. '') then
         write(MsgOut,*) ' psffile = ', trim(inp_info%psffile)
       end if
 
-      if (inp_info%prmtopfile /= '') then
+      if (inp_info%prmtopfile .ne. '') then
         write(MsgOut,*) ' prmtopfile = ', trim(inp_info%prmtopfile)
       end if
 
-      if (inp_info%grotopfile /= '') then
+      if (inp_info%grotopfile .ne. '') then
         write(MsgOut,*) ' grotopfile = ', trim(inp_info%grotopfile)
       end if
 
-      if (inp_info%pdbfile /= '') then
+      if (inp_info%pdbfile .ne. '') then
         write(MsgOut,*) ' pdbfile = ', trim(inp_info%pdbfile)
       end if
 
-      if (inp_info%crdfile /= '') then
+      if (inp_info%crdfile .ne. '') then
         write(MsgOut,*) ' crdfile = ', trim(inp_info%crdfile)
       end if
 
-      if (inp_info%ambcrdfile /= '') then
+      if (inp_info%ambcrdfile .ne. '') then
         write(MsgOut,*) ' ambcrdfile = ', trim(inp_info%ambcrdfile)
       end if
 
-      if (inp_info%grocrdfile /= '') then
+      if (inp_info%grocrdfile .ne. '') then
         write(MsgOut,*) ' grocrdfile = ', trim(inp_info%grocrdfile)
       end if
 
-      if (inp_info%rstfile /= '') then
+      if (inp_info%rstfile .ne. '') then
         write(MsgOut,*) ' selfile = ', trim(inp_info%selfile)
       end if
 
-      if (inp_info%rstfile /= '') then
+      if (inp_info%rstfile .ne. '') then
         write(MsgOut,*) ' rstfile = ', trim(inp_info%rstfile)
       end if
 
-      if (inp_info%reffile /= '') then
+      if (inp_info%reffile .ne. '') then
         write(MsgOut,*) ' reffile = ', trim(inp_info%reffile)
       end if
 
-      if (inp_info%fitfile /= '') then
+      if (inp_info%fitfile .ne. '') then
         write(MsgOut,*) ' fitfile = ', trim(inp_info%fitfile)
       end if
 
-      if (inp_info%ambreffile /= '') then
+      if (inp_info%ambreffile .ne. '') then
         write(MsgOut,*) ' ambreffile = ', trim(inp_info%ambreffile)
       end if
 
-      if (inp_info%groreffile /= '') then
+      if (inp_info%groreffile .ne. '') then
         write(MsgOut,*) ' groreffile = ', trim(inp_info%groreffile)
       end if
 
-      if (inp_info%local_resfile /= '') then
+      if (inp_info%local_resfile .ne. '') then
         write(MsgOut,*) ' localresfile = ', trim(inp_info%local_resfile)
       end if
 
-      if (inp_info%modefile /= '') then
+      if (inp_info%modefile .ne. '') then
         write(MsgOut,*) ' modefile = ', trim(inp_info%modefile)
       end if
 
@@ -431,67 +431,67 @@ contains
     call init_ambcrd(ambref)
     call init_grocrd(groref)
 
-    if (inp_info%topfile /= '') then
+    if (inp_info%topfile .ne. '') then
       call input_top(inp_info%topfile, top)
     end if
 
-    if (inp_info%parfile /= '') then
+    if (inp_info%parfile .ne. '') then
       call input_par(inp_info%parfile, par)
     end if
 
-    if (inp_info%strfile /= '') then
+    if (inp_info%strfile .ne. '') then
       call input_str(inp_info%strfile, top, par)
     end if
 
-    if (inp_info%psffile /= '') then
+    if (inp_info%psffile .ne. '') then
       call input_psf(inp_info%psffile, psf)
     end if
 
-    if (inp_info%prmtopfile /= '') then
+    if (inp_info%prmtopfile .ne. '') then
       call input_prmtop(inp_info%prmtopfile, prmtop)
     end if
 
-    if (inp_info%grotopfile /= '') then
+    if (inp_info%grotopfile .ne. '') then
       call input_grotop(inp_info%grotopfile, grotop)
     end if
 
-    if (inp_info%pdbfile /= '') then
+    if (inp_info%pdbfile .ne. '') then
       call input_pdb(inp_info%pdbfile, pdb)
     end if
 
-    if (inp_info%crdfile /= '') then
+    if (inp_info%crdfile .ne. '') then
       call input_crd(inp_info%crdfile, crd)
     end if
 
-    if (inp_info%ambcrdfile /= '') then
+    if (inp_info%ambcrdfile .ne. '') then
       call input_ambcrd(inp_info%ambcrdfile, ambcrd)
     end if
 
-    if (inp_info%grocrdfile /= '') then
+    if (inp_info%grocrdfile .ne. '') then
       call input_grocrd(inp_info%grocrdfile, grocrd)
     end if
 
-    if (inp_info%rstfile /= '') then
+    if (inp_info%rstfile .ne. '') then
       call input_rst(inp_info%rstfile, rst)
     end if
 
-    if (inp_info%reffile /= '') then
+    if (inp_info%reffile .ne. '') then
       call input_pdb(inp_info%reffile, ref)
     end if
 
-    if (inp_info%ambreffile /= '') then
+    if (inp_info%ambreffile .ne. '') then
       call input_ambcrd(inp_info%ambreffile, ambref)
     end if
 
-    if (inp_info%groreffile /= '') then
+    if (inp_info%groreffile .ne. '') then
       call input_grocrd(inp_info%groreffile, groref)
     end if
 
-    if (inp_info%local_resfile /= '') then
+    if (inp_info%local_resfile .ne. '') then
       call input_localres(inp_info%local_resfile, localres)
     end if
 
-    if (inp_info%modefile /= '') then
+    if (inp_info%modefile .ne. '') then
       call input_mode(inp_info%modefile, mode)
     end if
 
@@ -559,67 +559,67 @@ contains
     call init_ambcrd(ambref)
     call init_grocrd(groref)
 
-    if (inp_info%topfile /= '') then
+    if (inp_info%topfile .ne. '') then
       call input_top(inp_info%topfile, top)
     end if
 
-    if (inp_info%parfile /= '') then
+    if (inp_info%parfile .ne. '') then
       call input_par(inp_info%parfile, par)
     end if
 
-    if (inp_info%strfile /= '') then
+    if (inp_info%strfile .ne. '') then
       call input_str(inp_info%strfile, top, par)
     end if
 
-    if (inp_info%psffile /= '') then
+    if (inp_info%psffile .ne. '') then
       call input_psf(inp_info%psffile, psf)
     end if
 
-    if (inp_info%prmtopfile /= '') then
+    if (inp_info%prmtopfile .ne. '') then
       call input_prmtop(inp_info%prmtopfile, prmtop)
     end if
 
-    if (inp_info%grotopfile /= '') then
+    if (inp_info%grotopfile .ne. '') then
       call input_grotop(inp_info%grotopfile, grotop)
     end if
 
-    if (inp_info%pdbfile /= '') then
+    if (inp_info%pdbfile .ne. '') then
       call input_pdb(inp_info%pdbfile, pdb)
     end if
 
-    if (inp_info%crdfile /= '') then
+    if (inp_info%crdfile .ne. '') then
       call input_crd(inp_info%crdfile, crd)
     end if
 
-    if (inp_info%ambcrdfile /= '') then
+    if (inp_info%ambcrdfile .ne. '') then
       call input_ambcrd(inp_info%ambcrdfile, ambcrd)
     end if
 
-    if (inp_info%grocrdfile /= '') then
+    if (inp_info%grocrdfile .ne. '') then
       call input_grocrd(inp_info%grocrdfile, grocrd)
     end if
 
-    if (inp_info%rstfile /= '') then
+    if (inp_info%rstfile .ne. '') then
       call input_rst(inp_info%rstfile, rst)
     end if
 
-    if (inp_info%reffile /= '') then
+    if (inp_info%reffile .ne. '') then
       call input_pdb(inp_info%reffile, ref)
     end if
 
-    if (inp_info%ambreffile /= '') then
+    if (inp_info%ambreffile .ne. '') then
       call input_ambcrd(inp_info%ambreffile, ambref)
     end if
 
-    if (inp_info%groreffile /= '') then
+    if (inp_info%groreffile .ne. '') then
       call input_grocrd(inp_info%groreffile, groref)
     end if
 
-    if (inp_info%local_resfile /= '') then
+    if (inp_info%local_resfile .ne. '') then
       call input_localres(inp_info%local_resfile, localres)
     end if
 
-    if (inp_info%modefile /= '') then
+    if (inp_info%modefile .ne. '') then
       call input_mode(inp_info%modefile, mode)
     end if
 
@@ -652,8 +652,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine input_remd(inp_info, top, par, psf, prmtop, grotop, &
-                   pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                   localres, mode)
+                        pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
+                        localres, mode)
 
     ! formal arguments
     type(s_inp_info),        intent(in)    :: inp_info
@@ -690,89 +690,89 @@ contains
     call init_ambcrd(ambref)
     call init_grocrd(groref)
 
-    if (inp_info%topfile /= '') then
+    if (inp_info%topfile .ne. '') then
       filename = inp_info%topfile
       call input_top(filename, top)
     end if
 
-    if (inp_info%parfile /= '') then
+    if (inp_info%parfile .ne. '') then
       filename = inp_info%parfile
       call input_par(filename, par)
     end if
 
-    if (inp_info%strfile /= '') then
+    if (inp_info%strfile .ne. '') then
       filename = inp_info%strfile
       call input_str(filename, top, par)
     end if
 
-    if (inp_info%psffile /= '') then
+    if (inp_info%psffile .ne. '') then
       filename = inp_info%psffile
       call input_psf(filename, psf)
     end if
 
-    if (inp_info%prmtopfile /= '') then
+    if (inp_info%prmtopfile .ne. '') then
       call input_prmtop(inp_info%prmtopfile, prmtop)
     end if
 
-    if (inp_info%grotopfile /= '') then
+    if (inp_info%grotopfile .ne. '') then
       call input_grotop(inp_info%grotopfile, grotop)
     end if
 
-    if (inp_info%crdfile /= '') then
+    if (inp_info%crdfile .ne. '') then
       filename = inp_info%crdfile
       call include_id_to_filename(filename)
       call input_crd(filename, crd)
     end if
 
-    if (inp_info%pdbfile /= '') then
+    if (inp_info%pdbfile .ne. '') then
       filename = inp_info%pdbfile
       call include_id_to_filename(filename)
       call input_pdb(filename, pdb)
     end if
 
-    if (inp_info%grocrdfile /= '') then
+    if (inp_info%grocrdfile .ne. '') then
       filename = inp_info%grocrdfile
       call include_id_to_filename(filename)
       call input_grocrd(inp_info%grocrdfile, grocrd)
     end if
 
-    if (inp_info%ambcrdfile /= '') then
+    if (inp_info%ambcrdfile .ne. '') then
       filename = inp_info%ambcrdfile
       call include_id_to_filename(filename)
       call input_ambcrd(inp_info%ambcrdfile, ambcrd)
     end if
 
     rst%rstfile_type = RstfileTypeUndef
-    if (inp_info%rstfile /= '') then
+    if (inp_info%rstfile .ne. '') then
       filename = inp_info%rstfile
       call include_id_to_filename(filename)
       call input_rst(filename, rst)
     end if
 
-    if (inp_info%reffile /= '') then
+    if (inp_info%reffile .ne. '') then
       filename = inp_info%reffile
       call include_id_to_filename(filename)
       call input_pdb(filename, ref)
     end if
 
-    if (inp_info%ambreffile /= '') then
+    if (inp_info%ambreffile .ne. '') then
       filename = inp_info%ambreffile
       call include_id_to_filename(filename)
       call input_ambcrd(inp_info%ambreffile, ambref)
     end if
 
-    if (inp_info%groreffile /= '') then
+    if (inp_info%groreffile .ne. '') then
       filename = inp_info%groreffile
       call include_id_to_filename(filename)
       call input_grocrd(inp_info%groreffile, groref)
     end if
 
-    if (inp_info%local_resfile /= '') then
+    if (inp_info%local_resfile .ne. '') then
       filename = inp_info%local_resfile
       call input_localres(filename, localres)
     end if
 
-    if (inp_info%modefile /= '') then
+    if (inp_info%modefile .ne. '') then
       filename = inp_info%modefile
       call input_mode(filename, mode)
     end if
@@ -801,6 +801,7 @@ contains
   !! @param[out]   fit      : information of fit coordinate data
   !! @param[out]   ambref   : information of refernece AMBER coordinate data
   !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   localres : information of local restraint data
   !! @param[out]   mode     : information of principal component vector
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -846,97 +847,97 @@ contains
     call init_ambcrd(ambref)
     call init_grocrd(groref)
 
-    if (inp_info%topfile /= '') then
+    if (inp_info%topfile .ne. '') then
       filename = inp_info%topfile
       call input_top(filename, top)
     end if
 
-    if (inp_info%parfile /= '') then
+    if (inp_info%parfile .ne. '') then
       filename = inp_info%parfile
       call input_par(filename, par, top)
     end if
 
-    if (inp_info%strfile /= '') then
+    if (inp_info%strfile .ne. '') then
       filename = inp_info%strfile
       call input_str(filename, top, par)
     end if
 
-    if (inp_info%psffile /= '') then
+    if (inp_info%psffile .ne. '') then
       filename = inp_info%psffile
       call input_psf(filename, psf)
     end if
 
-    if (inp_info%prmtopfile /= '') then
+    if (inp_info%prmtopfile .ne. '') then
       filename = inp_info%prmtopfile
       call input_prmtop(filename, prmtop)
     end if
 
-    if (inp_info%grotopfile /= '') then
+    if (inp_info%grotopfile .ne. '') then
       filename = inp_info%grotopfile
       call input_grotop(filename, grotop)
     end if
 
-    if (inp_info%pdbfile /= '') then
+    if (inp_info%pdbfile .ne. '') then
       filename = inp_info%pdbfile
       call include_id_to_filename(filename)
       call input_pdb(filename, pdb)
     end if
 
-    if (inp_info%crdfile /= '') then
+    if (inp_info%crdfile .ne. '') then
       filename = inp_info%crdfile
       call include_id_to_filename(filename)
       call input_crd(filename, crd)
     end if
 
-    if (inp_info%ambcrdfile /= '') then
+    if (inp_info%ambcrdfile .ne. '') then
       filename = inp_info%ambcrdfile
       call include_id_to_filename(filename)
       call input_ambcrd(filename, ambcrd)
     end if
 
-    if (inp_info%grocrdfile /= '') then
+    if (inp_info%grocrdfile .ne. '') then
       filename = inp_info%grocrdfile
       call include_id_to_filename(filename)
       call input_grocrd(filename, grocrd)
     end if
 
     rst%rstfile_type = RstfileTypeUndef
-    if (inp_info%rstfile /= '') then
+    if (inp_info%rstfile .ne. '') then
       filename = inp_info%rstfile
       call include_id_to_filename(filename)
       call input_rst(filename, rst)
     end if
 
-    if (inp_info%reffile /= '') then
+    if (inp_info%reffile .ne. '') then
       filename = inp_info%reffile
       call include_id_to_filename(filename)
       call input_pdb(filename, ref)
     end if
 
-    if (inp_info%fitfile /= '') then
+    if (inp_info%fitfile .ne. '') then
       filename = inp_info%fitfile
       call input_pdb(filename, fit)
     end if
 
-    if (inp_info%ambreffile /= '') then
+    if (inp_info%ambreffile .ne. '') then
       filename = inp_info%ambreffile
       call include_id_to_filename(filename)
       call input_ambcrd(filename, ambref)
     end if
 
-    if (inp_info%groreffile /= '') then
+    if (inp_info%groreffile .ne. '') then
       filename = inp_info%groreffile
       call include_id_to_filename(filename)
       call input_grocrd(filename, groref)
     end if
 
-    if (inp_info%local_resfile /= '') then
+    if (inp_info%local_resfile .ne. '') then
       filename = inp_info%local_resfile
       call include_id_to_filename(filename)
       call input_localres(filename, localres)
     end if
 
-    if (inp_info%modefile /= '') then
+    if (inp_info%modefile .ne. '') then
       filename = inp_info%modefile
       call include_id_to_filename(filename)
       call input_mode(filename, mode)
@@ -951,8 +952,6 @@ contains
   !  Subroutine    include_id_to_filename
   !> @brief        include id to filename
   !! @authors      TM
-  !! @param[in]    id       : index
-  !! @param[in]    ndigit   : number of digit
   !! @param[inout] filename : replicate filename
   !
   !======1=========2=========3=========4=========5=========6=========7=========8

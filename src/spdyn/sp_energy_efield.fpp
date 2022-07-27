@@ -37,7 +37,8 @@ contains
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
-  !! @param[inout] ebond   : bond energy of target systems
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] efield  : bond energy of target systems
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -58,12 +59,17 @@ contains
     integer                  :: id, omp_get_thread_num
 
     integer,         pointer :: natom(:), ncell_local
-    real(wp),        pointer :: field(:), charge(:,:)
+    real(wp),        pointer :: charge(:,:)
+    real(wp)                 :: field(3)
+
 
     ncell_local => domain%num_cell_local
     natom       => domain%num_atom
     charge      => domain%charge
-    field       => enefunc%efield
+
+    field(1:3)  = enefunc%efield(1:3)*23.06_wp 
+    if (enefunc%efield_normal) &
+    field(1:3)  = field(1:3)*domain%system_size_ini(1:3)/domain%system_size(1:3)
 
     center(1:3) = domain%system_size(1:3) / 2.0_wp
 
@@ -100,9 +106,11 @@ contains
 
       end do
 
-      virial(1,1,id+1) = virial(1,1,id+1) + viri(1)
-      virial(2,2,id+1) = virial(2,2,id+1) + viri(2)
-      virial(3,3,id+1) = virial(3,3,id+1) + viri(3)
+      if (enefunc%efield_virial) then
+        virial(1,1,id+1) = virial(1,1,id+1) + viri(1)
+        virial(2,2,id+1) = virial(2,2,id+1) + viri(2)
+        virial(3,3,id+1) = virial(3,3,id+1) + viri(3)
+      end if
       efield(id+1) = efield(id+1) + efield_temp
 
     end do

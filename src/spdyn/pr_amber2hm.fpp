@@ -550,7 +550,8 @@ contains
       center(1:3) = center(1:3) + crd(1:3,2)
 
     end do
-    center(1:3) = center(1:3) / real(natom,wp)
+!   center(1:3) = center(1:3) / real(natom,wp)
+    center(1:3) = 0.0_wp
 
     ! read crd file
     rewind(crd_in)

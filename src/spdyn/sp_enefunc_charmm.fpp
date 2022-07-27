@@ -33,7 +33,7 @@ module sp_enefunc_charmm_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -104,7 +104,7 @@ contains
 
       ! bond
       !
-      call setup_enefunc_bond(par, molecule, domain, enefunc)
+      call setup_enefunc_bond(par, molecule, constraints, domain, enefunc)
 
       ! angle
       !
@@ -186,11 +186,12 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_enefunc_bond(par, molecule, domain, enefunc)
+  subroutine setup_enefunc_bond(par, molecule, constraints, domain, enefunc)
 
     ! formal arguments
     type(s_par),             intent(in)    :: par
     type(s_molecule),target, intent(in)    :: molecule
+    type(s_constraints),     intent(in)    :: constraints
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(inout) :: enefunc
 
@@ -201,6 +202,7 @@ contains
     integer                  :: icel1, icel2
     integer                  :: nbond, nbond_p, found, found1
     integer                  :: i1, i2, i3, ia, ib, pbc_int
+    integer                  :: wat_bonds
     character(6)             :: ci1, ci2, ci3, ri1, ri2
     real(wp)                 :: cwork(3,2), dij(3)
 
@@ -211,12 +213,13 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_bond_list(:,:), sollist(:)
-    character(6),    pointer :: mol_cls_name(:)
-    integer(1),      pointer :: bond_pbc(:,:)
+    character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
+    integer,         pointer :: bond_pbc(:,:)
 
 
     mol_bond_list => molecule%bond_list
     mol_cls_name  => molecule%atom_cls_name
+    mol_res_name  => molecule%residue_name
     coord         => molecule%atom_coord
 
     ncel          => domain%num_cell_local
@@ -248,9 +251,9 @@ contains
         ri1 = molecule%residue_name(i1)
         ri2 = molecule%residue_name(i2)
 
-        if (ri1(1:3) /= 'TIP' .and. ri1(1:3) /= 'WAT' .and. &
-            ri1(1:3) /= 'SOL' .and. ri2(1:3) /= 'TIP' .and. &
-            ri2(1:3) /= 'WAT' .and. ri2(1:3) /= 'SOL') then
+        if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
+            ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
+            ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
 
           ia  = sollist(i1) + ioffset
           ib  = sollist(i2) + ioffset
@@ -296,36 +299,6 @@ contains
   
           end if
 
-        else if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
-                 ri1(1:3) == 'SOL') then
-          m1 = molecule%mass(i1) 
-          m2 = molecule%mass(i2) 
-          if (abs(m1-m2) > EPS) then
-            do j = 1, nbond_p
-              if ((ci1 == par%bond_atom_cls(1, j) .and.  &
-                   ci2 == par%bond_atom_cls(2, j)) .or.  &
-                  (ci1 == par%bond_atom_cls(2, j) .and.  &
-                   ci2 == par%bond_atom_cls(1, j))) then
-                enefunc%table%OH_bond = par%bond_dist_min(j)
-                enefunc%table%OH_force = par%bond_force_const(j)
-                enefunc%table%water_bond_calc_OH = .true.
-                enefunc%table%water_bond_calc = .true.
-                exit
-              end if
-            end do
-          else if (abs(m1-m2) < EPS .and. m1 < LIGHT_ATOM_MASS_LIMIT) then
-            do j = 1, nbond_p
-              if ((ci1 == par%bond_atom_cls(1, j) .and.  &
-                   ci2 == par%bond_atom_cls(2, j)) .or.  &
-                  (ci1 == par%bond_atom_cls(2, j) .and.  &
-                   ci2 == par%bond_atom_cls(1, j))) then
-                enefunc%table%HH_bond = par%bond_dist_min(j)
-                enefunc%table%HH_force = par%bond_force_const(j)
-                enefunc%table%water_bond_calc_HH = .true.
-                exit
-              end if
-            end do
-          end if
         end if
  
       end do
@@ -333,7 +306,19 @@ contains
 
     ! bond/angel from water
     !
-    if (enefunc%table%num_water > 0) then
+    wat_bonds = 0
+    do i = 1, nbond
+      i1 = mol_bond_list(1,i)
+      i2 = mol_bond_list(2,i)
+      ri1 = mol_res_name(i1)
+      ri2 = mol_res_name(i2)
+      if (ri1(1:3) .eq. 'TIP' .or. ri1(1:3) .eq. 'WAT' .or. &
+          ri1(1:3) .eq. 'SOL') then
+        wat_bonds = wat_bonds+1
+      end if
+    end do
+
+    if (.not.constraints%fast_water .and. enefunc%table%num_water > 0) then
 
       i1 = enefunc%table%water_list(1,1)
       i2 = enefunc%table%water_list(2,1)
@@ -359,36 +344,32 @@ contains
              ci3 == par%bond_atom_cls(1, j))) then
           enefunc%table%HH_bond = par%bond_dist_min(j)
           enefunc%table%HH_force = par%bond_force_const(j)
-          if (enefunc%table%HH_force > EPS) &
-            enefunc%table%water_bond_calc_HH = .true.
+          enefunc%table%water_bond_calc_HH = .true.
           exit
         end if
       end do
-      enefunc%table%water_bond_calc = .true.
+      if (enefunc%table%water_bond_calc_OH .or. &
+          enefunc%table%water_bond_calc_HH)     &
+          enefunc%table%water_bond_calc = .true.
+
     end if
 
     found  = 0
-    found1 = 0
     do i = 1, ncel
       found = found + bond(i)
-      if (enefunc%table%water_bond_calc_OH) found = found + 2*nwater(i)
-      if (enefunc%table%water_bond_calc_HH) found = found + nwater(i)
-      found1 = found1 + nwater(i)
       if (bond(i) > MaxBond) &
         call error_msg('Setup_Enefunc_Bond> Too many bonds.')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_bond_all, 1, mpi_integer, &
-                       mpi_sum, mpi_comm_country, ierror)
-    call mpi_allreduce(mpi_in_place, found1, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
     enefunc%num_bond_all = found
 #endif
+    enefunc%num_bond_all = enefunc%num_bond_all + wat_bonds*domain%num_duplicate
 
-    if (enefunc%num_bond_all /= nbond*domain%num_duplicate .and. &
-        enefunc%num_bond_all+found1 /= nbond*domain%num_duplicate) &
+    if (enefunc%num_bond_all /= nbond*domain%num_duplicate) &
       call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
 
     return
@@ -442,7 +423,8 @@ contains
     integer,             pointer :: mol_bond_list(:,:), mol_no(:)
     character(6),        pointer :: mol_cls_name(:), mol_res_name(:)
     logical,             pointer :: mol_light_name(:), mol_light_mass(:)
-    integer(1),          pointer :: bond_pbc(:,:)
+    integer,             pointer :: bond_pbc(:,:)
+
 
     mol_bond_list  => molecule%bond_list
     mol_no         => molecule%molecule_no
@@ -491,9 +473,9 @@ contains
         ri1 = mol_res_name(i1)
         ri2 = mol_res_name(i2)
 
-        if (ri1(1:3) /= 'TIP' .and. ri1(1:3) /= 'WAT' .and. &
-            ri1(1:3) /= 'SOL' .and. ri2(1:3) /= 'TIP' .and. &
-            ri2(1:3) /= 'WAT' .and. ri2(1:3) /= 'SOL') then
+        if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
+            ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
+            ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
 
           ci1 = mol_cls_name(i1)
           ci2 = mol_cls_name(i2)
@@ -508,7 +490,7 @@ contains
           else if (constraints%hydrogen_type == ConstraintAtomBoth) then
             cl1 = (cl1 .or. mi1) 
             cl2 = (cl2 .or. mi2) 
-          endif
+          end if
   
           ia  = sollist(i1) + ioffset
           ib  = sollist(i2) + ioffset
@@ -621,10 +603,10 @@ contains
         ri1 = mol_res_name(i1)
         ri2 = mol_res_name(i2)
 
-        if (ri1 == constraints%water_model .and. &
-            ri2 == constraints%water_model) then
+        if (ri1(1:3) .eq. 'TIP' .or. ri1(1:3) .eq. 'WAT' .or. &
+            ri1(1:3) .eq. 'SOL') then
 
-          wat_bonds=wat_bonds+1
+          wat_bonds = wat_bonds+1
           mole_no = mol_no(i1)
 
           if (mole_no /= tmp_mole_no) then
@@ -642,7 +624,7 @@ contains
 
     end if
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(nbond_a, enefunc%num_bond_all,  1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 
@@ -653,15 +635,11 @@ contains
     constraints%num_bonds = nbond_c
 #endif
 
-    if (constraints%fast_water) then
-
-      if (enefunc%num_bond_all /= (nbond*domain%num_duplicate &
-                                     -constraints%num_bonds     &
-                                     -wat_bonds*domain%num_duplicate)) then
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
-      end if
-
+    if (enefunc%num_bond_all /= (nbond*domain%num_duplicate   &
+                                   -constraints%num_bonds     &
+                                   -wat_bonds*domain%num_duplicate)) then
+      call error_msg( &
+        'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
     end if
 
     return
@@ -689,6 +667,7 @@ contains
     type(s_enefunc), target, intent(inout) :: enefunc
 
     ! local variables
+    logical                  :: angle_calc
     integer                  :: dupl, ioffset
     integer                  :: i, j, icel_local
     integer                  :: icel1, icel2
@@ -707,7 +686,8 @@ contains
     integer,         pointer :: mol_angl_list(:,:)
     integer,         pointer :: sollist(:), nwater(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
-    integer(1),      pointer :: angl_pbc(:,:,:)
+    integer,         pointer :: angl_pbc(:,:,:)
+
 
     mol_angl_list => molecule%angl_list
     mol_cls_name  => molecule%atom_cls_name
@@ -746,9 +726,9 @@ contains
         ri2 = mol_res_name(list(2))
         ri3 = mol_res_name(list(3))
 
-        if (ri1(1:3) /= 'TIP' .and. ri1(1:3) /= 'WAT' .and. &
-            ri1(1:3) /= 'SOL' .and. ri3(1:3) /= 'TIP' .and. &
-            ri3(1:3) /= 'WAT' .and. ri3(1:3) /= 'SOL') then
+        if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
+            ri1(1:3) .ne. 'SOL' .and. ri3(1:3) .ne. 'TIP' .and. &
+            ri3(1:3) .ne. 'WAT' .and. ri3(1:3) .ne. 'SOL') then
 
           lists(1:3) = sollist(list(1:3)) + ioffset
 
@@ -806,23 +786,6 @@ contains
     
           end if
 
-        else if (ri1(1:3) == 'TIP' .or. ri1(1:3) == 'WAT' .or. &
-                 ri1(1:3) == 'SOL') then
-
-          do j = 1, nangl_p
-            if ((ci1 .eq. par%angl_atom_cls(1, j) .and.  &
-                 ci2 .eq. par%angl_atom_cls(2, j) .and.  &
-                 ci3 .eq. par%angl_atom_cls(3, j)) .or.  &
-                (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
-                 ci2 .eq. par%angl_atom_cls(2, j) .and.  &
-                 ci1 .eq. par%angl_atom_cls(1, j))) then
-              enefunc%table%water_angle_calc = .true.
-              enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
-              enefunc%table%HOH_force = par%angl_force_const(j)
-              exit
-            end if
-          end do
-
         end if
 
       end do
@@ -844,9 +807,11 @@ contains
             (ci1 .eq. par%angl_atom_cls(3, j) .and.  &
              ci2 .eq. par%angl_atom_cls(2, j) .and.  &
              ci1 .eq. par%angl_atom_cls(1, j))) then
-          enefunc%table%water_angle_calc = .true.
+          angle_calc = .true.
           enefunc%table%HOH_angle = par%angl_theta_min(j)*RAD
           enefunc%table%HOH_force = par%angl_force_const(j)
+          if (enefunc%table%HOH_force > EPS) &
+            enefunc%table%water_angle_calc = .true.
           exit
         end if
       end do
@@ -856,12 +821,12 @@ contains
     found = 0
     do i = 1, ncel
       found = found + angle(i)
-      if (enefunc%table%water_bond_calc_OH) found = found + nwater(i)
+      if (angle_calc) found = found + nwater(i)
       if (angle(i) > MaxAngle) &
         call error_msg('Setup_Enefunc_Angl> Too many angles.')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -920,7 +885,8 @@ contains
     integer,         pointer :: mol_angl_list(:,:), mol_no(:)
     integer,         pointer :: nwater(:), sollist(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
-    integer(1),      pointer :: angl_pbc(:,:,:)
+    integer,         pointer :: angl_pbc(:,:,:)
+
 
     mol_angl_list  => molecule%angl_list
     mol_no         => molecule%molecule_no
@@ -1059,7 +1025,7 @@ contains
         call error_msg('Setup_Enefunc_Angl_Constraint> Too many angles.')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_angl_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -1115,7 +1081,8 @@ contains
     integer,          pointer :: notation
     integer,          pointer :: mol_dihe_list(:,:)
     character(6),     pointer :: mol_cls_name(:)
-    integer(1),       pointer :: dihe_pbc(:,:,:)
+    integer,          pointer :: dihe_pbc(:,:,:)
+
 
     mol_dihe_list  => molecule%dihe_list
     mol_cls_name   => molecule%atom_cls_name
@@ -1145,8 +1112,8 @@ contains
 
     do i = 1, ndihe_p
 
-      if ((par%dihe_atom_cls(1,i) /= WildCard) .and. &
-          (par%dihe_atom_cls(4,i) /= WildCard)) then
+      if ((par%dihe_atom_cls(1,i) .ne. WildCard) .and. &
+          (par%dihe_atom_cls(4,i) .ne. WildCard)) then
         ! A-B-C-D type
         no_wild(i) = .true.
       else
@@ -1184,14 +1151,14 @@ contains
             nw_found = 0
             do j = 1, ndihe_p
               if (no_wild(j)) then
-                if (((ci1 == par%dihe_atom_cls(1,j)) .and. &
-                     (ci2 == par%dihe_atom_cls(2,j)) .and. &
-                     (ci3 == par%dihe_atom_cls(3,j)) .and. &
-                     (ci4 == par%dihe_atom_cls(4,j))) .or. &
-                    ((ci1 == par%dihe_atom_cls(4,j)) .and. &
-                     (ci2 == par%dihe_atom_cls(3,j)) .and. &
-                     (ci3 == par%dihe_atom_cls(2,j)) .and. &
-                     (ci4 == par%dihe_atom_cls(1,j)))) then
+                if (((ci1 .eq. par%dihe_atom_cls(1,j)) .and. &
+                     (ci2 .eq. par%dihe_atom_cls(2,j)) .and. &
+                     (ci3 .eq. par%dihe_atom_cls(3,j)) .and. &
+                     (ci4 .eq. par%dihe_atom_cls(4,j))) .or. &
+                    ((ci1 .eq. par%dihe_atom_cls(4,j)) .and. &
+                     (ci2 .eq. par%dihe_atom_cls(3,j)) .and. &
+                     (ci3 .eq. par%dihe_atom_cls(2,j)) .and. &
+                     (ci4 .eq. par%dihe_atom_cls(1,j)))) then
   
                   nw_found = nw_found + 1
                   dihedral(icel_local) = dihedral(icel_local) + 1
@@ -1229,10 +1196,10 @@ contains
             if (nw_found == 0) then
               do j = 1, ndihe_p
                 if (.not.no_wild(j)) then
-                  if (((ci2 == par%dihe_atom_cls(2,j)) .and. &
-                       (ci3 == par%dihe_atom_cls(3,j))) .or. &
-                      ((ci2 == par%dihe_atom_cls(3,j)) .and. &
-                       (ci3 == par%dihe_atom_cls(2,j)))) then
+                  if (((ci2 .eq. par%dihe_atom_cls(2,j)) .and. &
+                       (ci3 .eq. par%dihe_atom_cls(3,j))) .or. &
+                      ((ci2 .eq. par%dihe_atom_cls(3,j)) .and. &
+                       (ci3 .eq. par%dihe_atom_cls(2,j)))) then
   
                     dihedral(icel_local) = dihedral(icel_local) + 1
                     dlist(1:4,dihedral(icel_local),icel_local) = lists(1:4)
@@ -1283,7 +1250,7 @@ contains
         call error_msg('Setup_Enefunc_Dihe> Too many dihedral angles.')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_dihe_all, 1, mpi_integer, &
                        mpi_sum, mpi_comm_country, ierror)
 #else
@@ -1338,7 +1305,8 @@ contains
     logical,      allocatable :: no_wild(:)
     integer,          pointer :: mol_impr_list(:,:)
     character(6),     pointer :: mol_cls_name(:)
-    integer(1),       pointer :: impr_pbc(:,:,:)
+    integer,          pointer :: impr_pbc(:,:,:)
+
 
     mol_impr_list  => molecule%impr_list
     mol_cls_name   => molecule%atom_cls_name
@@ -1365,34 +1333,34 @@ contains
 
     do i = 1, nimpr_p
 
-      if ((par%impr_atom_cls(1,i) /= WildCard) .and. &
-          (par%impr_atom_cls(2,i) /= WildCard) .and. &
-          (par%impr_atom_cls(3,i) /= WildCard) .and. &
-          (par%impr_atom_cls(4,i) /= WildCard)) then
+      if ((par%impr_atom_cls(1,i) .ne. WildCard) .and. &
+          (par%impr_atom_cls(2,i) .ne. WildCard) .and. &
+          (par%impr_atom_cls(3,i) .ne. WildCard) .and. &
+          (par%impr_atom_cls(4,i) .ne. WildCard)) then
 
         ! A-B-C-D type
         wc_type(i) = 0
 
-      else if ((par%impr_atom_cls(1,i) == WildCard) .and. &
-               (par%impr_atom_cls(2,i) /= WildCard) .and. &
-               (par%impr_atom_cls(3,i) /= WildCard) .and. &
-               (par%impr_atom_cls(4,i) /= WildCard)) then
+      else if ((par%impr_atom_cls(1,i) .eq. WildCard) .and. &
+               (par%impr_atom_cls(2,i) .ne. WildCard) .and. &
+               (par%impr_atom_cls(3,i) .ne. WildCard) .and. &
+               (par%impr_atom_cls(4,i) .ne. WildCard)) then
 
         ! X-B-C-D type
         wc_type(i) = 1
 
-      else if ((par%impr_atom_cls(1,i) == WildCard) .and. &
-               (par%impr_atom_cls(2,i) == WildCard) .and. &
-               (par%impr_atom_cls(3,i) /= WildCard) .and. &
-               (par%impr_atom_cls(4,i) /= WildCard)) then
+      else if ((par%impr_atom_cls(1,i) .eq. WildCard) .and. &
+               (par%impr_atom_cls(2,i) .eq. WildCard) .and. &
+               (par%impr_atom_cls(3,i) .ne. WildCard) .and. &
+               (par%impr_atom_cls(4,i) .ne. WildCard)) then
 
         ! X-X-C-D type
         wc_type(i) = 2
 
-      else if ((par%impr_atom_cls(1,i) /= WildCard) .and. &
-               (par%impr_atom_cls(2,i) == WildCard) .and. &
-               (par%impr_atom_cls(3,i) == WildCard) .and. &
-               (par%impr_atom_cls(4,i) /= WildCard)) then
+      else if ((par%impr_atom_cls(1,i) .ne. WildCard) .and. &
+               (par%impr_atom_cls(2,i) .eq. WildCard) .and. &
+               (par%impr_atom_cls(3,i) .eq. WildCard) .and. &
+               (par%impr_atom_cls(4,i) .ne. WildCard)) then
 
         ! A-X-X-D type
         wc_type(i) = 3
@@ -1435,14 +1403,14 @@ contains
             !
             do j = 1, nimpr_p
               if (wc_type(j) == 0) then
-                if (((ci1 == par%impr_atom_cls(1,j)) .and. &
-                     (ci2 == par%impr_atom_cls(2,j)) .and. &
-                     (ci3 == par%impr_atom_cls(3,j)) .and. &
-                     (ci4 == par%impr_atom_cls(4,j))) .or. &
-                    ((ci1 == par%impr_atom_cls(4,j)) .and. &
-                     (ci2 == par%impr_atom_cls(3,j)) .and. &
-                     (ci3 == par%impr_atom_cls(2,j)) .and. &
-                     (ci4 == par%impr_atom_cls(1,j)))) then
+                if (((ci1 .eq. par%impr_atom_cls(1,j)) .and. &
+                     (ci2 .eq. par%impr_atom_cls(2,j)) .and. &
+                     (ci3 .eq. par%impr_atom_cls(3,j)) .and. &
+                     (ci4 .eq. par%impr_atom_cls(4,j))) .or. &
+                    ((ci1 .eq. par%impr_atom_cls(4,j)) .and. &
+                     (ci2 .eq. par%impr_atom_cls(3,j)) .and. &
+                     (ci3 .eq. par%impr_atom_cls(2,j)) .and. &
+                     (ci4 .eq. par%impr_atom_cls(1,j)))) then
   
                   improper(icel_local) = improper(icel_local) + 1
                   ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
@@ -1477,12 +1445,12 @@ contains
               if (.not.no_wild(i)) then
               do j = 1, nimpr_p
                 if (wc_type(j) == 1) then
-                  if (((ci2 == par%impr_atom_cls(2,j)) .and. &
-                       (ci3 == par%impr_atom_cls(3,j)) .and. &
-                       (ci4 == par%impr_atom_cls(4,j))) .or. &
-                      ((ci2 == par%impr_atom_cls(4,j)) .and. &
-                       (ci3 == par%impr_atom_cls(3,j)) .and. &
-                       (ci4 == par%impr_atom_cls(2,j)))) then
+                  if (((ci2 .eq. par%impr_atom_cls(2,j)) .and. &
+                       (ci3 .eq. par%impr_atom_cls(3,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(4,j))) .or. &
+                      ((ci2 .eq. par%impr_atom_cls(4,j)) .and. &
+                       (ci3 .eq. par%impr_atom_cls(3,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(2,j)))) then
   
                     improper(icel_local) = improper(icel_local) + 1
                     ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
@@ -1518,10 +1486,10 @@ contains
             if (.not.no_wild(i)) then
               do j = 1, nimpr_p
                 if (wc_type(j) == 2) then
-                  if (((ci3 == par%impr_atom_cls(3,j)) .and. &
-                       (ci4 == par%impr_atom_cls(4,j))) .or. &
-                      ((ci3 == par%impr_atom_cls(4,j)) .and. &
-                       (ci4 == par%impr_atom_cls(3,j)))) then
+                  if (((ci3 .eq. par%impr_atom_cls(3,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(4,j))) .or. &
+                      ((ci3 .eq. par%impr_atom_cls(4,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(3,j)))) then
   
                     improper(icel_local) = improper(icel_local) + 1
                     ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
@@ -1557,10 +1525,10 @@ contains
             if (.not.no_wild(i)) then
               do j = 1, nimpr_p
                 if (wc_type(j) == 3) then
-                  if (((ci1 == par%impr_atom_cls(1,j)) .and. &
-                       (ci4 == par%impr_atom_cls(4,j))) .or. &
-                          ((ci1 == par%impr_atom_cls(4,j)) .and. &
-                       (ci4 == par%impr_atom_cls(1,j)))) then
+                  if (((ci1 .eq. par%impr_atom_cls(1,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(4,j))) .or. &
+                      ((ci1 .eq. par%impr_atom_cls(4,j)) .and. &
+                       (ci4 .eq. par%impr_atom_cls(1,j)))) then
       
                     improper(icel_local) = improper(icel_local) + 1
                     ilist(1:4,improper(icel_local),icel_local) = lists(1:4)
@@ -1612,7 +1580,7 @@ contains
         call error_msg('Setup_Enefunc_Impr> Too many improper dihedral angles')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_impr_all, 1, mpi_integer, mpi_sum, &
                        mpi_comm_country, ierror)
 #else
@@ -1680,6 +1648,7 @@ contains
     real(wp),        pointer :: coord(:,:), box_size(:)
 
     real(wp),    allocatable :: c_ij(:,:,:,:) ! cmap coeffs
+
 
     mol_cmap_list => molecule%cmap_list
     mol_cls_name  => molecule%atom_cls_name
@@ -1777,14 +1746,14 @@ contains
             ! assign cmap type ID to each (psi,phi) pair
             !
             do j = 1, ncmap_p
-              if (ci1 == par%cmap_atom_cls(1, j) .and. &
-                  ci2 == par%cmap_atom_cls(2, j) .and.   &
-                  ci3 == par%cmap_atom_cls(3, j) .and.   &
-                  ci4 == par%cmap_atom_cls(4, j) .and.   &
-                  ci5 == par%cmap_atom_cls(5, j) .and.   &
-                  ci6 == par%cmap_atom_cls(6, j) .and.   &
-                  ci7 == par%cmap_atom_cls(7, j) .and.   &
-                  ci8 == par%cmap_atom_cls(8, j)   ) then
+              if (ci1 .eq. par%cmap_atom_cls(1, j) .and. &
+                  ci2 .eq. par%cmap_atom_cls(2, j) .and. &
+                  ci3 .eq. par%cmap_atom_cls(3, j) .and. &
+                  ci4 .eq. par%cmap_atom_cls(4, j) .and. &
+                  ci5 .eq. par%cmap_atom_cls(5, j) .and. &
+                  ci6 .eq. par%cmap_atom_cls(6, j) .and. &
+                  ci7 .eq. par%cmap_atom_cls(7, j) .and. &
+                  ci8 .eq. par%cmap_atom_cls(8, j)) then
   
                 enefunc%num_cmap(icel_local) = enefunc%num_cmap(icel_local) + 1
                 k = enefunc%num_cmap(icel_local)
@@ -1867,7 +1836,7 @@ contains
         call error_msg('Setup_Enefunc_Cmap> Too many cmaps.')
     end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(found, enefunc%num_cmap_all, 1, mpi_integer, mpi_sum, &
                        mpi_comm_country, ierror)
 #else
@@ -1916,6 +1885,7 @@ contains
     real(wp), allocatable    :: nonb_lj6(:,:), nonb_lj12(:,:)
     real(wp), allocatable    :: lj_coef(:,:)
 
+
     enefunc%num_atom_cls = par%num_atom_cls
 
     ELECOEF          = ELECOEF_CHARMM
@@ -1956,11 +1926,20 @@ contains
         rmin   = par%nonb_rmin(i) + par%nonb_rmin(j)
 
         ! set parameters
-        nb14_lj12(i,j) = eps14 * (rmin14 ** 12)
-        nb14_lj6(i,j)  = 2.0_wp * eps14 * (rmin14 ** 6)
-        nonb_lj12(i,j) = eps * (rmin ** 12)
-        nonb_lj6(i,j)  = 2.0_wp * eps * (rmin ** 6)
-
+        if (eps14 > 1.0e-15) then
+          nb14_lj12(i,j) = eps14 * (rmin14 ** 12)
+          nb14_lj6(i,j)  = 2.0_wp * eps14 * (rmin14 ** 6)
+        else
+          nb14_lj12(i,j) = 0.0_wp
+          nb14_lj6(i,j)  = 0.0_wp
+        end if
+        if (eps > 1.0e-15) then
+          nonb_lj12(i,j) = eps * (rmin ** 12)
+          nonb_lj6(i,j)  = 2.0_wp * eps * (rmin ** 6)
+        else
+          nonb_lj12(i,j) = 0.0_wp
+          nonb_lj6(i,j)  = 0.0_wp
+        end if
       end do
     end do
 
@@ -1973,10 +1952,10 @@ contains
       ci2 = par%nbfi_atom_cls(2,k)
       do i = 1, nonb_p
         do j = 1, nonb_p
-          if ((ci1 == par%nonb_atom_cls(i)  .and. &
-               ci2 == par%nonb_atom_cls(j)) .or.  &
-              (ci2 == par%nonb_atom_cls(i) .and. &
-               ci1 == par%nonb_atom_cls(j))) then
+          if ((ci1 .eq. par%nonb_atom_cls(i)  .and. &
+               ci2 .eq. par%nonb_atom_cls(j)) .or.  &
+              (ci2 .eq. par%nonb_atom_cls(i)  .and. &
+               ci1 .eq. par%nonb_atom_cls(j))) then
 
             ! combination rule
             !
@@ -2004,7 +1983,7 @@ contains
         call error_msg( &
         'Setup_Enefunc_Nonb> atom class is not defined: "'&
         //trim(molecule%atom_cls_name(i))//'"')
-      endif
+      end if
       check_cls(k) = check_cls(k) + 1
     end do
 
@@ -2073,7 +2052,7 @@ contains
                              = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
       enefunc%table%atom_cls_no_H    &
                              = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
-      if (constraints%tip4) then
+      if (constraints%water_type == TIP4) then
         domain%water%atom_cls_no(4)  &
                              = atmcls_map_g2l(domain%water%atom_cls_no(4))
         enefunc%table%atom_cls_no_D  &
@@ -2164,6 +2143,7 @@ contains
     real(wp),        pointer :: nb14_qq_scale(:,:), nb14_lj_scale(:,:)
     real(wp),        pointer :: dihe_scnb(:), dihe_scee(:)
     real(wp),        pointer :: charge(:,:)
+
 
     natom           => domain%num_atom
     nwater          => domain%num_water
@@ -2341,7 +2321,7 @@ contains
     !
     if (enefunc%excl_level > 1) then
 
-      if (constraints%tip4) then
+      if (constraints%water_type == TIP4) then
 
         do icel = id+1, ncell_local, nthread
           do ic = 1, nwater(icel)
@@ -2737,7 +2717,7 @@ contains
         found2 = found2 + num_nb14_calc(icel)
       end do
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
       call mpi_reduce(found1, enefunc%num_excl_all, 1, mpi_integer, mpi_sum, &
                       0, mpi_comm_country, ierror)
       call mpi_reduce(found2, enefunc%num_nb14_all, 1, mpi_integer, mpi_sum, &

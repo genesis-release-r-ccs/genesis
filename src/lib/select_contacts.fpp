@@ -289,18 +289,37 @@ contains
     minbou(1:3) =  1000000.0_wp
     maxbou(1:3) = -1000000.0_wp
 
-    ! select from input coordinates
-    do i = 1, num_a
-      coord_a(1:3, i) = molecule_a%atom_coord(1:3, selatoms_a%idx(i))
-      minbou(1:3) = min(minbou(1:3), coord_a(1:3, i))
-      maxbou(1:3) = max(maxbou(1:3), coord_a(1:3, i))
-    end do
+    if (allocated(molecule_a%atom_refcoord)) then
 
-    do i = 1, num_b
-      coord_b(1:3, i) = molecule_b%atom_coord(1:3, selatoms_b%idx(i))
-      minbou(1:3) = min(minbou(1:3), coord_b(1:3, i))
-      maxbou(1:3) = max(maxbou(1:3), coord_b(1:3, i))
-    end do
+      ! select from reference coordinates
+      do i = 1, num_a
+        coord_a(1:3, i) = molecule_a%atom_refcoord(1:3, selatoms_a%idx(i))
+        minbou(1:3) = min(minbou(1:3), coord_a(1:3, i))
+        maxbou(1:3) = max(maxbou(1:3), coord_a(1:3, i))
+      end do
+    
+      do i = 1, num_b
+        coord_b(1:3, i) = molecule_b%atom_refcoord(1:3, selatoms_b%idx(i))
+        minbou(1:3) = min(minbou(1:3), coord_b(1:3, i))
+        maxbou(1:3) = max(maxbou(1:3), coord_b(1:3, i))
+      end do
+    
+    else
+    
+     ! select from input coordinates
+     do i = 1, num_a
+       coord_a(1:3, i) = molecule_a%atom_coord(1:3, selatoms_a%idx(i))
+       minbou(1:3) = min(minbou(1:3), coord_a(1:3, i))
+       maxbou(1:3) = max(maxbou(1:3), coord_a(1:3, i))
+     end do
+    
+     do i = 1, num_b
+       coord_b(1:3, i) = molecule_b%atom_coord(1:3, selatoms_b%idx(i))
+       minbou(1:3) = min(minbou(1:3), coord_b(1:3, i))
+       maxbou(1:3) = max(maxbou(1:3), coord_b(1:3, i))
+     end do
+    
+    end if
 
     !ky uncomment to use coordinates in reffile 
     !ky 

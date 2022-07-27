@@ -1,3 +1,4 @@
+MPI startup(): "shm" shm transport is not supported. "bdw_avx2" shm transport will be used.
 ****************************************************
 *                                                  *
 *                  GENESIS SPDYN                   *
@@ -12,49 +13,49 @@
 [STEP0] Architecture and Compiler Information
  
 GENESIS_Information> GENESIS Information
-  version      = 1.1.0
+  version      = 2.0.0
   commit ID    = $GENESIS_VERSION$
   precision    = double
   nonbonding   = CPU
 
 Build_Information> Compiler Information
   build host   = jung@dolphin1
-  fortran      = ifort (IFORT) 18.0.2 20180210
+  fortran      = ifort (IFORT) 19.1.3.304 20200925
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
-  C            = icc (ICC) 18.0.2 20180210
-  option       = -O3 -ip -axCORE-AVX2  -qopenmp
-  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+ -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.1.3.304 20200925
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
-  -assume byterecl -qopenmp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_l
- apack95_lp64 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
 
 Runtime_Information> Machine and Library Information
-  date       = 2018/08/24 14:34:18
+  date       = 2022/05/10 17:55:57
   cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
   exec. host   = jung@
   LD library   = 
- /usr/local/cuda-9.1/lib64:/opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/ho
- me/jung/program/mpi3.0_intel18/lib:/opt/intel/compilers_and_libraries_2018.2.19
- 9/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries_2018.2.199/linu
- x/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2018.2.199/linux/
- mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.2.199/linux/mpi/mic/lib
- :/opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/lib/intel64:/opt/intel
- /compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/opt/intel/c
- ompilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/opt/intel/compiler
- s_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/compilers_an
- d_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/opt/intel/debugger_2018/ig
- a/lib:/opt/intel/debugger_2018/libipt/intel64/lib:/opt/intel/compilers_and_libr
- aries_2018.2.199/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_
- 2018.2.199/linux/daal/../tbb/lib/intel64_lin/gcc4.4:/usr/local/cuda-9.1/lib64:/
- opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/home/jung/program/mpi3.0_inte
- l18/lib:
+ /opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/opt/intel/compilers_and_libr
+ aries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_librar
+ ies_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_librari
+ es_2020.4.304/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_
+ 2020.4.304/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/
+ linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/l
+ ib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/inte
+ l64/gcc4.8:/opt/intel/debugger_2020/python/intel64/lib:/opt/intel/debugger_2020
+ /libipt/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/li
+ b/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/../tbb/l
+ ib/intel64_lin/gcc4.4:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/
+ ../tbb/lib/intel64_lin/gcc4.8:/usr/local/cuda/lib64:/home/jung/program/openmpi/
+ gcc/lib:/usr/local/lib
 
 [STEP1] Read Control Parameters
  
 Read_Ctrl_Input> Input Files
   grotopfile = ../../../build/dppc_martini/system.top
   grocrdfile = ../../../build/dppc_martini/crd.gro
+  selfile = 
   rstfile = ../../../build/dppc_martini/rst
  
 Read_Ctrl_Output> Output Files
@@ -66,15 +67,19 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   pairlistdist    =          14.000
   dielec_const    =          15.000
   dmin_size_cg    =          20.000
-  vdW/elec  shift =             yes
+  VDW type        =           SHIFT
   electrostatic   =          CUTOFF
   table_order     =               3
   table_density   =          20.000
-  water_model     =            NONE
   output_style    =         GENESIS
   dispersion_corr =            none
   nonb_limiter    =              no
   contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
  
 Read_Ctrl_Dynamics> Parameters of MD simulation
   integrator      =       VVER  nsteps          =         20
@@ -120,7 +125,7 @@ Setup_Mpi_Md> Summary of Setup MPI
 
 [STEP3] Set Relevant Variables and Structures
  
-Read_Grotop> Summy of Grotopfile
+Read_Grotop> Summary of Grotopfile
   num_moltypes    =         29
     W                     :
       num_atoms   =          1
@@ -136,6 +141,10 @@ Read_Grotop> Summy of Grotopfile
       num_vsites4 =          0
       num_vsitesn =          0
       num_posress =          0
+      num_PWMcos  =          0
+      num_PWMcosns=          0
+      num_IDR_HPS =          0
+      num_IDR_KH  =          0
     DPPC                  :
       num_atoms   =         12
       num_bonds   =         11
@@ -150,6 +159,10 @@ Read_Grotop> Summy of Grotopfile
       num_vsites4 =          0
       num_vsitesn =          0
       num_posress =          0
+      num_PWMcos  =          0
+      num_PWMcosns=          0
+      num_IDR_HPS =          0
+      num_IDR_KH  =          0
     NA+                   :
       num_atoms   =          1
       num_bonds   =          0
@@ -164,6 +177,10 @@ Read_Grotop> Summy of Grotopfile
       num_vsites4 =          0
       num_vsitesn =          0
       num_posress =          0
+      num_PWMcos  =          0
+      num_PWMcosns=          0
+      num_IDR_HPS =          0
+      num_IDR_KH  =          0
     CL-                   :
       num_atoms   =          1
       num_bonds   =          0
@@ -178,6 +195,10 @@ Read_Grotop> Summy of Grotopfile
       num_vsites4 =          0
       num_vsitesn =          0
       num_posress =          0
+      num_PWMcos  =          0
+      num_PWMcosns=          0
+      num_IDR_HPS =          0
+      num_IDR_KH  =          0
     .. not used molecule types were hidden.
 
   num_molecules   =       5292
@@ -192,9 +213,11 @@ Read_Grotop> Summy of Grotopfile
   num_constrtypes =          0  num_cmaptypes   =          0
   num_nbonparms   =        780
 
+
 Read_Rst_Binary> Summary of RST file
   num_atoms       =       9010  iseed           =     314159
   boxsize (x,y,z) =     99.906    99.906   101.169
+
 Define_Molecule> Summary of molecules
   num_atoms       =       9010  num_bonds       =       3718
   num_angles      =       2704  num_dihedrals   =          0
@@ -269,17 +292,28 @@ INFO:         20          0.6000     -48841.0363     -52667.2345       3826.1982
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.358
-    setup         =       0.301
-    dynamics      =       0.057
-      energy      =       0.029
-      integrator  =       0.009
-      pairlist    =       0.008 (       0.006,       0.010)
+  total time      =       0.419
+    setup         =       0.356
+    dynamics      =       0.063
+      energy      =       0.026
+      integrator  =       0.008
+      pairlist    =       0.010 (       0.009,       0.012)
   energy           
     bond          =       0.000 (       0.000,       0.000)
     angle         =       0.000 (       0.000,       0.000)
     dihedral      =       0.000 (       0.000,       0.000)
-    nonbond       =       0.020 (       0.018,       0.022)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.019 (       0.016,       0.020)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
       pme real    =       0.000 (       0.000,       0.000)
       pme recip   =       0.000 (       0.000,       0.000)
     solvation     =       0.000 (       0.000,       0.000)
@@ -287,10 +321,11 @@ Output_Time> Averaged timer profile (Min, Max)
       non-polar   =       0.000 (       0.000,       0.000)
     restraint     =       0.000 (       0.000,       0.000)
     qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.000 (       0.000,       0.000)
     update        =       0.004 (       0.004,       0.005)
-    comm_coord    =       0.003 (       0.001,       0.004)
-    comm_force    =       0.005 (       0.004,       0.006)
-    comm_migrate  =       0.002 (       0.000,       0.002)
+    comm_coord    =       0.003 (       0.002,       0.004)
+    comm_force    =       0.003 (       0.002,       0.006)
+    comm_migrate  =       0.001 (       0.000,       0.001)
 

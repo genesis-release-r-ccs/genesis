@@ -70,11 +70,12 @@ module sp_setup_spdyn_mod
   use fileio_crd_mod
   use fileio_rst_mod
   use fileio_mode_mod
+  use structure_check_mod
   use messages_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -97,7 +98,7 @@ contains
   !  Subroutine    setup_spdyn_md
   !> @brief        setup variables and structures in MD simulation
   !! @authors      JJ
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
   !! @param[out]   enefunc     : information of energy function
@@ -228,7 +229,7 @@ contains
     call define_enefunc(ctrl_data%ene_info,  &
                         par, prmtop, grotop, &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc)
+                        domain, enefunc, comm)
 
     call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -316,7 +317,7 @@ contains
         'Setup_Spdyn_Md> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     domain%num_deg_freedom = molecule%num_deg_freedom
 
@@ -326,7 +327,10 @@ contains
       if (constraints%rigid_bond) then
         call compute_group_deg_freedom(domain, constraints)
       else
-        call error_msg("group_tp=yes only works with rigid_bond=yes")
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Setup_Spdyn_Md> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
       end if
     end if
 
@@ -339,7 +343,7 @@ contains
   !  Subroutine    setup_spdyn_min
   !> @brief        setup variables and structures in minimization
   !! @authors      TM, JJ
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
   !! @param[out]   enefunc     : information of energy function
@@ -390,6 +394,7 @@ contains
     type(s_mode)             :: mode
     type(s_localres)         :: localres
  
+
     ! setup parallel I/O
     !
 
@@ -433,6 +438,15 @@ contains
       call setup_restart_pre(rst, molecule)
     end if
 
+    ! setup structure_check
+    !
+    call setup_structure_check(molecule,                                      &
+                     ctrl_data%ene_info%forcefield_char, molecule%atom_coord, &
+                     ctrl_data%min_info%check_structure,                      &
+                     ctrl_data%min_info%fix_ring_error,                       &
+                     ctrl_data%min_info%fix_chirality_error,                  &
+                     ctrl_data%min_info%exclude_ring_grpid,                   &
+                     ctrl_data%min_info%exclude_chiral_grpid)
 
     ! set parameters for boundary condition
     !
@@ -481,7 +495,7 @@ contains
     call define_enefunc(ctrl_data%ene_info,  &
                         par, prmtop, grotop, &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc)
+                        domain, enefunc, comm)
 
     call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -540,7 +554,7 @@ contains
         'Setup_Spdyn_Min> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     return
 
@@ -551,7 +565,7 @@ contains
   !  Subroutine    setup_spdyn_remd
   !> @brief        setup variables and structures in REMD simulation
   !! @authors      TM
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
   !! @param[out]   enefunc     : information of energy function
@@ -607,6 +621,7 @@ contains
     type(s_localres)         :: localres
     logical                  :: use_parallel_io
 
+
     ! setup parallel I/O
     !
     use_parallel_io = pio_check_ranked_file(ctrl_data%inp_info%rstfile)
@@ -619,8 +634,8 @@ contains
    
     ! read input files
     !
-    call input_remd(ctrl_data%inp_info, top, par, psf, prmtop, grotop, &
-                    pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref,&
+    call input_remd(ctrl_data%inp_info, top, par, psf, prmtop, grotop,  &
+                    pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
                     localres, mode)
 
     ! define molecules
@@ -682,7 +697,7 @@ contains
     !
     call define_enefunc(ctrl_data%ene_info, par, prmtop, grotop,     &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc)
+                        domain, enefunc, comm)
 
     call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -764,7 +779,10 @@ contains
       if (constraints%rigid_bond) then
         call compute_group_deg_freedom(domain, constraints)
       else
-        call error_msg("group_tp=yes only works with rigid_bond=yes")
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Setup_Spdyn_Remd> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
       end if
     end if
 
@@ -773,7 +791,7 @@ contains
         'Setup_Spdyn_Remd> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     return
 
@@ -784,7 +802,7 @@ contains
   !  Subroutine    setup_spdyn_rpath
   !> @brief        setup variables and structures in RPATH simulation
   !! @authors      YK, YM
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
   !! @param[out]   enefunc     : information of energy function
@@ -906,7 +924,7 @@ contains
     !
     call define_enefunc(ctrl_data%ene_info, par, prmtop, grotop,     &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc)
+                        domain, enefunc, comm)
 
     call setup_fitting_spdyn(.true., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -967,7 +985,7 @@ contains
 
     ! set output
     !
-    call setup_output_rpath(ctrl_data%out_info, dynamics, output)
+    call setup_output_rpath(ctrl_data%out_info, dynamics, rpath, output)
 
     ! restart other variables
     !
@@ -984,7 +1002,10 @@ contains
       if (constraints%rigid_bond) then
         call compute_group_deg_freedom(domain, constraints)
       else
-        call error_msg("group_tp=yes only works with rigid_bond=yes")
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Setup_Spdyn_Rpath> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
       end if
     end if
 
@@ -993,7 +1014,7 @@ contains
         'Setup_Spdyn_Rpath> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     return
 
@@ -1004,7 +1025,7 @@ contains
   !  Subroutine    setup_spdyn_md_pio
   !> @brief        setup variables and structures in MD simulation
   !! @authors      JJ
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   enefunc     : information of energy function
   !! @param[out]   pairlist    : information of nonbonded pairlist
@@ -1012,6 +1033,7 @@ contains
   !! @param[out]   dynamics    : information of molecular dynamics
   !! @param[out]   constraints : information of constraints
   !! @param[out]   ensemble    : information of ensemble
+  !! @param[out]   restraints  : information of restraints
   !! @param[out]   boundary    : information of boundary condition
   !! @param[out]   domain      : information of each domain
   !! @param[out]   comm        : communicator for domain
@@ -1038,6 +1060,7 @@ contains
 
     ! local variables
     type(s_localres)         :: localres
+
 
     ! set parameters for boundary condition
     !
@@ -1152,7 +1175,7 @@ contains
         'Setup_Spdyn_Md_Pio> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     ! pressure degree of freedom for group pressure
     !
@@ -1160,7 +1183,10 @@ contains
       if (constraints%rigid_bond) then
         call compute_group_deg_freedom(domain, constraints)
       else
-        call error_msg("group_tp=yes only works with rigid_bond=yes")
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Setup_Spdyn_Md_Pio> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
       end if
     end if
 
@@ -1173,7 +1199,7 @@ contains
   !  Subroutine    setup_spdyn_remd_pio
   !> @brief        setup variables and structures in REMD simulation
   !! @authors      JJ
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   enefunc     : information of energy function
   !! @param[out]   pairlist    : information of nonbonded pairlist
@@ -1181,9 +1207,11 @@ contains
   !! @param[out]   dynamics    : information of molecular dynamics
   !! @param[out]   constraints : information of constraints
   !! @param[out]   ensemble    : information of ensemble
+  !! @param[out]   restraints  : information of restraints
   !! @param[out]   boundary    : information of boundary condition
   !! @param[out]   domain      : information of each domain
   !! @param[out]   comm        : communicator for domain
+  !! @param[out]   remd        : information of REMD
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1331,7 +1359,7 @@ contains
         'Setup_Spdyn_Md_Pio> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     ! pressure degree of freedom for group pressure
     !
@@ -1339,7 +1367,10 @@ contains
       if (constraints%rigid_bond) then
         call compute_group_deg_freedom(domain, constraints)
       else
-        call error_msg("group_tp=yes only works with rigid_bond=yes")
+        if (main_rank)      &
+        write(MsgOut,'(A)') &
+          'Setup_Spdyn_Remd_Pio> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
       end if
     end if
 
@@ -1352,13 +1383,14 @@ contains
   !  Subroutine    setup_spdyn_min_pio
   !> @brief        setup variables and structures in minimization
   !! @authors      JJ
-  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   enefunc     : information of energy function
   !! @param[out]   pairlist    : information of nonbonded pairlist
   !! @param[out]   dynvars     : information of dynamic variables
   !! @param[out]   minimize    : information of minimize
   !! @param[out]   constraints : information of constraints
+  !! @param[out]   restraints  : information of restraints
   !! @param[out]   boundary    : information of boundary condition
   !! @param[out]   domain      : information of each domain
   !! @param[out]   comm        : communicator for domain
@@ -1471,7 +1503,7 @@ contains
         'Setup_Spdyn_Min_Pio> nonb_limiter : minimim distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
-    endif
+    end if
 
     return
 
@@ -1483,12 +1515,15 @@ contains
   !> @brief        read parallel I/O restart file
   !! @authors      JJ
   !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[in]    use_replica : flag for use replica or not
   !! @param[out]   domain      : information of each domain
   !! @param[out]   enefunc     : information of energy function
   !! @param[out]   boundary    : information of boundary condition
+  !! @param[out]   restraints  : information of restraints
   !! @param[out]   constraints : information of constraints
   !! @param[out]   dynvars     : information of dynamic variables
   !! @param[out]   dynamics    : information of molecular dynamics
+  !! @param[out]   remd        : information of REMD
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1594,6 +1629,8 @@ contains
     if (ctrl_data%inp_info%selfile /= '') then
       filename = ctrl_data%inp_info%selfile
       call pio_read_selection(filename, restraints)
+    else
+      call pio_read_selection_blank(restraints)
     end if
 
     if (.not. main_rank) &
@@ -1616,7 +1653,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncPCCOM) then
             fit_check = .true.
             exit
-        endif
+        end if
       end do
       if (fit_check) then
         call error_msg('Setup_Spdyn_Md_Pio> WARNING: Fitting is not allowed')
@@ -1624,10 +1661,10 @@ contains
         if (main_rank) then
           write(MsgOut,*) "Setup_Fitting_Spdyn> NO fitting is applied, skip"
           write(MsgOut,*) 
-        endif
+        end if
         enefunc%fitting_method=FittingMethodNO
-      endif
-    endif
+      end if
+    end if
 
     return
 
@@ -1638,8 +1675,6 @@ contains
   !  Subroutine    include_id_to_filename
   !> @brief        include id to filename
   !! @authors      TM
-  !! @param[in]    id       : index
-  !! @param[in]    ndigit   : number of digit
   !! @param[inout] filename : replicate filename
   !
   !======1=========2=========3=========4=========5=========6=========7=========8

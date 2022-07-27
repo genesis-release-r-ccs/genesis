@@ -48,11 +48,15 @@ contains
   !> @brief        calculate nonbonded14 energy with PME and lookup table
   !!               (linear)
   !  @authors      JJ
-  !! @param[in]    domain  : domain information
-  !! @param[in]    enefunc : potential energy functions
-  !! @param[inout] force   : forces for each cell
-  !! @param[inout] eelec   : electrostatic energy of target systems
-  !! @param[inout] evdw    : van der Waals energy of target systems
+  !! @param[in]    domain    : domain information
+  !! @param[in]    enefunc   : potential energy functions
+  !! @param[in]    atmcls    : atom class number
+  !! @param[in]    coord     : coordinates for each cell
+  !! @param[inout] force     : forces for each cell
+  !! @param[inout] force_pbc : force for each cell
+  !! @param[inout] virial    : virial term of target systems
+  !! @param[inout] eelec     : electrostatic energy of target systems
+  !! @param[inout] evdw      : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -70,7 +74,7 @@ contains
     real(dp),                intent(inout) :: eelec(nthread)
     real(dp),                intent(inout) :: evdw(nthread)
 
-    ! ==> Type 6/7
+   
     if (enefunc%forcefield == ForcefieldCHARMM) then
 
       if (enefunc%vdw == VDWPME) then
@@ -85,15 +89,15 @@ contains
 
           if (domain%nonbond_kernel == NBK_Intel) then
             call compute_energy_nonbond14_ljpme_charmm_intel( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force_pbc, virial, eelec, evdw)
           else if (domain%nonbond_kernel == NBK_Fugaku) then
             call compute_energy_nonbond14_ljpme_charmm_fugaku( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force_pbc, virial, eelec, evdw)
           else if (domain%nonbond_kernel == NBK_GPU) then
             call compute_energy_nonbond14_ljpme_charmm_gpu( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force, virial, eelec, evdw)
           else 
             call compute_energy_nonbond14_ljpme_charmm_generic( &
@@ -113,25 +117,25 @@ contains
 
           if (domain%nonbond_kernel == NBK_Intel) then
             call compute_energy_nonbond14_charmm_intel( &
-                                domain, enefunc, atmcls, coord,      &
+                                domain, enefunc, atmcls, coord, &
                                 force_pbc, virial, eelec, evdw)
           else if (domain%nonbond_kernel == NBK_Fugaku) then
-            call compute_energy_nonbond14_charmm_fugaku(&
-                                domain, enefunc, atmcls, coord,      &
+            call compute_energy_nonbond14_charmm_fugaku( &
+                                domain, enefunc, atmcls, coord, &
                                 force_pbc, virial, eelec, evdw)
           else if (domain%nonbond_kernel == NBK_GPU) then
-            call compute_energy_nonbond14_charmm_gpu(&
-                                domain, enefunc, atmcls, coord,      &
+            call compute_energy_nonbond14_charmm_gpu( &
+                                domain, enefunc, atmcls, coord, &
                                 force, virial, eelec, evdw)
           else
             call compute_energy_nonbond14_charmm_generic( &
-                                domain, enefunc, coord, force,       &
+                                domain, enefunc, coord, force, &
                                 virial, eelec, evdw)
           end if
 
         end if
 
-      endif
+      end if
 
     ! ==> Type 12/13
     else ! ForcefieldAMBER, ForcefieldGROAMBER, ForcefieldGROMARTINI
@@ -146,15 +150,15 @@ contains
 
         if (domain%nonbond_kernel == NBK_Intel) then
           call compute_energy_nonbond14_gro_amber_intel( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force_pbc, virial, eelec, evdw)
         else if (domain%nonbond_kernel == NBK_Fugaku) then
           call compute_energy_nonbond14_gro_amber_fugaku( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force_pbc, virial, eelec, evdw)
         else if (domain%nonbond_kernel == NBK_GPU) then
           call compute_energy_nonbond14_gro_amber_gpu( &
-                              domain, enefunc, atmcls, coord,        &
+                              domain, enefunc, atmcls, coord, &
                               force, virial, eelec, evdw)
         else
           call compute_energy_nonbond14_gro_amber_generic( &
@@ -162,7 +166,7 @@ contains
                               eelec, evdw)
         end if
 
-      endif
+      end if
     
     end if
 
@@ -178,7 +182,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -215,6 +222,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -327,7 +335,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -364,6 +375,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -476,7 +488,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -515,6 +530,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -637,7 +653,9 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -675,6 +693,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -795,7 +814,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -835,6 +857,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -957,7 +980,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -997,6 +1023,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1119,7 +1146,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -1160,6 +1190,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1292,7 +1323,9 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -1332,6 +1365,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -1460,7 +1494,9 @@ contains
   !  @authors      JJ, CK
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -1499,6 +1535,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -1621,13 +1658,15 @@ contains
   !  @authors      JJ, CK
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_nonbond14_gro_amber_check (domain, &
+  subroutine compute_energy_nonbond14_gro_amber_check(domain, &
                                    enefunc, coord, force, virial, eelec, evdw)
 
     ! formal arguments
@@ -1662,6 +1701,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -1780,7 +1820,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -1819,6 +1862,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -1944,7 +1988,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -1983,6 +2030,7 @@ contains
     integer,         pointer :: natom(:)
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -2108,7 +2156,10 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -2149,6 +2200,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     cell_pair       => domain%cell_pairlist1
     natom           => domain%num_atom
@@ -2217,6 +2269,7 @@ contains
         dij(2) = dij(2) + cell_move(2,jcel,icel)*system_size(2)
         dij(3) = dij(3) + cell_move(3,jcel,icel)*system_size(3)
         rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+        inv_r2 = 1.0_wp / rij2
 
         iqtmp  = coord(3*num_atom+i,1,1)
         jqtmp  = coord(3*num_atom+j,1,1)
@@ -2280,7 +2333,9 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -2320,6 +2375,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1
@@ -2450,7 +2506,9 @@ contains
   !  @authors      JJ
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
   !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
   !! @param[inout] eelec   : electrostatic energy of target systems
   !! @param[inout] evdw    : van der Waals energy of target systems
   !
@@ -2491,6 +2549,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
     integer(1),      pointer :: cell_move(:,:,:)
+
 
     charge          => domain%charge
     cell_pair       => domain%cell_pairlist1

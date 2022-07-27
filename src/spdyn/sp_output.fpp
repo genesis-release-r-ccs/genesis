@@ -40,7 +40,7 @@ module sp_output_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -224,29 +224,29 @@ contains
     !
     if (main_rank) then
       write(MsgOut,'(A)') 'Read_Ctrl_Output> Output Files'
-      if (out_info%logfile /= '') &
+      if (out_info%logfile .ne. '') &
         write(MsgOut,*) ' logfile    = ', trim(out_info%logfile) 
-      if (out_info%dcdfile /= '') &
+      if (out_info%dcdfile .ne. '') &
         write(MsgOut,*) ' dcdfile    = ', trim(out_info%dcdfile)
-      if (out_info%enefile /= '') &
+      if (out_info%enefile .ne. '') &
         write(MsgOut,*) ' enefile    = ', trim(out_info%enefile)
-      if (out_info%dcdvelfile /= '') &
+      if (out_info%dcdvelfile .ne. '') &
         write(MsgOut,*) ' dcdvelfile = ', trim(out_info%dcdvelfile)
-      if (out_info%selfile /= '') &
+      if (out_info%selfile .ne. '') &
         write(MsgOut,*) ' selfile    = ', trim(out_info%selfile)
-      if (out_info%rstfile /= '') &
+      if (out_info%rstfile .ne. '') &
         write(MsgOut,*) ' rstfile    = ', trim(out_info%rstfile)
-      if (out_info%pdbfile /= '') &
+      if (out_info%pdbfile .ne. '') &
         write(MsgOut,*) ' pdbfile    = ', trim(out_info%pdbfile)
-      if (out_info%remfile /= '') &
+      if (out_info%remfile .ne. '') &
         write(MsgOut,*) ' remfile    = ', trim(out_info%remfile)
-      if (out_info%rpathfile /= '') &
+      if (out_info%rpathfile .ne. '') &
         write(MsgOut,*) ' rpathfile  = ', trim(out_info%rpathfile)
-      if (out_info%rpathlogfile /= '') &
+      if (out_info%rpathlogfile .ne. '') &
         write(MsgOut,*) ' rpathlogfile  = ', trim(out_info%rpathlogfile)
-      if (out_info%mfrcfile /= '') &
+      if (out_info%mfrcfile .ne. '') &
         write(MsgOut,*) ' mfrcfile   = ', trim(out_info%mfrcfile)
-      if (out_info%gamdfile /= '') &
+      if (out_info%gamdfile .ne. '') &
         write(MsgOut,*) ' gamdfile   = ', trim(out_info%gamdfile)
       write(MsgOut,'(A)') ' '
     end if
@@ -273,6 +273,7 @@ contains
     type(s_dynamics),        intent(in)    :: dynamics
     type(s_output),          intent(inout) :: output
 
+
     output%verbose = dynamics%verbose
 
     output%replica = .false.
@@ -280,7 +281,7 @@ contains
     output%logout  = .false.
 
     if (dynamics%crdout_period > 0) then
-      if (out_info%dcdfile == '') &
+      if (out_info%dcdfile .eq. '') &
         call error_msg('Setup_Output_Md> Error: dcdfile name is not'//&
                   ' specified in [OUTPUT] (crdout_period > 0 in [DYNAMICS])')
       output%dcdout  = .true.
@@ -288,7 +289,7 @@ contains
     end if
 
     if (dynamics%velout_period > 0) then
-      if (out_info%dcdvelfile == '') &
+      if (out_info%dcdvelfile .eq. '') &
         call error_msg('Setup_Output_Md> Error: dcdvelfile name is not'//&
                   ' specified in [OUTPUT] (velout_period > 0 in [DYNAMICS])')
       output%dcdvelout  = .true.
@@ -296,19 +297,19 @@ contains
     end if
 
     if (dynamics%rstout_period > 0) then
-      if (out_info%rstfile == '') &
+      if (out_info%rstfile .eq. '') &
         call error_msg('Setup_Output_Md> Error: rstfile name is not'//&
                        'specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS])')
       output%rstout  = .true.
       output%rstfile = out_info%rstfile
     end if
 
-    if (out_info%pdbfile /= '') then
+    if (out_info%pdbfile .ne. '') then
       output%pdbout  = .true.
       output%pdbfile = out_info%pdbfile
     end if
 
-    if (out_info%gamdfile /= '') then
+    if (out_info%gamdfile .ne. '') then
       output%gamdout  = .true.
       output%gamdfile = out_info%gamdfile
     end if
@@ -335,6 +336,7 @@ contains
     type(s_minimize),        intent(in)    :: minimize
     type(s_output),          intent(inout) :: output
 
+
     output%verbose    = minimize%verbose
 
     output%replica    = .false.
@@ -342,7 +344,7 @@ contains
     output%dcdvelout  = .false.
 
     if (minimize%crdout_period > 0) then
-      if (out_info%dcdfile == '') &
+      if (out_info%dcdfile .eq. '') &
         call error_msg('Setup_Output_Min> Error: dcdfile name is not'//&
                   ' specified in [OUTPUT] (crdout_period > 0 in [MINIMIZE])')
       output%dcdout  = .true.
@@ -350,14 +352,14 @@ contains
     end if
 
     if (minimize%rstout_period > 0) then
-      if (out_info%rstfile == '') &
+      if (out_info%rstfile .eq. '') &
         call error_msg('Setup_Output_Min> Error: rstfile name is not'//&
                   ' specified in [OUTPUT] (rstout_period > 0 in [MINIMIZE])')
       output%rstout  = .true.
       output%rstfile = out_info%rstfile
     end if
 
-    if (out_info%pdbfile /= '') then
+    if (out_info%pdbfile .ne. '') then
       output%pdbout  = .true.
       output%pdbfile = out_info%pdbfile
     end if
@@ -373,6 +375,7 @@ contains
   !! @authors      TM
   !! @param[in]    out_info : OUTPUT section control parameters information
   !! @param[in]    dynamics : dynamics information
+  !! @param[in]    remd     : remd information
   !! @param[out]   output   : output information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -385,6 +388,7 @@ contains
     type(s_remd),            intent(in)    :: remd     
     type(s_output),          intent(inout) :: output
 
+
     output%verbose = dynamics%verbose
 
     output%logfile = out_info%logfile
@@ -393,7 +397,7 @@ contains
     output%logout  = .true.
 
     if (dynamics%crdout_period > 0) then
-      if (out_info%dcdfile == '') &
+      if (out_info%dcdfile .eq. '') &
         call error_msg('Setup_Output_Remd> Error: dcdfile name is not'//&
                   ' specified in [OUTPUT] (crdout_period > 0 in [DYNAMICS])')
       output%dcdfile = out_info%dcdfile
@@ -401,7 +405,7 @@ contains
       output%dcdfile = output%dcdfile
       output%dcdout  = .true.
       if (remd%analysis_grest) then
-        if (out_info%enefile == '') &
+        if (out_info%enefile .eq. '') &
         call error_msg('Setup_Output_Remd> Error: enefile name is not'//&
                        ' specified in [OUTPUT] (crdout_period > 0 in' //&
                        ' [DYNAMICS]) and analysis_grest = YES')
@@ -413,7 +417,7 @@ contains
     end if
 
     if (dynamics%velout_period > 0) then
-      if (out_info%dcdvelfile == '') &
+      if (out_info%dcdvelfile .eq. '') &
         call error_msg('Setup_Output_Remd> Error: dcdvelfile name is not'//&
                   ' specified in [OUTPUT] (velout_period > 0 in [DYNAMICS])')
       output%dcdvelfile = out_info%dcdvelfile
@@ -422,8 +426,9 @@ contains
       output%dcdvelout  = .true.
     end if
 
+
     if (dynamics%rstout_period > 0) then
-      if (out_info%rstfile == '') &
+      if (out_info%rstfile .eq. '') &
         call error_msg('Setup_Output_Remd> Error: rstfile name is not'//&
                   ' specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS])')
       output%rstfile = out_info%rstfile
@@ -431,7 +436,13 @@ contains
       output%rstfile = output%rstfile
       output%rstout  = .true.
 
-      if (out_info%pdbfile /= '') then
+      if (.not. remd%equilibration_only .and. remd%exchange_period > 0) then
+        if (mod(dynamics%rstout_period,remd%exchange_period) /= 0) &
+        call error_msg('Setup_Output_Remd> Error in rstout_period'//&
+        '  mod(rstout_period, exchange_period) is not ZERO')
+      end if
+
+      if (out_info%pdbfile .ne. '') then
         output%pdbfile = out_info%pdbfile
         call include_id_to_filename(output%pdbfile)
         output%pdbfile = output%pdbfile
@@ -439,7 +450,13 @@ contains
       end if
     end if
 
-    if (out_info%remfile /= '') then
+    if (dynamics%eneout_period > 0) then
+      if (mod(remd%exchange_period,dynamics%eneout_period) /= 0) &
+      call error_msg('Setup_Output_Remd> Error in eneout_period'//&
+      '  mod(exchange_period, eneout_period) is not ZERO')
+    end if
+
+    if (out_info%remfile .ne. '') then
       output%remfile = out_info%remfile
       call include_id_to_filename(output%remfile)
       output%remfile = output%remfile
@@ -459,16 +476,19 @@ contains
   !! @authors      TM
   !! @param[in]    out_info : OUTPUT section control parameters information
   !! @param[in]    dynamics : dynamics information
+  !! @param[in]    rpath    : information of rpath
   !! @param[out]   output   : output information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_output_rpath(out_info, dynamics, output)
+  subroutine setup_output_rpath(out_info, dynamics, rpath, output)
 
     ! formal arguments
     type(s_out_info),        intent(in)    :: out_info
     type(s_dynamics),        intent(in)    :: dynamics
+    type(s_rpath),           intent(in)    :: rpath     
     type(s_output),          intent(inout) :: output
+
 
     output%verbose = dynamics%verbose
 
@@ -477,7 +497,7 @@ contains
     output%logout  = .true.
 
     if (dynamics%crdout_period > 0) then
-      if (out_info%dcdfile == '') &
+      if (out_info%dcdfile .eq. '') &
         call error_msg('Setup_Output_Rpath> dcd filename is blank')
       output%dcdfile = out_info%dcdfile
       call include_id_to_filename(output%dcdfile)
@@ -485,7 +505,7 @@ contains
     end if
 
     if (dynamics%velout_period > 0) then
-      if (out_info%dcdvelfile == '') &
+      if (out_info%dcdvelfile .eq. '') &
         call error_msg('Setup_Output_Rpath> dcdvel filename is blank')
       output%dcdvelfile = out_info%dcdvelfile
       call include_id_to_filename(output%dcdvelfile)
@@ -493,31 +513,43 @@ contains
     end if
 
     if (dynamics%rstout_period > 0) then
-      if (out_info%rstfile == '') &
+      if (out_info%rstfile .eq. '') &
         call error_msg('Setup_Output_Rpath> rst filename is blank')
       output%rstfile = out_info%rstfile
       call include_id_to_filename(output%rstfile)
       output%rstout  = .true.
 
-      if (out_info%pdbfile /= '') then
+      if (.not. rpath%equilibration_only .and. rpath%rpath_period > 0) then
+        if (mod(dynamics%rstout_period,rpath%rpath_period) /= 0) &
+        call error_msg('Setup_Output_Rpath> Error in rstout_period'//&
+        '  mod(rstout_period, rpath_period) is not ZERO')
+      end if
+
+      if (out_info%pdbfile .ne. '') then
         output%pdbfile = out_info%pdbfile
         call include_id_to_filename(output%pdbfile)
         output%pdbout  = .true.
       end if
     end if
 
-    if (out_info%rpathfile /= '') then
+    if (out_info%rpathfile .ne. '') then
       output%rpathfile = out_info%rpathfile
       call include_id_to_filename(output%rpathfile)
       output%rpathout  = .true.
     end if
 
     if (dynamics%crdout_period > 0) then
-      if (out_info%mfrcfile /= '') then
+      if (out_info%mfrcfile .ne. '') then
         output%mfrcfile = out_info%mfrcfile
         call include_id_to_filename(output%mfrcfile)
         output%mfrcout  = .true.
       end if
+    end if
+
+    if (dynamics%eneout_period > 0) then
+      if (mod(rpath%rpath_period,dynamics%eneout_period) /= 0) &
+      call error_msg('Setup_Output_Rpath> Error in eneout_period'//&
+      '  mod(rpath_period, eneout_period) is not ZERO')
     end if
 
     if (out_info%rpathlogfile .ne. '') then
@@ -635,7 +667,7 @@ contains
         call open_file(file, output%pdbfile, IOFileOutputNew)
         call close_file(file)
       end if
-    endif
+    end if
 
     ! open remfile
     !
@@ -753,13 +785,16 @@ contains
   !  Subroutine    output_md
   !> @brief        output trajectory and restart data for MD
   !! @authors      JJ, TM, NT
-  !! @param[in]    output   : output information
-  !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    dynamics : dynamics information
-  !! @param[in]    boundary : boundary condition information
-  !! @param[in]    ensemble : ensemble information
-  !! @param[inout] dynvars  : dynamic variables information
-  !! @param[inout] domain   : domain information
+  !! @param[inout] output      : output information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    pairlist    : pairlist information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    constraints : constraints information
+  !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] remd        : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -943,13 +978,14 @@ contains
   !  Subroutine    output_min
   !> @brief        output trajectory and restart data for minimization
   !! @authors      TM
-  !! @param[in]    output   : output information
-  !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    minimize : minimize information
-  !! @param[in]    boundary : boundary condition information
-  !! @param[in]    dynvars  : dynamic variables information
-  !! @param[in]    delta_r  : delta r
-  !! @param[inout] domain   : domain information
+  !! @param[inout] output      : output information
+  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[in]    minimize    : minimize information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    delta_r     : delta r
+  !! @param[in]    constraints : constraints information
+  !! @param[inout] domain      : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1034,11 +1070,15 @@ contains
   !  Subroutine    output_remd
   !> @brief        output restart data for REMD
   !! @authors      TM, NT
-  !! @param[inout] output   : output information
-  !! @param[in]    molecule : molecule information
-  !! @param[in]    dynamics : dynamics information
-  !! @param[in]    dynvars  : dynamic variables information
-  !! @param[in]    remd     : REMD information
+  !! @param[in]    icycle      : number of remd cycle
+  !! @param[inout] output      : output information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] domain      : domain information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    constraints : constraints information
+  !! @param[inout] remd        : REMD information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1092,9 +1132,10 @@ contains
   !> @brief        output restart data for RPATH
   !! @authors      NT
   !! @param[inout] output   : output information
-  !! @param[in]    molecule : molecule information
+  !! @param[inout] domain   : domain information
   !! @param[in]    dynamics : dynamics information
   !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    boundary : boundary condition information
   !! @param[in]    rpath    : RPATH information
   !! @param[in]    enefunc  : potential energy functions information
   !
@@ -1184,6 +1225,7 @@ contains
     logical, save                :: gamdtitle = .true.
     type(s_enefunc_gamd),pointer :: gamd
 
+
     gamd => enefunc%gamd
 
     write(title,'(A16)') 'STEP'
@@ -1191,6 +1233,7 @@ contains
     write(frmt_cont,'(A2,I2,A3)') '(A',clength,',$)'
     write(rfrmt,'(A2,I2,A1,I1,A1)') '(F',clength,'.',flength,')'
     write(rfrmt_cont,'(A2,I2,A1,I1,A3)') '(F',clength,'.',flength,',$)'
+
 
     if (.not. main_rank) return
 
@@ -1268,7 +1311,7 @@ contains
                     write(output%gamdunit,frmt) category(i)
                 else
                     write(output%gamdunit,frmt_cont) category(i)
-                endif
+                end if
             end do
             write(output%gamdunit,'(A80)') ' --------------- --------------- --------------- --------------- ---------------'
             gamdtitle = .false.
@@ -1281,13 +1324,12 @@ contains
                 write(output%gamdunit,rfrmt) values(i)
             else
                 write(output%gamdunit,rfrmt_cont) values(i)
-            endif
+            end if
         end do
 
         write(output%gamdunit,'(A)') ''
     end if
 
- 
     return
 
   end subroutine output_gamd
@@ -1298,11 +1340,11 @@ contains
   !> @brief        output Parallel I/O restart data for MD
   !! @authors      NT
   !! @param[in]    output      : output information
-  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[inout] enefunc     : potential energy functions information
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    boundary    : boundary condition information
   !! @param[in]    dynvars     : dynamic variables information
-  !! @param[in]    domain      : domain information
+  !! @param[inout] domain      : domain information
   !! @param[in]    constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1357,12 +1399,13 @@ contains
   !  Subroutine    output_prst_min
   !> @brief        output Parallel I/O restart data for minimization
   !! @authors      NT
-  !! @param[in]    output   : output information
-  !! @param[in]    enefunc  : potential energy functions information
-  !! @param[in]    minimize : minimize information
-  !! @param[in]    boundary : boundary condition information
-  !! @param[in]    dynvars  : dynamic variables information
-  !! @param[in]    domain   : domain information
+  !! @param[in]    output      : output information
+  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[in]    minimize    : minimize information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    domain      : domain information
+  !! @param[in]    constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1396,7 +1439,6 @@ contains
                                   enefunc,        &
                                   constraints)
 
-
       end if
 
     end if
@@ -1411,17 +1453,18 @@ contains
   !> @brief        output Parallel I/O restart data for MD
   !! @authors      NT
   !! @param[in]    output      : output information
-  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[inout] enefunc     : potential energy functions information
   !! @param[in]    dynamics    : dynamics information
   !! @param[in]    boundary    : boundary condition information
   !! @param[in]    dynvars     : dynamic variables information
-  !! @param[in]    domain      : domain information
+  !! @param[inout] domain      : domain information
   !! @param[in]    constraints : constraints information
+  !! @param[in]    rem         : remd information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine output_prst_remd(output, enefunc, dynamics, boundary, dynvars, &
-                            domain, constraints, remd)
+                              domain, constraints, remd)
 
     ! formal arguments
     type(s_output),          intent(in)   :: output
@@ -1652,9 +1695,10 @@ contains
   !> @brief        output restart data for REMD
   !! @authors      TM
   !! @param[in]    output   : output information
-  !! @param[in]    molecule : molecule information
+  !! @param[in]    domain   : dmain information
   !! @param[in]    dynamics : dynamics information
   !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    boundary : boundary information
   !! @param[inout] remd     : REMD information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1758,10 +1802,11 @@ contains
   !> @brief        output restart data for RPATH
   !! @authors      CK
   !! @param[in]    output   : output information
-  !! @param[in]    molecule : molecule information
+  !! @param[in]    domain   : dmain information
   !! @param[in]    dynamics : dynamics information
   !! @param[in]    dynvars  : dynamic variables information
-  !! @param[inout] remd     : REMD information
+  !! @param[in]    boundary : boundary information
+  !! @param[inout] rpath    : rpath information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1858,11 +1903,11 @@ contains
   !  Subroutine    write_trajectory_dcd
   !> @brief        write coordinates in DCD format with domain decomposition
   !! @authors      RH, TM, JJ
-  !! @param[in]    file      : unit number of crdfile
+  !! @param[inout] output    : output information
   !! @param[in]    boundary  : boundary information
-  !! @param[in]    domain    : domain information
-  !! @param[in]    istep     : current step number
-  !! @param[in]    nstep     : total # of steps
+  !! @param[in]    domain    : dmain information
+  !! @param[in]    istep     : dynamics step
+  !! @param[in]    nstep     : number of dynamics steps
   !! @param[in]    outperiod : coordinate output period
   !! @param[in]    timestep  : time step in PS
   !! @param[in]    coord     : coordinates per domain
@@ -1980,7 +2025,8 @@ contains
   !  Subroutine    write_grest_energy_output
   !> @brief        write grest energy output for mbar analysis
   !! @authors      JJ
-  !! @param[in]    output    : unit number of crdfile
+  !! @param[inout] output    : unit number of crdfile
+  !! @param[in]    initial   : initial step or not
   !! @param[in]    istep     : current step number
   !! @param[in]    nstep     : total # of steps
   !! @param[in]    remd      : remd information
@@ -2004,6 +2050,7 @@ contains
     integer(4)               :: icntrl(20)
     character(80)            :: title(4)
     character(24)            :: name, date
+
 
     if (output%replica) then
       if (.not. replica_main_rank) return
@@ -2045,14 +2092,14 @@ contains
   !  Subroutine    write_trajectory_dcdvel
   !> @brief        write velocities in DCD format with domain decomposition
   !! @authors      RH, TM, YM
-  !! @param[in]    file      : unit number of crdfile
+  !! @param[inout] output    : output information
   !! @param[in]    boundary  : boundary information
-  !! @param[in]    domain    : domain information
-  !! @param[in]    istep     : current step number
-  !! @param[in]    nstep     : total # of steps
-  !! @param[in]    outperiod : velocity output period
+  !! @param[in]    domain    : dmain information
+  !! @param[in]    istep     : dynamics step
+  !! @param[in]    nstep     : number of dynamics steps
+  !! @param[in]    outperiod : coordinate output period
   !! @param[in]    timestep  : time step in PS
-  !! @param[in]    velocity  : velocities ver domain
+  !! @param[in]    velocity  : velocities per domain
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -2180,7 +2227,7 @@ contains
     real(wip),               intent(inout) :: temporary(:,:)
     integer,                 intent(in)    :: natom
 
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
 
     ! local variables
     integer                  :: j
@@ -2219,8 +2266,6 @@ contains
   !  Subroutine    include_id_to_filename
   !> @brief        include id to filename
   !! @authors      TM
-  !! @param[in]    id       : index
-  !! @param[in]    ndigit   : number of digit
   !! @param[inout] filename : replicate filename
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -2255,7 +2300,7 @@ contains
     ci1 = scan(filename, '{')
     ci2 = scan(filename, '}')
 
-    if (ci1 == 0 .or. ci2 ==0) then
+    if (ci1 == 0 .or. ci2 == 0) then
       call error_msg('Include_Id_To_Filename> {} is not found in [OUTPUT] file')
     end if
 

@@ -16,7 +16,7 @@ module fft3d_slab_mod
 
   use constants_mod
   use timers_mod
-#ifdef MPI
+#ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
 
@@ -60,12 +60,13 @@ contains
     integer,          intent(in)    :: comm_city
 
     ! local variables
-    integer*8         :: plan
+    integer(kind=8)   :: plan
     integer           :: ix, iy, iz
     integer           :: iprocx, iprocy
     integer           :: kx, ky
     integer           :: g_ix, g_iy
     integer           :: k, iproc, ierror
+
 
     ! x direction
     !
@@ -81,8 +82,8 @@ contains
             kx = (iprocx-1)*nlocalx
             do ix = 1, nlocalx
               g_ix = ix + kx
-              work1(g_ix) = cmplx(qdf_work(ix,iy,  iz,iprocx,iprocy),&
-                                  qdf_work(ix,iy+1,iz,iprocx,iprocy),&
+              work1(g_ix) = cmplx(qdf_work(ix,iy,  iz,iprocx,iprocy), &
+                                  qdf_work(ix,iy+1,iz,iprocx,iprocy), &
                                   kind=wp)
             end do
           end do
@@ -92,7 +93,7 @@ contains
           do ix = 2, nx/2+1
             fftqdfxyz_work(ix,g_iy,iz) = 0.5_wp             &
                                *(work1(ix)+conjg(work1(nx-ix+2)))
-            fftqdfxyz_work(ix,g_iy+1,iz) = (0.0_wp,-0.5_wp)             &
+            fftqdfxyz_work(ix,g_iy+1,iz) = (0.0_wp,-0.5_wp) &
                                *(work1(ix)-conjg(work1(nx-ix+2)))
           end do
         end do
@@ -123,6 +124,8 @@ contains
       end do
     end do
 
+#ifdef HAVE_MPI_GENESIS
+
     !$omp barrier
     !$omp master
     call mpi_alltoall(fftqdfyzx,      ny*niz*(nix/2), mpi_wp_complex, &
@@ -133,6 +136,8 @@ contains
                       comm_city, ierror)  
     !$omp end master
     !$omp barrier
+
+#endif
 
     call zfft1d(work1, nz, 0, work2)
     do ix = id+1, nix/2, nthread
@@ -199,13 +204,14 @@ contains
     integer,          intent(in)    :: comm_city
 
     ! local variables
-    integer*8         :: plan
+    integer(kind=8)   :: plan
     integer           :: ix, iy, iz
     integer           :: iprocx, iprocy
     integer           :: kx, ky
     integer           :: g_ix, g_iy
     integer           :: k, iproc, ierror
     complex(wp)       :: temp
+
 
     ! z direction
     !
@@ -226,6 +232,8 @@ contains
       end do
     end do
 
+#ifdef HAVE_MPI_GENESIS
+
     !$omp barrier
     !$omp master
     call mpi_alltoall(ftqdf_work, niy*niz, mpi_wp_complex, &
@@ -233,6 +241,8 @@ contains
                       comm_city, ierror)
     !$omp end master
     !$omp barrier
+
+#endif
 
     ! y direction
     !
@@ -260,6 +270,8 @@ contains
       end do
     end do
 
+#ifdef HAVE_MPI_GENESIS
+
     !$omp barrier
     !$omp master
     call mpi_alltoall(fftqdfyxz,      ny*niz*(nix/2), mpi_wp_complex, &
@@ -267,6 +279,8 @@ contains
                       comm_city, ierror)
     !$omp end master
     !$omp barrier
+
+#endif
 
     call zfft1d(work1, nx, 0, work2)
     do iz = id+1, niz, nthread

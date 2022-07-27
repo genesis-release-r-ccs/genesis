@@ -1,0 +1,11 @@
+qa_analyze.o: qa_analyze.fpp qa_option_str_mod.mod 
+qa_analyze_mod.mod: qa_analyze.fpp qa_analyze.o
+qa_control.o: qa_control.fpp qa_option_mod.mod 
+qa_control_mod.mod: qa_control.fpp qa_control.o
+qa_main.o: qa_main.fpp qa_control_mod.mod qa_setup_mod.mod qa_analyze_mod.mod qa_option_str_mod.mod 
+qa_option.o: qa_option.fpp qa_option_str_mod.mod 
+qa_option_mod.mod: qa_option.fpp qa_option.o
+qa_option_str.o: qa_option_str.fpp  
+qa_option_str_mod.mod: qa_option_str.fpp qa_option_str.o
+qa_setup.o: qa_setup.fpp qa_control_mod.mod qa_option_str_mod.mod qa_option_mod.mod 
+qa_setup_mod.mod: qa_setup.fpp qa_setup.o

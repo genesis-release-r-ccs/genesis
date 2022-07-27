@@ -1,0 +1,13 @@
+ma_analyze.o: ma_analyze.fpp ma_option_str_mod.mod ma_matrix_mod.mod 
+ma_analyze_mod.mod: ma_analyze.fpp ma_analyze.o
+ma_control.o: ma_control.fpp ma_option_mod.mod 
+ma_control_mod.mod: ma_control.fpp ma_control.o
+ma_main.o: ma_main.fpp ma_control_mod.mod ma_option_str_mod.mod ma_analyze_mod.mod ma_setup_mod.mod 
+ma_matrix.o: ma_matrix.fpp  
+ma_matrix_mod.mod: ma_matrix.fpp ma_matrix.o
+ma_option.o: ma_option.fpp ma_option_str_mod.mod 
+ma_option_mod.mod: ma_option.fpp ma_option.o
+ma_option_str.o: ma_option_str.fpp  
+ma_option_str_mod.mod: ma_option_str.fpp ma_option_str.o
+ma_setup.o: ma_setup.fpp ma_option_mod.mod ma_control_mod.mod ma_option_str_mod.mod 
+ma_setup_mod.mod: ma_setup.fpp ma_setup.o

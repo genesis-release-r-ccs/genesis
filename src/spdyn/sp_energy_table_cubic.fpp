@@ -60,10 +60,11 @@ contains
     real(dp),                intent(inout) :: eelec(nthread)
     real(dp),                intent(inout) :: evdw(nthread)
 
+
     ! ==> Type 4
     if (enefunc%forcefield == ForcefieldCHARMM) then
 
-      call compute_energy_nonbond14_table_charmm( &
+      call compute_energy_nonbond14_table_charmm(    &
                                     domain, enefunc, &
                                     force, virial, eelec, evdw)
 
@@ -76,7 +77,7 @@ contains
                                     domain, enefunc, &
                                     force, virial, eelec, evdw)
 
-    endif
+    end if
 
     return
 
@@ -215,6 +216,8 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
+        force_local(1:3) = 0.0_wp
+!ocl norecurrence(force)
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -225,24 +228,7 @@ contains
           dij(2) = rtmp(2) - trans2(iy,2,i)
           dij(3) = rtmp(3) - trans2(iy,3,i)
           rij2  = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-
-          if (rij2 < cutoff2) then
-            num_count = num_count + 1
-            dij_list(1:3,num_count)  = dij(1:3)
-            rij2_list(num_count) = rij2
-            j_list(num_count)   = iy
-          end if
-        end do
-
-        force_local(1:3) = 0.0_wp
-
-!ocl norecurrence(force)
-        do k = 1, num_count
-          dij(1) = dij_list(1,k)
-          dij(2) = dij_list(2,k)
-          dij(3) = dij_list(3,k)
-          iy     = j_list(k)
-          rij2   = density * rij2_list(k)
+          rij2   = density * rij2
           lj6    = nonb_lj6(atmcls(ix,i),atmcls(iy,i))
           lj12   = nonb_lj12(atmcls(ix,i),atmcls(iy,i))
 
@@ -281,9 +267,9 @@ contains
           force_local(1) = force_local(1) - work(1)
           force_local(2) = force_local(2) - work(2)
           force_local(3) = force_local(3) - work(3)
-          force_localj(1,k)  = work(1)
-          force_localj(2,k)  = work(2)
-          force_localj(3,k)  = work(3)
+          force(iy,1,i,id+1) = force(iy,1,i,id+1) + work(1)
+          force(iy,2,i,id+1) = force(iy,2,i,id+1) + work(2)
+          force(iy,3,i,id+1) = force(iy,3,i,id+1) + work(3)
 
           ! virial
           !
@@ -292,10 +278,6 @@ contains
           viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
         end do
 
-        do k = 1, num_count
-          iy = j_list(k)
-          force(iy,1:3,i,id+1) = force(iy,1:3,i,id+1) + force_localj(1:3,k)
-        end do
         force(ix,1:3,i,id+1) = force(ix,1:3,i,id+1) + force_local(1:3)
         eelec(id+1) = eelec(id+1) + elec_temp
         evdw(id+1) = evdw(id+1) + evdw_temp
@@ -337,30 +319,14 @@ contains
         evdw_temp = 0.0_wp
         viri_local(1:3,1:3) = 0.0_wp
 
+        force_local(1:3) = 0.0_wp
         do k = ini_nb15, fin_nb15
           iy   = nb15_calc_list(k,ij)
           dij(1) = rtmp(1) - trans2(iy,1,j) + trans_x
           dij(2) = rtmp(2) - trans2(iy,2,j) + trans_y
           dij(3) = rtmp(3) - trans2(iy,3,j) + trans_z
           rij2  = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-
-          if (rij2 < cutoff2) then
-            num_count = num_count + 1
-            dij_list(1:3,num_count)  = dij(1:3)
-            rij2_list(num_count) = rij2
-            j_list(num_count)   = iy
-          end if
-        end do
-
-        force_local(1:3) = 0.0_wp
-
-!ocl norecurrence(force)
-        do k = 1, num_count
-          dij(1) = dij_list(1,k)
-          dij(2) = dij_list(2,k)
-          dij(3) = dij_list(3,k)
-          iy   = j_list(k)
-          rij2  = density * rij2_list(k)
+          rij2  = density * rij2
           lj6  = nonb_lj6 (atmcls(ix,i),atmcls(iy,j))
           lj12 = nonb_lj12(atmcls(ix,i),atmcls(iy,j))
 
@@ -399,10 +365,9 @@ contains
           force_local(1) = force_local(1) - work(1)
           force_local(2) = force_local(2) - work(2)
           force_local(3) = force_local(3) - work(3)
-
-          force_localj(1,k) = work(1)
-          force_localj(2,k) = work(2)
-          force_localj(3,k) = work(3)
+          force(iy,1,j,id+1) = force(iy,1,j,id+1) + work(1)
+          force(iy,2,j,id+1) = force(iy,2,j,id+1) + work(2)
+          force(iy,3,j,id+1) = force(iy,3,j,id+1) + work(3)
 
           ! virial
           !
@@ -414,10 +379,6 @@ contains
           viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
         end do
 
-        do k = 1, num_count
-          iy = j_list(k)
-          force(iy,1:3,j,id+1) = force(iy,1:3,j,id+1) + force_localj(1:3,k)
-        end do
         force(ix,1:3,i,id+1) = force(ix,1:3,i,id+1) + force_local(1:3)
         eelec(id+1) = eelec(id+1) + elec_temp
         evdw(id+1) = evdw(id+1) + evdw_temp
@@ -449,7 +410,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_force_nonbond_table(domain, enefunc, pairlist, &
-                                                force, virial)
+                                         force, virial)
 
     ! formal arguments
     type(s_domain),   target, intent(in)    :: domain
@@ -565,6 +526,7 @@ contains
         viri_local(1:3,1:3) = 0.0_wp
 
 !ocl norecurrence(force)
+!ocl nosimd
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -573,7 +535,6 @@ contains
           dij(2) = rtmp(2) - trans2(iy,2,i)
           dij(3) = rtmp(3) - trans2(iy,3,i)
           rij2  = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-#ifdef KCOMP
           rij2  = min(cutoff2, rij2)
           rij2  = density * rij2
           lj12 = nonb_lj12(iatmcls,jatmcls)
@@ -619,82 +580,12 @@ contains
           viri_local(3,2) = viri_local(3,2) + dij(3)*work(2)
           viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
         end do
-#else
-          if (rij2 < cutoff2) then
-            num_count = num_count + 1
-            dij_list(1,num_count) = dij(1)
-            dij_list(2,num_count) = dij(2)
-            dij_list(3,num_count) = dij(3)
-            dij_list(4,num_count) = rij2
-            j_list(num_count) = iy
-          end if
-        end do
-        force_local(1:3) = 0.0_wp
-
-        do k = 1, num_count
-          iy   = j_list(k)
-          dij(1) = dij_list(1,k)
-          dij(2) = dij_list(2,k)
-          dij(3) = dij_list(3,k)
-          rij2  = density * dij_list(4,k)
-
-          jatmcls = atmcls(iy,i)
-          lj12 = nonb_lj12(iatmcls,jatmcls)
-          lj6  = nonb_lj6 (iatmcls,jatmcls)
-
-          L    = int(rij2)
-          R    = rij2 - L
-          h00  = (1.0_wp + 2.0_wp*R)*(1.0_wp-R)*(1.0_wp-R)
-          h10  = R*(1.0_wp-R)*(1.0_wp-R)
-          h01  = R*R*(3.0_wp-2.0_wp*R)
-          h11  = R*R*(R-1.0_wp)
-
-          L1 = 6*L - 5
-          term_lj12 = table_grad(L1)*h00 + table_grad(L1+1)*h10
-          term_lj6  = table_grad(L1+2)*h00 + table_grad(L1+3)*h10
-          term_elec = table_grad(L1+4)*h00 + table_grad(L1+5)*h10
-          term_lj12 = term_lj12 + table_grad(L1+6)*h01 + table_grad(L1+7)*h11
-          term_lj6  = term_lj6 + table_grad(L1+8)*h01 + table_grad(L1+9)*h11
-          term_elec = term_elec + table_grad(L1+10)*h01 + table_grad(L1+11)*h11
-          grad_coef = term_lj12*lj12 - term_lj6*lj6                            &
-                     + qtmp*charge(iy,i)*term_elec
-
-          work(1) = grad_coef*dij(1)
-          work(2) = grad_coef*dij(2)
-          work(3) = grad_coef*dij(3)
-
-          ! store force
-          !
-          force_local(1) = force_local(1) - work(1)
-          force_local(2) = force_local(2) - work(2)
-          force_local(3) = force_local(3) - work(3)
-          force_local_iy(1,k) = work(1)
-          force_local_iy(2,k) = work(2)
-          force_local_iy(3,k) = work(3)
-
-          ! virial
-          !
-          viri_local(1,1) = viri_local(1,1) + dij(1)*work(1)
-          viri_local(2,1) = viri_local(2,1) + dij(2)*work(1)
-          viri_local(2,2) = viri_local(2,2) + dij(2)*work(2)
-          viri_local(3,1) = viri_local(3,1) + dij(3)*work(1)
-          viri_local(3,2) = viri_local(3,2) + dij(3)*work(2)
-          viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
-        end do
-#endif
 
         force(ix,1:3,i,id+1) = force(ix,1:3,i,id+1) + force_local(1:3)
         do k = 1, 3
           virial(k,k,id+1) = virial(k,k,id+1) - viri_local(k,k)
         end do
 
-#ifndef KCOMP
-        do k = 1, num_count
-          iy = j_list(k) 
-          num_count = k - ini_nb15 + 1
-          force(iy,1:3,i,id+1) = force(iy,1:3,i,id+1) + force_local_iy(1:3,k)
-        end do
-#endif
       end do
 
     end do
@@ -729,6 +620,7 @@ contains
         viri_local(1:3,1:3) = 0.0_wp
 
 !ocl norecurrence(force)
+!ocl nosimd
         do k = ini_nb15, fin_nb15
           iy = nb15_calc_list(k,ij)
 
@@ -736,7 +628,6 @@ contains
           dij(2) = rtmp(2) - trans2(iy,2,j) + trans_y
           dij(3) = rtmp(3) - trans2(iy,3,j) + trans_z
           rij2  = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
-#ifdef KCOMP
           rij2 = density * rij2 
 
           jatmcls = atmcls(iy,j)
@@ -783,73 +674,6 @@ contains
           viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
         end do
 
-#else
-          if (rij2 < cutoff2) then
-            num_count = num_count + 1
-            dij_list(1,num_count) = dij(1)
-            dij_list(2,num_count) = dij(2)
-            dij_list(3,num_count) = dij(3)
-            dij_list(4,num_count) = rij2
-            j_list(num_count) = iy
-          end if
-        end do
-
-        force_local(1:3) = 0.0_wp
-        do k = 1, num_count
-          iy = j_list(k)
-          dij(1) = dij_list(1,k)
-          dij(2) = dij_list(2,k)
-          dij(3) = dij_list(3,k)
-          rij2  = density * dij_list(4,k)
-          jatmcls = atmcls(iy,j)
-          lj12 = nonb_lj12(iatmcls,jatmcls)
-          lj6  = nonb_lj6 (iatmcls,jatmcls)
-
-          L  = int(rij2)
-          R  = rij2 - L
-
-          h00  = (1.0_wp + 2.0_wp*R)*(1.0_wp-R)*(1.0_wp-R)
-          h10  = R*(1.0_wp-R)*(1.0_wp-R)
-          h01  = R*R*(3.0_wp-2.0_wp*R)
-          h11  = R*R*(R-1.0_wp)
-
-          L1 = 6*L - 5
-          term_lj12 = table_grad(L1)*h00 + table_grad(L1+1)*h10
-          term_lj6  = table_grad(L1+2)*h00 + table_grad(L1+3)*h10
-          term_elec = table_grad(L1+4)*h00 + table_grad(L1+5)*h10
-          term_lj12 = term_lj12 + table_grad(L1+6)*h01 + table_grad(L1+7)*h11
-          term_lj6  = term_lj6 + table_grad(L1+8)*h01 + table_grad(L1+9)*h11
-          term_elec = term_elec + table_grad(L1+10)*h01 + table_grad(L1+11)*h11
-          grad_coef = term_lj12*lj12 - term_lj6*lj6                            &
-                     + qtmp*charge(iy,j)*term_elec
-
-          work(1) = grad_coef*dij(1)
-          work(2) = grad_coef*dij(2)
-          work(3) = grad_coef*dij(3)
-
-          ! store force
-          !
-          force_local(1) = force_local(1) - work(1)
-          force_local(2) = force_local(2) - work(2)
-          force_local(3) = force_local(3) - work(3)
-          force_local_iy(1,k) = work(1)
-          force_local_iy(2,k) = work(2)
-          force_local_iy(3,k) = work(3)
-          ! virial
-          !
-          viri_local(1,1) = viri_local(1,1) + dij(1)*work(1)
-          viri_local(2,1) = viri_local(2,1) + dij(2)*work(1)
-          viri_local(2,2) = viri_local(2,2) + dij(2)*work(2)
-          viri_local(3,1) = viri_local(3,1) + dij(3)*work(1)
-          viri_local(3,2) = viri_local(3,2) + dij(3)*work(2)
-          viri_local(3,3) = viri_local(3,3) + dij(3)*work(3)
-        end do
-
-        do k = 1, num_count
-          iy = j_list(k)
-          force(iy,1:3,j,id+1) = force(iy,1:3,j,id+1) + force_local_iy(1:3,k)
-        end do
-#endif
         force(ix,1:3,i,id+1) = force(ix,1:3,i,id+1) + force_local(1:3)
         do k = 1, 3
           virial(k,k,id+1) = virial(k,k,id+1) - viri_local(k,k)
@@ -881,7 +705,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_nonbond14_table_charmm(domain, enefunc, &
-                                            force, virial, eelec, evdw)
+                                                   force, virial, eelec, evdw)
 
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
@@ -1031,7 +855,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine compute_energy_nonbond14_table_gro_amber(domain, enefunc, &
-                                            force, virial, eelec, evdw)
+                                                     force, virial, eelec, evdw)
 
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain

@@ -143,7 +143,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Replica> bad variable')
+      call error_msg('Alloc_Rpath> bad variable')
 
     end select
 
@@ -203,7 +203,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Replica> bad variable')
+      call error_msg('Dealloc_Rpath> bad variable')
 
     end select 
 

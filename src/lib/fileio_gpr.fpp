@@ -72,6 +72,9 @@ module fileio_gpr_mod
   integer,     public,  parameter :: GprImpr = 4
   integer,     public,  parameter :: GprPair = 5
 
+  ! local variables
+  logical,                private :: vervose = .true.
+
   ! subroutines
   public  :: input_gpr
   public  :: output_gpr
@@ -531,7 +534,7 @@ contains
 
     ! write summary of PSF information
     !
-    if (main_rank) then
+    if (main_rank .and. vervose) then
       
       write(MsgOut,'(A)') 'Read_Gpr> Summary of GPR file'
 
@@ -544,7 +547,7 @@ contains
       write(MsgOut,'(A20,I10)')                       &
            '  num_pairs       = ', gpr%num_pairs
       write(MsgOut,'(A)') ' '
-
+      vervose = .false.
     end if
 
     return
