@@ -1,0 +1,65 @@
+[INPUT]
+psffile        = ../../../trajectories/villin_crowding/villin_crowding.psf       # protein structure file
+pdbfile        = ../../../trajectories/villin_crowding/villin_crowding.pdb
+reffile        = ../../../trajectories/villin_crowding/villin_crowding.pdb        # PDB file
+
+[OUTPUT]
+txtfile        = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/villin_crowding/villin_crowding_run.dcd   # trajectory file
+md_step1       = 5               
+mdout_period1  = 1              
+ana_period1    = 1              
+repeat1        = 1
+trj_format     = DCD           
+trj_type       = COOR+BOX          
+trj_natom      = 0              
+
+[BOUNDARY]
+type          = PBC      
+box_size_x    = 134   
+box_size_y    = 134  
+box_size_z    = 134 
+domain_x      = 2        
+domain_y      = 2        
+domain_z      = 2       
+num_cells_x    = 12
+num_cells_y    = 12
+num_cells_z    = 12
+
+[ENSEMBLE]
+ensemble      = NPT
+
+[SELECTION]
+group1	=	ai:	1	-	596
+group2	=	ai:	597	-	1192
+group3	=	ai:	1193	-	1788
+group4	=	ai:	1789	-	2384
+group5	=	ai:	2385	-	2980
+group6	=	ai:	2981	-	3576
+group7	=	ai:	3577	-	4172
+group8	=	ai:	4173	-	4768
+group9	=	ai:	4769	-	5364
+group10	=	ai:	5365	-	5960
+group11	=	ai:	5961	-	6556
+group12	=	ai:	6557	-	7152
+group13	=	ai:	7153	-	7748
+group14	=	ai:	7749	-	8344
+group15	=	ai:	8345	-	8940
+group16	=	ai:	8941	-	9536
+group17	=	ai:	9537	-	10132
+group18	=	ai:	10133	-	10728
+group19	=	ai:	10729	-	11324
+group20	=	ai:	11325	-	11920
+group21	=	ai:	11921	-	12516
+group22	=	ai:	12517	-	13112
+
+[SPANA_OPTION]
+buffer         = 10
+wrap           = yes          # 1: perform wrap 0: do nothing
+box_size       = TRAJECTORY        #TRAJECTORY, MANUAL, MAX
+
+[CONTACT_OPTION]
+range          = 10 
+mode           = number 

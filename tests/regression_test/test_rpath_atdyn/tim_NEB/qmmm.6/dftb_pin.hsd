@@ -1,0 +1,125 @@
+Geometry = GenFormat {
+37 C
+H  C  N  O  P
+1   1      11.6748671612       4.9609732341      -2.6822217789
+2   2      11.2551705316       4.1850281745      -3.1531400346
+3   1      10.1867027492       4.3609304662      -3.2558606929
+4   1      11.3664693836       3.3037139126      -2.5207872578
+5   3      11.3257588760       4.4925988672      -5.6487144020
+6   2      11.8605286595       3.9415004308      -4.5039776072
+7   2      12.2068046923       4.1884526430      -6.6233456068
+8   1      12.1245461442       4.4767979432      -7.6595238490
+9   3      13.2491579867       3.4808920920      -6.1389931423
+10   1      14.0471489531       3.1463630189      -6.6895300301
+11   2      13.0594548630       3.3077666487      -4.7976163136
+12   1      13.7711484671       2.7714206468      -4.1828441748
+13   1      19.3006496742       6.0160425449      -5.9332835480
+14   2      18.4359961513       5.5329289413      -6.0710352501
+15   1      18.3091543896       5.3395236325      -7.1371533708
+16   1      17.6066582752       6.1678773729      -5.7485063783
+17   2      18.3841374003       4.2272806148      -5.2825628590
+18   1      18.2487425111       4.4251881524      -4.2181401196
+19   1      19.3413325567       3.7068511937      -5.3862954850
+20   2      17.2770653769       3.2453832147      -5.7620180536
+21   4      16.0601289708       3.3869353965      -5.3577090097
+22   4      17.7330657345       2.3401051335      -6.5233060429
+23   5      16.8009917876       0.6725516211     -12.0456763044
+24   4      15.8712196805       1.2057155998     -10.7395516710
+25   4      15.6624073396      -0.0019602077     -12.9166359554
+26   4      17.8355845778      -0.3513552084     -11.4499084529
+27   4      17.4360626731       1.9108049662     -12.7313196840
+28   2      16.5385115707       1.6247328139      -9.5735896830
+29   1      17.0185204125       2.6155906795      -9.6936519264
+30   1      17.3239344749       0.9141710295      -9.2609411519
+31   2      15.5463918178       1.7214831252      -8.4515096594
+32   4      14.7469397078       2.6912410097      -8.3979836914
+33   2      15.6911381994       0.7860365924      -7.3438039994
+34   4      14.6826934966       0.8263960965      -6.3546260315
+35   1      14.8717009469       1.6012584220      -5.7842448529
+36   1      16.5650740966       1.2981835369      -6.8994655274
+37   1      15.8990715594      -0.2445579743      -7.6399027746
+}
+Driver = {}
+Hamiltonian = DFTB {
+  ElectricField = {
+    PointCharges = {
+      CoordsAndCharges [Angstrom] = DirectRead {
+        Records = 2919
+        File = mm_charges.dat
+      }
+      GaussianBlurWidth = 0.00000000000000
+    }
+  }
+  SCC = Yes
+  Charge = -3.0
+  ReadInitialCharges = Yes
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "/home/yagi/pgm/dftb/slako/3ob-3-1/"
+    Separator = "-"
+    Suffix = ".skf"
+    LowerCaseTypeName = No
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+    P = "d"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0.0
+  }
+  PolynomialRepulsive = {}
+  OrbitalResolvedSCC = No
+  OldSKInterpolation = No
+  SCCTolerance = 1.000000000000000E-005
+  Mixer = Broyden {
+    MixingParameter = 0.200000000000000
+    InverseJacobiWeight = 1.000000000000000E-002
+    MinimalWeight = 1.00000000000000
+    MaximalWeight = 100000.000000000
+    WeightFactor = 1.000000000000000E-002
+  }
+  DampXH = No
+  SpinPolarisation = {}
+  Eigensolver = RelativelyRobust {}
+  MaxSCCIterations = 100
+  Dispersion = {}
+  ThirdOrder = No
+  ThirdOrderFull = No
+  Differentiation = FiniteDiff {
+    Delta = 1.220703125000000E-004
+  }
+  ForceEvaluation = "Traditional"
+}
+Options = {
+  WriteDetailedOut = Yes
+  WriteAutotestTag = No
+  WriteDetailedXML = No
+  WriteResultsTag = No
+  RestartFrequency = 20
+  RandomSeed = 0
+  WriteHS = No
+  WriteRealHS = No
+  MinimiseMemoryUsage = No
+  ShowFoldedCoords = No
+  TimingVerbosity = 0
+  ReadChargesAsText = No
+  WriteChargesAsText = No
+}
+Analysis = {
+  CalculateForces = Yes
+  ProjectStates = {}
+  MullikenAnalysis = Yes
+  AtomResolvedEnergies = No
+  WriteEigenvectors = No
+  WriteBandOut = Yes
+}
+ParserOptions = {
+  ParserVersion = 5
+  WriteHSDInput = Yes
+  WriteXMLInput = No
+  StopAfterParsing = No
+  IgnoreUnprocessedNodes = No
+}
+ExcitedState = {}

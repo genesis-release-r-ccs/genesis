@@ -1,0 +1,67 @@
+[INPUT]
+topfile          = ../../param/top_all27_na.rtf
+parfile          = ../../param/par_all27_na.prm
+psffile          = ./dna.psf
+pdbfile          = ./dna.pdb
+rstfile          = rst{}
+
+[OUTPUT]
+logfile          = test{}
+
+[REMD]
+dimension        = 1
+exchange_period  = 10
+iseed            = 3141592
+
+type1            = REST
+nreplica1        = 4
+parameters1      = 300 301 301.7 303.2
+select_index1    = 1
+
+param_tuning1    = YES
+tgt_exc_prob1    = 0.25
+mgn_exc_prob1    = 0.05
+trial_freq1      = 2
+eq_cycle1        = 0
+param_grid1      = 0.1
+max_param_shift1 = 20.0
+fix_terminal1    = BOTTOM
+ 
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = CUTOFF
+switchdist       = 10.0
+cutoffdist       = 12.0
+pairlistdist     = 13.5
+dielec_const     = 1.0
+#table            = NO      
+water_model      = NONE
+output_style     = GENESIS
+vdw_force_switch = NO
+
+[DYNAMICS]
+integrator       = VVER
+nsteps           =   100
+timestep         = 0.001
+eneout_period    =    10
+nbupdate_period  =     5
+iseed            = 314159 
+
+[CONSTRAINTS]
+rigid_bond       = NO
+fast_water       = NO
+
+[ENSEMBLE]
+ensemble         = NVT
+tpcontrol        = BUSSI
+ 
+[BOUNDARY]
+type             = PBC
+box_size_x       = 64.000 
+box_size_y       = 64.000 
+box_size_z       = 64.000 
+
+[SELECTION]
+group1 = ai:1-638
+ 
+[RESTRAINTS]

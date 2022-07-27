@@ -1,0 +1,429 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 1.6.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = yagi@beluga
+  fortran      = ifort (IFORT) 18.0.1 20171018
+  option       = -xHost -O3 -ip -mkl=parallel  -assume byterecl -qopenmp 
+  C            = icc (ICC) 18.0.1 20171018
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp
+  defined var. =  -DMPI -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_
+ lapack95_lp64 
+
+Runtime_Information> Machine and Library Information
+  date       = 2021/05/08 00:57:17
+  cpu model    = Intel(R) Xeon(R) CPU E5-2667 v4 @ 3.20GHz
+  exec. host   = yagi@beluga12
+  LD library   = 
+ /home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v3.1.2_intel_v18.0.1/lib:/opt/inte
+ l/compilers_and_libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/
+ compilers_and_libraries_2018.1.163/linux/mkl/lib/intel64_lin:/opt/intel/compile
+ rs_and_libraries_2018.1.163/linux/compiler/lib/intel64:/opt/intel/compilers_and
+ _libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_l
+ ibraries_2018.1.163/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_20
+ 18.1.163/linux/mpi/mic/lib:/opt/intel/compilers_and_libraries_2018.1.163/linux/
+ ipp/lib/intel64:/opt/intel/compilers_and_libraries_2018.1.163/linux/compiler/li
+ b/intel64_lin:/opt/intel/compilers_and_libraries_2018.1.163/linux/mkl/lib/intel
+ 64_lin:/opt/intel/compilers_and_libraries_2018.1.163/linux/tbb/lib/intel64/gcc4
+ .7:/opt/intel/compilers_and_libraries_2018.1.163/linux/tbb/lib/intel64/gcc4.7:/
+ opt/intel/compilers_and_libraries_2018.1.163/linux/daal/lib/intel64_lin:/home/y
+ agi/pgm/terachem1.93P/TeraChem/lib:/home/yagi/pgm/amber18_beluga/lib:/home/mdso
+ ft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.0_intel_v18.0.1/lib:/opt/intel/compiler
+ s_and_libraries_2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_
+ and_libraries_2018.1.163/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_lib
+ raries_2018.1.163/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries
+ _2018.1.163/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_libraries_2
+ 018.1.163/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_2018.1.163/
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  topfile = ../toppar/top_all27_prot_na.rtf
+  parfile = ../toppar/par_all27_prot_na.prm
+  strfile = ../toppar/toppar_prot_na_all.str
+  psffile = ../br.psf
+  crdfile = ../br.crd
+ 
+Read_Ctrl_Output> Output Files
+ 
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =     CHARMM
+  switchdist      =     10.000  cutoffdist      =     12.000
+  pairlistdist    =     13.500  dielec_const    =      1.000
+ vdW force_switch =         no
+  electrostatic   =  CUTOFF
+  implicit_solvent=       none
+  table_order     =          3
+  table_density   =     20.000
+  water_model     =       NONE
+  output_style    =    GENESIS
+  dispersion_corr =       none
+  nonb_limiter    =      no
+ 
+Read_Ctrl_Minimize> Parameters of MIN
+  method                     =      LBFGS  nsteps                     =         10
+  eneout_period              =          1  crdout_period              =          0
+  rstout_period              =          0  nbupdate_period            =          1
+  fixatm_select_index        = 8
+  tol_rmsg                   =   0.36E+00  tol_maxg                   =   0.54E+00
+  verbose                    =         no
+  ncorrection                =         10
+  lbfgs_bnd                  =        yes  lbfgs_bnd_qmonly           =        yes
+  lbfgs_bnd_maxmove          =    0.10000
+  macro                      =         no
+  check_structure            =         no  fix_ring_error             =         no
+  fix_chirality_error        =         no
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =       NOBC
+  spherical_pot   =         no  restart         =          T
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          8
+    group 1 = ano:1213-1224
+    group 2 = ano:1262-1267
+    group 3 = ano:3274-3279
+    group 4 = ano:3334-3386
+    group 5 = ano:3634-3636
+    group 6 = ano:3637-3639
+    group 7 = ano:3649-3651
+    group 8 = not ( (segid:BR and (resno:78 or resno:81 or resno:208 or resno:212)) around_atoms:10.0 or (segid:BR and (resno:78 or resno:81 or resno:208 or resno:212)) )
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+Read_Ctrl_QMMM> Parameters of QM/MM
+  qmtyp              = gaussian
+  qmcnt              = ../script/gaussian.com
+  qmexe              = ../script/runGau.sh
+  workdir            = qmmm
+  savedir            = none
+  basename           = job
+  qmsave_period      = 1
+  qmmaxtrial         = 1
+  qmatm_select_index = 1 2 3 4 5 6 7
+  exclude_charge     = GROUP
+  qm_total_charge    = 0
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          1
+  number of OpenMP threads  =         16
+  total number of CPU cores =         16
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Input_Top> Summary of Topfile
+  num_atom_class  =        182  num_resi_type   =         68
+ 
+Input_Par> Summary of Parfile
+  num_bonds       =        257  num_angles      =        656
+  num_dihedrals   =       1127  num_impropers   =         70
+  num_atom_cls    =        164  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+    CR*    => CR5   
+    CR*    => CR6   
+    CR*    => CR7   
+    CR*    => CR8   
+    CR*    => CR9   
+    CR*    => CR10  
+    CR*    => CR11  
+    CR*    => CR12  
+    CR*    => CR13  
+    CR*    => CR14  
+    CR*    => CR15  
+ 
+Input_Str> Summary of Top information
+  num_atom_class  =        182  num_resi_type   =         90
+ 
+Input_Str> Summary of Par information
+  num_bonds       =        299  num_angles      =        749
+  num_dihedrals   =       1228  num_impropers   =         88
+  num_atom_cls    =        182  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+Read_Psf> Summary of Psffile
+  psftype         =     charmm
+  num_atoms       =       3702  num_bonds       =       3751
+  num_angles      =       6698  num_dihedrals   =       9742
+  num_impropers   =        509  num_cmap_terms  =        225
+  num_HB_donors   =        333  num_HB_acceptors=        323
+  num_NB_exclusion=          0  num_groups      =       1158
+  total_charge    =      3.000
+ 
+Read_Crd> Summary of CRD file
+  num_atoms       =       3702
+ 
+Define_Molecule> Summary of molecules
+  num_atoms       =       3702  num_bonds       =       3751
+  num_angles      =       6698  num_dihedrals   =       9742
+  num_impropers   =        509  num_cmap_terms  =        225
+  num_residues    =        250  num_molecules   =         24
+  num_segments    =          2  num_deg_freedom =      11106
+  total_charge    =      3.000
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Select_Contacts> mode        : Atom
+                 sel atoms A :     116
+                 sel atoms B :    3586
+                 distance    :   10.00
+                contact atom list :    1771
+ 
+Setup_QMMM> Link bond length is set to 1.000 angstrom
+Setup_QMMM> Setup QM region
+  QM assignment info
+  1213 BR       78 ARG    CD   CT2    assigned to QM atom    1 of element: C     6
+  1214 BR       78 ARG    HD1  HA     assigned to QM atom    2 of element: H     1
+  1215 BR       78 ARG    HD2  HA     assigned to QM atom    3 of element: H     1
+  1216 BR       78 ARG    NE   NC2    assigned to QM atom    4 of element: N     7
+  1217 BR       78 ARG    HE   HC     assigned to QM atom    5 of element: H     1
+  1218 BR       78 ARG    CZ   C      assigned to QM atom    6 of element: C     6
+  1219 BR       78 ARG    NH1  NC2    assigned to QM atom    7 of element: N     7
+  1220 BR       78 ARG    HH11 HC     assigned to QM atom    8 of element: H     1
+  1221 BR       78 ARG    HH12 HC     assigned to QM atom    9 of element: H     1
+  1222 BR       78 ARG    NH2  NC2    assigned to QM atom   10 of element: N     7
+  1223 BR       78 ARG    HH21 HC     assigned to QM atom   11 of element: H     1
+  1224 BR       78 ARG    HH22 HC     assigned to QM atom   12 of element: H     1
+  1262 BR       81 ASP    CB   CT2    assigned to QM atom   13 of element: C     6
+  1263 BR       81 ASP    HB1  HA     assigned to QM atom   14 of element: H     1
+  1264 BR       81 ASP    HB2  HA     assigned to QM atom   15 of element: H     1
+  1265 BR       81 ASP    CG   CC     assigned to QM atom   16 of element: C     6
+  1266 BR       81 ASP    OD1  OC     assigned to QM atom   17 of element: O     8
+  1267 BR       81 ASP    OD2  OC     assigned to QM atom   18 of element: O     8
+  3274 BR      208 ASP    CB   CT2    assigned to QM atom   19 of element: C     6
+  3275 BR      208 ASP    HB1  HA     assigned to QM atom   20 of element: H     1
+  3276 BR      208 ASP    HB2  HA     assigned to QM atom   21 of element: H     1
+  3277 BR      208 ASP    CG   CC     assigned to QM atom   22 of element: C     6
+  3278 BR      208 ASP    OD1  OC     assigned to QM atom   23 of element: O     8
+  3279 BR      208 ASP    OD2  OC     assigned to QM atom   24 of element: O     8
+  3334 BR      212 LYR    CE   CT2    assigned to QM atom   25 of element: C     6
+  3335 BR      212 LYR    HE1  HA     assigned to QM atom   26 of element: H     1
+  3336 BR      212 LYR    HE2  HA     assigned to QM atom   27 of element: H     1
+  3337 BR      212 LYR    N16  NCH1   assigned to QM atom   28 of element: N     7
+  3338 BR      212 LYR    H16  HCR    assigned to QM atom   29 of element: H     1
+  3339 BR      212 LYR    C15  CR15   assigned to QM atom   30 of element: C     6
+  3340 BR      212 LYR    H15  HPL1   assigned to QM atom   31 of element: H     1
+  3341 BR      212 LYR    C14  CR14   assigned to QM atom   32 of element: C     6
+  3342 BR      212 LYR    H14  HPL    assigned to QM atom   33 of element: H     1
+  3343 BR      212 LYR    C13  CR13   assigned to QM atom   34 of element: C     6
+  3344 BR      212 LYR    C20  CT3    assigned to QM atom   35 of element: C     6
+  3345 BR      212 LYR    H20A HA     assigned to QM atom   36 of element: H     1
+  3346 BR      212 LYR    H20B HA     assigned to QM atom   37 of element: H     1
+  3347 BR      212 LYR    H20C HA     assigned to QM atom   38 of element: H     1
+  3348 BR      212 LYR    C12  CR12   assigned to QM atom   39 of element: C     6
+  3349 BR      212 LYR    H12  HPL    assigned to QM atom   40 of element: H     1
+  3350 BR      212 LYR    C11  CR11   assigned to QM atom   41 of element: C     6
+  3351 BR      212 LYR    H11  HPL    assigned to QM atom   42 of element: H     1
+  3352 BR      212 LYR    C10  CR10   assigned to QM atom   43 of element: C     6
+  3353 BR      212 LYR    H10  HPL    assigned to QM atom   44 of element: H     1
+  3354 BR      212 LYR    C9   CR9    assigned to QM atom   45 of element: C     6
+  3355 BR      212 LYR    C19  CT3    assigned to QM atom   46 of element: C     6
+  3356 BR      212 LYR    H19A HA     assigned to QM atom   47 of element: H     1
+  3357 BR      212 LYR    H19B HA     assigned to QM atom   48 of element: H     1
+  3358 BR      212 LYR    H19C HA     assigned to QM atom   49 of element: H     1
+  3359 BR      212 LYR    C8   CR8    assigned to QM atom   50 of element: C     6
+  3360 BR      212 LYR    H8   HPL    assigned to QM atom   51 of element: H     1
+  3361 BR      212 LYR    C7   CR7    assigned to QM atom   52 of element: C     6
+  3362 BR      212 LYR    H7   HPL    assigned to QM atom   53 of element: H     1
+  3363 BR      212 LYR    C6   CR6    assigned to QM atom   54 of element: C     6
+  3364 BR      212 LYR    C5   CR5    assigned to QM atom   55 of element: C     6
+  3365 BR      212 LYR    C18  CT3    assigned to QM atom   56 of element: C     6
+  3366 BR      212 LYR    H18A HA     assigned to QM atom   57 of element: H     1
+  3367 BR      212 LYR    H18B HA     assigned to QM atom   58 of element: H     1
+  3368 BR      212 LYR    H18C HA     assigned to QM atom   59 of element: H     1
+  3369 BR      212 LYR    C4   CT2    assigned to QM atom   60 of element: C     6
+  3370 BR      212 LYR    H4A  HA     assigned to QM atom   61 of element: H     1
+  3371 BR      212 LYR    H4B  HA     assigned to QM atom   62 of element: H     1
+  3372 BR      212 LYR    C3   CT2    assigned to QM atom   63 of element: C     6
+  3373 BR      212 LYR    H3A  HA     assigned to QM atom   64 of element: H     1
+  3374 BR      212 LYR    H3B  HA     assigned to QM atom   65 of element: H     1
+  3375 BR      212 LYR    C2   CT2    assigned to QM atom   66 of element: C     6
+  3376 BR      212 LYR    H2A  HA     assigned to QM atom   67 of element: H     1
+  3377 BR      212 LYR    H2B  HA     assigned to QM atom   68 of element: H     1
+  3378 BR      212 LYR    C1   CT3    assigned to QM atom   69 of element: C     6
+  3379 BR      212 LYR    C16  CT3    assigned to QM atom   70 of element: C     6
+  3380 BR      212 LYR    H16A HA     assigned to QM atom   71 of element: H     1
+  3381 BR      212 LYR    H16B HA     assigned to QM atom   72 of element: H     1
+  3382 BR      212 LYR    H16C HA     assigned to QM atom   73 of element: H     1
+  3383 BR      212 LYR    C17  CT3    assigned to QM atom   74 of element: C     6
+  3384 BR      212 LYR    H17A HA     assigned to QM atom   75 of element: H     1
+  3385 BR      212 LYR    H17B HA     assigned to QM atom   76 of element: H     1
+  3386 BR      212 LYR    H17C HA     assigned to QM atom   77 of element: H     1
+  3634 WAT       1 TIP3   OH2  OT     assigned to QM atom   78 of element: O     8
+  3635 WAT       1 TIP3   H1   HT     assigned to QM atom   79 of element: H     1
+  3636 WAT       1 TIP3   H2   HT     assigned to QM atom   80 of element: H     1
+  3637 WAT       2 TIP3   OH2  OT     assigned to QM atom   81 of element: O     8
+  3638 WAT       2 TIP3   H1   HT     assigned to QM atom   82 of element: H     1
+  3639 WAT       2 TIP3   H2   HT     assigned to QM atom   83 of element: H     1
+  3649 WAT       6 TIP3   OH2  OT     assigned to QM atom   84 of element: O     8
+  3650 WAT       6 TIP3   H1   HT     assigned to QM atom   85 of element: H     1
+  3651 WAT       6 TIP3   H2   HT     assigned to QM atom   86 of element: H     1
+  number of QM atoms = 86
+ 
+ 
+
+Generate_LinkAtoms> QM-MM interface info. Link hydrogen is set between:
+              [ QM atom ]             -             [ MM atom ]
+  1213 BR       78 ARG    CD   CT2    -   1210 BR       78 ARG    CG   CT2   
+                                          1211 BR       78 ARG    HG1  HA     excluded
+                                          1212 BR       78 ARG    HG2  HA     excluded
+  1262 BR       81 ASP    CB   CT2    -   1260 BR       81 ASP    CA   CT1   
+                                          1258 BR       81 ASP    N    NH1    excluded
+                                          1259 BR       81 ASP    HN   H      excluded
+                                          1261 BR       81 ASP    HA   HB     excluded
+  3274 BR      208 ASP    CB   CT2    -   3272 BR      208 ASP    CA   CT1   
+                                          3270 BR      208 ASP    N    NH1    excluded
+                                          3271 BR      208 ASP    HN   H      excluded
+                                          3273 BR      208 ASP    HA   HB     excluded
+  3334 BR      212 LYR    CE   CT2    -   3331 BR      212 LYR    CD   CT2   
+                                          3332 BR      212 LYR    HD1  HA     excluded
+                                          3333 BR      212 LYR    HD2  HA     excluded
+
+  number of link atoms           = 4
+  number of external MM charges  = 3602
+
+ 
+  Check the control file for Gaussian [ ../script/gaussian.com ]
+  Passed the check!
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =       3702  num_waters      =          0
+
+Define_Enefunc_CHARMM> Number of Interactions in Each Term
+  bond_ene        =       3668  angle_ene       =       6575
+  urey_ene        =       3183
+  torsion_ene     =       9986  improper_ene    =        494
+  cmap_ene        =        225
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Select_Contacts> mode        : Atom
+                 sel atoms A :     116
+                 sel atoms B :    3586
+                 distance    :   10.00
+                contact atom list :    1771
+ 
+Setup_MinAtoms> Atoms info in minimize
+  number of fixed atoms     = 1815
+  number of minimized atoms = 1887
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+SKIPPED: Energy calculation is omitted when QMMM is performed
+ 
+[STEP5] Perform Energy Minimization
+ 
+INFO:       STEP   POTENTIAL_ENE            RMSG            MAXG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT              QM
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0   -1110667.4452         19.3031        144.3485        758.7071       1810.9664        209.6417       1147.6165        101.9117       -307.7863       -853.9106      -1873.0039   -1111661.5877
+
+  maxg =   144.3485 at       1262 BR       81 ASP    CB   CT2   
+
+INFO:          1   -1111111.5871         16.4296        162.6384        682.4225       1586.9847        177.5746       1121.6832         75.2068       -313.7103       -873.6635      -1901.6113   -1111666.4738
+
+  maxg =   162.6384 at       3307 BR      210 SER    C    C     
+
+INFO:          2   -1111417.3495          7.6872         97.5777        539.3769       1512.5755        170.1155       1115.0377         70.7078       -314.1447       -876.7534      -1896.6041   -1111737.6608
+
+  maxg =    97.5777 at       1267 BR       81 ASP    OD2  OC    
+
+INFO:          3   -1111557.8640          6.1048         44.2326        513.8172       1447.9656        160.2427       1106.0539         66.8216       -314.8491       -882.6536      -1895.9444   -1111759.3179
+
+  maxg =    44.2326 at       1218 BR       78 ARG    CZ   C     
+
+INFO:          4   -1111735.3415          6.7862        171.4822        498.6135       1345.7916        143.3293       1091.2333         64.8667       -316.3040       -894.2916      -1899.5207   -1111769.0595
+
+  maxg =   171.4822 at       1265 BR       81 ASP    CG   CC    
+
+INFO:          5   -1111850.2435          7.3347        193.6190        488.3885       1279.7873        131.3018       1080.3119         64.3191       -317.9884       -906.2578      -1907.8390   -1111762.2670
+
+  maxg =   193.6190 at       1265 BR       81 ASP    CG   CC    
+
+INFO:          6   -1111931.6876          5.0236        119.3938        473.7669       1256.8463        127.0040       1075.0937         61.4534       -319.0181       -911.6291      -1910.6242   -1111784.5805
+
+  maxg =   119.3938 at       1267 BR       81 ASP    OD2  OC    
+
+INFO:          7   -1111980.1054          3.5983         73.3798        468.3675       1242.5824        124.4061       1070.9640         59.6574       -319.5608       -916.6906      -1912.8237   -1111797.0077
+
+  maxg =    73.3798 at       1265 BR       81 ASP    CG   CC    
+
+INFO:          8   -1112011.4587          3.1262         55.7610        465.8445       1231.9697        122.6634       1067.2838         59.1505       -320.0972       -921.2577      -1915.0440   -1111801.9718
+
+  maxg =    55.7610 at       1267 BR       81 ASP    OD2  OC    
+
+INFO:          9   -1112049.0736          3.6261         89.1978        463.7286       1219.0847        121.1410       1061.3054         58.8916       -321.4391       -928.0195      -1918.6792   -1111805.0870
+
+  maxg =    89.1978 at       3359 BR      212 LYR    C8   CR8   
+
+INFO:         10   -1112077.4648          3.0452         59.6127        462.5582       1213.2533        121.0498       1056.9112         58.4341       -322.7123       -931.7372      -1921.3398   -1111813.8822
+
+  maxg =    59.6127 at       3361 BR      212 LYR    C7   CR7   
+
+
+Final energy =  -1112077.4647876257
+
+ >>>>> STOP: Total number of iterations exceeds limit.
+
+Check_Chirality> Check chirality
+ 
+  No suspicious residue was detected.
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =      74.668
+    setup         =       0.371
+    dynamics      =      74.297
+      energy      =      74.036
+      integrator  =       0.000
+      pairlist    =       0.264 (       0.264,       0.264)
+  energy           
+    bond          =       0.002 (       0.002,       0.002)
+    angle         =       0.004 (       0.004,       0.004)
+    dihedral      =       0.006 (       0.006,       0.006)
+    nonbond       =       0.072 (       0.072,       0.072)
+      pme real    =       0.072 (       0.072,       0.072)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =      73.951 (      73.951,      73.951)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

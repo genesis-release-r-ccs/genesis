@@ -1,0 +1,146 @@
+INFO:       STEP   POTENTIAL_ENE            RMSG            MAXG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT              QM
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0     -37742.2072          0.0000          0.0000        413.2459        914.2916        111.6431       1170.0476         53.4674        -43.9068       -389.1145      -4089.8407     -35882.0407
+
+Iter.     1
+
++++++ Start micro iteration 1 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -32082.27196405  RMSG =     141.5801  MAXG =     452.5496
+     STEP        4 POTENTIAL_ENE =      -37753.51087828  RMSG =       2.9382  MAXG =      48.4268
+     STEP        6 POTENTIAL_ENE =      -37764.19075018  RMSG =       1.7086  MAXG =      12.5087
+     STEP        8 POTENTIAL_ENE =      -37768.92147382  RMSG =       1.2344  MAXG =      12.4204
+     STEP       10 POTENTIAL_ENE =      -37771.52699148  RMSG =       1.1685  MAXG =      12.6180
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          1     -37771.5314          1.1685         12.6180        412.4802        904.6537        109.9268       1169.8757         53.0519        -44.5492       -390.0474      -4107.0322     -35879.8908
+
+Iter.     2
+
++++++ Start micro iteration 2 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -32139.48435252  RMSG =     145.1887  MAXG =     513.3086
+     STEP        4 POTENTIAL_ENE =      -37772.17077770  RMSG =       0.7581  MAXG =       5.3975
+     STEP        6 POTENTIAL_ENE =      -37773.47806181  RMSG =       0.9628  MAXG =       9.9787
+     STEP        8 POTENTIAL_ENE =      -37775.77915259  RMSG =       1.0001  MAXG =       7.2803
+     STEP       10 POTENTIAL_ENE =      -37778.09441088  RMSG =       1.3315  MAXG =      10.8143
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          2     -37804.6171          1.3315         10.8143        412.6199        906.3512        109.8930       1169.5850         52.9109        -45.0297       -389.9062      -4116.4765     -35904.5649
+
+Iter.     3
+
++++++ Start micro iteration 3 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -31680.20399256  RMSG =     158.0050  MAXG =     504.6319
+     STEP        4 POTENTIAL_ENE =      -37805.33661004  RMSG =       0.7616  MAXG =       5.2532
+     STEP        6 POTENTIAL_ENE =      -37806.49383395  RMSG =       0.6957  MAXG =       6.3293
+     STEP        8 POTENTIAL_ENE =      -37807.12999988  RMSG =       0.4494  MAXG =       3.1505
+     STEP       10 POTENTIAL_ENE =      -37807.55158549  RMSG =       0.5586  MAXG =       4.2939
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          3     -37817.3212          0.5586          4.2939        413.0589        905.0652        109.7871       1169.3836         52.8700        -45.0759       -389.5098      -4118.8677     -35914.0325
+
+Iter.     4
+
++++++ Start micro iteration 4 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -32077.58447216  RMSG =     150.5208  MAXG =     496.1749
+     STEP        4 POTENTIAL_ENE =      -37817.48422856  RMSG =       0.3742  MAXG =       2.4447
+     STEP        6 POTENTIAL_ENE =      -37817.92748987  RMSG =       0.6113  MAXG =       5.8761
+     STEP        8 POTENTIAL_ENE =      -37818.59884949  RMSG =       1.4523  MAXG =      15.8524
+     STEP       10 POTENTIAL_ENE =      -37819.70935321  RMSG =       0.6684  MAXG =       6.1280
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          4     -37822.9874          0.6684          6.1280        413.1035        905.5014        109.7719       1169.1385         52.8336        -45.1393       -390.0330      -4123.2530     -35914.9111
+
+Iter.     5
+
++++++ Start micro iteration 5 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -34041.17394881  RMSG =     116.9723  MAXG =     457.5335
+     STEP        4 POTENTIAL_ENE =      -37823.30378548  RMSG =       0.5075  MAXG =       3.7004
+     STEP        6 POTENTIAL_ENE =      -37823.82769121  RMSG =       0.5986  MAXG =       7.5411
+     STEP        8 POTENTIAL_ENE =      -37824.05305419  RMSG =       0.2727  MAXG =       2.3532
+     STEP       10 POTENTIAL_ENE =      -37824.35997847  RMSG =       0.5751  MAXG =       6.2715
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          5     -37825.6537          0.5751          6.2715        413.4872        905.0405        109.7364       1169.1178         52.9278        -45.2417       -389.8054      -4124.7554     -35916.1609
+
+Iter.     6
+
++++++ Start micro iteration 6 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -33157.29146312  RMSG =     126.9086  MAXG =     513.2123
+     STEP        4 POTENTIAL_ENE =      -37825.82267049  RMSG =       0.3193  MAXG =       3.2429
+     STEP        6 POTENTIAL_ENE =      -37825.99768298  RMSG =       0.3054  MAXG =       2.6173
+     STEP        8 POTENTIAL_ENE =      -37826.23503612  RMSG =       0.3492  MAXG =       2.9045
+     STEP       10 POTENTIAL_ENE =      -37826.53608234  RMSG =       0.4404  MAXG =       4.6315
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          6     -37827.1520          0.4404          4.6315        413.1672        905.3967        109.7339       1168.9599         52.8510        -45.3140       -389.9107      -4125.7803     -35916.2557
+
+Iter.     7
+
++++++ Start micro iteration 7 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -34105.22556356  RMSG =     118.0473  MAXG =     490.6393
+     STEP        4 POTENTIAL_ENE =      -37827.27562453  RMSG =       0.3273  MAXG =       2.9499
+     STEP        6 POTENTIAL_ENE =      -37827.52982224  RMSG =       0.2976  MAXG =       3.3115
+     STEP        8 POTENTIAL_ENE =      -37827.59476306  RMSG =       0.3667  MAXG =       4.8733
+     STEP       10 POTENTIAL_ENE =      -37827.71247775  RMSG =       0.2297  MAXG =       1.5192
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          7     -37828.1109          0.2297          1.5192        413.3598        905.2177        109.7104       1169.0034         52.8545        -45.3219       -389.7329      -4126.4461     -35916.7559
+
+Iter.     8
+
++++++ Start micro iteration 8 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -35351.59081062  RMSG =      91.5314  MAXG =     338.5143
+     STEP        4 POTENTIAL_ENE =      -37828.17659756  RMSG =       0.2185  MAXG =       1.2933
+     STEP        6 POTENTIAL_ENE =      -37828.32069938  RMSG =       0.4155  MAXG =       3.9777
+     STEP        8 POTENTIAL_ENE =      -37828.47873123  RMSG =       0.2638  MAXG =       1.9013
+     STEP       10 POTENTIAL_ENE =      -37828.74734164  RMSG =       0.5210  MAXG =       3.2625
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          8     -37829.0588          0.5210          3.2625        413.3635        905.2881        109.7366       1168.8448         52.8741        -45.3836       -389.8251      -4127.2982     -35916.6589
+
+Iter.     9
+
++++++ Start micro iteration 9 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -33342.96669584  RMSG =     130.6165  MAXG =     515.3279
+     STEP        4 POTENTIAL_ENE =      -37829.22432707  RMSG =       0.3034  MAXG =       2.3496
+     STEP        6 POTENTIAL_ENE =      -37829.37894569  RMSG =       0.2668  MAXG =       1.6096
+     STEP        8 POTENTIAL_ENE =      -37829.48688681  RMSG =       0.2909  MAXG =       4.4834
+     STEP       10 POTENTIAL_ENE =      -37829.55719582  RMSG =       0.1895  MAXG =       1.3844
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:          9     -37829.8274          0.1895          1.3844        413.3983        905.2355        109.7209       1168.9059         52.8693        -45.3977       -389.6677      -4127.6996     -35917.1923
+
+Iter.    10
+
++++++ Start micro iteration 10 +++++ 
+
+     STEP        2 POTENTIAL_ENE =      -34593.89753805  RMSG =     106.8432  MAXG =     455.0400
+     STEP        4 POTENTIAL_ENE =      -37829.85981439  RMSG =       0.1478  MAXG =       0.8479
+     STEP        6 POTENTIAL_ENE =      -37829.93977058  RMSG =       0.2798  MAXG =       3.3435
+     STEP        8 POTENTIAL_ENE =      -37830.09839603  RMSG =       0.5703  MAXG =       5.5874
+     STEP       10 POTENTIAL_ENE =      -37830.34768000  RMSG =       0.3486  MAXG =       3.0788
+
++++++ STOP: Total number of iterations exceeds limit.+++++
+
+INFO:         10     -37830.5916          0.3486          3.0788        413.3724        905.2618        109.7464       1168.8420         52.8573        -45.4253       -389.7567      -4128.1395     -35917.3500
+
+INFO:         10     -37830.5916          0.3486          3.0788        413.3724        905.2618        109.7464       1168.8420         52.8573        -45.4253       -389.7567      -4128.1395     -35917.3500
+

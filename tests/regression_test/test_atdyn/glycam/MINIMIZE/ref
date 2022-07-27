@@ -1,0 +1,281 @@
+****************************************************
+*                                                  *
+*                  GENESIS ATDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*            Atomic Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.0.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = chig@eel
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  option       = 
+ -xHost -axCORE-AVX2 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.0.5.281 20190815
+  option       = -O3 -ip -axCORE-AVX2  -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
+
+Runtime_Information> Machine and Library Information
+  date       = 2022/05/10 10:54:46
+  cpu model    = Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz
+  exec. host   = chig@eel05
+  LD library   = 
+ /usr/local/cuda/lib:/usr/local/cuda-10.2/lib64:/home/mdsoft/intel/intel/compile
+ rs_and_libraries_2019.5.281/linux/mpi/intel64/libfabric/lib:/home/mdsoft/intel/
+ intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib/release:/home/md
+ soft/intel/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib:/Ahom
+ e/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/linux/tbb/lib/intel64_l
+ in/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/linux/co
+ mpiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5
+ .281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compilers_and_librarie
+ s_2019.5.281/linux/compiler/lib/intel64_lin:/opt/uge/lib/lx-amd64
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  prmtopfile = ../../../build//glycam/glycam.top
+  ambcrdfile = ../../../build//glycam/glycam.rst
+  rstfile = ../../../build//glycam/rst
+ 
+Read_Ctrl_Output> Output Files
+ 
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =      AMBER
+  switchdist      =     12.000  cutoffdist      =     12.000
+  pairlistdist    =     14.000  dielec_const    =      1.000
+  debye           =     10.000
+  vdw_force_switch=         no
+  electrostatic   =        PME
+  pme_alpha       =    0.34000
+  pme_ngrid(x,y,z)=         64        64        64
+  pme_nspline     =          4
+  pme_multiple    =         no
+  implicit_solvent=       none
+  table_order     =          1
+  table_density   =     20.000
+  water_model     =       TIP3
+  output_style    =    GENESIS
+  dispersion_corr =     epress
+  nonb_limiter    =      no
+  user def. table =     no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
+ 
+Read_Ctrl_Minimize> Parameters of MIN
+  method                     =      LBFGS  nsteps                     =         20
+  eneout_period              =          2  crdout_period              =          0
+  rstout_period              =          0  nbupdate_period            =          4
+  fixatm_select_index        =       none
+  tol_rmsg                   =   0.36E+00  tol_maxg                   =   0.54E+00
+  verbose                    =         no
+  ncorrection                =         10
+  lbfgs_bnd                  =        yes  lbfgs_bnd_qmonly           =         no
+  lbfgs_bnd_maxmove          =    0.10000
+  macro                      =         no
+  check_structure            =        yes  fix_ring_error             =         no
+  fix_chirality_error        =         no
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =     PBC   
+  box_size(x,y,z) =     69.529    68.060    56.226
+  pairlist_grid   =      3.000
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          3
+  total number of CPU cores =         24
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Prmtop> Summary of PRMTOP file
+  NATOM           =      20352  NTYPES          =         20
+  NBONH           =      19336  MBONA           =       1037
+  NTHETH          =       2183  MTHETA          =       1412
+  NPHIH           =       4368  MPHIA           =       3514
+  NPARM           =          0  NNB             =      35414
+  NRES            =       6258  NBONA           =       1037
+  NTHETA          =       1412  NPHIA           =       3514
+  NUMBND          =         47  NUMANG          =         95
+  NPTRA           =         73  NATYP           =         33
+  NPHB            =          1
+  NCMAP           =          0  NCMAPTYPE       =          0
+ 
+Read_Rst_Binary> Summary of RST file
+  num_atoms       =      20352  iseed           = 2012005646
+  boxsize (x,y,z) =     69.529    68.060    56.226
+
+Define_Molecule> Summary of molecules
+  num_atoms       =      20352  num_bonds       =      20373
+  num_angles      =       3595  num_dihedrals   =       7501
+  num_impropers   =        381  num_cmap_terms  =          0
+  num_residues    =       6258  num_molecules   =       6130
+  num_segments    =          1  num_deg_freedom =      61056
+  total_charge    =     -0.000
+ 
+Setup_Boundary> Setup Variables for Boundary Condition
+  box_size(x,y,z) =     69.529    68.060    56.226
+  origin(x,y,z)   =      0.000     0.000     0.000
+ 
+Setup_Structure_Check> Setup for checking the ring size and chirality errors of proteins and DNA/RNA
+  num_ring_grps   =         17  num_chiral_grps =        133
+ 
+Setup_Enefunc_Cmap_Par> Natural spline is used to derive cmap coefs.
+
+Setup_Enefunc_Table> Setup Variables for LookupTable
+  num_solutes     =      20352  num_waters      =          0
+
+Define_Enefunc_AMBER> Number of Interactions in Each Term
+  bond_ene        =      20373  angle_ene       =       3595
+  torsion_ene     =       7501  improper_ene    =        381
+  cmap_ene        =          0
+  restraint_groups=          0  restraint_funcs =          0
+ 
+Get_Morph_in> Morphing check
+  morphing_bb     =          0  morphing_sc     =          0
+ 
+Setup_Fitting_Atdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Setup_MinAtoms> Atoms info in minimize
+  number of fixed atoms     = 0
+  number of minimized atoms = 20352
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP          ENERGY            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT
+ --------------- --------------- --------------- --------------- ---------------
+               0     -71524.4564        113.7529        401.1716       1167.4136         22.4424      15932.9227          0.0000     -89162.1595
+
+[STEP5] Perform Energy Minimization
+ 
+INFO:       STEP   POTENTIAL_ENE            RMSG            MAXG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0     -71524.4564         15.8018         58.8383        113.7529        401.1716       1167.4136         22.4424      15932.9227          0.0000     -89162.1595
+
+  maxg =    58.8383 at      13546        3990 WAT    O    OW    
+
+INFO:          2     -74548.3528         10.9969         44.1487       2754.2261        353.1749       1164.4607         19.0855      15819.0226          0.0000     -94658.3226
+
+  maxg =    44.1487 at      19330        5918 WAT    O    OW    
+
+INFO:          4     -77578.0540          3.8672         25.4375       6885.2843        306.1407       1161.0955         16.5660      15642.6624          0.0000    -101589.8030
+
+  maxg =    25.4375 at       1813         121 ASP    CG   C     
+
+INFO:          6     -77868.0159          1.6312          8.7468       6055.6998        298.6014       1160.0275         15.8480      15628.8000          0.0000    -101026.9926
+
+  maxg =     8.7468 at       6806        1743 WAT    H1   HW    
+
+INFO:          8     -78340.5865          2.4450         39.9731       5564.7664        292.6700       1157.8614         15.4003      15691.3757          0.0000    -101062.6603
+
+  maxg =    39.9731 at       1813         121 ASP    CG   C     
+
+INFO:         10     -78526.4553          4.2678        283.8091       6400.7684        312.7633       1156.2857         14.8379      15979.1346          0.0000    -102390.2452
+
+  maxg =   283.8091 at       1813         121 ASP    CG   C     
+
+INFO:         12     -78722.1881          0.9738         30.0348       6027.9283        294.1077       1155.2704         14.4225      15865.6864          0.0000    -102079.6034
+
+  maxg =    30.0348 at       1813         121 ASP    CG   C     
+
+INFO:         14     -78818.7680          1.5104         20.1052       6401.8780        284.3525       1153.4180         14.6240      15829.7161          0.0000    -102502.7567
+
+  maxg =    20.1052 at         35           2 GLU    CD   C     
+
+INFO:         16     -78935.7854          1.9795        107.3758       6483.7650        293.1008       1151.8796         14.9245      15830.0048          0.0000    -102709.4603
+
+  maxg =   107.3758 at       1813         121 ASP    CG   C     
+
+INFO:         18     -79002.5953          0.6002         12.5685       6022.9654        281.7604       1151.4703         14.0270      15836.7358          0.0000    -102309.5541
+
+  maxg =    12.5685 at       1239          83 ASP    CG   C     
+
+INFO:         20     -79057.0193          1.1210         20.5869       5916.1789        280.1187       1151.7678         14.3629      15870.2676          0.0000    -102289.7151
+
+  maxg =    20.5869 at       1853         124 VAL    C    C     
+
+
+Final energy =    -79057.0192712099
+
+ >>>>> STOP: Total number of iterations exceeds limit.
+
+Check_Ring_Structure> Check ring structure
+ 
+  No suspicious residue was detected.
+ 
+Check_Chirality> Check chirality
+ 
+  No suspicious residue was detected.
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       1.801
+    setup         =       0.597
+    dynamics      =       1.204
+      energy      =       0.679
+      integrator  =       0.000
+      pairlist    =       0.392 (       0.391,       0.395)
+  energy           
+    bond          =       0.001 (       0.001,       0.002)
+    angle         =       0.001 (       0.001,       0.002)
+    dihedral      =       0.001 (       0.001,       0.002)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.654 (       0.652,       0.656)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.484 (       0.476,       0.494)
+      pme recip   =       0.170 (       0.157,       0.178)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.000 (       0.000,       0.000)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.000 (       0.000,       0.000)
+

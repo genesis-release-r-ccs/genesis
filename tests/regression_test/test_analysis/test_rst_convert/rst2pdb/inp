@@ -1,0 +1,14 @@
+[INPUT]
+rstfile        = ../../trajectories/APP_vacuum/run.rst
+pdbfile        = ../../trajectories/APP_vacuum/2lz3.pdb
+psffile        = ../../trajectories/APP_vacuum/2lz3.psf
+ 
+[OUTPUT]
+pdbfile        = out
+ 
+[OPTION]
+check_only     = no              # (YES/NO)
+rstin_format   = GENESIS         # (NAMD/GENESIS)
+rstout_format  = PDB             # (NAMD/GENESIS/PDB/CHARMM/AMBER)
+rstout_type    = AUTO            # (AUTO/MIN/MD/REMD)
+pbc_correct    = NO              # (NO/MOLECULE)

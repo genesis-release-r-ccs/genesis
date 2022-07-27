@@ -1,0 +1,53 @@
+[INPUT]
+topfile = ../toppar/top_all27_prot_na.rtf   # topology file
+parfile = ../toppar/par_all27_prot_na.prm   # parameter file
+strfile = ../toppar/toppar_prot_na_all.str  # stream file for Retinal
+psffile = ../br.psf                       # protein structure file
+crdfile = ../br.crd                       # CRD file for input coord
+
+[OUTPUT]
+#dcdfile = qmmm_min2.dcd  # DCD trajectory file
+#rstfile = qmmm_min2.rst  # restart file
+
+[ENERGY]
+forcefield      = CHARMM        # [CHARMM]
+electrostatic   = CUTOFF        # [CUTOFF,PME]
+switchdist      = 10.0          # switch distance
+cutoffdist      = 12.0          # cutoff distance
+pairlistdist    = 13.5          # pair-list distance
+water_model     = NONE
+
+[MINIMIZE]
+method              = LBFGS
+nsteps              = 10    # number of steps
+eneout_period       = 1     # energy output period
+crdout_period       = 0     # coordinates output period
+rstout_period       = 0     # restart output period
+nbupdate_period     = 1
+fixatm_select_index = 8
+lbfgs_bnd_qmonly    = yes
+macro               = no
+
+[BOUNDARY]
+type          = NOBC      # [PBC,NOBC]
+
+[QMMM]
+qmtyp = terachem
+qmcnt = ../script/terachem.inp
+qmexe = ../script/runTC.sh
+qmsave_period      = 1
+basename           = job
+qmmaxtrial = 1
+qmatm_select_index = 1 2 3 4 5 6 7
+exclude_charge = group
+
+[SELECTION]
+group1 = ano:1213-1224 #ARG78  CD, HD1, HD2, NE, HE, CZ, NH1, HH11, HH12, NH2, HH21, HH22
+group2 = ano:1262-1267 #ASP81  CB, HB1, HB2, CG, OD1, OD2
+group3 = ano:3274-3279 #ASP208 CB, HB1, HB2, CG, OD1, OD2
+group4 = ano:3334-3386 #LYS212 + RET (LYR)
+group5 = ano:3634-3636 #Water1
+group6 = ano:3637-3639 #Water2
+group7 = ano:3649-3651 #Water6
+group8 = not ( (segid:BR and (resno:78 or resno:81 or resno:208 or resno:212)) around_atoms:10.0 or (segid:BR and (resno:78 or resno:81 or resno:208 or resno:212)) )
+

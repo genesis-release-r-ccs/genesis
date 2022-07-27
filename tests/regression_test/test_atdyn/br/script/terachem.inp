@@ -1,0 +1,10 @@
+basis        sto-3g
+method       hf
+dftd         no
+charge       0
+spinmult     1
+run          gradient
+resp         yes
+convthre     3.0e-05
+guess        scr/c0
+end

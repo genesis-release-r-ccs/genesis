@@ -1,0 +1,11 @@
+pa_analyze.o: pa_analyze.fpp pa_option_str_mod.mod 
+pa_analyze_mod.mod: pa_analyze.fpp pa_analyze.o
+pa_control.o: pa_control.fpp pa_option_mod.mod 
+pa_control_mod.mod: pa_control.fpp pa_control.o
+pa_main.o: pa_main.fpp pa_control_mod.mod pa_setup_mod.mod pa_option_str_mod.mod pa_analyze_mod.mod 
+pa_option.o: pa_option.fpp pa_option_str_mod.mod 
+pa_option_mod.mod: pa_option.fpp pa_option.o
+pa_option_str.o: pa_option_str.fpp  
+pa_option_str_mod.mod: pa_option_str.fpp pa_option_str.o
+pa_setup.o: pa_setup.fpp pa_control_mod.mod pa_option_str_mod.mod pa_option_mod.mod 
+pa_setup_mod.mod: pa_setup.fpp pa_setup.o

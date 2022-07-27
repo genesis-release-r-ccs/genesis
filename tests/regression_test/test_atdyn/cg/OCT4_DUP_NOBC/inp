@@ -1,0 +1,34 @@
+[INPUT]
+grotopfile             = ../../../build/cg_systems/top/oct4_8.top
+grocrdfile             = ../../../build/cg_systems/crd/oct4_8.gro
+
+[ENERGY]
+forcefield             = RESIDCG
+electrostatic          = CUTOFF
+cg_cutoffdist_ele      = 50.0
+cg_cutoffdist_126      = 39.0
+cg_pairlistdist_ele    = 55.0
+cg_pairlistdist_126    = 44.0
+cg_pairlistdist_exv    = 12.0
+cg_sol_ionic_strength  = 0.15
+cg_pro_DNA_ele_scale_Q = -1.0
+
+[DYNAMICS]
+integrator             = LEAP
+nsteps                 = 200
+timestep               = 0.020
+eneout_period          = 20
+nbupdate_period        = 20
+stoptr_period          = 20
+
+[CONSTRAINTS]
+rigid_bond             = NO
+
+[ENSEMBLE]
+ensemble               = NVE
+tpcontrol              = NO
+temperature            = 0
+gamma_t                = 0.10
+
+[BOUNDARY]
+type                   = NOBC

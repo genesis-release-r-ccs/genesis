@@ -1,0 +1,22 @@
+* TIP4P WATER PARAMETER FILE
+*
+BOND
+HT   OT     450.0       0.9572 ! from TIP4P geometry
+HT   HT       0.0       1.5139 ! from TIP4P geometry (for SHAKE w/PARAM)
+LP   OT     450.0       0.15   ! from TIP4P geometry
+
+ANGLES
+HT   OT   HT      55.0     104.52    ! FROM TIP4P GEOMETRY
+HT   OT   LP      50.0      52.26
+!HT   OT   LP      0.1      52.26
+!
+NONB
+! We use the standard TIP4P oxygen vdw parameters, and the hydrogen 
+! parameters from TIP3P as used in charmm. This means the NBFIX is not
+! needed. This can be changed for mixed systems.
+HT       0.0000     0.0000    0.0250 !TIP3P water hydrogen, see NBFIX below
+OT       0.0000    -0.1550    1.7701 !TIP3P water oxygen,   see NBFIX below
+LP       0.0000     0.0000    0.0000 ! TIP4P lone pair
+
+END
+

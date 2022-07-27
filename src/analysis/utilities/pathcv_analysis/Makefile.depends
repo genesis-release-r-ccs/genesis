@@ -1,0 +1,11 @@
+pn_analyze.o: pn_analyze.fpp pn_option_str_mod.mod 
+pn_analyze_mod.mod: pn_analyze.fpp pn_analyze.o
+pn_control.o: pn_control.fpp pn_option_mod.mod 
+pn_control_mod.mod: pn_control.fpp pn_control.o
+pn_main.o: pn_main.fpp pn_analyze_mod.mod pn_control_mod.mod pn_option_str_mod.mod pn_setup_mod.mod 
+pn_option.o: pn_option.fpp pn_option_str_mod.mod 
+pn_option_mod.mod: pn_option.fpp pn_option.o
+pn_option_str.o: pn_option_str.fpp  
+pn_option_str_mod.mod: pn_option_str.fpp pn_option_str.o
+pn_setup.o: pn_setup.fpp pn_control_mod.mod pn_option_str_mod.mod pn_option_mod.mod 
+pn_setup_mod.mod: pn_setup.fpp pn_setup.o

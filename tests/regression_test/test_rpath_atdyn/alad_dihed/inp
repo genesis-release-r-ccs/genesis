@@ -1,0 +1,70 @@
+[INPUT]
+topfile  =  ./top
+parfile  =  ./par
+psffile  =  ./psf
+pdbfile  =  ./pdb
+rstfile  =  ./rst{}
+ 
+[OUTPUT]
+logfile    =  ./test{}
+ 
+[RPATH]
+nreplica          = 8
+rpath_period      = 10
+delta             = 0.01
+smooth            = 0.1
+rest_function     = 1 2
+
+[ENERGY]
+forcefield       = CHARMM  # [CHARMM,KBGO]
+electrostatic    = CUTOFF     # [CUTOFF,PME]
+switchdist       = 7.5    # switch distance
+cutoffdist       = 8.0    # cutoff distance
+pairlistdist     = 9.0    # pair-list distance
+dielec_const     = 1.0     # dielectric constant
+output_style     = GENESIS # format of energy output [GENESIS,CHARMM,NAMD,GROMACS]
+water_model      = NONE
+ 
+[DYNAMICS]
+integrator    = VVER      # [LEAP,VVER]
+nsteps        = 40    # number of MD steps in RPATH
+timestep      = 0.002
+eneout_period    =  2
+nbupdate_period  =  5
+verbose       = yes
+ 
+[CONSTRAINTS]
+rigid_bond    = YES      # constraints all bonds involving hydrogen
+fast_water    = NO       # use SETTLE algorithm
+ 
+[ENSEMBLE]
+ensemble      = NVT      # [NVE,NVT,NPT]
+tpcontrol     = BERENDSEN # thermostat and barostat
+temperature   = 300.0    # initial and target temperature (K)
+ 
+[BOUNDARY]
+type          = NOBC       # [NOBC,PBC]
+ 
+[SELECTION]
+group1        = an:CLP
+group2        = an:NL
+group3        = an:CA
+group4        = an:CRP
+group5        = an:NL
+group6        = an:CA
+group7        = an:CRP
+group8        = an:NR
+
+[RESTRAINTS]
+nfunctions    = 2
+
+function1     = DIHED
+constant1     = 50.0 50.0 50.0 50.0 50.0 50.0 50.0 50.0
+reference1    = -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0
+select_index1 = 1 2 3 4  # PHI
+
+function2     = DIHED
+constant2     = 50.0 50.0 50.0 50.0 50.0 50.0 50.0 50.0
+reference2    = 70.0 80.0 90.0 100.0 110.0 120.0 130.0 140.0
+select_index2 = 5 6 7 8  # PSI
+

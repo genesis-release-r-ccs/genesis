@@ -1,0 +1,11 @@
+ca_analyze.o: ca_analyze.fpp ca_option_str_mod.mod 
+ca_analyze_mod.mod: ca_analyze.fpp ca_analyze.o
+ca_control.o: ca_control.fpp ca_option_mod.mod 
+ca_control_mod.mod: ca_control.fpp ca_control.o
+ca_main.o: ca_main.fpp ca_analyze_mod.mod ca_control_mod.mod ca_setup_mod.mod ca_option_str_mod.mod 
+ca_option.o: ca_option.fpp ca_option_str_mod.mod 
+ca_option_mod.mod: ca_option.fpp ca_option.o
+ca_option_str.o: ca_option_str.fpp  
+ca_option_str_mod.mod: ca_option_str.fpp ca_option_str.o
+ca_setup.o: ca_setup.fpp ca_control_mod.mod ca_option_str_mod.mod ca_option_mod.mod 
+ca_setup_mod.mod: ca_setup.fpp ca_setup.o

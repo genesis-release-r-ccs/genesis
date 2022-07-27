@@ -1,0 +1,11 @@
+mg_control.o: mg_control.fpp mg_option_mod.mod 
+mg_control_mod.mod: mg_control.fpp mg_control.o
+mg_generate.o: mg_generate.fpp mg_option_mod.mod mg_option_str_mod.mod 
+mg_generate_mod.mod: mg_generate.fpp mg_generate.o
+mg_main.o: mg_main.fpp mg_generate_mod.mod mg_control_mod.mod mg_setup_mod.mod mg_option_str_mod.mod 
+mg_option.o: mg_option.fpp mg_option_str_mod.mod 
+mg_option_mod.mod: mg_option.fpp mg_option.o
+mg_option_str.o: mg_option_str.fpp  
+mg_option_str_mod.mod: mg_option_str.fpp mg_option_str.o
+mg_setup.o: mg_setup.fpp mg_option_mod.mod mg_control_mod.mod mg_option_str_mod.mod 
+mg_setup_mod.mod: mg_setup.fpp mg_setup.o

@@ -1,0 +1,26 @@
+; common interaction parameters for CG models
+#include "./param/atom_types.itp" 
+; AICG2+ flexible local angle parameters 
+#include "./param/flexible_local_angle.itp" 
+; AICG2+ flexible local dihedral parameters 
+#include "./param/flexible_local_dihedral.itp" 
+; residue-residue potential parameters (Miyazawa-Jernigan-1996-JMB) 
+#include "./param/pair_energy_MJ_96.itp" 
+
+; Molecule topology 
+#include "./itp/nucleosomal_dna.itp" 
+#include "./itp/histone.itp" 
+
+[ system ] 
+lin28_nucleosome
+
+[ molecules ] 
+dna      1 
+histone  1 
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 2 : 1 - 10
+
+[ pwmcosns_chain_pairs ] 
+ON 1 - 2 : 3 - 10
+

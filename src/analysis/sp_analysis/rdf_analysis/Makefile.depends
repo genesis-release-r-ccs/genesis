@@ -1,0 +1,9 @@
+rdf_analyze.o: rdf_analyze.fpp rdf_option_str_mod.mod 
+rdf_analyze_mod.mod: rdf_analyze.fpp rdf_analyze.o
+rdf_control.o: rdf_control.fpp rdf_option_mod.mod 
+rdf_control_mod.mod: rdf_control.fpp rdf_control.o
+rdf_main.o: rdf_main.fpp rdf_option_str_mod.mod rdf_analyze_mod.mod rdf_control_mod.mod rdf_option_mod.mod 
+rdf_option.o: rdf_option.fpp rdf_option_str_mod.mod 
+rdf_option_mod.mod: rdf_option.fpp rdf_option.o
+rdf_option_str.o: rdf_option_str.fpp  
+rdf_option_str_mod.mod: rdf_option_str.fpp rdf_option_str.o

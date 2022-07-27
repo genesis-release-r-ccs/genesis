@@ -1,0 +1,11 @@
+pm_analyze.o: pm_analyze.fpp pm_option_str_mod.mod 
+pm_analyze_mod.mod: pm_analyze.fpp pm_analyze.o
+pm_control.o: pm_control.fpp pm_option_mod.mod 
+pm_control_mod.mod: pm_control.fpp pm_control.o
+pm_main.o: pm_main.fpp pm_analyze_mod.mod pm_control_mod.mod pm_option_str_mod.mod pm_setup_mod.mod 
+pm_option.o: pm_option.fpp pm_option_str_mod.mod 
+pm_option_mod.mod: pm_option.fpp pm_option.o
+pm_option_str.o: pm_option_str.fpp  
+pm_option_str_mod.mod: pm_option_str.fpp pm_option_str.o
+pm_setup.o: pm_setup.fpp pm_option_mod.mod pm_control_mod.mod pm_option_str_mod.mod 
+pm_setup_mod.mod: pm_setup.fpp pm_setup.o

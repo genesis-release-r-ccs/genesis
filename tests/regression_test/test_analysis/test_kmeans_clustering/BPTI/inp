@@ -1,0 +1,38 @@
+[INPUT]
+psffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.psf
+reffile        = ../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+ 
+[OUTPUT]
+indexfile      = out             # Index file
+pdbfile        = output_{}.pdb   # PDB files
+trjfile        = output{}.trj    # trajectory file
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10
+mdout_period1  = 1
+ana_period1    = 1
+repeat1        = 1
+trj_format     = DCD
+trj_type       = COOR+BOX
+trj_natom      = 0
+ 
+[SELECTION]
+group1         = an:CA
+ 
+[FITTING]
+fitting_method = TR+ROT          # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT
+fitting_atom   = 1               # atom group
+ 
+[OPTION]
+check_only      = NO             # only checking input files (YES/NO)
+allow_backup    = NO             # backup existing output files (YES/NO)
+analysis_atom   = 1              # target atoms for the cluster analysis
+num_clusters    = 2              # number of clusters
+max_iteration   = 100            # max number of iterations for k-means algorithm
+stop_threshold  = 98.0           # stop threshold of convergence (%) for k-means algorithm
+num_iterations  = 5              # number of iterations for calculating averaged coordinates
+trjout_atom     = 1              # atom selection for pdbfile and trjfile
+trjout_format   = DCD            # (PDB/DCD)
+trjout_type     = COOR           # (COOR/COOR+BOX)
+iseed           = 3141592        # random number seed

@@ -1,0 +1,35 @@
+[INPUT]
+prmtopfile = ../../../build/ake/ake.top
+ambcrdfile = ../../../build/ake/ake.rst
+ambreffile = ../../../build/ake/ake.crd
+rstfile    = ../../../build/ake/rst
+
+[OUTPUT]
+ 
+[ENERGY]
+forcefield       = AMBER
+electrostatic    = PME
+switchdist       = 10.0
+cutoffdist       = 10.0
+pairlistdist     = 12.0
+pme_alpha        = 0.34
+pme_ngrid_x      = 72
+pme_ngrid_y      = 72
+pme_ngrid_z      = 72
+pme_scheme       = noopt_1dalltoall
+water_model      = WAT
+
+[MINIMIZE]
+nsteps           = 20 
+eneout_period    = 2
+nbupdate_period  = 4
+ 
+[CONSTRAINTS]
+rigid_bond       = NO 
+ 
+[BOUNDARY]
+type             = PBC
+box_size_x       = 86.4941345
+box_size_y       = 83.2631699
+box_size_z       = 87.1693322
+ 

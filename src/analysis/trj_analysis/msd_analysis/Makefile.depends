@@ -1,0 +1,17 @@
+ma_analyze.o: ma_analyze.fpp molecule_manipulate_mod.mod ma_option_str_mod.mod select_molecules_mod.mod 
+ma_analyze_mod.mod: ma_analyze.fpp ma_analyze.o
+ma_control.o: ma_control.fpp ma_option_mod.mod select_molecules_mod.mod 
+ma_control_mod.mod: ma_control.fpp ma_control.o
+ma_main.o: ma_main.fpp ma_control_mod.mod ma_option_str_mod.mod ma_analyze_mod.mod ma_setup_mod.mod 
+ma_option.o: ma_option.fpp ma_option_str_mod.mod select_molecules_mod.mod 
+ma_option_mod.mod: ma_option.fpp ma_option.o
+ma_option_str.o: ma_option_str.fpp select_molecules_mod.mod 
+ma_option_str_mod.mod: ma_option_str.fpp ma_option_str.o
+ma_setup.o: ma_setup.fpp ma_option_mod.mod ma_control_mod.mod select_molecules_mod.mod ma_option_str_mod.mod 
+ma_setup_mod.mod: ma_setup.fpp ma_setup.o
+molecule_manipulate.o: molecule_manipulate.fpp one_molecule_str_mod.mod 
+molecule_manipulate_mod.mod: molecule_manipulate.fpp molecule_manipulate.o
+molecule_select.o: molecule_select.fpp one_molecule_str_mod.mod molecule_manipulate_mod.mod 
+select_molecules_mod.mod: molecule_select.fpp molecule_select.o
+one_molecule_str.o: one_molecule_str.fpp  
+one_molecule_str_mod.mod: one_molecule_str.fpp one_molecule_str.o

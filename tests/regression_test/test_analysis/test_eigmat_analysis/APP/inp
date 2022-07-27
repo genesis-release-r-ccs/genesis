@@ -1,0 +1,7 @@
+[INPUT]
+pcafile        = input.pca       # PCA file
+ 
+[OUTPUT]
+valfile        = out             # VAL file
+vecfile        = output.vec      # VEC file
+cntfile        = output.cnt      # CNT file

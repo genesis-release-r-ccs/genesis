@@ -1,0 +1,34 @@
+[INPUT]
+grotopfile = ../../../build//ake_cago/ake_cago.top FLEXIBLE
+grocrdfile = ../../../build//ake_cago/ake_cago.gro
+rstfile = ../../../build//ake_cago//rst
+ 
+[OUTPUT]
+ 
+[ENERGY]
+forcefield    = CAGO
+electrostatic = CUTOFF
+switchdist    = 19.999
+cutoffdist    = 20.0
+pairlistdist  = 30.0
+dielec_const  = 1.0
+ 
+[DYNAMICS]
+integrator    = VVER
+nsteps        =  20
+timestep      = 0.0005
+eneout_period    =  2 
+nbupdate_period    =  5
+iseed         = 314159 
+verbose       = yes
+ 
+[CONSTRAINTS]
+rigid_bond     = NO
+ 
+[ENSEMBLE]
+ensemble      = NVE
+tpcontrol     = NO
+temperature   = 0
+ 
+[BOUNDARY]
+type          = NOBC

@@ -1,0 +1,14 @@
+#include "./param/atom_types.itp" 
+#include "./param/flexible_local_angle.itp" 
+#include "./param/flexible_local_dihedral.itp" 
+#include "./param/pair_energy_MJ_96.itp" 
+
+; Molecule topology 
+#include "./itp/gb1_aicg2p.itp" 
+
+[ system ] 
+2gb1_cg 
+
+[ molecules ] 
+2gb1_cg  1 
+

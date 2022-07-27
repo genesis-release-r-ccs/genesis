@@ -1,0 +1,17 @@
+#include "./param/atom_types.itp" 
+#include "./param/flexible_local_angle.itp" 
+#include "./param/flexible_local_dihedral.itp" 
+#include "./param/pair_energy_MJ_96.itp"
+
+; Molecule topology 
+#include "./itp/ACTR.itp" 
+
+[ system ] 
+i_ACTR 
+
+[ molecules ] 
+i_ACTR  1 
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 1 
+

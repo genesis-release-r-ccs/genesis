@@ -1,0 +1,24 @@
+#include "../../param/martini_v2.2.itp"
+#include "../../param/martini_v2.0_lipids.itp"
+#include "../../param/martini_v2.0_ions.itp"
+
+[ system ]
+; name
+DPPC bilayer
+
+[ molecules ]
+
+; X: 10.000 (13 lipids) Y: 10.000 (13 lipids)
+; 169 lipids in upper leaflet, 169 lipids in lower leaflet
+; NDX Solute 1 0
+; Charge of protein: 0.000000
+; NDX Membrane 1 4056
+; Charge of membrane: 0.000000
+; Total charge: 0.000000
+; NDX Solvent 4057 9010
+; NDX System 1 9010
+DPPC           169
+DPPC           169
+W             4848
+NA+             53
+CL-             53

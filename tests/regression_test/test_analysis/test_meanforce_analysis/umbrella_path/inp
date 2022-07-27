@@ -1,0 +1,26 @@
+# control parameters in mbar_analysis
+ 
+[INPUT]
+psffile        = ../../trajectories/umbrella_path/sys.psf
+pdbfile        = ../../trajectories/umbrella_path/C7eq.pdb
+reffile        = ../../trajectories/umbrella_path/C7eq.pdb
+dcdfile        = ../../trajectories/umbrella_path/umb.{}.dcd
+pathfile       = ../../trajectories/umbrella_path/umb.{}.rpath
+
+[OUTPUT]
+fenefile       = fene.dat     # free energy file
+
+[SELECTION]
+group1 = (ai:1 | ai:5 | ai:6 | ai:7 | ai:8 | ai:9 | ai:10 | ai:11 |  ai:15 | ai:16 | ai:17 | ai:18 | ai:19)
+
+[MBAR]
+fitting_method = TR+ROT          # NO/TR+ROT/TR/TR+ZROT/XYTR/XYTR+ZROT
+fitting_atom   = 1               # atom group
+
+[MEANFORCE]
+check_only     = NO              # only checking input files (YES/NO)
+allow_backup   = NO              # backup existing output files (YES/NO)
+cv_atom        = 1
+nimage         = 16
+force_constant = 50.0
+

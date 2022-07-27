@@ -1,0 +1,49 @@
+[INPUT]
+topfile = ../toppar/top_all27_prot_na.rtf
+parfile = ../toppar/par_all27_prot_na.prm
+strfile = ../toppar/toppar_prot_na_all.str
+psffile = ../br.psf
+crdfile = ../br.crd
+rstfile = ../br.rst
+
+[OUTPUT]
+minfofile = vib.minfo
+logfile   = test{}
+
+[ENERGY]
+forcefield      = CHARMM        # [CHARMM]
+electrostatic   = CUTOFF        # [CUTOFF,PME]
+switchdist      = 10.0          # switch distance
+cutoffdist      = 12.0          # cutoff distance
+pairlistdist    = 13.5          # pair-list distance
+water_model     = NONE
+
+[VIBRATION]
+runmode             = HARM
+nreplica            = 8
+vibatm_select_index = 5 6 7
+output_minfo_atm    = 1 2 3 4 
+
+[BOUNDARY]
+type          = NOBC      # [PBC,NOBC]
+
+[QMMM]
+qmtyp              = gaussian
+qmcnt              = ../script/gaussian.com
+qmexe              = ../script/runGau.sh
+workdir            = qmmm
+basename           = job
+qmmaxtrial         = 1
+qmsave_period      = 1
+qmatm_select_index = 1 2 3 4 5 6 7
+exclude_charge     = group
+
+[SELECTION]
+group1 = ano:1213-1224 #ARG78  CD, HD1, HD2, NE, HE, CZ, NH1, HH11, HH12, NH2, HH21, HH22
+group2 = ano:1262-1267 #ASP81  CB, HB1, HB2, CG, OD1, OD2
+group3 = ano:3274-3279 #ASP208 CB, HB1, HB2, CG, OD1, OD2
+group4 = ano:3334-3386 #LYS212 + RET (LYR)
+group5 = ano:3634-3636 #Water1
+group6 = ano:3637-3639 #Water2
+group7 = ano:3649-3651 #Water6
+

@@ -1,0 +1,34 @@
+[INPUT]
+grotopfile            = ../../../build/cg_systems/top/dps_12mer_8_dup.top
+grocrdfile            = ../../../build/cg_systems/crd/dps_12mer_8_dup.gro
+
+[ENERGY]
+forcefield            = RESIDCG
+electrostatic         = CUTOFF
+cg_cutoffdist_ele     = 50.0
+cg_pairlistdist_ele   = 55.0
+cg_pairlistdist_exv   = 12.0
+cg_sol_ionic_strength = 0.15
+
+[DYNAMICS]
+integrator            = VVER
+nsteps                = 100
+timestep              = 0.020
+eneout_period         = 20
+nbupdate_period       = 20
+stoptr_period         = 20
+
+[CONSTRAINTS]
+rigid_bond            = NO
+
+[ENSEMBLE]
+ensemble              = NVE
+tpcontrol             = NO
+temperature           = 0
+gamma_t               = 1.00
+
+[BOUNDARY]
+type                  = PBC
+box_size_x            = 350.0
+box_size_y            = 350.0
+box_size_z            = 350.0

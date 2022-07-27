@@ -1,0 +1,55 @@
+[INPUT]
+topfile         = ../../../param/top_all36_lipid.rtf
+parfile         = ../../../param/par_all36_lipid.prm
+strfile         = ../../../param/toppar_water_ions.str
+rstfile         = ../../../build/dppc/restart8.rst
+psffile         = ../../../build/dppc/dppc.psf
+pdbfile         = ../../../build/dppc/dppc.pdb
+
+[OUTPUT]
+ 
+[ENERGY]
+forcefield      = CHARMM
+electrostatic   = PME
+switchdist      = 10.0
+cutoffdist      = 12.0
+pairlistdist    = 13.5
+dielec_const    = 1.0
+table_density   = 20.0
+pme_alpha       = 0.34
+pme_ngrid_x     = 72
+pme_ngrid_y     = 72
+pme_ngrid_z     = 72
+pme_nspline     =  4
+pme_scheme      = noopt_1dalltoall
+output_style    = GENESIS
+
+[DYNAMICS]
+integrator      = VVER
+nsteps          =  20
+timestep        = 0.001
+eneout_period   =  2
+nbupdate_period =  5
+verbose         = yes
+
+[CONSTRAINTS]
+rigid_bond      = YES
+shake_iteration = 500
+shake_tolerance = 1.0e-10
+
+[ENSEMBLE]
+ensemble        = NVT
+tpcontrol       = BUSSI
+temperature     = 300.0
+pressure        = 1.0
+group_tp        = NO   # This option is used only for regression tests.
+ 
+[BOUNDARY]
+type            = PBC
+box_size_x      = 69.4792
+box_size_y      = 69.4792
+box_size_z      = 71.6508
+ 
+[SELECTION]
+ 
+[RESTRAINTS]

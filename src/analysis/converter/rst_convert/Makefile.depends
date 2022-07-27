@@ -1,0 +1,15 @@
+fileio_namd_xsc.o: fileio_namd_xsc.fpp  
+fileio_namd_xsc_mod.mod: fileio_namd_xsc.fpp fileio_namd_xsc.o
+fileio_namd_xyz.o: fileio_namd_xyz.fpp  
+fileio_namd_xyz_mod.mod: fileio_namd_xyz.fpp fileio_namd_xyz.o
+rs_control.o: rs_control.fpp rs_option_mod.mod 
+rs_control_mod.mod: rs_control.fpp rs_control.o
+rs_convert.o: rs_convert.fpp rs_option_str_mod.mod rs_option_mod.mod fileio_namd_xsc_mod.mod fileio_namd_xyz_mod.mod 
+rs_convert_mod.mod: rs_convert.fpp rs_convert.o
+rs_main.o: rs_main.fpp rs_convert_mod.mod rs_control_mod.mod rs_option_str_mod.mod rs_setup_mod.mod 
+rs_option.o: rs_option.fpp rs_option_str_mod.mod 
+rs_option_mod.mod: rs_option.fpp rs_option.o
+rs_option_str.o: rs_option_str.fpp  
+rs_option_str_mod.mod: rs_option_str.fpp rs_option_str.o
+rs_setup.o: rs_setup.fpp rs_control_mod.mod rs_option_str_mod.mod rs_option_mod.mod 
+rs_setup_mod.mod: rs_setup.fpp rs_setup.o

@@ -1,0 +1,77 @@
+[INPUT]
+topfile          = ../../param/top_all27_na.rtf
+parfile          = ../../param/par_all27_na.prm
+psffile          = ./dna.psf
+pdbfile          = ./dna.pdb
+rstfile          = rst{}
+
+[OUTPUT]
+logfile          = test{}
+
+[REMD]
+dimension        = 1
+exchange_period  = 10
+iseed            = 3141592
+
+type1            = RESTRAINT
+nreplica1        = 4
+cyclic_params1   = NO
+rest_function1   = 1 2
+ 
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = CUTOFF
+switchdist       = 10.0
+cutoffdist       = 12.0
+pairlistdist     = 13.5
+dielec_const     = 1.0
+#table            = NO      
+water_model      = NONE
+output_style     = GENESIS
+vdw_force_switch = NO
+
+[DYNAMICS]
+integrator       = VVER
+nsteps           =   100
+timestep         = 0.001
+eneout_period    =    10 
+nbupdate_period  =     5
+iseed            = 314159 
+
+[CONSTRAINTS]
+rigid_bond       = NO
+fast_water       = NO
+
+[ENSEMBLE]
+ensemble         = NVT
+tpcontrol        = BUSSI
+ 
+[BOUNDARY]
+type             = PBC
+box_size_x       = 64.000 
+box_size_y       = 64.000 
+box_size_z       = 64.000 
+
+[SELECTION]
+group1           = an:C2' and resno: 10
+group2           = an:C1' and resno: 10 
+group3           = an:N9  and resno: 10
+group4           = an:C8  and resno: 10
+group5           = an:C5  and resno: 10
+group6           = an:C6  and resno: 10
+group7           = an:N6  and resno: 10
+group8           = an:H61 and resno: 10
+
+
+[RESTRAINTS]
+nfunctions    = 2
+function1     = DIHED           # restraint function type
+constant1     = 50 50 50 50     # force constants
+reference1    = -46 -50 -57 -66 # references
+select_index1 = 1 2 3 4         # restrained groups
+
+function2     = DIHED           # restraint function type
+constant2     = 30 30 30 30     # force constants
+reference2    = 180 176 172 168 # references
+select_index2 = 5 6 7 8         # restrained groups
+

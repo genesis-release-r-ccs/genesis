@@ -1,0 +1,26 @@
+[INPUT]
+psffile        = ../../../trajectories/BPTI_charmm/BPTI_ionize.psf
+pdbfile        = ../../../trajectories/BPTI_charmm/BPTI_ionize.pdb
+
+[OUTPUT]
+msdfile        = out
+
+[TRAJECTORY]
+trjfile1       = ../../../trajectories/BPTI_charmm/BPTI_run.dcd
+md_step1       = 10000          # number of MD steps
+mdout_period1  = 1000            # MD output period
+ana_period1    = 1               # analysis period
+trj_format     = DCD             # (PDB/DCD)
+trj_type       = COOR+BOX        # (COOR/COOR+BOX)
+trj_natom      = 0               # (0:uses reference PDB atom count)
+
+[SELECTION]
+group1 = rnam:TIP3
+
+[MOLECULE_SELECTION]
+selection1 = 1
+mode1 = ALL
+
+[OPTION]
+oversample = true
+delta = 9

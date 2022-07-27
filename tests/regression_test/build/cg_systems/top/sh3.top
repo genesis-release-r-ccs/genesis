@@ -1,0 +1,14 @@
+#include "./param/atom_types.itp"
+#include "./param/flexible_local_angle.itp"
+#include "./param/flexible_local_dihedral.itp"
+#include "./param/pair_energy_MJ_96.itp"
+ 
+; Molecule topology 
+#include "./itp/sh3.itp" 
+
+[ system ]
+CafeMol course-grained system
+  
+[ molecules ]
+Pro_1SRL        1
+

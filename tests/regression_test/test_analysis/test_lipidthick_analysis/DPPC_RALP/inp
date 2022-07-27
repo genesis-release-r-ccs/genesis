@@ -1,0 +1,21 @@
+[INPUT]
+psffile        = ../../trajectories/DPPC_RALP/RALP_DPPC.psf
+reffile        = ../../trajectories/DPPC_RALP/RALP_DPPC_run.pdb
+ 
+[OUTPUT]
+outfile        = out
+ 
+[TRAJECTORY]
+trjfile1       = ../../trajectories/DPPC_RALP/RALP_DPPC_run.dcd
+md_step1       = 10
+mdout_period1  =  1
+ana_period1    =  1
+trj_format     = DCD
+trj_type       = COOR+BOX
+ 
+[SELECTION]
+group1         = sid:MEMB & (an:P)
+ 
+[OPTION]
+check_only     = NO
+membrane_atom  = 1

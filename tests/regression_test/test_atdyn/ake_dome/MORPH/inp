@@ -1,0 +1,42 @@
+[INPUT]
+grotopfile = ../../../build/ake_macro/AKE_DoME_DB.top
+pdbfile = ../../../build/ake_macro/GO_4akea.pdb
+reffile = ../../../build/ake_macro/GO_1akea.pdb
+morphfile = ../../../build/ake_macro/4ake-1ake.mor
+ 
+[OUTPUT]
+ 
+[ENERGY]
+forcefield    = KBGO
+electrostatic = CUTOFF 
+switchdist    = 19.9     # switch distance
+cutoffdist    = 20.0     # cutoff distance
+pairlistdist    = 50.0                       # pair-list cutoff distance
+dielec_const  = 1.0
+water_model   = NONE
+output_style  = GENESIS
+num_basins    = 2
+mix_temperature = 50000
+basinenergy1  = 50
+basinenergy2  = 0
+ 
+[MORPH]
+ncycles        = 10 # number of MD steps
+method        = LBFGS
+iterations    = 10       # number of iterations at each cycle
+eneout_period = 1       # energy output period
+crdout_period = 0       # 
+nbupdate_period = 1
+verbose       = yes
+morph_group   = 1
+morph_spring  = 5
+morph_spring_max  = 50
+ 
+[CONSTRAINTS]
+rigid_bond      = NO     # constraints all bonds involving hydrogen
+ 
+[BOUNDARY]
+type  = NOBC      # [NOBC,PBC,SBOUND,SSBP,GSBP]
+
+[SELECTION]
+group1        = all

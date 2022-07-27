@@ -1,0 +1,34 @@
+[INPUT]
+grotopfile = ../../../build//ake_aago/ake_aago.top FLEXIBLE
+grocrdfile = ../../../build//ake_aago/ake_aago.gro
+rstfile = ../../../build//ake_aago//rst
+ 
+[OUTPUT]
+ 
+[ENERGY]
+forcefield    = AAGO
+electrostatic = CUTOFF
+switchdist    = 49.999
+cutoffdist    = 50.0
+pairlistdist  = 55.0
+dielec_const  = 1.0
+ 
+[DYNAMICS]
+integrator    = VVER
+nsteps        =  20
+timestep      = 0.0005
+eneout_period    =  2 
+nbupdate_period    =  5
+iseed         = 314159 
+verbose       = yes
+ 
+[CONSTRAINTS]
+rigid_bond     = NO
+ 
+[ENSEMBLE]
+ensemble      = NVE
+tpcontrol     = NO
+temperature   = 0
+ 
+[BOUNDARY]
+type          = NOBC

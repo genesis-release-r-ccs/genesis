@@ -1,0 +1,20 @@
+#include "./param/atom_types.itp" 
+#include "./param/flexible_local_angle.itp" 
+#include "./param/flexible_local_dihedral.itp" 
+#include "./param/pair_energy_MJ_96.itp" 
+
+; Molecule topology 
+#include "./itp/oct4.itp" 
+
+[ system ] 
+oct4 * 8
+
+[ molecules ] 
+oct4  8 
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 8 : 1 - 8
+
+[ cg_KH_chain_pairs ] 
+A 1 - 8 : 1 - 8 
+

@@ -1,0 +1,49 @@
+[INPUT]
+grotopfile      = ../../../build/bpti/bpti.top
+grocrdfile      = ../../../build/bpti/bpti.gro
+rstfile         = ../../../build/bpti/rst
+ 
+[OUTPUT]
+ 
+[ENERGY]
+forcefield      = GROAMBER
+electrostatic   = PME 
+switchdist      = 0.0
+vdw_shift       = yes
+cutoffdist      = 12.0
+pairlistdist    = 14.0
+dielec_const    = 1.0
+pme_alpha       = 0.34
+pme_ngrid_x     = 64
+pme_ngrid_y     = 64
+pme_ngrid_z     = 64
+pme_nspline     = 4
+pme_scheme      = noopt_1dalltoall
+output_style    = GENESIS
+ 
+[DYNAMICS]
+integrator      = VVER
+nsteps          = 20
+timestep        = 0.001
+eneout_period   = 2
+nbupdate_period = 5
+verbose         = yes
+ 
+[CONSTRAINTS]
+rigid_bond      = YES
+shake_iteration = 500
+shake_tolerance = 1.0e-10
+water_model     = SOL
+ 
+[ENSEMBLE]
+ensemble        = NVE
+tpcontrol       = NO
+temperature     = 0
+group_tp        = NO   # This option is used only for regression tests.
+ 
+[BOUNDARY]
+type            = PBC
+box_size_x      = 65.3318
+box_size_y      = 65.3318
+box_size_z      = 65.3318
+

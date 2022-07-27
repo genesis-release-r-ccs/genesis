@@ -1,0 +1,12 @@
+json_file_module.o: json_file_module.F90 json_parameters.mod json_string_utilities.mod json_value_module.mod json_kinds.mod 
+json_file_module.mod procedure.mod: json_file_module.F90 json_file_module.o
+json_kinds.o: json_kinds.F90  
+json_kinds.mod: json_kinds.F90 json_kinds.o
+json_module.o: json_module.F90 json_string_utilities.mod json_parameters.mod json_value_module.mod json_kinds.mod json_file_module.mod 
+json_module.mod: json_module.F90 json_module.o
+json_parameters.o: json_parameters.F90 json_kinds.mod 
+json_parameters.mod: json_parameters.F90 json_parameters.o
+json_string_utilities.o: json_string_utilities.F90 json_parameters.mod json_kinds.mod 
+json_string_utilities.mod procedure.mod: json_string_utilities.F90 json_string_utilities.o
+json_value_module.o: json_value_module.F90 json_parameters.mod json_string_utilities.mod json_kinds.mod 
+procedure.mod json_value_module.mod: json_value_module.F90 json_value_module.o

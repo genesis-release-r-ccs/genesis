@@ -1,0 +1,19 @@
+# control parameters in pmf_analysis
+ 
+[INPUT]
+weightfile     = ../../trajectories/umbrella_path/{}.weight   # weight file
+cvfile         = ../../trajectories/umbrella_path/{}.pathcv
+distfile       = ../../trajectories/umbrella_path/{}.pathdist
+ 
+[OUTPUT]
+pmffile        = pmf.dat     # potential of mean force file
+ 
+[OPTION]
+nreplica       = 16
+dimension      = 1
+temperature    = 300
+cutoff         = 0.04 # cutoff distance measured by pathcv_analysis
+grids1         = 1.0 16.0 50  # (min max num_of_bins)
+band_width1    = 0.3 # sigma of Gaussian kernel
+is_periodic1   = NO
+

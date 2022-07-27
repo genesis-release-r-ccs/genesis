@@ -1,0 +1,13 @@
+parallel_trj.o: parallel_trj.fpp  
+parallel_trj_mod.mod: parallel_trj.fpp parallel_trj.o
+pc_control.o: pc_control.fpp pc_option_mod.mod 
+pc_control_mod.mod: pc_control.fpp pc_control.o
+pc_convert.o: pc_convert.fpp parallel_trj_mod.mod pc_option_mod.mod pc_option_str_mod.mod 
+pc_convert_mod.mod: pc_convert.fpp pc_convert.o
+pc_main.o: pc_main.fpp pc_control_mod.mod pc_convert_mod.mod pc_setup_mod.mod pc_option_str_mod.mod 
+pc_option.o: pc_option.fpp pc_option_str_mod.mod 
+pc_option_mod.mod: pc_option.fpp pc_option.o
+pc_option_str.o: pc_option_str.fpp  
+pc_option_str_mod.mod: pc_option_str.fpp pc_option_str.o
+pc_setup.o: pc_setup.fpp pc_control_mod.mod pc_option_mod.mod pc_option_str_mod.mod 
+pc_setup_mod.mod: pc_setup.fpp pc_setup.o

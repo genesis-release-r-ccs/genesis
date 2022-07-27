@@ -1,0 +1,11 @@
+lt_analyze.o: lt_analyze.fpp lt_option_mod.mod lt_option_str_mod.mod 
+lt_analyze_mod.mod: lt_analyze.fpp lt_analyze.o
+lt_control.o: lt_control.fpp lt_option_mod.mod 
+lt_control_mod.mod: lt_control.fpp lt_control.o
+lt_main.o: lt_main.fpp lt_control_mod.mod lt_setup_mod.mod lt_option_str_mod.mod lt_analyze_mod.mod 
+lt_option.o: lt_option.fpp lt_option_str_mod.mod 
+lt_option_mod.mod: lt_option.fpp lt_option.o
+lt_option_str.o: lt_option_str.fpp  
+lt_option_str_mod.mod: lt_option_str.fpp lt_option_str.o
+lt_setup.o: lt_setup.fpp lt_option_mod.mod lt_control_mod.mod lt_option_str_mod.mod 
+lt_setup_mod.mod: lt_setup.fpp lt_setup.o

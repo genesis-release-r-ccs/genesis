@@ -1,0 +1,11 @@
+wa_analyze.o: wa_analyze.fpp wa_option_str_mod.mod 
+wa_analyze_mod.mod: wa_analyze.fpp wa_analyze.o
+wa_control.o: wa_control.fpp wa_option_mod.mod 
+wa_control_mod.mod: wa_control.fpp wa_control.o
+wa_main.o: wa_main.fpp wa_option_str_mod.mod wa_analyze_mod.mod wa_setup_mod.mod wa_control_mod.mod 
+wa_option.o: wa_option.fpp wa_option_str_mod.mod 
+wa_option_mod.mod: wa_option.fpp wa_option.o
+wa_option_str.o: wa_option_str.fpp  
+wa_option_str_mod.mod: wa_option_str.fpp wa_option_str.o
+wa_setup.o: wa_setup.fpp wa_option_mod.mod wa_option_str_mod.mod wa_control_mod.mod 
+wa_setup_mod.mod: wa_setup.fpp wa_setup.o

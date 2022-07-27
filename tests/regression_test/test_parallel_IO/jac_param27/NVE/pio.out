@@ -1,0 +1,643 @@
+MPI startup(): "shm" shm transport is not supported. "bdw_avx2" shm transport will be used.
+****************************************************
+*                                                  *
+*                  GENESIS SPDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*           Spatial Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.0.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = jung@dolphin1
+  fortran      = ifort (IFORT) 19.1.3.304 20200925
+  option       =  -O0 -g -traceback -CB -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.1.3.304 20200925
+  option       = -O0 -g -traceback -CB -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DDEBUG 
+ -DDEBUG -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64  
+
+Runtime_Information> Machine and Library Information
+  date       = 2022/03/31 12:26:12
+  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
+  exec. host   = jung@
+  LD library   = 
+ /opt/intel/lib/intel64:/opt/intel/mkl/lib/intel64:/opt/intel/compilers_and_libr
+ aries_2020.4.304/linux/compiler/lib/intel64_lin:/opt/intel/compilers_and_librar
+ ies_2020.4.304/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_librari
+ es_2020.4.304/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_
+ 2020.4.304/linux/mpi/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/
+ linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2020.4.304/linux/mkl/l
+ ib/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/tbb/lib/inte
+ l64/gcc4.8:/opt/intel/debugger_2020/python/intel64/lib:/opt/intel/debugger_2020
+ /libipt/intel64/lib:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/li
+ b/intel64_lin:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/../tbb/l
+ ib/intel64_lin/gcc4.4:/opt/intel/compilers_and_libraries_2020.4.304/linux/daal/
+ ../tbb/lib/intel64_lin/gcc4.8:/usr/local/cuda/lib64:/home/jung/program/openmpi/
+ gcc/lib:/usr/local/lib
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  topfile = ../../../param/top_all27_prot_lipid.rtf
+  parfile = ../../../param/par_all27_prot_lipid.prm
+  psffile = ../../../build//jac_param27/jac_param27.psf
+  pdbfile = ../../../build//jac_param27/jac_param27.pdb
+  selfile = 
+  rstfile = dd().rst
+ 
+Read_Ctrl_Output> Output Files
+ 
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =          CHARMM
+  switchdist      =           8.000
+  cutoffdist      =          10.000
+  pairlistdist    =          12.000
+  dielec_const    =           1.000
+  VDW type        =          SWITCH
+  electrostatic   =             PME
+  pme_ngrid(x,y,z)=    64   64   64
+  pme_nspline     =               4
+  pme_alpha       =         0.27511
+  pme_alpha_tol   =         0.00001
+  pme_scheme      =  OPT_1DALLTOALL
+  nonbond_kernel  =      AUTOSELECT
+  table_order     =               1
+  table_density   =          20.000
+  output_style    =         GENESIS
+  dispersion_corr =            none
+  nonb_limiter    =              no
+  contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
+ 
+Read_Ctrl_Dynamics> Parameters of MD simulation
+  integrator      =       VVER  nsteps          =         20
+  timestep        =     0.0010  initial_time    =     0.0000
+  eneout_period   =          2  rstout_period   =          0
+  crdout_period   =          0  velout_period   =          0
+  nbupdate_period =          5  stoptr_period   =         10
+  iseed           =     314159
+  annealing       =         no
+  verbose         =        yes
+  target_md       =         no
+  steered_md      =         no
+ 
+Read_Ctrl_Constraints> Parameters for Constraints
+  rigid_bond      =        yes
+  shake_iteration =        500  shake_tolerance =  0.100E-09
+  fast_water      =        yes  water_model     =       TIP3
+  hydrogen_type   =       name
+ 
+Read_Ctrl_Ensemble> Parameters for Ensemble
+  ensemble        =        NVE
+  initial_temp    =      0.000
+  tpcontrol       =         NO
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =        PBC
+  box_size(x,y,z) =     65.500    65.500    65.500
+  domain (x,y,z)  =          2         2         2
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          0
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          1
+  total number of CPU cores =          8
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Parallel_Io_Rst> 
+ 
+Get_Data_Size> indicated tag is not found at file.[enefunc:dihe_scnb]  skip..
+
+Random_Init> Initialize the random number
+  seed            = 314159
+
+ Parallel I/O file: dd().rst
+          Restart :  F
+ 
+ Setup_Fitting_Spdyn> NO fitting is applied, skip
+ 
+Select_kernel> 
+  Pairlist        = INTEL       
+  Nonbond         = INTEL       
+
+ Cell volume                      :    548.850341796875     
+ 
+ sp_domain_str     ::MaxAtom      :          180
+ sp_domain_str     ::MaxWater     :          180
+ sp_domain_str     ::MaxMove      :           36
+ sp_domain_str     ::MaxWaterMove :           25
+ 
+ sp_enefunc_str    ::MaxBond      :          216
+ sp_enefunc_str    ::MaxAngle     :          540
+ sp_enefunc_str    ::MaxDihe      :         1260
+ sp_enefunc_str    ::MaxImpr      :           90
+ sp_enefunc_str    ::MaxCmap      :           21
+ sp_enefunc_str    ::BondMove     :          108
+ sp_enefunc_str    ::AngleMove    :          270
+ sp_enefunc_str    ::DiheMove     :          630
+ sp_enefunc_str    ::ImprMove     :           45
+ sp_enefunc_str    ::CmapMove     :           10
+ 
+ sp_enefunc_str    ::MaxNb15      :        32400
+ sp_enefunc_str    ::MaxNb15Water :         3240
+ 
+ sp_constraints_str::HGroupMax    :           72
+ sp_constraints_str::HGrpMaxMove  :           14
+ 
+Define_Enefunc_Pio> Number of Interactions in Each Term
+  bond_ene        =       1302  angle_ene       =       4561
+  torsion_ene     =       7000  rb_torsion_ene  =          0
+  improper_ene    =        418  cmap_ene        =        157
+  nb_exclusions   =      31774  nb14_calc       =       6556
+ 
+Setup_Dynamics> Subtract 3 translational degrees of freedom
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      82035 (After removing translation)
+ 
+Random_Init> Initialize the random number
+  seed            = 314159
+
+Setup_Fast_Water_Pio> Constraints for SETTLE
+  r0(O-H)         =     0.9572  mass(O)         =    15.9994
+  r0(H-H)         =     1.5139  mass(H)         =     1.0080
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      57225 (After setup of SETTLE)
+ 
+Setup_Rigid_Bond_Pio> Constrains for SHAKE and RATTLE
+  num_rigid_bonds =       1221
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =      56004 (After setup of SHAKE/RATTLE)
+ 
+[STEP4] Compute Single Point Energy for Molecules
+ 
+ test1           0   125.814590983921      F
+ test2           0   125.814590983921     
+ test1           1   135.848776345950      F
+ test2           1   135.848776345950     
+ test1           3   201.823669946564      F
+ test2           3   201.823669946564     
+ test1           6   172.967340036902      F
+ test2           6   172.967340036902     
+ test1           7   132.212078836575      F
+ test2           7   132.212078836575     
+ test1           2   186.177071337885      F
+ test2           2   186.177071337885     
+ test1           4   327.526116135839      F
+ test2           4   327.526116135839     
+ test1           5   157.020060172074      F
+ test2           5   157.020060172074     
+            STEP            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT
+ --------------- --------------- --------------- --------------- ---------------
+               0        755.8314       1439.3897        132.7779        893.3508         66.2659       -157.0806      13219.5113    -108277.3366
+
+[STEP5] Perform Molecular Dynamics Simulation
+ 
+Initial_Velocity> Generate initial velocities
+  iseed           =     314159
+  temperature     =      0.000
+ 
+Random_Init_Velocity> Initialize the random number
+  seed            = 314159
+
+ test1           6   172.960880341049      F
+ test2           6   172.960880341049     
+ test1           0   125.824140517570      F
+ test2           0   125.824140517570     
+ test1           7   132.212246251276      F
+ test2           7   132.212246251276     
+ test1           4   327.517188506957      F
+ test2           4   327.517188506957     
+ test1           1   135.840333272043      F
+ test2           1   135.840333272043     
+ test1           3   201.824245429145      F
+ test2           3   201.824245429145     
+ test1           5   157.019706624763      F
+ test2           5   157.019706624763     
+ test1           2   186.169108329085      F
+ test2           2   186.169108329085     
+INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER            CMAP         VDWAALS           ELECT     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0          0.0000     -91925.6124     -91925.6124          0.0000         15.9661        755.8158       1439.3678        132.8023        893.3497         66.2597       -157.0772      13219.4021    -108275.5326          0.3989     281011.3750         65.5000         65.5000         65.5000      90460.1949      22078.1825      22538.3488      22746.0198      20950.1790
+
+ test1           6   168.830558011888      F
+ test2           6   168.830558011888     
+ test1           0   122.771337394261      F
+ test2           0   122.771337394261     
+ test1           7   129.149832939118      F
+ test2           7   129.149832939118     
+ test1           1   132.697691435621      F
+ test2           1   132.697691435621     
+ test1           4   318.672812421570      F
+ test2           4   318.672812421570     
+ test1           3   197.389885429232      F
+ test2           3   197.389885429232     
+ test1           5   153.623516777263      F
+ test2           5   153.623516777263     
+ test1           2   181.770987710625      F
+ test2           2   181.770987710625     
+ test1           6   157.586176842084      F
+ test2           6   157.586176842084     
+ test1           7   120.882768349851      F
+ test2           7   120.882768349851     
+ test1           0   114.525360614719      F
+ test2           0   114.525360614719     
+ test1           1   124.005019628177      F
+ test2           1   124.005019628177     
+ test1           4   293.087619326025      F
+ test2           4   293.087619326025     
+ test1           3   185.195054779922      F
+ test2           3   185.195054779922     
+ test1           5   144.310968368009      F
+ test2           5   144.310968368009     
+ test1           2   169.753899779871      F
+ test2           2   169.753899779871     
+INFO:          2          0.0020     -91931.9308     -92424.6210        492.6902         15.5895        613.5033       1309.3469        120.7276        887.5719         62.8181       -156.8628      13182.8692    -108444.5951          9.1780     281011.3750         65.5000         65.5000         65.5000       -460.6365        -27.8544       -347.4893        306.8445        -42.9183
+
+ test1           6   142.285846555471      F
+ test2           6   142.285846555471     
+ test1           7   109.870890167712      F
+ test2           7   109.870890167712     
+ test1           0   103.513282179914      F
+ test2           0   103.513282179914     
+ test1           1   111.776850043695      F
+ test2           1   111.776850043695     
+ test1           4   254.564809895903      F
+ test2           4   254.564809895903     
+ test1           3   168.215098491338      F
+ test2           3   168.215098491338     
+ test1           5   131.446331271924      F
+ test2           5   131.446331271924     
+ test1           2   153.276517573036      F
+ test2           2   153.276517573036     
+ test1           0   92.8617104607500      F
+ test2           0   92.8617104607500     
+ test1           6   126.901425426059      F
+ test2           6   126.901425426059     
+ test1           1   98.7828880448013      F
+ test2           1   98.7828880448013     
+ test1           7   99.3093438144579      F
+ test2           7   99.3093438144579     
+ test1           3   150.368446783065      F
+ test2           3   150.368446783065     
+ test1           4   211.035390075522      F
+ test2           4   211.035390075522     
+ test1           5   118.176748950909      F
+ test2           5   118.176748950909     
+ test1           2   136.490954486309      F
+ test2           2   136.490954486309     
+INFO:          4          0.0040     -91944.4393     -93552.6935       1608.2542         14.8431        351.0979       1033.9269         94.3553        873.3066         55.2664       -156.2393      13100.6334    -108905.0407         29.0815     281011.3750         65.5000         65.5000         65.5000      -1422.6641        -83.0831       -496.2513        368.5278       -121.5259
+
+ test1           6   115.067593903393      F
+ test2           6   115.067593903393     
+ test1           0   85.3759497768547      F
+ test2           0   85.3759497768547     
+ test1           7   92.0888598686424      F
+ test2           7   92.0888598686424     
+ test1           1   87.8282193373415      F
+ test2           1   87.8282193373415     
+ test1           4   172.521670435223      F
+ test2           4   172.521670435223     
+ test1           3   135.343395301288      F
+ test2           3   135.343395301288     
+ test1           5   107.513673309928      F
+ test2           5   107.513673309928     
+ test1           2   123.279341774505      F
+ test2           2   123.279341774505     
+Debuging > bsize_[x,y,z]    65.50000000    65.50000000    65.50000000
+Debuging > ncell, nb      64     152
+ test1           6   109.037913305199      F
+ test2           6   109.037913305199     
+ test1           7   89.8388039963827      F
+ test2           7   89.8388039963827     
+ test1           0   82.6757561954244      F
+ test2           0   82.6757561954244     
+ test1           1   81.0304034963487      F
+ test2           1   81.0304034963487     
+ test1           4   147.111965041117      F
+ test2           4   147.111965041117     
+ test1           3   125.569595705716      F
+ test2           3   125.569595705716     
+ test1           5   101.492527686549      F
+ test2           5   101.492527686549     
+ test1           2   116.130877182658      F
+ test2           2   116.130877182658     
+INFO:          6          0.0060     -91950.6734     -94584.7714       2634.0979         14.5584        260.7117        852.8878         74.0319        857.5444         48.4095       -155.4742      13010.8926    -109533.7752         47.4482     281011.3750         65.5000         65.5000         65.5000      -2738.9016       -238.3105       -742.1586        308.8929       -281.6659
+
+ test1           6   108.965331906592      F
+ test2           6   108.965331906592     
+ test1           7   92.5990517382165      F
+ test2           7   92.5990517382165     
+ test1           0   84.7738778776844      F
+ test2           0   84.7738778776844     
+ test1           4   138.337247129934      F
+ test2           4   138.337247129934     
+ test1           1   79.2924403156788      F
+ test2           1   79.2924403156788     
+ test1           3   121.654057692092      F
+ test2           3   121.654057692092     
+ test1           5   100.666810000008      F
+ test2           5   100.666810000008     
+ test1           2   115.511218625793      F
+ test2           2   115.511218625793     
+ test1           6   113.254591796064      F
+ test2           6   113.254591796064     
+ test1           7   98.7013565633716      F
+ test2           7   98.7013565633716     
+ test1           0   90.2090608020640      F
+ test2           0   90.2090608020640     
+ test1           4   144.584159031051      F
+ test2           4   144.584159031051     
+ test1           1   82.1223538096810      F
+ test2           1   82.1223538096810     
+ test1           3   122.426258783561      F
+ test2           3   122.426258783561     
+ test1           5   104.075026108173      F
+ test2           5   104.075026108173     
+ test1           2   119.904458139097      F
+ test2           2   119.904458139097     
+INFO:          8          0.0080     -91947.2115     -95147.4246       3200.2131         14.9573        415.3200        875.2773         72.4240        847.4087         44.7645       -155.2007      12928.8585    -110176.2769         57.6714     281011.3750         65.5000         65.5000         65.5000      -4133.7893       -485.9086      -1025.4024         80.8144       -513.1378
+
+ test1           6   119.119527502796      F
+ test2           6   119.119527502796     
+ test1           7   105.602742172132      F
+ test2           7   105.602742172132     
+ test1           0   96.6469702810774      F
+ test2           0   96.6469702810774     
+ test1           1   87.8544856543209      F
+ test2           1   87.8544856543209     
+ test1           4   160.344947733904      F
+ test2           4   160.344947733904     
+ test1           3   125.526036152351      F
+ test2           3   125.526036152351     
+ test1           5   109.662220981599      F
+ test2           5   109.662220981599     
+ test1           2   126.480561458043      F
+ test2           2   126.480561458043     
+ test1           6   123.693345751843      F
+ test2           6   123.693345751843     
+ test1           7   110.786076242648      F
+ test2           7   110.786076242648     
+ test1           0   101.712929461825      F
+ test2           0   101.712929461825     
+ test1           1   94.2081386792292      F
+ test2           1   94.2081386792292     
+ test1           4   178.545440448430      F
+ test2           4   178.545440448430     
+ test1           3   128.301866331492      F
+ test2           3   128.301866331492     
+ test1           5   114.996265169807      F
+ test2           5   114.996265169807     
+ test1           2   132.132693854683      F
+ test2           2   132.132693854683     
+INFO:         10          0.0100     -91941.4655     -95433.0785       3491.6130         15.3840        612.3795        984.3768         85.4707        846.5875         44.2471       -155.7776      12849.7776    -110700.1400         62.9871     281011.3750         65.5000         65.5000         65.5000      -5335.2247       -730.5911      -1241.7533       -209.3603       -740.6597
+
+Debuging > bsize_[x,y,z]    65.50000000    65.50000000    65.50000000
+Debuging > ncell, nb      64     152
+ test1           6   125.037670110977      F
+ test2           6   125.037670110977     
+ test1           0   103.763505074360      F
+ test2           0   103.763505074360     
+ test1           7   112.636024216511      F
+ test2           7   112.636024216511     
+ test1           1   98.8032156535468      F
+ test2           1   98.8032156535468     
+ test1           4   192.843623033084      F
+ test2           4   192.843623033084     
+ test1           3   128.717756335699      F
+ test2           3   128.717756335699     
+ test1           5   118.246254382627      F
+ test2           5   118.246254382627     
+ test1           2   134.520910856205      F
+ test2           2   134.520910856205     
+ test1           6   122.744127904386      F
+ test2           6   122.744127904386     
+ test1           7   110.923974609216      F
+ test2           7   110.923974609216     
+ test1           0   102.348328861637      F
+ test2           0   102.348328861637     
+ test1           4   199.430235995639      F
+ test2           4   199.430235995639     
+ test1           1   100.664751713927      F
+ test2           1   100.664751713927     
+ test1           3   125.985920759475      F
+ test2           3   125.985920759475     
+ test1           5   117.920507834601      F
+ test2           5   117.920507834601     
+ test1           2   132.784118034127      F
+ test2           2   132.784118034127     
+INFO:         12          0.0120     -91941.3333     -95782.8476       3841.5143         15.2507        631.7888       1012.8020         99.4221        854.6512         46.1107       -157.2450      12764.3526    -111034.7300         69.2871     281011.3750         65.5000         65.5000         65.5000      -6184.7806       -880.8066      -1342.4074       -414.9446       -885.0678
+
+ test1           6   117.940396069667      F
+ test2           6   117.940396069667     
+ test1           7   106.745205630827      F
+ test2           7   106.745205630827     
+ test1           0   98.2360658971102      F
+ test2           0   98.2360658971102     
+ test1           4   198.042495324287      F
+ test2           4   198.042495324287     
+ test1           1   99.3327393738777      F
+ test2           1   99.3327393738777     
+ test1           3   120.742736996727      F
+ test2           3   120.742736996727     
+ test1           5   114.370077689370      F
+ test2           5   114.370077689370     
+ test1           2   127.712039211243      F
+ test2           2   127.712039211243     
+ test1           6   112.744309684694      F
+ test2           6   112.744309684694     
+ test1           0   93.0333425127587      F
+ test2           0   93.0333425127587     
+ test1           7   101.969736204543      F
+ test2           7   101.969736204543     
+ test1           1   95.7100385244036      F
+ test2           1   95.7100385244036     
+ test1           4   191.446496147377      F
+ test2           4   191.446496147377     
+ test1           3   114.739012692574      F
+ test2           3   114.739012692574     
+ test1           5   108.763784646507      F
+ test2           5   108.763784646507     
+ test1           2   121.350072849588      F
+ test2           2   121.350072849588     
+INFO:         14          0.0140     -91946.2522     -96223.7614       4277.5092         14.6997        488.5260        939.7568        104.2656        866.9332         50.3883       -159.4147      12668.9940    -111183.2106         77.0748     281011.3750         65.5000         65.5000         65.5000      -6721.4687       -941.4836      -1374.6736       -507.4582       -942.3189
+
+ test1           6   109.410039762354      F
+ test2           6   109.410039762354     
+ test1           7   98.4546120091860      F
+ test2           7   98.4546120091860     
+ test1           0   88.5587171212276      F
+ test2           0   88.5587171212276     
+ test1           4   183.535339598668      F
+ test2           4   183.535339598668     
+ test1           1   91.4510901472609      F
+ test2           1   91.4510901472609     
+ test1           3   110.167788752178      F
+ test2           3   110.167788752178     
+ test1           5   102.837839591301      F
+ test2           5   102.837839591301     
+ test1           2   116.193076783595      F
+ test2           2   116.193076783595     
+Debuging > bsize_[x,y,z]    65.50000000    65.50000000    65.50000000
+Debuging > ncell, nb      64     152
+ test1           6   109.497219873183      F
+ test2           6   109.497219873183     
+ test1           7   97.4651323542248      F
+ test2           7   97.4651323542248     
+ test1           0   86.2024159856433      F
+ test2           0   86.2024159856433     
+ test1           1   88.5362987470207      F
+ test2           1   88.5362987470207     
+ test1           4   177.359552772263      F
+ test2           4   177.359552772263     
+ test1           3   108.732554904460      F
+ test2           3   108.732554904460     
+ test1           2   114.263152672187      F
+ test2           2   114.263152672187     
+ test1           5   98.1016390055691      F
+ test2           5   98.1016390055691     
+INFO:         16          0.0160     -91948.5440     -96500.2606       4551.7166         14.4044        381.8367        880.1580         99.9207        879.1636         57.2054       -161.9544      12568.5762    -111205.1668         81.9829     281011.3750         65.5000         65.5000         65.5000      -7101.4289       -989.8570      -1416.3126       -572.4582       -980.8003
+
+ test1           6   113.344455570857      F
+ test2           6   113.344455570857     
+ test1           7   98.8752854323422      F
+ test2           7   98.8752854323422     
+ test1           0   86.4894151397574      F
+ test2           0   86.4894151397574     
+ test1           4   174.171020561758      F
+ test2           4   174.171020561758     
+ test1           1   87.8618539782173      F
+ test2           1   87.8618539782173     
+ test1           3   111.405963785435      F
+ test2           3   111.405963785435     
+ test1           5   96.0994512771005      F
+ test2           5   96.0994512771005     
+ test1           2   116.406701686554      F
+ test2           2   116.406701686554     
+ test1           0   88.9787174919448      F
+ test2           0   88.9787174919448     
+ test1           6   119.989940309285      F
+ test2           6   119.989940309285     
+ test1           1   90.0253827263122      F
+ test2           1   90.0253827263122     
+ test1           7   101.905431253946      F
+ test2           7   101.905431253946     
+ test1           4   173.587452681417      F
+ test2           4   173.587452681417     
+ test1           3   117.446963290204      F
+ test2           3   117.446963290204     
+ test1           5   96.9267393697107      F
+ test2           5   96.9267393697107     
+ test1           2   122.052360402326      F
+ test2           2   122.052360402326     
+INFO:         18          0.0180     -91944.8058     -96495.6962       4550.8904         14.6525        418.7309        910.9130         92.1263        889.3445         65.6200       -164.5233      12474.2369    -111182.1446         82.0163     281011.3750         65.5000         65.5000         65.5000      -7419.8147      -1067.0242      -1487.3451       -663.3305      -1050.3969
+
+ test1           6   127.526976452162      F
+ test2           6   127.526976452162     
+ test1           7   105.136163681403      F
+ test2           7   105.136163681403     
+ test1           0   92.5071231633701      F
+ test2           0   92.5071231633701     
+ test1           1   94.4817007759562      F
+ test2           1   94.4817007759562     
+ test1           4   174.219659964891      F
+ test2           4   174.219659964891     
+ test1           3   124.993599587395      F
+ test2           3   124.993599587395     
+ test1           5   100.012954091951      F
+ test2           5   100.012954091951     
+ test1           2   129.479006441853      F
+ test2           2   129.479006441853     
+ test1           6   133.753827974260      F
+ test2           6   133.753827974260     
+ test1           7   107.203081544643      F
+ test2           7   107.203081544643     
+ test1           0   95.6650022773607      F
+ test2           0   95.6650022773607     
+ test1           4   174.305934610717      F
+ test2           4   174.305934610717     
+ test1           1   99.9931244438256      F
+ test2           1   99.9931244438256     
+ test1           3   131.600685199072      F
+ test2           3   131.600685199072     
+ test1           5   104.186030139802      F
+ test2           5   104.186030139802     
+ test1           2   136.447856314983      F
+ test2           2   136.447856314983     
+INFO:         20          0.0200     -91939.9827     -96427.1757       4487.1931         14.9761        489.3065        983.1555         85.7761        897.0889         72.5347       -166.8878      12395.2832    -111183.4329         80.9290     281011.3750         65.5000         65.5000         65.5000      -7655.1068      -1134.0193      -1528.4895       -748.0233      -1125.5449
+
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =      12.790
+    setup         =       2.182
+    dynamics      =      10.608
+      energy      =       8.566
+      integrator  =       0.369
+      pairlist    =       2.500 (       2.333,       2.647)
+  energy           
+    bond          =       0.002 (       0.002,       0.003)
+    angle         =       0.015 (       0.014,       0.017)
+    dihedral      =       0.040 (       0.035,       0.046)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       8.406 (       8.396,       8.416)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       6.436 (       6.016,       6.771)
+      pme recip   =       1.970 (       1.638,       2.396)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.119 (       0.116,       0.122)
+    update        =       0.172 (       0.167,       0.176)
+    comm_coord    =       0.142 (       0.029,       0.272)
+    comm_force    =       0.037 (       0.025,       0.044)
+    comm_migrate  =       0.001 (       0.000,       0.002)
+
