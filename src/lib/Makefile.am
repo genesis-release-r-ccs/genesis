@@ -10,7 +10,6 @@
 noinst_LIBRARIES = lib.a
 
 lib_a_SOURCES = \
-	fj_timer_mpi.fpp \
 	constants.fpp \
 	mpi_parallel.fpp \
 	messages.fpp \
