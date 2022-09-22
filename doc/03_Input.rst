@@ -214,7 +214,7 @@ Input files for restraint
   This file contains only single column ascii data.
   The XYZ values of each atom's mode vector are stored from ascending order. 
 
-**localresfile** (for **SPDYN** only)
+**localresfile** (for **SPDYN** and 'charmm psf' file format only)
 
   This file defines restraints to be applied in the system.
   If you are not an expert of GENESIS, we strongly recommend you to simply use

@@ -156,6 +156,8 @@ contains
     ! amber
     !
     else if (prmtop%num_atoms > 0) then
+      if (localres%num_funcs > 0) &
+         call error_msg('Define_Enefunc> Localres is not available in this FF')
 
       call define_enefunc_amber (ene_info, prmtop, molecule, &
                                  constraints, restraints, domain, enefunc)
@@ -163,6 +165,8 @@ contains
     ! gromacs
     !
     else if (grotop%num_atomtypes > 0) then
+      if (localres%num_funcs > 0) &
+         call error_msg('Define_Enefunc> Localres is not available in this FF')
 
       call define_enefunc_gromacs(ene_info, grotop, molecule, &
                                  constraints, restraints, domain, enefunc)
