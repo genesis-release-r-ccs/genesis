@@ -179,7 +179,7 @@ if (is_atdyn or is_spdyn):
         inputname = "inp"
         outname = "log"
         if (is_fugaku):
-            commandline = '%s -stdout %s -stderr error %s %s' % (mpiexec_command, outname, genesis_path, inputname)
+            commandline = '%s -stdout-proc %s -stderr-proc error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
         else:
             commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, outname)
         print("$ %s" % commandline)
@@ -225,6 +225,13 @@ if (is_atdyn or is_spdyn):
             refname = "ref%d" % num
             ref.read(refname)
             testname = "test%d" % num
+            is_empty = os.stat(cwdname+"/"+dirname+"/"+testname).st_size == 0
+            if (is_empty):
+                print()
+                print("Aborted...")
+                print()
+                ifailed_replica = ifailed_replica + 1
+                continue
             test = Genesis()
             test.read(testname)
         
