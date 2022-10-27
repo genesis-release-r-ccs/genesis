@@ -178,7 +178,7 @@ if (is_atdyn or is_spdyn):
         inputname = "inp"
         testname = "test"
         if (is_fugaku):
-            commandline = '%s -stdout %s -stderr error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
+            commandline = '%s sh -c \"%s %s 1> %s 2> error\"' % (mpiexec_command, genesis_path, inputname, testname)
         else:
             commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, testname)
         print("$ %s" % commandline)
@@ -198,6 +198,14 @@ if (is_atdyn or is_spdyn):
         print()
 
         test = Genesis()
+        is_empty = os.stat(cwdname+"/"+dirname+"/"+testname).st_size == 0
+        if (is_empty):
+            print()
+            print("Aborted...")
+            print()
+            iaborted = iaborted + 1
+            continue
+
         test.read(testname)
         refname = "ref"
         tolerance_cur = tolerance

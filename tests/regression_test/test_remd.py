@@ -179,7 +179,7 @@ if (is_atdyn or is_spdyn):
         inputname = "inp"
         outname = "log"
         if (is_fugaku):
-            commandline = '%s -stdout-proc %s -stderr-proc error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
+            commandline = '%s sh -c \"%s %s 1> %s 2> error\"' % (mpiexec_command, genesis_path, inputname, outname)
         else:
             commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, outname)
         print("$ %s" % commandline)

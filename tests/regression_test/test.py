@@ -227,7 +227,7 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
         inputname = "inp"
         testname = "test"
         if (is_fugaku):
-            commandline = '%s -stdout-proc %s -stderr-proc error %s %s' % (mpiexec_command, testname, genesis_path, inputname)
+            commandline = '%s sh -c \"%s %s 1> %s 2> error\"' % (mpiexec_command, genesis_path, inputname, testname)
         else:
             commandline = '%s %s 1> %s 2> error' % (genesis_command, inputname, testname)
 
@@ -244,24 +244,14 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
         # parse the result
         #if status[0] == 0:
         test = Genesis()
-        is_empty = False
-        if (is_fugaku):
-            file_list = list(glob.glob(cwdname+"/"+dirname+"/"+testname+".*.0"))
-            if file_list != [] :
-                latest_file = max(file_list, key=os.path.getctime)
-                print(latest_file)
-                is_empty = os.stat(latest_file).st_size == 0
-                test.read(latest_file)
-        else:
-            is_empty = os.stat(cwdname+"/"+dirname+"/"+testname).st_size == 0
-            test.read(testname)
-
+        is_empty = os.stat(cwdname+"/"+dirname+"/"+testname).st_size == 0
         if (is_empty):
             print()
             print("Aborted...")
             print()
             iaborted = iaborted + 1
             continue
+        test.read(testname)
 
         refname = "ref"
         tolerance_cur = tolerance
