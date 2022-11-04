@@ -198,7 +198,7 @@ if (is_atdyn or is_spdyn):
         print()
 
         test = Genesis()
-        is_empty = os.stat(cwdname+"/"+dirname+"/"+testname).st_size == 0
+        is_empty = os.stat(dirname+"/"+testname).st_size == 0
         if (is_empty):
             print()
             print("Aborted...")
