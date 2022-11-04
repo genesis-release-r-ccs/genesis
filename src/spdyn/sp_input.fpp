@@ -40,7 +40,7 @@ module sp_input_mod
   type, public :: s_inp_info
     character(MaxFilename) :: topfile    = ''
     character(MaxFilename) :: parfile    = ''
-    character(MaxFilename) :: strfile    = ''
+    character(MaxFilenameLong) :: strfile    = ''
     character(MaxFilename) :: psffile    = ''
     character(MaxFilename) :: prmtopfile = ''
     character(MaxFilename) :: grotopfile = ''
