@@ -146,6 +146,8 @@ contains
 
         i1 = index_atoms(1,i)
         i2 = index_atoms(2,i)
+        i1 = enefunc%table%solute_list_inv(i1)
+        i2 = enefunc%table%solute_list_inv(i2)
 
         icel1 = domain%id_g2l(1,i1)
         icel2 = domain%id_g2l(1,i2)
@@ -278,6 +280,9 @@ contains
         i1 = index_atoms(1,i)
         i2 = index_atoms(2,i)
         i3 = index_atoms(3,i)
+        i1 = enefunc%table%solute_list_inv(i1)
+        i2 = enefunc%table%solute_list_inv(i2)
+        i3 = enefunc%table%solute_list_inv(i3)
 
         icel1 = domain%id_g2l(1,i1)
         icel2 = domain%id_g2l(1,i2)
@@ -420,6 +425,11 @@ contains
         i2 = index_atoms(2,i)
         i3 = index_atoms(3,i)
         i4 = index_atoms(4,i)
+
+        i1 = enefunc%table%solute_list_inv(i1)
+        i2 = enefunc%table%solute_list_inv(i2)
+        i3 = enefunc%table%solute_list_inv(i3)
+        i4 = enefunc%table%solute_list_inv(i4)
 
         icel1 = domain%id_g2l(1,i1)
         icel2 = domain%id_g2l(1,i2)
