@@ -225,7 +225,7 @@ if (is_atdyn or is_spdyn):
             refname = "ref%d" % num
             ref.read(refname)
             testname = "test%d" % num
-            is_empty = os.stat(dirname+"/"+testname).st_size == 0
+            is_empty = os.stat(testname).st_size == 0
             if (is_empty):
                 print()
                 print("Aborted...")

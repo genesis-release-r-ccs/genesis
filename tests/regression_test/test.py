@@ -244,7 +244,7 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
         # parse the result
         #if status[0] == 0:
         test = Genesis()
-        is_empty = os.stat(dirname+"/"+testname).st_size == 0
+        is_empty = os.stat(testname).st_size == 0
         if (is_empty):
             print()
             print("Aborted...")
