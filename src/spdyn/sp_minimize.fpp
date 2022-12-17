@@ -693,9 +693,9 @@ contains
 
     do icycle = 1, ncycle
       if (icycle == ncycle) nlen = natom_all - (ncycle-1) * mpi_drain
-      call mpi_reduce(coord_tmp(1,ixx), coord0(1,ixx), 3*nlen,   &
-                      mpi_wp_real, mpi_sum, 0, mpi_comm_country, &
-                      ierror)
+      call mpi_allreduce(coord_tmp(1,ixx), coord0(1,ixx), 3*nlen, &
+                         mpi_wp_real, mpi_sum, mpi_comm_country,  &
+                         ierror)
       ixx = ixx + nlen
     end do
 

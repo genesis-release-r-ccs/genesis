@@ -990,8 +990,6 @@ contains
     logical,  intent(in)    :: warning
 
 
-    if (.not. main_rank) return
-
     ! check aromatic ring size
     !
     call check_ring_structure(coord, check, fix_ring, warning)
