@@ -212,7 +212,7 @@ contains
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: mol_bond_list(:,:), sollist(:)
+    integer,         pointer :: mol_bond_list(:,:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: bond_pbc(:,:)
 
@@ -232,7 +232,6 @@ contains
     list          => enefunc%bond_list
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
-    sollist       => enefunc%table%solute_list_inv
     bond_pbc      => enefunc%bond_pbc
 
     nbond         = molecule%num_bonds
@@ -255,8 +254,8 @@ contains
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
 
-          ia  = sollist(i1) + ioffset
-          ib  = sollist(i2) + ioffset
+          ia  = i1 + ioffset
+          ib  = i2 + ioffset
 
           icel1 = id_g2l(1,ia)
           icel2 = id_g2l(1,ib)
@@ -416,7 +415,7 @@ contains
     real(wp),            pointer :: box_size(:)
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     integer,             pointer :: bond(:), list(:,:,:), num_water, ncel
-    integer,             pointer :: id_l2g(:,:), id_l2g_sol(:,:), sollist(:)
+    integer,             pointer :: id_l2g(:,:), id_l2g_sol(:,:)
     integer(int2),       pointer :: cell_pair(:,:)
     integer(int2),       pointer :: id_g2l(:,:)
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
@@ -450,7 +449,6 @@ contains
     force          => enefunc%bond_force_const
     dist           => enefunc%bond_dist_min
     num_water      => enefunc%table%num_water
-    sollist        => enefunc%table%solute_list_inv
     bond_pbc       => enefunc%bond_pbc
 
     nbond          = molecule%num_bonds
@@ -492,8 +490,8 @@ contains
             cl2 = (cl2 .or. mi2) 
           end if
   
-          ia  = sollist(i1) + ioffset
-          ib  = sollist(i2) + ioffset
+          ia  = i1 + ioffset
+          ib  = i2 + ioffset
   
           if (.not. (cl1 .or.  cl2)) then
   
@@ -684,7 +682,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_angl_list(:,:)
-    integer,         pointer :: sollist(:), nwater(:)
+    integer,         pointer :: nwater(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
@@ -700,7 +698,6 @@ contains
     nwater    => domain%num_water
     box_size  => domain%system_size
 
-    sollist   => enefunc%table%solute_list_inv
     angle     => enefunc%num_angle
     alist     => enefunc%angle_list
     force     => enefunc%angle_force_const
@@ -730,7 +727,7 @@ contains
             ri1(1:3) .ne. 'SOL' .and. ri3(1:3) .ne. 'TIP' .and. &
             ri3(1:3) .ne. 'WAT' .and. ri3(1:3) .ne. 'SOL') then
 
-          lists(1:3) = sollist(list(1:3)) + ioffset
+          lists(1:3) = list(1:3) + ioffset
 
           icel1 = id_g2l(1,lists(1))
           icel2 = id_g2l(1,lists(3))
@@ -883,7 +880,7 @@ contains
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_angl_list(:,:), mol_no(:)
-    integer,         pointer :: nwater(:), sollist(:)
+    integer,         pointer :: nwater(:)
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
@@ -907,7 +904,6 @@ contains
     ubforce   => enefunc%urey_force_const
     ubrmin    => enefunc%urey_rmin
     num_water => enefunc%table%num_water
-    sollist   => enefunc%table%solute_list_inv
     angl_pbc  => enefunc%angle_pbc
 
     nangl     = molecule%num_angles
@@ -957,7 +953,7 @@ contains
             ri2(1:4) /= constraints%water_model .and. &
             ri3(1:4) /= constraints%water_model) then
 
-          lists(1:3) = sollist(list(1:3)) + ioffset
+          lists(1:3) = list(1:3) + ioffset
 
           icel1 = id_g2l(1,lists(1))
           icel2 = id_g2l(1,lists(3))
@@ -1074,7 +1070,7 @@ contains
     real(wp),         pointer :: force(:,:), phase(:,:), coord(:,:)
     real(wp),         pointer :: box_size(:)
     integer,          pointer :: dihedral(:), dlist(:,:,:), period(:,:)
-    integer,          pointer :: ncel, sollist(:)
+    integer,          pointer :: ncel
     integer(int2),    pointer :: cell_pair(:,:)
     integer(int2),    pointer :: id_g2l(:,:)
     logical,      allocatable :: no_wild(:)
@@ -1099,7 +1095,6 @@ contains
     period    => enefunc%dihe_periodicity
     phase     => enefunc%dihe_phase
     notation  => enefunc%notation_14types
-    sollist   => enefunc%table%solute_list_inv
     dihe_pbc  => enefunc%dihe_pbc
     notation = 100
 
@@ -1137,7 +1132,7 @@ contains
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
 
-        lists(1:4) = sollist(list(1:4)) + ioffset
+        lists(1:4) = list(1:4) + ioffset
 
         icel1 = id_g2l(1,lists(1))
         icel2 = id_g2l(1,lists(4))
@@ -1298,7 +1293,7 @@ contains
     real(wp),         pointer :: force(:,:), phase(:,:), coord(:,:)
     real(wp),         pointer :: box_size(:)
     integer,          pointer :: improper(:), ilist(:,:,:)
-    integer,          pointer :: ncel, sollist(:)
+    integer,          pointer :: ncel
     integer(int2),    pointer :: cell_pair(:,:)
     integer(int2),    pointer :: id_g2l(:,:)
     integer,      allocatable :: wc_type(:)
@@ -1321,7 +1316,6 @@ contains
     ilist     => enefunc%impr_list
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
-    sollist   => enefunc%table%solute_list_inv
     impr_pbc  => enefunc%impr_pbc
 
     nimpr     = molecule%num_impropers
@@ -1388,7 +1382,7 @@ contains
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
 
-        lists(1:4) = sollist(list(1:4)) + ioffset
+        lists(1:4) = list(1:4) + ioffset
 
         icel1 = id_g2l(1,lists(1))
         icel2 = id_g2l(1,lists(4))
@@ -1640,7 +1634,7 @@ contains
     logical                  :: periodic
     real(wp)                 :: cwork(3,8), dij(3)
 
-    integer,         pointer :: ncel, sollist(:)
+    integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_cmap_list(:,:)
@@ -1658,8 +1652,6 @@ contains
     cell_pair     => domain%cell_pair
     id_g2l        => domain%id_g2l
     box_size      => domain%system_size
-
-    sollist       => enefunc%table%solute_list_inv
 
     ! If 'periodic' is .true.,
     !   then cubic spline with periodic (in dihedral-angle space) boundary
@@ -1720,7 +1712,7 @@ contains
       do i = 1, molecule%num_cmaps
 
         list(1:8) = mol_cmap_list(1:8,i) 
-        lists(1:8) = sollist(list(1:8))+ioffset
+        lists(1:8) = list(1:8)+ioffset
 
         icel1 = id_g2l(1,lists(1))
         icel2 = id_g2l(1,lists(8))

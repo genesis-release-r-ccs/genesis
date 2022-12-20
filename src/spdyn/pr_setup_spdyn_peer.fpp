@@ -2700,7 +2700,7 @@ contains
     ! assign of atom maps connecting global local to global atom indices
     !
     call alloc_domain(domain, DomainDynvar, ncel_all,  1, 1)
-    call alloc_id_g2l(domain, hm_num_solute_list)
+    call alloc_id_g2l(domain, hm_num_atoms)
     call alloc_constraints(constraints, ConstraintsDomainBond, ncel_all, &
                            constraints%connect)
 
@@ -3275,9 +3275,9 @@ contains
       do ix = 1, nsolute(i)
         ig = id_l2g(ix,i)
         is = hm_solute_list_inv(ig)
-        id_l2g_solute(ix,i) = is
-        id_g2l(1,is) = i
-        id_g2l(2,is) = ix
+        id_l2g_solute(ix,i) = ig
+        id_g2l(1,ig) = i
+        id_g2l(2,ig) = ix
       end do
     end do
 
@@ -3534,8 +3534,8 @@ contains
 
       if (ri1(1:3) .ne. constraints%water_model(1:3)) then
 
-        ia = hm_solute_list_inv(i1)
-        ib = hm_solute_list_inv(i2)
+        ia = i1
+        ib = i2
         icel1 = domain%id_g2l(1,ia)
         icel2 = domain%id_g2l(1,ib)
 
@@ -3728,9 +3728,6 @@ contains
 
       if (ri1(1:3) /= constraints%water_model(1:3)) then
 
-        list(1) = hm_solute_list_inv(list(1))
-        list(2) = hm_solute_list_inv(list(2))
-        list(3) = hm_solute_list_inv(list(3))
         icel1 = domain%id_g2l(1, list(1))
         icel2 = domain%id_g2l(1, list(3))
 
@@ -3898,10 +3895,6 @@ contains
       ci2 = hm_atom_cls_name(list(2))
       ci3 = hm_atom_cls_name(list(3))
       ci4 = hm_atom_cls_name(list(4))
-      list(1) = hm_solute_list_inv(list(1))
-      list(2) = hm_solute_list_inv(list(2))
-      list(3) = hm_solute_list_inv(list(3))
-      list(4) = hm_solute_list_inv(list(4))
 
       icel1 = domain%id_g2l(1, list(1))
       icel2 = domain%id_g2l(1, list(4))
@@ -4126,10 +4119,6 @@ contains
       ci2 = hm_atom_cls_name(list(2))
       ci3 = hm_atom_cls_name(list(3))
       ci4 = hm_atom_cls_name(list(4))
-      list(1) = hm_solute_list_inv(list(1))
-      list(2) = hm_solute_list_inv(list(2))
-      list(3) = hm_solute_list_inv(list(3))
-      list(4) = hm_solute_list_inv(list(4))
 
       icel1 = domain%id_g2l(1, list(1))
       icel2 = domain%id_g2l(1, list(4))
@@ -4487,22 +4476,7 @@ contains
                 ci8 == par%cmap_atom_cls(8, j)) then
 
               ncmap(icel_local) = ncmap(icel_local) + 1
-              clist(1, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(1))
-              clist(2, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(2))
-              clist(3, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(3))
-              clist(4, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(4))
-              clist(5, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(5))
-              clist(6, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(6))
-              clist(7, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(7))
-              clist(8, ncmap(icel_local), icel_local) = &
-                  hm_solute_list_inv(list(8))
+              clist(1:8, ncmap(icel_local), icel_local) = list(1:8)
               ctype(ncmap(icel_local), icel_local) = j
     
               cwork(1,1) = hm_atom_coord(1,list(1))
@@ -4896,8 +4870,6 @@ contains
           ri1(1:3) /= 'SOL' .and. ri2(1:3) /= 'TIP' .and. &
           ri2(1:3) /= 'WAT' .and. ri2(1:3) /= 'SOL') then
 
-        i1 = hm_solute_list_inv(i1)
-        i2 = hm_solute_list_inv(i2)
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i2)
 
@@ -5281,10 +5253,10 @@ contains
       i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
       i4 = iabs(prmtop%dihe_inc_hy(4,i)) / 3 + 1
 
-      ia = hm_solute_list_inv(i1)
-      ib = hm_solute_list_inv(i2)
-      ic = hm_solute_list_inv(i3)
-      id = hm_solute_list_inv(i4)
+      ia = i1
+      ib = i2
+      ic = i3
+      id = i4
       icel1 = id_g2l(1,ia)
       icel2 = id_g2l(1,id)
 
@@ -5328,10 +5300,10 @@ contains
       i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
       i4 = iabs(prmtop%dihe_wo_hy(4,i)) / 3 + 1
 
-      ia = hm_solute_list_inv(i1)
-      ib = hm_solute_list_inv(i2)
-      ic = hm_solute_list_inv(i3)
-      id = hm_solute_list_inv(i4)
+      ia = i1
+      ib = i2
+      ic = i3
+      id = i4
       icel1 = id_g2l(1,ia)
       icel2 = id_g2l(1,id)
 
@@ -5742,8 +5714,8 @@ contains
 
               idx1 = idx1 + ioffset
               idx2 = idx2 + ioffset
-              ia   = hm_solute_list_inv(idx1)
-              ib   = hm_solute_list_inv(idx2)
+              ia   = idx1
+              ib   = idx2
 
               icel1 = id_g2l(1,ia)
               icel2 = id_g2l(1,ib)
@@ -5936,9 +5908,9 @@ contains
               idx1 = idx1 + ioffset
               idx2 = idx2 + ioffset
               idx3 = idx3 + ioffset
-              ia   = hm_solute_list_inv(idx1)
-              ib   = hm_solute_list_inv(idx2)
-              ic   = hm_solute_list_inv(idx3)
+              ia   = idx1
+              ib   = idx2
+              ic   = idx3
 
               icel1 = id_g2l(1,ia)
               icel2 = id_g2l(1,ic)
@@ -6093,10 +6065,10 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
-          ia   = hm_solute_list_inv(idx1)
-          ib   = hm_solute_list_inv(idx2)
-          ic   = hm_solute_list_inv(idx3)
-          id   = hm_solute_list_inv(idx4)
+          ia   = idx1
+          ib   = idx2
+          ic   = idx3
+          id   = idx4
 
           icel1 = id_g2l(1,ia)
           icel2 = id_g2l(1,ib)
@@ -6215,10 +6187,10 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
-          ia   = hm_solute_list_inv(idx1)
-          ib   = hm_solute_list_inv(idx2)
-          ic   = hm_solute_list_inv(idx3)
-          id   = hm_solute_list_inv(idx4)
+          ia   = idx1
+          ib   = idx2
+          ic   = idx3
+          id   = idx4
 
           icel1 = id_g2l(1,ia)
           icel2 = id_g2l(1,id)
@@ -6333,10 +6305,10 @@ contains
           idx2 = gromol%dihes(k)%atom_idx2 + ioffset
           idx3 = gromol%dihes(k)%atom_idx3 + ioffset
           idx4 = gromol%dihes(k)%atom_idx4 + ioffset
-          ia   = hm_solute_list_inv(idx1)
-          ib   = hm_solute_list_inv(idx2)
-          ic   = hm_solute_list_inv(idx3)
-          id   = hm_solute_list_inv(idx4)
+          ia   = idx1
+          ib   = idx2
+          ic   = idx3
+          id   = idx4
 
           icel1 = id_g2l(1,idx1)
           icel2 = id_g2l(1,idx4)

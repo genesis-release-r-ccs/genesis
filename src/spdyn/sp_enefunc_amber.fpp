@@ -207,7 +207,7 @@ contains
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nbond, sollist(:)
+    integer,         pointer :: nbond
     integer,         pointer :: bond_pbc(:,:)
 
 
@@ -223,7 +223,6 @@ contains
     list      => enefunc%bond_list
     force     => enefunc%bond_force_const
     dist      => enefunc%bond_dist_min
-    sollist   => enefunc%table%solute_list_inv
     bond_pbc  => enefunc%bond_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -241,8 +240,8 @@ contains
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
 
-          i1 = sollist(i1) + ioffset
-          i2 = sollist(i2) + ioffset
+          i1 = i1 + ioffset
+          i2 = i2 + ioffset
 
           icel1 = id_g2l(1,i1)
           icel2 = id_g2l(1,i2)
@@ -286,8 +285,8 @@ contains
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
  
-          i1 = sollist(i1) + ioffset
-          i2 = sollist(i2) + ioffset
+          i1 = i1 + ioffset
+          i2 = i2 + ioffset
 
           icel1 = id_g2l(1,i1)
           icel2 = id_g2l(1,i2)
@@ -427,7 +426,7 @@ contains
     real(wp),            pointer :: force(:,:), dist(:,:), coord(:,:)
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     integer,             pointer :: bond(:), list(:,:,:), ncel
-    integer,             pointer :: id_l2g(:,:), sollist(:)
+    integer,             pointer :: id_l2g(:,:)
     integer(int2),       pointer :: cell_pair(:,:)
     integer(int2),       pointer :: id_g2l(:,:)
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
@@ -449,7 +448,6 @@ contains
     list          => enefunc%bond_list
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
-    sollist       => enefunc%table%solute_list_inv
     bond_pbc      => enefunc%bond_pbc
 
     connect       =  constraints%connect
@@ -469,8 +467,8 @@ contains
         ri1 = molecule%residue_name(i1)
         ri2 = molecule%residue_name(i2)
 
-        i1  = sollist(i1) + ioffset
-        i2  = sollist(i2) + ioffset
+        i1  = i1 + ioffset
+        i2  = i2 + ioffset
 
         if (ri1 /= constraints%water_model .and. &
             ri2 /= constraints%water_model) then
@@ -513,8 +511,8 @@ contains
         ri1 = molecule%residue_name(i1)
         ri2 = molecule%residue_name(i2)
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
 
         if (ri1 /= constraints%water_model .and. &
             ri2 /= constraints%water_model) then
@@ -678,7 +676,7 @@ contains
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nangl, sollist(:), nwater(:)
+    integer,         pointer :: nangl, nwater(:)
     character(6),    pointer :: mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
@@ -694,7 +692,6 @@ contains
     alist     => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
-    sollist   => enefunc%table%solute_list_inv
     angl_pbc  => enefunc%angle_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -715,9 +712,9 @@ contains
             ri1(1:3) .ne. 'SOL' .and. ri3(1:3) .ne. 'TIP' .and. &
             ri3(1:3) .ne. 'WAT' .and. ri3(1:3) .ne. 'SOL') then
 
-          i1 = sollist(i1) + ioffset
-          i2 = sollist(i2) + ioffset
-          i3 = sollist(i3) + ioffset
+          i1 = i1 + ioffset
+          i2 = i2 + ioffset
+          i3 = i3 + ioffset
 
           icel1 = id_g2l(1,i1)
           icel2 = id_g2l(1,i3)
@@ -754,9 +751,9 @@ contains
         i2 = prmtop%angl_wo_hy(2,i) / 3 + 1
         i3 = prmtop%angl_wo_hy(3,i) / 3 + 1
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
-        i3 = sollist(i3) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
+        i3 = i3 + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i3)
@@ -862,7 +859,7 @@ contains
     integer,         pointer :: ncel
     integer(int2),   pointer :: cell_pair(:,:)
     integer(int2),   pointer :: id_g2l(:,:)
-    integer,         pointer :: nangl, sollist(:)
+    integer,         pointer :: nangl
     integer,         pointer :: angl_pbc(:,:,:)
 
 
@@ -874,7 +871,6 @@ contains
     alist     => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
-    sollist   => enefunc%table%solute_list_inv
     angl_pbc  => enefunc%angle_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -891,9 +887,9 @@ contains
         res2 = molecule%residue_name(i2)
         res3 = molecule%residue_name(i3)
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
-        i3 = sollist(i3) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
+        i3 = i3 + ioffset
 
         if (res1 /= constraints%water_model .and. &
             res2 /= constraints%water_model .and. &
@@ -934,9 +930,9 @@ contains
         i2 = prmtop%angl_wo_hy(2,i) / 3 + 1
         i3 = prmtop%angl_wo_hy(3,i) / 3 + 1
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
-        i3 = sollist(i3) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
+        i3 = i3 + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i3)
@@ -1017,7 +1013,7 @@ contains
 
     real(wp),           pointer :: force(:,:), phase(:,:)
     integer,            pointer :: dihe(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
@@ -1035,7 +1031,6 @@ contains
     phase     => enefunc%dihe_phase
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
-    sollist   => enefunc%table%solute_list_inv
     dihe_pbc  => enefunc%dihe_pbc
 
     notation = 100
@@ -1060,10 +1055,10 @@ contains
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_inc_hy(4,i)  / 3 + 1
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
-        i3 = sollist(i3) + ioffset
-        i4 = sollist(i4) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
+        i3 = i3 + ioffset
+        i4 = i4 + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i4)
@@ -1109,10 +1104,10 @@ contains
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_wo_hy(4,i)  / 3 + 1
 
-        i1 = sollist(i1) + ioffset
-        i2 = sollist(i2) + ioffset
-        i3 = sollist(i3) + ioffset
-        i4 = sollist(i4) + ioffset
+        i1 = i1 + ioffset
+        i2 = i2 + ioffset
+        i3 = i3 + ioffset
+        i4 = i4 + ioffset
 
         icel1 = id_g2l(1,i1)
         icel2 = id_g2l(1,i4)
@@ -1196,7 +1191,7 @@ contains
     real(wp),           pointer :: force(:,:), phase(:,:), coord(:,:)
     real(wp),           pointer :: box_size(:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
@@ -1217,7 +1212,6 @@ contains
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
     notation  => enefunc%notation_14types
-    sollist   => enefunc%table%solute_list_inv
     impr_pbc  => enefunc%impr_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -1234,10 +1228,10 @@ contains
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_inc_hy(4,i)) / 3 + 1
 
-        ia = sollist(i1) + ioffset
-        ib = sollist(i2) + ioffset
-        ic = sollist(i3) + ioffset
-        id = sollist(i4) + ioffset
+        ia = i1 + ioffset
+        ib = i2 + ioffset
+        ic = i3 + ioffset
+        id = i4 + ioffset
 
         icel1 = id_g2l(1,ia)
         icel2 = id_g2l(1,id)
@@ -1285,10 +1279,10 @@ contains
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_wo_hy(4,i)) / 3 + 1
 
-        ia = sollist(i1) + ioffset
-        ib = sollist(i2) + ioffset
-        ic = sollist(i3) + ioffset
-        id = sollist(i4) + ioffset
+        ia = i1 + ioffset
+        ib = i2 + ioffset
+        ic = i3 + ioffset
+        id = i4 + ioffset
 
         icel1 = id_g2l(1,ia)
         icel2 = id_g2l(1,id)
@@ -1377,7 +1371,7 @@ contains
     logical                  :: periodic
     real(wp)                 :: cwork(3,8), dij(3)
 
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: notation
@@ -1391,7 +1385,6 @@ contains
     id_g2l         => domain%id_g2l
 
     dihe_pbc       => enefunc%dihe_pbc
-    sollist        => enefunc%table%solute_list_inv
 
     periodic = ene_info%cmap_pspline
     ncmap_p  = prmtop%num_cmaptype
@@ -1441,7 +1434,7 @@ contains
 
         list(1:4) = prmtop%cmap_list(1:4,i)        
         list(5:8) = prmtop%cmap_list(2:5,i)        
-        lists(1:8) = sollist(list(1:8)) + ioffset
+        lists(1:8) = list(1:8) + ioffset
 
         icel1 = id_g2l(1,lists(1))
         icel2 = id_g2l(1,lists(8))

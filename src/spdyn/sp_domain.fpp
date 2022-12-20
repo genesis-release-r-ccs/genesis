@@ -222,7 +222,7 @@ contains
                                *boundary%num_duplicate(1)     &
                                *boundary%num_duplicate(2)     &
                                *boundary%num_duplicate(3)
-    call alloc_domain(domain, DomainGlobal, num_solute_all,    1, 1)
+    call alloc_domain(domain, DomainGlobal, domain%num_atom_all, 1, 1)
 
     if (constraints%water_type == TIP4) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
@@ -401,7 +401,7 @@ contains
     ! allocation
     !
     call alloc_domain(domain, DomainDynvar, ncel_all, 1, 1)
-    call alloc_domain(domain, DomainGlobal, enefunc%table%num_solute, 1, 1)
+    call alloc_domain(domain, DomainGlobal, domain%num_atom_all, 1, 1)
 
     if (constraints%water_type == TIP4) then
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
@@ -3366,13 +3366,9 @@ contains
     do i = 1, ncel
       do ix = 1, nsolute(i)
         ig  = id_l2g(ix,i)
-        ig1 = mod(ig-1, natom_dupl) + 1
-        ig2 = (ig-1) / natom_dupl
-        is  = sollist(ig1)
-        is  = enefunc%table%num_solute*ig2 + is
-        id_l2g_solute(ix,i) = is
-        id_g2l(1,is) = i
-        id_g2l(2,is) = ix
+        id_l2g_solute(ix,i) = ig
+        id_g2l(1,ig) = i
+        id_g2l(2,ig) = ix
       end do
     end do
 

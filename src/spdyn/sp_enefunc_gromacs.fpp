@@ -214,7 +214,7 @@ contains
     real(wp),           pointer :: force(:,:), dist(:,:), coord(:,:)
     real(wp),           pointer :: box_size(:)
     integer,            pointer :: bond(:), list(:,:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: bond_pbc(:,:)
@@ -231,7 +231,6 @@ contains
     list      => enefunc%bond_list
     force     => enefunc%bond_force_const
     dist      => enefunc%bond_dist_min
-    sollist   => enefunc%table%solute_list_inv
     bond_pbc  => enefunc%bond_pbc
 
     nbond_a   = 0
@@ -260,8 +259,8 @@ contains
 
                 idx1 = idx1 + ioffset  
                 idx2 = idx2 + ioffset  
-                ia   = sollist(idx1) + ioffset_dupl
-                ib   = sollist(idx2) + ioffset_dupl
+                ia   = idx1 + ioffset_dupl
+                ib   = idx2 + ioffset_dupl
   
                 icel1 = id_g2l(1,ia)
                 icel2 = id_g2l(1,ib)
@@ -423,7 +422,7 @@ contains
     real(wp),           pointer :: coord(:,:), box_size(:)
     real(wip),          pointer :: HGr_bond_dist(:,:,:,:)
     integer,            pointer :: bond(:), list(:,:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer,            pointer :: id_l2g(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
@@ -448,7 +447,6 @@ contains
     list          => enefunc%bond_list
     force         => enefunc%bond_force_const
     dist          => enefunc%bond_dist_min
-    sollist       => enefunc%table%solute_list_inv
     bond_pbc      => enefunc%bond_pbc
     nwat          =  enefunc%table%num_water
 
@@ -489,8 +487,8 @@ contains
               end if
               idx1 = i1 + ioffset
               idx2 = i2 + ioffset
-              ia   = sollist(idx1) + ioffset_dupl
-              ib   = sollist(idx2) + ioffset_dupl
+              ia   = idx1 + ioffset_dupl
+              ib   = idx2 + ioffset_dupl
 
               if (cl1 .and. cl2) then
 
@@ -699,7 +697,7 @@ contains
     real(wp),           pointer :: force(:,:), theta(:,:)
     real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: angle(:), list(:,:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: angl_pbc(:,:,:)
@@ -716,7 +714,6 @@ contains
     list      => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
-    sollist   => enefunc%table%solute_list_inv
     angl_pbc  => enefunc%angle_pbc
 
     nangl_a   = 0
@@ -748,9 +745,9 @@ contains
                 idx1 = idx1 + ioffset 
                 idx2 = idx2 + ioffset 
                 idx3 = idx3 + ioffset 
-                ia   = sollist(idx1) + ioffset_dupl
-                ib   = sollist(idx2) + ioffset_dupl
-                ic   = sollist(idx3) + ioffset_dupl
+                ia   = idx1 + ioffset_dupl
+                ib   = idx2 + ioffset_dupl
+                ic   = idx3 + ioffset_dupl
                 
                 icel1 = id_g2l(1,ia)
                 icel2 = id_g2l(1,ic)
@@ -882,7 +879,7 @@ contains
     real(wp),           pointer :: force(:,:), theta(:,:)
     real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: angle(:), list(:,:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: angl_pbc(:,:,:)
@@ -899,7 +896,6 @@ contains
     list      => enefunc%angle_list
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
-    sollist   => enefunc%table%solute_list_inv
     angl_pbc  => enefunc%angle_pbc
     nwat      =  enefunc%table%num_water
 
@@ -934,9 +930,9 @@ contains
                 idx1 = i1 + ioffset
                 idx2 = i2 + ioffset
                 idx3 = i3 + ioffset
-                ia   = sollist(idx1) + ioffset_dupl
-                ib   = sollist(idx2) + ioffset_dupl
-                ic   = sollist(idx3) + ioffset_dupl
+                ia   = idx1 + ioffset_dupl
+                ib   = idx2 + ioffset_dupl
+                ic   = idx3 + ioffset_dupl
 
                 icel1 = id_g2l(1,ia)
                 icel2 = id_g2l(1,ic)
@@ -1041,7 +1037,7 @@ contains
     real(wp),           pointer :: force(:,:), phase(:,:)
     real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: dihe(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
@@ -1062,7 +1058,6 @@ contains
     phase     => enefunc%dihe_phase
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
-    sollist   => enefunc%table%solute_list_inv
     dihe_pbc  => enefunc%dihe_pbc
     notation  = 100
 
@@ -1085,10 +1080,10 @@ contains
             idx2 = gromol%dihes(k)%atom_idx2 + ioffset
             idx3 = gromol%dihes(k)%atom_idx3 + ioffset
             idx4 = gromol%dihes(k)%atom_idx4 + ioffset
-            ia   = sollist(idx1) + ioffset_dupl
-            ib   = sollist(idx2) + ioffset_dupl
-            ic   = sollist(idx3) + ioffset_dupl
-            id   = sollist(idx4) + ioffset_dupl
+            ia   = idx1 + ioffset_dupl
+            ib   = idx2 + ioffset_dupl
+            ic   = idx3 + ioffset_dupl
+            id   = idx4 + ioffset_dupl
 
             icel1 = id_g2l(1,ia)
             icel2 = id_g2l(1,id)
@@ -1187,7 +1182,7 @@ contains
     type(s_grotop_mol), pointer :: gromol
     real(wp),           pointer :: c(:,:,:), box_size(:), coord(:,:)
     integer,            pointer :: dihe(:), list(:,:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: ndihe
@@ -1204,7 +1199,6 @@ contains
     dihe      => enefunc%num_rb_dihedral
     list      => enefunc%rb_dihe_list
     c         => enefunc%rb_dihe_c
-    sollist   => enefunc%table%solute_list_inv
     dihe_pbc  => enefunc%rb_dihe_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -1225,10 +1219,10 @@ contains
             idx2 = gromol%dihes(k)%atom_idx2 + ioffset
             idx3 = gromol%dihes(k)%atom_idx3 + ioffset
             idx4 = gromol%dihes(k)%atom_idx4 + ioffset
-            ia   = sollist(idx1) + ioffset_dupl
-            ib   = sollist(idx2) + ioffset_dupl
-            ic   = sollist(idx3) + ioffset_dupl
-            id   = sollist(idx4) + ioffset_dupl
+            ia   = idx1 + ioffset_dupl
+            ib   = idx2 + ioffset_dupl
+            ic   = idx3 + ioffset_dupl
+            id   = idx4 + ioffset_dupl
 
             icel1 = id_g2l(1,ia)
             icel2 = id_g2l(1,id)
@@ -1321,7 +1315,7 @@ contains
     real(wp),           pointer :: force(:,:), phase(:,:)
     real(wp),           pointer :: coord(:,:), box_size(:)
     integer,            pointer :: impr(:), list(:,:,:), period(:,:)
-    integer,            pointer :: ncel, sollist(:)
+    integer,            pointer :: ncel
     integer(int2),      pointer :: cell_pair(:,:)
     integer(int2),      pointer :: id_g2l(:,:)
     integer,            pointer :: nimpr
@@ -1340,7 +1334,6 @@ contains
     force     => enefunc%impr_force_const
     phase     => enefunc%impr_phase
     period    => enefunc%impr_periodicity
-    sollist   => enefunc%table%solute_list_inv
     impr_pbc  => enefunc%impr_pbc
 
     do dupl = 1, domain%num_duplicate
@@ -1361,10 +1354,10 @@ contains
             idx2 = gromol%dihes(k)%atom_idx2 + ioffset 
             idx3 = gromol%dihes(k)%atom_idx3 + ioffset 
             idx4 = gromol%dihes(k)%atom_idx4 + ioffset 
-            ia   = sollist(idx1) + ioffset_dupl
-            ib   = sollist(idx2) + ioffset_dupl
-            ic   = sollist(idx3) + ioffset_dupl
-            id   = sollist(idx4) + ioffset_dupl
+            ia   = idx1 + ioffset_dupl
+            ib   = idx2 + ioffset_dupl
+            ic   = idx3 + ioffset_dupl
+            id   = idx4 + ioffset_dupl
 
             icel1 = id_g2l(1,ia)
             icel2 = id_g2l(1,id)
