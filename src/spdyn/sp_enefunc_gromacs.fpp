@@ -237,7 +237,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1) * enefunc%table%num_solute
+      ioffset_dupl = (dupl-1) * enefunc%table%num_all
       ioffset   = 0
 
       do i = 1, grotop%num_molss
@@ -457,7 +457,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1) * enefunc%table%num_solute
+      ioffset_dupl = (dupl-1) * enefunc%table%num_all
       ioffset   = 0
 
       do i = 1, grotop%num_molss
@@ -720,7 +720,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1) * enefunc%table%num_solute
+      ioffset_dupl = (dupl-1) * enefunc%table%num_all
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -904,7 +904,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1) * enefunc%table%num_solute
+      ioffset_dupl = (dupl-1) * enefunc%table%num_all
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -1063,7 +1063,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
+      ioffset_dupl = (dupl-1)*enefunc%table%num_all
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -1203,7 +1203,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
+      ioffset_dupl = (dupl-1)*enefunc%table%num_all
       ioffset = 0
 
       do i = 1, grotop%num_molss
@@ -1338,7 +1338,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset_dupl = (dupl-1)*enefunc%table%num_solute
+      ioffset_dupl = (dupl-1)*enefunc%table%num_all
       ioffset = 0
 
       do i = 1, grotop%num_molss

@@ -69,6 +69,7 @@ module sp_enefunc_str_mod
     character(5)                  :: water_model
     integer                       :: num_water
     integer                       :: num_solute
+    integer                       :: num_all
     integer,          allocatable :: water_list(:,:)
     integer,          allocatable :: solute_list(:)
     integer,          allocatable :: solute_list_inv(:)

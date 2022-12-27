@@ -227,7 +227,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, prmtop%num_bondh
 
@@ -457,7 +457,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, prmtop%num_mbonda
 
@@ -696,7 +696,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1)*enefunc%table%num_solute
+      ioffset = (dupl-1)*enefunc%table%num_all
 
       do i = 1, prmtop%num_anglh
 
@@ -875,7 +875,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, prmtop%num_anglh
 

@@ -239,7 +239,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, nbond
 
@@ -461,7 +461,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, nbond
 
@@ -711,7 +711,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1)*enefunc%table%num_solute
+      ioffset = (dupl-1)*enefunc%table%num_all
 
       do i = 1, nangl
 
@@ -937,7 +937,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, nangl
 
@@ -1122,7 +1122,7 @@ contains
     !
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, ndihe
 
@@ -1370,7 +1370,7 @@ contains
     !
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, nimpr
 
@@ -1707,7 +1707,7 @@ contains
 
     do dupl = 1, domain%num_duplicate
 
-      ioffset = (dupl-1) * enefunc%table%num_solute
+      ioffset = (dupl-1) * enefunc%table%num_all
 
       do i = 1, molecule%num_cmaps
 

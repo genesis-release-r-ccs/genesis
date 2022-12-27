@@ -119,6 +119,8 @@ contains
     call init_enefunc(enefunc)
     call init_constraints(constraints)
 
+    enefunc%table%num_all     = molecule%num_atoms
+
     domain%num_atom_all       = molecule%num_atoms            &
                                *boundary%num_duplicate(1)     &
                                *boundary%num_duplicate(2)     &
@@ -2066,8 +2068,7 @@ contains
 
     ! ring in each domain
     !
-!   do i = 1, molecule%num_atoms
-    do i = 1, enefunc%table%num_solute
+    do i = 1, enefunc%table%num_all
       i1 = domain%id_g2l(1,i)
       if (enefunc%table%solute_list_inv(i) /= 0 .and. i1 > 0) then
         i2 = domain%id_g2l(2,i)

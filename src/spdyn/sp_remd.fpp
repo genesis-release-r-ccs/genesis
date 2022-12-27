@@ -1648,9 +1648,9 @@ contains
         remd%solute_tempering(i)%num_solute = nrest
 
         allocate(remd%solute_tempering(i)%solute_list(nrest), &
-                 remd%solute_tempering(i)%is_solute(enefunc%table%num_solute), &
+                 remd%solute_tempering(i)%is_solute(enefunc%table%num_all), &
                  remd%solute_tempering(i)%atom_cls_no_org(nrest))
-        remd%solute_tempering(i)%is_solute(1:enefunc%table%num_solute) = 0
+        remd%solute_tempering(i)%is_solute(1:enefunc%table%num_all) = 0
 
         ! listup solute atoms
         !
@@ -1913,9 +1913,9 @@ contains
         remd%solute_tempering(i)%num_solute = nrest
 
         allocate(remd%solute_tempering(i)%solute_list(nrest), &
-                 remd%solute_tempering(i)%is_solute(enefunc%table%num_solute), &
+                 remd%solute_tempering(i)%is_solute(enefunc%table%num_all), &
                  remd%solute_tempering(i)%atom_cls_no_org(nrest))
-        remd%solute_tempering(i)%is_solute(1:enefunc%table%num_solute) = 0
+        remd%solute_tempering(i)%is_solute(1:enefunc%table%num_all) = 0
 
         ! listup solute atoms
         !
