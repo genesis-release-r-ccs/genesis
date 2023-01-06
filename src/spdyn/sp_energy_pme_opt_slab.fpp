@@ -404,7 +404,7 @@ contains
             grid_g2lx(x_end+k)             = grid_bd+nlocalx+k
           end do
           grid_g2lx(x_start-n_bs-1)        = 1
-          grid_g2lx(x_end+n_bs+1)          = nlocaly+2*n_bs
+          grid_g2lx(x_end+n_bs+1)          = nlocalx+2*n_bs
         end if
       else
         do k = 1, grid_bd
