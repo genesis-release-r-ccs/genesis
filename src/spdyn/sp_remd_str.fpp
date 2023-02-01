@@ -144,6 +144,18 @@ module sp_remd_str_mod
     logical,              allocatable :: cyclic_params(:)
     type(s_soltemp),      allocatable :: solute_tempering(:)
     type(s_adjust_remd),  allocatable :: autoadj(:)
+    ! FEP
+    real(wp),             allocatable :: deltU_fwd(:)
+    real(wp),             allocatable :: deltU_rev(:)
+    real(wp),             allocatable :: dlambljA(:)
+    real(wp),             allocatable :: dlambljB(:)
+    real(wp),             allocatable :: dlambelA(:)
+    real(wp),             allocatable :: dlambelB(:)
+    real(wp),             allocatable :: dlambbondA(:)
+    real(wp),             allocatable :: dlambbondB(:)
+    real(wp),             allocatable :: dlambrest(:)
+    ! FEP/REST or REST/FEP
+    type(s_soltemp),      allocatable :: fep_rest(:)
   end type s_remd
 
   ! parameters for auto-adjusting
@@ -155,6 +167,7 @@ module sp_remd_str_mod
   integer, public, parameter      :: RemdReplicas_rst  = 2
   integer, public, parameter      :: RemdUmbrellas     = 3
   integer, public, parameter      :: RemdRefatoms      = 4
+  integer, public, parameter      :: RemdFEP           = 5
 
   ! parameters for REMD type
   integer, public, parameter      :: RemdTemperature     = 1
@@ -162,13 +175,17 @@ module sp_remd_str_mod
   integer, public, parameter      :: RemdGamma           = 3
   integer, public, parameter      :: RemdRestraint       = 4
   integer, public, parameter      :: RemdSoluteTempering = 5
+  integer, public, parameter      :: RemdAlchemy         = 6
+  integer, public, parameter      :: RemdAlchemyRest     = 7
 
   character(5), public, parameter :: DummyWaterName      = 'ZZZZZ'
-  character(*), public, parameter :: RemdTypes(5)  = (/'TEMPERATURE',&
+  character(*), public, parameter :: RemdTypes(7)  = (/'TEMPERATURE',&
                                                        'PRESSURE   ',&
                                                        'GAMMA      ',&
                                                        'RESTRAINT  ',&
-                                                       'REST       '/)
+                                                       'REST       ',&
+                                                       'ALCHEMY    ',&
+                                                       'ALCHEMYREST'/)
 
   ! subroutines
   public :: alloc_remd
@@ -311,6 +328,43 @@ contains
       remd%rest_constants(1:var_size1,1:var_size2)    = 0_wp
       remd%rest_reference(1:var_size1,1:var_size2)    = 0_wp
 
+    case(RemdFEP)
+
+      if (allocated(remd%dlambljA)) then
+        if (size(remd%dlambljA(:)) == var_size1) return
+        deallocate(remd%dlambljA,            &
+                   remd%dlambljB,            &
+                   remd%dlambelA,            &
+                   remd%dlambelB,            &
+                   remd%dlambbondA,          &
+                   remd%dlambbondB,          &
+                   remd%dlambrest,           &
+                   remd%deltU_fwd,           &
+                   remd%deltU_rev,           &
+                   remd%fep_rest,            &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(remd%dlambljA(1:var_size2),        &
+               remd%dlambljB(1:var_size2),        &
+               remd%dlambelA(1:var_size2),        &
+               remd%dlambelB(1:var_size2),        &
+               remd%dlambbondA(1:var_size2),      &
+               remd%dlambbondB(1:var_size2),      &
+               remd%dlambrest(1:var_size2),       &
+               remd%deltU_fwd(1:var_size2),       &
+               remd%deltU_rev(1:var_size2),       &
+               remd%fep_rest(1:var_size2),        &
+               stat = alloc_stat)
+
+      remd%dlambljA(1:var_size2)          = 0.0_wp
+      remd%dlambljB(1:var_size2)          = 0.0_wp
+      remd%dlambelA(1:var_size2)          = 0.0_wp
+      remd%dlambelB(1:var_size2)          = 0.0_wp
+      remd%dlambbondA(1:var_size2)        = 0.0_wp
+      remd%dlambbondB(1:var_size2)        = 0.0_wp
+      remd%dlambrest(1:var_size2)         = 0.0_wp
+
     case default
 
       call error_msg('Alloc_Remd> bad variable')
@@ -394,6 +448,22 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case(RemdFEP)
+
+      if (allocated(remd%dlambljA)) then
+        deallocate(remd%dlambljA,            &
+                   remd%dlambljB,            &
+                   remd%dlambelA,            &
+                   remd%dlambelB,            &
+                   remd%dlambbondA,          &
+                   remd%dlambbondB,          &
+                   remd%dlambrest,           &
+                   remd%deltU_fwd,           &
+                   remd%deltU_rev,           &
+                   remd%fep_rest,            &
+                   stat = dealloc_stat)
+      end if
+
     case default
 
       call error_msg('Dealloc_Remd> bad variable')
@@ -424,6 +494,7 @@ contains
 
     call dealloc_remd(remd, RemdReplicas)
     call dealloc_remd(remd, RemdUmbrellas)
+    call dealloc_remd(remd, RemdFEP)
 
     return
 

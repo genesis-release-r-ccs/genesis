@@ -76,6 +76,9 @@ module sp_domain_mod
   private :: check_atom_coord
   private :: check_atom_coord_pio
   private :: select_kernel
+  ! FEP
+  public  :: setup_domain_fep
+  private :: setup_fep_correspondence
 
 contains
 
@@ -167,7 +170,7 @@ contains
 
     ! decide cell capacity (max**) for memory allocation
     !
-    call setup_cell_capacity(boundary, domain)
+    call setup_cell_capacity(boundary, domain, molecule)
 
 
     ! memory allocaltion of maps connecting local to global cell indices
@@ -236,7 +239,7 @@ contains
       call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
     end if
 
-    call setup_hbond_group     (molecule, enefunc, constraints)
+    call setup_hbond_group     (molecule, domain, enefunc, constraints)
     call setup_atom_by_HBond   (molecule, boundary, enefunc, constraints, &
                                 domain)
     call setup_global_to_local_atom_index(enefunc, domain)
@@ -1306,21 +1309,35 @@ contains
   !
   !  Subroutine    setup_cell_capacity
   !> @brief        setup cell capacity for memory allocation
-  !! @authors      JJ
+  !! @authors      JJ, HO
   !! @param[in]    boundary : boundary information
   !! @param[in]    domain   : domain information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_cell_capacity(boundary, domain)
+  subroutine setup_cell_capacity(boundary, domain, molecule)
 
     ! formal arguments
-    type(s_boundary),        intent(in)    :: boundary
-    type(s_domain),          intent(in)    :: domain
+    type(s_boundary),           intent(in) :: boundary
+    type(s_domain),             intent(in) :: domain
+    type(s_molecule), optional, intent(in) :: molecule
 
     ! local variables
     real(wip)                :: v, v_rate
+    integer                  :: natom, natom2, nbond, nangle
+    integer                  :: ndihedral, nimproper, ncmap
 
+    ! FEP
+    integer                  :: natom_partA, natom_partB
+
+    if (present(molecule)) then
+      natom = molecule%num_atoms
+      nbond = molecule%num_bonds
+      nangle = molecule%num_angles
+      ndihedral = molecule%num_dihedrals
+      nimproper = molecule%num_impropers
+      ncmap = molecule%num_cmaps
+    end if
 
     v = boundary%box_size_x * &
         boundary%box_size_y * &
@@ -1347,6 +1364,15 @@ contains
     MaxWaterMove = int(v_rate * real(NAtomBox8,wip) / 7.0_wip)
     MaxWater = MaxWater * 3
 
+    ! If the system is vacuum, MaxAtom, MaxWater, etc. are set to 
+    ! the number of atoms in the system.
+    if (present(molecule)) then
+      MaxAtom      = min(natom, MaxAtom)
+      MaxWater     = min(natom, MaxWater)
+      MaxMove      = min(natom, MaxMove)
+      MaxWaterMove = min(natom, MaxWaterMove)
+    end if
+
 
     ! sp_enefunc_str
     !
@@ -1363,20 +1389,57 @@ contains
     ImprMove     = MaxImpr  / 2
     CmapMove     = MaxCmap  / 2
 
+    ! If vacuum, MaxBond, MaxAngle, etc. are set to the number of
+    ! bonds, angles, etc. of the molecule.
+    if (present(molecule)) then
+      MaxBond      = min(nbond, MaxBond)
+      MaxAngle     = min(nangle, MaxAngle)
+      MaxDihe      = min(10*ndihedral, MaxDihe)
+      MaxImpr      = min(nimproper, MaxImpr)
+      MaxCmap      = min(ncmap, MaxCmap)
+      BondMove     = min(nbond, BondMove)
+      AngleMove    = min(nangle, AngleMove)
+      DiheMove     = min(10*ndihedral, DiheMove)
+      ImprMove     = min(nimproper, ImprMove)
+      CmapMove     = min(ncmap, CmapMove)
+    end if
+
 
     ! sp_pairlist_str
     !
 
     MaxNb15      = int(v_rate * real(NAtomBox8,wip))
+    if (present(molecule)) MaxNb15 = min(natom, MaxNb15)
     MaxNb15      = MaxNb15 * MaxNb15
     MaxNb15      = MaxNb15 * domain%scale_pairlist_generic
 
     MaxNb15_Fugaku = int(v_rate * real(NAtomBox8,wip)) * 12
+    if (present(molecule)) MaxNb15_Fugaku = min(natom, MaxNb15_Fugaku)
     MaxNb15_Fugaku = MaxNb15_Fugaku * domain%scale_pairlist_fugaku
 
     MaxNb15Water = int(v_rate * real(NAtomBox8,wip))
+    if (present(molecule)) MaxNb15Water = min(natom, MaxNb15Water)
     MaxNb15Water = MaxNb15Water ** 2
     MaxNb15water = MaxNb15Water / 10
+
+    ! FEP: Number of pairs between perturbed atoms and others
+    ! is, at most, MaxNb15 * (Number of perturbed atoms).
+    if (domain%fep_use) then
+      MaxNb15_fep = int(v_rate * real(NAtomBox8,wip))
+      natom_partA = molecule%num_atoms_fep(1)+molecule%num_atoms_fep(2)
+      natom_partB = molecule%num_atoms_fep(3)+molecule%num_atoms_fep(4)
+      MaxNb15_fep = min(natom, MaxNb15_fep) * max(natom_partA, natom_partB)
+      MaxNb15_fep = MaxNb15_fep * domain%scale_pairlist_generic
+    end if
+
+    ! If vacuum, MaxNb15 and MaxNb15Water are set to natom**2.
+    ! MaxContact and ContactMove are also set to natom**2.
+    ! If the number of contact in the system is given, change natom**2 to it.
+    if (present(molecule)) then
+      MaxContact   = min(MaxNb15, MaxContact)
+      ContactMove  = min(MaxNb15, ContactMove)
+    end if
+
 
     ! sp_constraints_str
     !
@@ -1384,15 +1447,11 @@ contains
     HGroupMax    = int(v_rate * real(NHGrpBox8,wip) * ShrinkRate)
     HGrpMaxMove  = int(v_rate * real(NHMovBox8,wip) * ShrinkRate)
 
-    MaxNb15Water = int(v_rate * real(NAtomBox8,wip))
-    MaxNb15Water = MaxNb15Water ** 2
-    MaxNb15water = MaxNb15Water / 10
-
-    ! sp_constraints_str
-    !
-
-    HGroupMax    = int(v_rate * real(NHGrpBox8,wip) * ShrinkRate)
-    HGrpMaxMove  = int(v_rate * real(NHMovBox8,wip) * ShrinkRate)
+    ! If vacuum, HGroupMax and HGrpMaxMove are set to natom.
+    if (present(molecule)) then
+      HGroupMax    = min(natom, HGroupMax)
+      HGrpMaxMove  = min(natom, HGrpMaxMove)
+    end if
 
 
 #ifdef DEBUG
@@ -1419,6 +1478,8 @@ contains
       write(MsgOut,*) 'sp_enefunc_str    ::CmapMove     : ', CmapMove
       write(MsgOut,*) ''
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
+      if (domain%fep_use) &
+        write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15_fep  : ', MaxNb15_fep
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
       write(MsgOut,*) ''
       write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
@@ -2086,22 +2147,23 @@ contains
   !
   !  Subroutine    setup_hbond_group
   !> @brief        setup bonds including hydrogen atom
-  !! @authors      JJ
+  !! @authors      JJ, HO
   !! @param[in]    molecule    : molecule information
   !! @param[inout] enefunc     : potential energy functions information
   !! @param[inout] constraints : constraints information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_hbond_group(molecule, enefunc, constraints)
+  subroutine setup_hbond_group(molecule, domain, enefunc, constraints)
 
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
+    type(s_domain),          intent(in)    :: domain
     type(s_enefunc),         intent(inout) :: enefunc
     type(s_constraints),     intent(inout) :: constraints
 
     ! local variables
-    integer                  :: i, i1, i2, nhmax
+    integer                  :: i, i1, i2, nhmax, k
     logical                  :: mi1, mi2
     logical                  :: cl1, cl2
 
@@ -2130,6 +2192,43 @@ contains
           enefunc%table%solute_list_inv(i2) /= 0) then
 
         if (cl1 .or. cl2) then
+
+          if (domain%fep_use) then
+            ! Hydrogen rewiring in FEP:
+            ! When singleA-dualA or singleB-dualB bonds have hydrogen atoms,
+            ! SHAKE problems occur. If coordinate and velocity are synchonized
+            ! after SHAKE, coordinate and velocity of atoms involved in the bonds
+            ! are moved and then the constraints are sometimes broken. To avoid
+            ! this problem, hydrogen atoms beloging to dualB is rewired to connect
+            ! with atoms of singleA. The constraints of the hydrogen atoms are
+            ! considered in performing SHAKE for molecule A. After SHAKE, singleB
+            ! atoms are synchonized to singleA.
+            !
+            ! singleA--dualA
+            !                 ==>   singleA--dualA
+            ! singleB--dualB               \_dualB
+            ! 
+            ! To rewire the bonds, for singleA-dualB bond including hydrogen,
+            ! the atom index of singleB is replaced with the corresponding atom
+            ! index of singleA.
+            if ((int(molecule%fepgrp(i1)) == 2) .and. &
+                (int(molecule%fepgrp(i2)) == 4)) then
+              do k = 1, molecule%num_atoms_fep(1)
+                if (molecule%id_singleB(k) == i1) then
+                  i1 = molecule%id_singleA(k)
+                  exit
+                end if
+              end do
+            else if ((int(molecule%fepgrp(i1)) == 4) .and. &
+                     (int(molecule%fepgrp(i2)) == 2)) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  i2 = molecule%id_singleA(k)
+                  exit
+                end if
+              end do
+            end if
+          end if
 
           if (cl1) then
             constraints%duplicate(i2) = constraints%duplicate(i2) + 1
@@ -2390,6 +2489,11 @@ contains
       HGr_local(i,1:ncel) = 0
     end do
 
+    ! FEP: make id list for single part
+    if (domain%fep_use) then
+      call setup_fep_correspondence(molecule, domain)
+    end if
+
     ! solute atoms (not bonded to hydrogen) in each domain
     !
     do dupl_x = 1, boundary%num_duplicate(1)
@@ -2407,6 +2511,12 @@ contains
           do isolute = 1, enefunc%table%num_solute
 
             i   = enefunc%table%solute_list(isolute)
+
+            ! FEP: skip singleB atoms
+            if (domain%fep_use) then
+              if (molecule%fepgrp(i) == 2) cycle
+            end if
+
             ci1 = molecule%atom_name(i)
 
             mi1 = molecule%light_atom_mass(i)
@@ -2527,6 +2637,12 @@ contains
             do j = 1, constraints%nh(isolute)
 
               i = constraints%H_Group(1,j,isolute)
+
+              ! FEP: skip singleB atoms
+              if (domain%fep_use) then
+                if (molecule%fepgrp(i) == 2) cycle
+              end if
+
               coord_temp(1:3) = molecule%atom_coord(1:3,i)
               shift(1:3) = molecule%atom_coord(1:3,i) &
                          + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
@@ -2571,6 +2687,12 @@ contains
                 do ih1 = 1, isolute
 
                   i = constraints%H_Group(ih1+1,j,isolute)
+
+                  ! FEP: skip singleB atoms
+                  if (domain%fep_use) then
+                    if (molecule%fepgrp(i) == 2) cycle
+                  end if
+
                   do k = 1, 3
                     if (molecule%atom_coord(k,i) < &
                            coord_temp(k) - 0.5_wp*bsize(k)) then
@@ -2635,6 +2757,12 @@ contains
                 do ih1 = 1, isolute
 
                   i = constraints%H_Group(ih1+1,j,isolute)
+
+                  ! FEP: skip singleB atoms
+                  if (domain%fep_use) then
+                    if (molecule%fepgrp(i) == 2) cycle
+                  end if
+
                   do k = 1, 3
                     if (molecule%atom_coord(k,i) < &
                            coord_temp(k) - 0.5_wp*bsize(k)) then
@@ -4372,6 +4500,8 @@ contains
     integer,          pointer :: id_l2g      (:,:)
     integer(int2),    pointer :: id_g2l      (:,:)
 
+    ! FEP
+    integer                   :: iatom2, k
 
     coord        => molecule%atom_coord
     vel          => molecule%atom_velocity
@@ -4405,6 +4535,31 @@ contains
     class_local    (icel_atom,icel) = atom_class(iatom)
     trans      (1:3,icel_atom,icel) = move(1:3)
 
+    ! FEP
+    if (domain%fep_use) then
+      if (molecule%fepgrp(iatom)==1) then
+        domain%fep_chargeA(icel_atom,icel) = charge(iatom)
+        if (domain%num_atom_single_all > 0) then
+          do k = 1, domain%num_atom_single_all
+            if (domain%id_singleA(k) == iatom) then
+              iatom2 = domain%id_singleB(k)
+              exit
+            end if
+          end do
+          domain%fep_chargeB(icel_atom,icel) = charge(iatom2)
+          domain%fep_atmcls_singleB(icel_atom,icel) = atom_class(iatom2)
+        else
+          domain%fep_chargeB(icel_atom,icel) = charge(iatom)
+          domain%fep_atmcls_singleB(icel_atom,icel) = atom_class(iatom)
+        end if
+      else if (molecule%fepgrp(iatom)==3) then
+        domain%fep_chargeA(icel_atom,icel) = charge(iatom)
+      else if (molecule%fepgrp(iatom)==4) then
+        domain%fep_chargeB(icel_atom,icel) = charge(iatom)
+      end if
+      domain%fepgrp(icel_atom,icel) = int(molecule%fepgrp(iatom))
+    end if
+
     return
 
   end subroutine molecule_to_domain
@@ -4413,7 +4568,7 @@ contains
   !
   !  Subroutine    check_atom_coord
   !> @brief        check_atom_coordinate
-  !! @authors      CK
+  !! @authors      CK, HO
   !! @param[in]    ene_info      : ENERGY section control parameters information
   !! @param[in]    boundary      : boundary condition information
   !! @param[inout] domain        : domain information
@@ -4442,6 +4597,8 @@ contains
     real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: system_size(:)
 
+    ! FEP
+    integer                   :: fg1, fg2
 
     mass           => domain%mass
     coord          => domain%coord
@@ -4454,7 +4611,7 @@ contains
     id_l2g         => domain%id_l2g
 
     !$omp parallel default(shared)                               &
-    !$omp private(id, i, ix, j, iy,  ij,  dir, dr, rr, tr)
+    !$omp private(id, i, ix, j, iy,  ij,  dir, dr, rr, tr, fg1, fg2)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -4468,6 +4625,31 @@ contains
         dir(2) = coord(2,ix,i)
         dir(3) = coord(3,ix,i)
         do iy = ix + 1, natom(i)
+
+          if (domain%fep_use) then
+            ! FEP: Skip perturbed region
+            fg1 = domain%fepgrp(ix,i)
+            fg2 = domain%fepgrp(iy,i)
+            if((fg1 == 1) .and. (fg2 == 2)) cycle
+            if((fg1 == 2) .and. (fg2 == 1)) cycle
+            if((fg1 == 1) .and. (fg2 == 4)) cycle
+            if((fg1 == 4) .and. (fg2 == 1)) cycle
+            if((fg1 == 2) .and. (fg2 == 3)) cycle
+            if((fg1 == 3) .and. (fg2 == 2)) cycle
+            if((fg1 == 3) .and. (fg2 == 4)) cycle
+            if((fg1 == 4) .and. (fg2 == 3)) cycle
+            if((fg1 == 5) .and. (fg2 == 3)) cycle
+            if((fg1 == 3) .and. (fg2 == 5)) cycle
+            if((fg1 == 5) .and. (fg2 == 4)) cycle
+            if((fg1 == 4) .and. (fg2 == 5)) cycle
+            if((fg1 == 3) .and. (fg2 == 3)) cycle
+            if((fg1 == 4) .and. (fg2 == 4)) cycle
+            if((fg1 == 1) .and. (fg2 == 3)) cycle
+            if((fg1 == 3) .and. (fg2 == 1)) cycle
+            if((fg1 == 2) .and. (fg2 == 4)) cycle
+            if((fg1 == 4) .and. (fg2 == 2)) cycle
+          end if
+
           dr(1) = dir(1) - coord(1,iy,i)
           dr(2) = dir(2) - coord(2,iy,i)
           dr(3) = dir(3) - coord(3,iy,i)
@@ -4500,6 +4682,31 @@ contains
           dir(1:3) = coord(1:3,ix,i)
 
           do iy = 1, natom(j)
+
+            if (domain%fep_use) then
+              ! FEP: Skip perturbed region
+              fg1 = domain%fepgrp(ix,i)
+              fg2 = domain%fepgrp(iy,j)
+              if((fg1 == 1) .and. (fg2 == 2)) cycle
+              if((fg1 == 2) .and. (fg2 == 1)) cycle
+              if((fg1 == 1) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 1)) cycle
+              if((fg1 == 2) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 2)) cycle
+              if((fg1 == 3) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 3)) cycle
+              if((fg1 == 5) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 5)) cycle
+              if((fg1 == 5) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 5)) cycle
+              if((fg1 == 3) .and. (fg2 == 3)) cycle
+              if((fg1 == 4) .and. (fg2 == 4)) cycle
+              if((fg1 == 1) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 1)) cycle
+              if((fg1 == 2) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 2)) cycle
+            end if
+
             dr(1) = dir(1) - coord(1,iy,j)
             dr(2) = dir(2) - coord(2,iy,j)
             dr(3) = dir(3) - coord(3,iy,j)
@@ -4531,6 +4738,31 @@ contains
           dir(1:3) = coord(1:3,ix,i)
 
           do iy = 1, natom(j)
+
+            if (domain%fep_use) then
+              ! FEP: Skip perturbed region
+              fg1 = domain%fepgrp(ix,i)
+              fg2 = domain%fepgrp(iy,j)
+              if((fg1 == 1) .and. (fg2 == 2)) cycle
+              if((fg1 == 2) .and. (fg2 == 1)) cycle
+              if((fg1 == 1) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 1)) cycle
+              if((fg1 == 2) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 2)) cycle
+              if((fg1 == 3) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 3)) cycle
+              if((fg1 == 5) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 5)) cycle
+              if((fg1 == 5) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 5)) cycle
+              if((fg1 == 3) .and. (fg2 == 3)) cycle
+              if((fg1 == 4) .and. (fg2 == 4)) cycle
+              if((fg1 == 1) .and. (fg2 == 3)) cycle
+              if((fg1 == 3) .and. (fg2 == 1)) cycle
+              if((fg1 == 2) .and. (fg2 == 4)) cycle
+              if((fg1 == 4) .and. (fg2 == 2)) cycle
+            end if
+
             dr(1) = dir(1) - coord(1,iy,j)
             dr(2) = dir(2) - coord(2,iy,j)
             dr(3) = dir(3) - coord(3,iy,j)
@@ -4864,5 +5096,275 @@ contains
     return
 
   end subroutine select_kernel
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_domain_fep
+  !> @brief        setup domain information for FEP
+  !! @authors      HO
+  !! @param[in]    ene_info    : ENERGY section control parameters information
+  !! @param[in]    con_info : CONSTRAINTS section control parameters information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    molecule    : molecule information
+  !! @param[inout] enefunc     : energy potential function information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] domain      : domain information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_domain_fep(ene_info, con_info, &
+                          boundary, molecule, enefunc, constraints, domain)
+
+    ! formal arguments
+    type(s_ene_info),        intent(in)    :: ene_info
+    type(s_cons_info),       intent(in)    :: con_info
+    type(s_boundary),        intent(inout) :: boundary
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_constraints),     intent(inout) :: constraints
+    type(s_domain),          intent(inout) :: domain
+
+    ! local variables
+    integer                  :: i, j, k, cell(3)
+    integer                  :: icel_local, icel
+    integer                  :: ncel_local, ncel_bound, ncel_all
+    integer                  :: num_solute_all
+
+
+    ! initialize structure informations
+    !
+    call init_domain(domain)
+    call init_enefunc(enefunc)
+    call init_constraints(constraints)
+
+    enefunc%table%num_all     = molecule%num_atoms
+
+    domain%num_atom_all       = molecule%num_atoms            &
+                               *boundary%num_duplicate(1)     &
+                               *boundary%num_duplicate(2)     &
+                               *boundary%num_duplicate(3)
+    domain%num_duplicate      = boundary%num_duplicate(1)     &
+                               *boundary%num_duplicate(2)     &
+                               *boundary%num_duplicate(3)
+
+    molecule%num_deg_freedom  = molecule%num_deg_freedom      &
+                               *boundary%num_duplicate(1)     &
+                               *boundary%num_duplicate(2)     &
+                               *boundary%num_duplicate(3)
+
+    if (main_rank .and. domain%num_atom_all /= molecule%num_atoms) &
+      write(MsgOut,*) 'Total number of atoms   : ', &
+                      domain%num_atom_all
+
+    domain%system_size(1)     = boundary%box_size_x
+    domain%system_size(2)     = boundary%box_size_y
+    domain%system_size(3)     = boundary%box_size_z
+    domain%system_size_ini(1) = boundary%box_size_x
+    domain%system_size_ini(2) = boundary%box_size_y
+    domain%system_size_ini(3) = boundary%box_size_z
+
+    domain%cell_size(1)       = real(boundary%cell_size_x,wp)
+    domain%cell_size(2)       = real(boundary%cell_size_y,wp)
+    domain%cell_size(3)       = real(boundary%cell_size_z,wp)
+
+    enefunc%table%table       = ene_info%table
+    enefunc%table%water_model = ene_info%water_model
+
+    constraints%rigid_bond    = con_info%rigid_bond
+    constraints%fast_water    = con_info%fast_water
+    constraints%water_model   = con_info%water_model
+    constraints%hydrogen_type = con_info%hydrogen_type
+
+    ! FEP
+    domain%num_atom_single_all  = molecule%num_atoms_fep(2)
+    domain%fep_use     = .true.
+
+    ! select kernel
+    !
+    call select_kernel(ene_info, boundary, domain)
+
+    ! assign the rank of each dimension from my_rank
+    !
+    call setup_processor_rank(boundary, domain, cell)
+
+    ! decide cell capacity (max**) for memory allocation
+    !
+    call setup_cell_capacity(boundary, domain, molecule)
+
+
+    ! memory allocaltion of maps connecting local to global cell indices
+    !
+    ncel_local = domain%num_cell_local
+    ncel_bound = domain%num_cell_boundary
+    ncel_all   = ncel_local + ncel_bound
+
+    call alloc_domain(domain, DomainCellGlobal, cell(1),cell(2),cell(3))
+    call alloc_domain(domain, DomainCellLocal,    ncel_local, 1, 1)
+    call alloc_domain(domain, DomainCellLocBou,   ncel_all,   1, 1)
+    call alloc_domain(domain, DomainCellBoundary, ncel_bound, 1, 1)
+    call alloc_domain(domain, DomainCellPair,     ncel_all,   1, 1)
+
+    ! assign global<->local mapping of cell indexa
+    !
+    icel_local = 0
+    do i = domain%cell_start(3), domain%cell_end(3)
+      do j = domain%cell_start(2), domain%cell_end(2)
+        do k = domain%cell_start(1), domain%cell_end(1)
+          icel_local = icel_local + 1
+          icel = k + (j-1)*cell(1) + (i-1)*cell(1)*cell(2)
+          domain%cell_g2l(icel) = icel_local
+          domain%cell_l2g(icel_local) = icel
+          domain%cell_l2gx(icel_local) = k
+          domain%cell_l2gy(icel_local) = j
+          domain%cell_l2gz(icel_local) = i
+          domain%cell_l2gx_orig(icel_local) = k
+          domain%cell_l2gy_orig(icel_local) = j
+          domain%cell_l2gz_orig(icel_local) = i
+          domain%cell_gxyz2l(k,j,i) = icel_local
+        end do
+      end do
+    end do
+
+    ! assigin each boundary cell
+    !
+    call setup_cell_boundary(cell, boundary%num_domain, domain)
+
+    ! assign of atom maps connecting global local to global atom indices
+    !
+    call alloc_domain(domain, DomainDynvar, ncel_all, 1, 1)
+
+    ! decide hydrogen atom from mass
+    !
+    call check_light_atom_name(con_info%hydrogen_mass_upper_bound, molecule)
+
+    call setup_solute_and_water(molecule, enefunc,       &
+                                constraints%water_model, &
+                                constraints%water_type,  &
+                                constraints%num_water)
+
+    num_solute_all            = enefunc%table%num_solute      &
+                               *boundary%num_duplicate(1)     &
+                               *boundary%num_duplicate(2)     &
+                               *boundary%num_duplicate(3)
+    call alloc_domain(domain, DomainGlobal, domain%num_atom_all, 1, 1)
+
+    if (constraints%water_type == TIP4) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
+    else if (constraints%water_type == TIP3) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
+    else if (constraints%water_type == TIP2) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 2, 1)
+    else if (constraints%water_type == TIP1) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
+    end if
+
+    ! FEP
+    call alloc_domain(domain, DomainFEP, ncel_all, 1, 1)
+
+    call setup_hbond_group     (molecule, domain, enefunc, constraints)
+    call setup_atom_by_HBond   (molecule, boundary, enefunc, constraints, &
+                                domain)
+    call setup_global_to_local_atom_index(enefunc, domain)
+
+!   call setup_ring_check      (molecule, enefunc, constraints, domain)
+
+#ifdef DEBUG
+    ! debug
+    !
+
+    if (main_rank) then
+      write(MsgOut,*) ''
+      write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
+      write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
+      write(MsgOut,*) 'sp_domain_str     ::MaxMove      : ', MaxMove
+      write(MsgOut,*) 'sp_domain_str     ::MaxWaterMove : ', MaxWaterMove
+      write(MsgOut,*) ''
+      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
+      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
+      write(MsgOut,*) ''
+      write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
+      write(MsgOut,*) 'sp_constraints_str::HGrpMaxMove  : ', HGrpMaxMove
+      write(MsgOut,*) ''
+
+    end if
+#endif
+
+    ! assign the interaction cell for each interaction
+    !
+    call setup_domain_interaction(boundary, domain)
+
+    call check_atom_coord(ene_info, boundary, domain)
+
+    ! setup water molecule information
+    !
+    if (constraints%water_type >= TIP3) then
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
+      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
+      domain%water%atom_cls_no(4) = enefunc%table%atom_cls_no_D
+      domain%water%charge(1)      = enefunc%table%charge_O
+      domain%water%charge(2)      = enefunc%table%charge_H
+      domain%water%charge(3)      = enefunc%table%charge_H
+      domain%water%charge(4)      = enefunc%table%charge_D
+      domain%water%mass(1)        = enefunc%table%mass_O
+      domain%water%mass(2)        = enefunc%table%mass_H
+      domain%water%mass(3)        = enefunc%table%mass_H
+      domain%water%mass(4)        = enefunc%table%mass_D
+    else if (constraints%water_type == TIP2) then
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
+      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_2
+      domain%water%charge(1)      = enefunc%table%charge_1
+      domain%water%charge(2)      = enefunc%table%charge_2
+      domain%water%mass(1)        = enefunc%table%mass_1
+      domain%water%mass(2)        = enefunc%table%mass_2
+    else
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
+      domain%water%charge(1)      = enefunc%table%charge_1
+      domain%water%mass(1)        = enefunc%table%mass_1
+    end if
+
+    return
+
+  end subroutine setup_domain_fep
+
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_fep_correspondence(molecule, domain)
+
+    ! formal arguments
+    type(s_molecule), intent(inout) :: molecule
+    type(s_domain),   intent(inout) :: domain
+
+    ! local variables
+    integer                         :: iA, iB, k
+
+    if (domain%num_atom_single_all > 0) then
+
+      allocate(domain%id_singleA(domain%num_atom_single_all))
+      allocate(domain%id_singleB(domain%num_atom_single_all))
+
+      iA = 1
+      iB = 1
+      do k = 1, molecule%num_atoms
+        if (molecule%fepgrp(k) == 1) then
+          domain%id_singleA(iA) = k
+          iA = iA + 1
+        else if (molecule%fepgrp(k) == 2) then
+          domain%id_singleB(iB) = k
+          iB = iB + 1
+        end if
+      end do
+
+      if ((molecule%num_atoms_fep(2) > 0) .and. (iA /= iB)) then
+        call error_msg('The number of atoms in singleB is different from that in singleA.')
+      end if
+
+    end if
+
+    return
+
+  end subroutine setup_fep_correspondence
 
 end module sp_domain_mod

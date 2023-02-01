@@ -1,0 +1,51 @@
+[INPUT]
+prmtopfile = prmtop
+ambcrdfile = inpcrd
+
+[OUTPUT]
+
+[ALCHEMY]
+fep_topology  = Hybrid
+singleA       = 1
+singleB       = 2
+dualA         = 3
+dualB         = 4
+sc_alpha      = 5.0
+sc_beta       = 0.5
+lambljA       = 1.0
+lambljB       = 1.0
+lambelA       = 1.0
+lambelB       = 0.0
+lambbondA     = 1.0
+lambbondB     = 0.0
+lambrest      = 1.0
+
+[ENERGY]
+forcefield       = AMBER
+electrostatic    = CUTOFF
+switchdist       = 300.0
+cutoffdist       = 300.0
+pairlistdist     = 305.0
+dispersion_corr  = EPRESS
+contact_check    = NO
+vacuum           = YES
+
+[MINIMIZE]
+method           = SD
+nsteps           = 50
+eneout_period    = 5
+
+[CONSTRAINTS]
+rigid_bond       = NO
+
+[BOUNDARY]
+type             = PBC
+box_size_x       = 922
+box_size_y       = 922
+box_size_z       = 922
+
+[SELECTION]
+group1 = rno:1 and (ai:1-27 or ai:34-63)
+group2 = rno:2 and (ai:69-95 or ai:102-131)
+group3 = rno:1 and (ai:28-33 or ai:64-68)
+group4 = rno:2 and (ai:96-101 or ai:132-142)

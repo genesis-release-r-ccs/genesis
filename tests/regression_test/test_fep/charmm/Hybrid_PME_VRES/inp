@@ -1,0 +1,75 @@
+[INPUT]
+topfile  =  top, top2
+parfile  =  par, par2
+strfile  =  str, str2
+psffile  =  psf
+pdbfile  =  pdb
+rstfile  =  rst
+
+[OUTPUT]
+fepfile = out.fepout
+
+[ALCHEMY]
+fep_direction  = Bothsides
+fep_topology   = Hybrid
+singleA        = 1
+singleB        = 2
+dualA          = 3
+dualB          = 4
+fepout_period  = 4
+sc_alpha       = 5.0
+sc_beta        = 0.5
+equilsteps     = 8
+lambljA    = 0.9 0.8
+lambljB    = 0.1 0.2
+lambelA    = 0.5 0.4
+lambelB    = 0.0 0.0
+lambbondA  = 0.8 0.7
+lambbondB  = 0.2 0.3
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = PME
+switchdist       = 10.0
+cutoffdist       = 12.0
+pairlistdist     = 13.5
+vdw_force_switch = YES
+output_style     = GENESIS
+pme_nspline      = 4
+pme_alpha        = 0.22664
+pme_alpha_tol    = 0.100E-04
+pme_ngrid_x      = 40
+pme_ngrid_y      = 40
+pme_ngrid_z      = 40
+pme_scheme       = NOOPT_2DALLTOALL
+table_density    = 20.000
+
+[DYNAMICS]
+integrator        = VRES
+nsteps            = 8
+timestep          = 0.0025
+eneout_period     = 4
+nbupdate_period   = 8
+elec_long_period  = 2
+thermostat_period = 4
+barostat_period   = 4
+stoptr_period     = 8
+iseed = 1
+
+[CONSTRAINTS]
+rigid_bond       = YES
+
+[ENSEMBLE]
+ensemble         = NPT
+temperature      = 300.0
+pressure         = 1.0
+tpcontrol        = BUSSI
+
+[BOUNDARY]
+type             = PBC
+
+[SELECTION]
+group1 = segid:SB3 and (ai:1-27 or ai:34-63)
+group2 = segid:SBX and (ai:69-95 or ai:102-131)
+group3 = segid:SB3 and (ai:28-33 or ai:64-68)
+group4 = segid:SBX and (ai:96-101 or ai:132-142)

@@ -3,7 +3,7 @@
 !  Module   sp_dynamics_mod
 !> @brief   molecular dynamics simulation
 !! @authors Jaewoon Jung (JJ), Takaharu Mori (TM), Norio Takase (NT),
-!!          Chigusa Kobayashi(CK)
+!!          Chigusa Kobayashi(CK), Hiraku Oshima (HO)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -41,6 +41,9 @@ module sp_dynamics_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+  use sp_alchemy_str_mod
+  use sp_alchemy_mod
+  use sp_fep_energy_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -97,6 +100,8 @@ module sp_dynamics_mod
   public  :: setup_dynamics
   public  :: setup_dynamics_pio
   public  :: run_md
+  ! FEP
+  public  :: run_md_fep
 
 contains
 
@@ -475,21 +480,24 @@ contains
   !
   !  Subroutine    setup_dynamics
   !> @brief        setup dynamics information
-  !> @authors      TM
+  !> @authors      TM, HO
   !! @param[in]    dyn_info   : DYNAMICS  section control parameters information
   !! @param[in]    bound_info : BOUNDARY  section control parameters information
   !! @param[in]    res_info   : RESTRAINT section control parameters information
+  !! @param[in]    alch_info  : ALCHEMY section control parameters information
   !! @param[inout] molecule   : molecule information
   !! @param[inout] dynamics   : dynamics information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_dynamics(dyn_info, bound_info, res_info, molecule, dynamics)
+  subroutine setup_dynamics(dyn_info, bound_info, res_info, alch_info, &
+                            molecule, dynamics)
 
     ! formal arguments
     type(s_dyn_info),        intent(in)    :: dyn_info
     type(s_boundary_info),   intent(in)    :: bound_info
     type(s_res_info),        intent(in)    :: res_info
+    type(s_alch_info),       intent(in)    :: alch_info
     type(s_molecule),        intent(inout) :: molecule
     type(s_dynamics),        intent(inout) :: dynamics
 
@@ -533,6 +541,15 @@ contains
     dynamics%hmr_ratio_xh2     = dyn_info%hmr_ratio_xh2
     dynamics%hmr_ratio_xh3     = dyn_info%hmr_ratio_xh3
     dynamics%hmr_ratio_ring    = dyn_info%hmr_ratio_ring
+
+    ! FEP
+    dynamics%fepout_period     = alch_info%fepout_period
+    dynamics%equilsteps        = alch_info%equilsteps
+    dynamics%nsteps            = dynamics%nsteps + alch_info%equilsteps
+    if (mod(alch_info%fepout_period,dynamics%eneout_period) /= 0) then
+      call error_msg('Setup_Dynamics> mod(fepout_period,eneout_period)'//&
+        ' must be zero)')
+    end if
 
     iseed          = dyn_info%iseed
     iseed_init_vel = iseed
@@ -825,5 +842,158 @@ contains
     return
 
   end subroutine run_md
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    run_md_fep
+  !> @brief        perform MD simulation for FEP
+  !! @authors      HO
+  !! @param[inout] output      : output information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] molecule    : molecule information
+  !! @param[inout] enefunc     : potential energy functions
+  !! @param[inout] dynvars     : dynamic variables
+  !! @param[inout] dynamics    : dynamics information
+  !! @param[inout] pairlist    : non-bond pair list
+  !! @param[inout] boundary    : boundary condition
+  !! @param[inout] constraints : bond constraints
+  !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
+  !! @param[inout] alchemy     : alchemy information for FEP
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine run_md_fep(output, domain, enefunc, dynvars, dynamics, &
+                        pairlist, boundary, constraints, ensemble, comm, remd, &
+                        alchemy)
+    ! formal arguments
+    type(s_output),           intent(inout) :: output
+    type(s_domain),   target, intent(inout) :: domain
+    type(s_enefunc),          intent(inout) :: enefunc
+    type(s_dynvars),  target, intent(inout) :: dynvars
+    type(s_dynamics),         intent(inout) :: dynamics
+    type(s_pairlist),         intent(inout) :: pairlist
+    type(s_boundary),         intent(inout) :: boundary
+    type(s_constraints),      intent(inout) :: constraints
+    type(s_ensemble),         intent(inout) :: ensemble
+    type(s_comm),             intent(inout) :: comm
+    type(s_remd),             intent(inout) :: remd
+    type(s_alchemy),  target, intent(inout) :: alchemy
+
+    ! local variables for FEP
+    integer              :: i, num_windows
+    integer, allocatable :: window_no(:)
+    integer, pointer     :: lambid
+
+    if (dynamics%target_md) then
+      enefunc%restraint_rmsd_target = .true.
+    else
+      enefunc%restraint_rmsd_target = .false.
+    end if
+
+    if (enefunc%gamd%update_period > 0) then
+      enefunc%gamd%gamd_stat = .true.
+    else
+      enefunc%gamd%gamd_stat = .false.
+    end if
+
+    ! FEP
+    lambid => alchemy%lambid
+
+    ! FEP: Set window indices and number of windows
+    allocate(window_no(alchemy%num_fep_windows))
+    if (enefunc%fep_direction == FEP_Bothsides) then
+      num_windows = alchemy%num_fep_windows
+      do i = 1, alchemy%num_fep_windows
+        window_no(i) = i
+      end do
+    else if (enefunc%fep_direction == FEP_Forward) then
+      num_windows = alchemy%num_fep_windows - 1
+      do i = 1, alchemy%num_fep_windows
+        window_no(i) = i
+      end do
+    else if (enefunc%fep_direction == FEP_Reverse) then
+      num_windows = alchemy%num_fep_windows - 1
+      do i = 1, alchemy%num_fep_windows
+        window_no(i) = alchemy%num_fep_windows - i + 1
+      end do
+    end if
+
+    call open_output(output)
+
+    ! FEP: Loop changing lambda value
+    do i = 1, num_windows
+
+      ! Initialize MD time step and output title
+      dynamics%initial_time = dynvars%time
+      dynamics%istart_step  = 1 + (i-1)*dynamics%nsteps
+      dynamics%iend_step    = i*dynamics%nsteps
+      dynamics%equilsteps   = alchemy%equilsteps + (i-1)*dynamics%nsteps
+
+      ! If single lambda calculation at state ref_lambid,
+      ! other lambda values are skipped.
+      if (alchemy%fep_md_type == FEP_Single) then
+        if (i /= alchemy%ref_lambid) then
+          cycle
+        else
+          dynamics%istart_step  = 1
+          dynamics%iend_step    = dynamics%nsteps
+          dynamics%equilsteps   = alchemy%equilsteps
+        end if
+      end if
+
+      ! Set lambda values
+      lambid = window_no(i)
+      enefunc%lambljA   = alchemy%lambljA(lambid)
+      enefunc%lambljB   = alchemy%lambljB(lambid)
+      enefunc%lambelA   = alchemy%lambelA(lambid)
+      enefunc%lambelB   = alchemy%lambelB(lambid)
+      enefunc%lambbondA = alchemy%lambbondA(lambid)
+      enefunc%lambbondB = alchemy%lambbondB(lambid)
+      enefunc%lambrest  = alchemy%lambrest(lambid)
+
+      ! REST2-like scaling in FEP
+      call assign_lambda(alchemy, domain, enefunc)
+
+      ! Output FEP window index
+      if (main_rank) then
+        write(MsgOut,'(a,i8)') "FEP window index ", lambid
+        if (output%fepout) then
+          write(output%fepunit,'(a,i8)') '# FEP window index ', lambid
+        end if
+      end if
+
+      ! MD main loop
+      select case (dynamics%integrator)
+
+      case (IntegratorLEAP)
+
+        call error_msg('LEAP integrator is not available in FEP')
+!        call leapfrog_dynamics_fep(output, domain, enefunc, dynvars, dynamics, &
+!                               pairlist, boundary, constraints, ensemble,  &
+!                               comm, remd, alchemy)
+
+      case (IntegratorVVER)
+
+        call vverlet_dynamics_fep (output, domain, enefunc, dynvars, dynamics, &
+                               pairlist, boundary, constraints, ensemble,  &
+                               comm, remd, alchemy)
+
+      case (IntegratorVRES)
+
+        call vverlet_respa_dynamics_fep (output, domain, enefunc, dynvars, dynamics, &
+                               pairlist, boundary, constraints, ensemble, comm,  &
+                               remd, alchemy)
+
+      end select
+      
+    end do
+
+    call close_output(output)
+
+    return
+
+  end subroutine run_md_fep
 
 end module sp_dynamics_mod

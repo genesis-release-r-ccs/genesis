@@ -53,7 +53,7 @@ contains
   !
   !  Subroutine    define_enefunc_amber
   !> @brief        a driver subroutine for defining potential energy
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    prmtop      : AMBER parameter topology information
   !! @param[in]    molecule    : molecule information
@@ -92,6 +92,11 @@ contains
     call alloc_enefunc(enefunc, EneFuncRBDihe,   ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncImpr,     ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_enefunc(enefunc, EneFuncBondCell_FEP, ncel, ncelb)
+      call alloc_enefunc(enefunc, EneFuncFEPBonded, ncel, ncel)
+    end if
 
     if (.not. constraints%rigid_bond) then
 
@@ -135,6 +140,7 @@ contains
 
     ! lookup table
     !
+    if (ene_info%table) &
     call setup_enefunc_table(ene_info, enefunc)
 
     ! restraints
@@ -160,6 +166,10 @@ contains
            '  nb_exclusions   = ', enefunc%num_excl_all,        &
            '  nb14_calc       = ', enefunc%num_nb14_all
       end if
+      if (domain%fep_use) then
+        write(MsgOut,'(A20,I10)')                        &
+           '  nb14_calc_fep   = ', enefunc%num_nb14_all_fep
+      end if
       write(MsgOut,'(A20,I10,A20,I10)')                         &
            ' restraint_groups = ', enefunc%num_restraintgroups, &
            ' restraint_funcs  = ', enefunc%num_restraintfuncs
@@ -175,7 +185,7 @@ contains
   !
   !  Subroutine    setup_enefunc_bond
   !> @brief        define BOND term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    molecule : molecule information
   !! @param[in]    prmtop   : AMBER parameter topology information
   !! @param[in]    domain   : domain information
@@ -210,6 +220,10 @@ contains
     integer,         pointer :: nbond
     integer,         pointer :: bond_pbc(:,:)
 
+    ! FEP
+    integer                  :: nbond_fep, k, fg1, fg2
+    logical                  :: flag_singleB
+    integer,         pointer :: bond_singleB(:,:)
 
     coord     => molecule%atom_coord
 
@@ -225,6 +239,11 @@ contains
     dist      => enefunc%bond_dist_min
     bond_pbc  => enefunc%bond_pbc
 
+    ! FEP
+    if (domain%fep_use) then
+      bond_singleB => enefunc%bond_singleB
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = (dupl-1) * enefunc%table%num_all
@@ -239,6 +258,38 @@ contains
         if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
+
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            fg1 = molecule%fepgrp(i1)
+            fg2 = molecule%fepgrp(i2)
+            if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+              ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+              cycle
+            else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+              ! FEP: If the bond includes singleB atoms
+              flag_singleB = .true.
+            end if
+            ! FEP: If i1 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg1==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i1) then
+                  exit
+                end if
+              end do
+              i1 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i2 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg2==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  exit
+                end if
+              end do
+              i2 = molecule%id_singleA(k)
+            end if
+          end if
 
           i1 = i1 + ioffset
           i2 = i2 + ioffset
@@ -265,6 +316,13 @@ contains
               dist (  nbond,icel_local) = &
                              prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
               bond_pbc(bond(icel_local),icel_local) = 13
+
+              if (domain%fep_use) then
+                ! FEP: flag for singleB bond
+                if (flag_singleB) &
+                  bond_singleB (nbond,icel_local) = 1
+              end if
+
             end if
 
           end if
@@ -284,6 +342,38 @@ contains
         if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
+
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            fg1 = molecule%fepgrp(i1)
+            fg2 = molecule%fepgrp(i2)
+            if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+              ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+              cycle
+            else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+              ! FEP: If the bond includes singleB atoms
+              flag_singleB = .true.
+            end if
+            ! FEP: If i1 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg1==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i1) then
+                  exit
+                end if
+              end do
+              i1 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i2 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg2==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  exit
+                end if
+              end do
+              i2 = molecule%id_singleA(k)
+            end if
+          end if
  
           i1 = i1 + ioffset
           i2 = i2 + ioffset
@@ -311,6 +401,12 @@ contains
                                prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
               bond_pbc(bond(icel_local),icel_local) = 13
   
+              if (domain%fep_use) then
+                ! FEP: flag for singleB bond
+                if (flag_singleB) &
+                  bond_singleB (nbond,icel_local) = 1
+              end if
+ 
             end if
 
           end if
@@ -395,7 +491,7 @@ contains
   !
   !  Subroutine    setup_enefunc_bond_constraint
   !> @brief        define BOND term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    prmtop      : AMBER parameter topology information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -432,6 +528,11 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: bond_pbc(:,:)
 
+    ! FEP
+    integer                      :: l, fg1, fg2
+    integer                      :: nbond_c_singleB, nbond_c_singleB_all
+    logical                      :: flag_singleB
+    integer,             pointer :: bond_singleB(:,:)
 
     coord         => molecule%atom_coord
 
@@ -455,6 +556,12 @@ contains
     nbond_a       =  0
     nbond_c       =  0
 
+    ! FEP
+    if (domain%fep_use) then
+      bond_singleB => enefunc%bond_singleB
+      nbond_c_singleB = 0
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = (dupl-1) * enefunc%table%num_all
@@ -466,6 +573,38 @@ contains
 
         ri1 = molecule%residue_name(i1)
         ri2 = molecule%residue_name(i2)
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          fg1 = molecule%fepgrp(i1)
+          fg2 = molecule%fepgrp(i2)
+          if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+            ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+            cycle
+          else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+            ! FEP: If the bond includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg1 == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i1) then
+                exit
+              end if
+            end do
+            i1 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg2 == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i2) then
+                exit
+              end if
+            end do
+            i2 = molecule%id_singleA(k)
+          end if
+        end if
 
         i1  = i1 + ioffset
         i2  = i2 + ioffset
@@ -496,6 +635,13 @@ contains
                                prmtop%bond_equil_uniq(prmtop%bond_wo_hy(3,i))
               bond_pbc(bond(icel_local),icel_local) = 13
 
+              if (domain%fep_use) then
+                ! FEP: flag for singleB bond
+                if (flag_singleB) then
+                  bond_singleB (bond(icel_local),icel_local) = 1
+                end if
+              end if
+
             end if
           end if
 
@@ -511,6 +657,38 @@ contains
         ri1 = molecule%residue_name(i1)
         ri2 = molecule%residue_name(i2)
 
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          fg1 = molecule%fepgrp(i1)
+          fg2 = molecule%fepgrp(i2)
+          if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+            ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+            cycle
+          else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+            ! FEP: If the bond includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg1 == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i1) then
+                exit
+              end if
+            end do
+            i1 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg2 == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i2) then
+                exit
+              end if
+            end do
+            i2 = molecule%id_singleA(k)
+          end if
+        end if
+ 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
 
@@ -536,6 +714,15 @@ contains
                     if (ih1 == i1 .and. ih2 == i2 .or. &
                         ih2 == i1 .and. ih1 == i2) then
   
+                      ! FEP
+                      if (domain%fep_use) then
+                        if (flag_singleB) then
+                          ! FEP: skip singleB atoms if the bond includes hydrogens.
+                          nbond_c_singleB = nbond_c_singleB + 1
+                          cycle
+                        end if
+                      end if
+
                       nbond_c = nbond_c + 1
                       HGr_bond_dist(ih+1,k,j,icel) = &
                               prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
@@ -619,24 +806,57 @@ contains
     constraints%num_bonds = nbond_c
 #endif
 
-    if (constraints%fast_water) then
+    if (domain%fep_use) then
 
-      if (enefunc%num_bond_all /= prmtop%num_bondh *domain%num_duplicate &
-                                  + prmtop%num_mbonda*domain%num_duplicate &
-                                  - constraints%num_bonds &
-                                  - wat_bonds*domain%num_duplicate) then
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+      ! FEP
+#ifdef HAVE_MPI_GENESIS
+      call mpi_allreduce(nbond_c_singleB, nbond_c_singleB_all, 1, mpi_integer, &
+                         mpi_sum, mpi_comm_country, ierror)
+#else
+      nbond_c_singleB_all = nbond_c_singleB
+#endif
+      if (constraints%fast_water) then
+        if (enefunc%num_bond_all /= prmtop%num_bondh *domain%num_duplicate &
+                                    + prmtop%num_mbonda*domain%num_duplicate &
+                                    - (constraints%num_bonds + &
+                                       nbond_c_singleB_all) &
+                                    - wat_bonds*domain%num_duplicate) then
+          call error_msg( &
+            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+        end if
+      else
+        if (enefunc%num_bond_all /=   prmtop%num_bondh *domain%num_duplicate &
+                                      + prmtop%num_mbonda*domain%num_duplicate &
+                                      - (constraints%num_bonds + &
+                                         nbond_c_singleB_all) &
+                                      -3*enefunc%table%num_water*domain%num_duplicate) then
+          call error_msg( &
+            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+        end if
       end if
 
     else
 
-      if (enefunc%num_bond_all /=   prmtop%num_bondh *domain%num_duplicate &
+      if (constraints%fast_water) then
+
+        if (enefunc%num_bond_all /= prmtop%num_bondh *domain%num_duplicate &
                                     + prmtop%num_mbonda*domain%num_duplicate &
                                     - constraints%num_bonds &
-                                    -3*enefunc%table%num_water*domain%num_duplicate) then
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+                                    - wat_bonds*domain%num_duplicate) then
+          call error_msg( &
+            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+        end if
+
+      else
+
+        if (enefunc%num_bond_all /=   prmtop%num_bondh *domain%num_duplicate &
+                                      + prmtop%num_mbonda*domain%num_duplicate &
+                                      - constraints%num_bonds &
+                                      -3*enefunc%table%num_water*domain%num_duplicate) then
+          call error_msg( &
+            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+        end if
+
       end if
 
     end if
@@ -649,7 +869,7 @@ contains
   !
   !  Subroutine    setup_enefunc_angl
   !> @brief        define ANGLE term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    molecule : molecule information
   !! @param[in]    prmtop   : AMBER parameter topology information
   !! @param[in]    domain   : domain information
@@ -680,6 +900,10 @@ contains
     character(6),    pointer :: mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
+    ! FEP
+    integer                  :: nangl_fep, k, fg(3)
+    logical                  :: flag_singleB
+    integer,         pointer :: angl_singleB(:,:)
 
     mol_res_name => molecule%residue_name
 
@@ -693,6 +917,11 @@ contains
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     angl_pbc  => enefunc%angle_pbc
+
+    ! FEP
+    if (domain%fep_use) then
+      angl_singleB => enefunc%angl_singleB
+    end if
 
     do dupl = 1, domain%num_duplicate
 
@@ -711,6 +940,48 @@ contains
         if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
             ri1(1:3) .ne. 'SOL' .and. ri3(1:3) .ne. 'TIP' .and. &
             ri3(1:3) .ne. 'WAT' .and. ri3(1:3) .ne. 'SOL') then
+
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            fg(1) = molecule%fepgrp(i1)
+            fg(2) = molecule%fepgrp(i2)
+            fg(3) = molecule%fepgrp(i3)
+            if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+              ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+              cycle
+            else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+              ! FEP: If the angle includes singleB atoms
+              flag_singleB = .true.
+            end if
+            ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+            if (fg(1) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i1) then
+                  exit
+                end if
+              end do
+              i1 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+            if (fg(2) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  exit
+                end if
+              end do
+              i2 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i3 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+            if (fg(3) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i3) then
+                  exit
+                end if
+              end do
+              i3 = molecule%id_singleA(k)
+            end if
+          end if
 
           i1 = i1 + ioffset
           i2 = i2 + ioffset
@@ -737,6 +1008,13 @@ contains
               theta(    nangl,icel_local) = &
                                prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
               angl_pbc(1:3,nangl,icel_local) = 13
+
+              if (domain%fep_use) then
+                ! FEP: flag for singleB angle
+                if (flag_singleB) &
+                  angl_singleB (nangl,icel_local) = 1
+              end if
+
             end if
 
           end if
@@ -750,6 +1028,48 @@ contains
         i1 = prmtop%angl_wo_hy(1,i) / 3 + 1
         i2 = prmtop%angl_wo_hy(2,i) / 3 + 1
         i3 = prmtop%angl_wo_hy(3,i) / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          fg(1) = molecule%fepgrp(i1)
+          fg(2) = molecule%fepgrp(i2)
+          fg(3) = molecule%fepgrp(i3)
+          if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+            ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+            ! FEP: If the angle includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(1) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i1) then
+                exit
+              end if
+            end do
+            i1 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(2) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i2) then
+                exit
+              end if
+            end do
+            i2 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i3 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(3) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i3) then
+                exit
+              end if
+            end do
+            i3 = molecule%id_singleA(k)
+          end if
+        end if
 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
@@ -776,6 +1096,13 @@ contains
             theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
             angl_pbc(1:3,nangl,icel_local) = 13
+
+            if (domain%fep_use) then
+              ! FEP: flag for singleB angle
+              if (flag_singleB) &
+                angl_singleB (nangl,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -829,7 +1156,7 @@ contains
   !
   !  Subroutine    setup_enefunc_angl_constraint
   !> @brief        define ANGLE term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    prmtop      : AMBER parameter topology information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -862,6 +1189,11 @@ contains
     integer,         pointer :: nangl
     integer,         pointer :: angl_pbc(:,:,:)
 
+    ! FEP
+    integer                  :: k, fg(3), nangle_c_singleB
+    integer                  :: nangle_c_singleB_all
+    logical                  :: flag_singleB
+    integer,         pointer :: angl_singleB(:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
@@ -872,6 +1204,12 @@ contains
     force     => enefunc%angle_force_const
     theta     => enefunc%angle_theta_min
     angl_pbc  => enefunc%angle_pbc
+
+    ! FEP
+    if (domain%fep_use) then
+      angl_singleB => enefunc%angl_singleB
+      nangle_c_singleB = 0
+    end if
 
     do dupl = 1, domain%num_duplicate
 
@@ -886,6 +1224,48 @@ contains
         res1 = molecule%residue_name(i1)
         res2 = molecule%residue_name(i2)
         res3 = molecule%residue_name(i3)
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          fg(1) = molecule%fepgrp(i1)
+          fg(2) = molecule%fepgrp(i2)
+          fg(3) = molecule%fepgrp(i3)
+          if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+            ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+            ! FEP: If the angle includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(1) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i1) then
+                exit
+              end if
+            end do
+            i1 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(2) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i2) then
+                exit
+              end if
+            end do
+            i2 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i3 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(3) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i3) then
+                exit
+              end if
+            end do
+            i3 = molecule%id_singleA(k)
+          end if
+        end if
 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
@@ -916,6 +1296,13 @@ contains
               theta(    nangl,icel_local) = &
                                prmtop%angl_equil_uniq(prmtop%angl_inc_hy(4,i))
               angl_pbc(1:3,nangl,icel_local) = 13
+
+              if (domain%fep_use) then
+                ! FEP: flag for singleB angle
+                if (flag_singleB) &
+                  angl_singleB (nangl,icel_local) = 1
+              end if
+
             end if
   
           end if
@@ -929,6 +1316,48 @@ contains
         i1 = prmtop%angl_wo_hy(1,i) / 3 + 1
         i2 = prmtop%angl_wo_hy(2,i) / 3 + 1
         i3 = prmtop%angl_wo_hy(3,i) / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          fg(1) = molecule%fepgrp(i1)
+          fg(2) = molecule%fepgrp(i2)
+          fg(3) = molecule%fepgrp(i3)
+          if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+            ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+            ! FEP: If the angle includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(1) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i1) then
+                exit
+              end if
+            end do
+            i1 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(2) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i2) then
+                exit
+              end if
+            end do
+            i2 = molecule%id_singleA(k)
+          end if
+          ! FEP: If i3 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          if (fg(3) == 2) then
+            do k = 1, molecule%num_atoms_fep(2)
+              if (molecule%id_singleB(k) == i3) then
+                exit
+              end if
+            end do
+            i3 = molecule%id_singleA(k)
+          end if
+        end if
 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
@@ -955,6 +1384,13 @@ contains
             theta(    nangl,icel_local) = &
                              prmtop%angl_equil_uniq(prmtop%angl_wo_hy(4,i))
             angl_pbc(1:3,nangl,icel_local) = 13
+
+            if (domain%fep_use) then
+              ! FEP: flag for singleB angle
+              if (flag_singleB) &
+                angl_singleB (nangl,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -990,7 +1426,7 @@ contains
   !
   !  Subroutine    setup_enefunc_dihe
   !> @brief        define DIHEDRAL term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    molecule : molecule information
   !! @param[in]    prmtop   : AMBER parameter topology information
   !! @param[in]    domain   : domain information
@@ -1020,6 +1456,10 @@ contains
     integer,            pointer :: notation
     integer,            pointer :: dihe_pbc(:,:,:)
 
+    ! FEP
+    integer                     :: j, k, fg(4), atom_list(4)
+    logical                     :: flag_singleB
+    integer,            pointer :: dihe_singleB(:,:)
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
@@ -1032,6 +1472,11 @@ contains
     period    => enefunc%dihe_periodicity
     notation  => enefunc%notation_14types
     dihe_pbc  => enefunc%dihe_pbc
+
+    ! FEP
+    if (domain%fep_use) then
+      dihe_singleB => enefunc%dihe_singleB
+    end if
 
     notation = 100
     if (prmtop%num_uniqdihe > 100) then
@@ -1054,6 +1499,37 @@ contains
         i2 =      prmtop%dihe_inc_hy(2,i)  / 3 + 1
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_inc_hy(4,i)  / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          atom_list = (/i1, i2, i3, i4/)
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(atom_list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral is not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: If the dihedral includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If atom_list(j) is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          do j = 1, 4
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == atom_list(j)) then
+                  exit
+                end if
+              end do
+              atom_list(j) = molecule%id_singleA(k)
+            end if
+          end do
+          i1 = atom_list(1)
+          i2 = atom_list(2)
+          i3 = atom_list(3)
+          i4 = atom_list(4)
+        end if
 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
@@ -1088,6 +1564,12 @@ contains
             end if
             dihe_pbc(1:3,ndihe,icel_local) = 13
 
+            if (domain%fep_use) then
+              ! FEP: flag for singleB dihedral
+              if (flag_singleB) &
+                dihe_singleB (ndihe,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -1103,6 +1585,37 @@ contains
         i2 =      prmtop%dihe_wo_hy(2,i)  / 3 + 1
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 =      prmtop%dihe_wo_hy(4,i)  / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          atom_list = (/i1, i2, i3, i4/)
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(atom_list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral is not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: If the dihedral includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If atom_list(j) is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          do j = 1, 4
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == atom_list(j)) then
+                  exit
+                end if
+              end do
+              atom_list(j) = molecule%id_singleA(k)
+            end if
+          end do
+          i1 = atom_list(1)
+          i2 = atom_list(2)
+          i3 = atom_list(3)
+          i4 = atom_list(4)
+        end if
 
         i1 = i1 + ioffset
         i2 = i2 + ioffset
@@ -1137,6 +1650,12 @@ contains
             end if
             dihe_pbc(1:3,ndihe,icel_local) = 13
 
+            if (domain%fep_use) then
+              ! FEP: flag for singleB dihedral
+              if (flag_singleB) &
+                dihe_singleB (ndihe,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -1165,7 +1684,7 @@ contains
   !
   !  Subroutine    setup_enefunc_impr
   !> @brief        define IMPROPER dihedral term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    molecule : molecule information
   !! @param[in]    prmtop   : AMBER parameter topology information
   !! @param[in]    domain   : domain information
@@ -1198,6 +1717,10 @@ contains
     integer,            pointer :: notation
     integer,            pointer :: impr_pbc(:,:,:)
 
+    ! FEP
+    integer                     :: j, k, fg(4), atom_list(4)
+    logical                     :: flag_singleB
+    integer,            pointer :: impr_singleB(:,:)
 
     coord     => molecule%atom_coord
 
@@ -1214,6 +1737,11 @@ contains
     notation  => enefunc%notation_14types
     impr_pbc  => enefunc%impr_pbc
 
+    ! FEP
+    if (domain%fep_use) then
+      impr_singleB => enefunc%impr_singleB
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = molecule%num_atoms*(dupl-1)
@@ -1227,6 +1755,37 @@ contains
         i2 =      prmtop%dihe_inc_hy(2,i)  / 3 + 1
         i3 = iabs(prmtop%dihe_inc_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_inc_hy(4,i)) / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          atom_list = (/i1, i2, i3, i4/)
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(atom_list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral is not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: If the dihedral includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If atom_list(j) is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          do j = 1, 4
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == atom_list(j)) then
+                  exit
+                end if
+              end do
+              atom_list(j) = molecule%id_singleA(k)
+            end if
+          end do
+          i1 = atom_list(1)
+          i2 = atom_list(2)
+          i3 = atom_list(3)
+          i4 = atom_list(4)
+        end if
 
         ia = i1 + ioffset
         ib = i2 + ioffset
@@ -1263,6 +1822,12 @@ contains
                               + prmtop%dihe_inc_hy(5,i)*notation
             end if
 
+            if (domain%fep_use) then
+              ! FEP: flag for singleB improper
+              if (flag_singleB) &
+                impr_singleB (nimpr,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -1278,6 +1843,37 @@ contains
         i2 =      prmtop%dihe_wo_hy(2,i)  / 3 + 1
         i3 = iabs(prmtop%dihe_wo_hy(3,i)) / 3 + 1
         i4 = iabs(prmtop%dihe_wo_hy(4,i)) / 3 + 1
+
+        ! FEP
+        if (domain%fep_use) then
+          atom_list = (/i1, i2, i3, i4/)
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(atom_list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral is not set to any group of FEP, exclude this angle.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: If the dihedral includes singleB atoms
+            flag_singleB = .true.
+          end if
+          ! FEP: If atom_list(j) is singleB atom, its ID is replaced with the ID corresponding to singleA.
+          do j = 1, 4
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == atom_list(j)) then
+                  exit
+                end if
+              end do
+              atom_list(j) = molecule%id_singleA(k)
+            end if
+          end do
+          i1 = atom_list(1)
+          i2 = atom_list(2)
+          i3 = atom_list(3)
+          i4 = atom_list(4)
+        end if
 
         ia = i1 + ioffset
         ib = i2 + ioffset
@@ -1315,6 +1911,12 @@ contains
                               + prmtop%dihe_wo_hy(5,i)*notation
             end if
 
+            if (domain%fep_use) then
+              ! FEP: flag for singleB improper
+              if (flag_singleB) &
+                impr_singleB (nimpr,icel_local) = 1
+            end if
+
           end if
 
         end if
@@ -1343,7 +1945,7 @@ contains
   !
   !  Subroutine    setup_enefunc_cmap
   !> @brief        define CMAP term in potential energy function
-  !! @authors      NT
+  !! @authors      NT, HO
   !! @param[in]    ene_info : ENERGY section control parameters information
   !! @param[in]    molecule : molecule information
   !! @param[in]    prmtop   : AMBER parameter topology information
@@ -1379,6 +1981,9 @@ contains
 
     real(wp),       allocatable :: c_ij(:,:,:,:)
 
+    ! FEP
+    integer                     :: idx, fg(8)
+    logical                     :: flag_singleB
 
     ncel           => domain%num_cell_local
     cell_pair      => domain%cell_pair
@@ -1434,6 +2039,35 @@ contains
 
         list(1:4) = prmtop%cmap_list(1:4,i)        
         list(5:8) = prmtop%cmap_list(2:5,i)        
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          do j = 1, 8
+            fg(j) = molecule%fepgrp(list(j))
+          end do
+          idx = fg(1) + 5*(fg(2)-1 + 5*(fg(3)-1 + 5*(fg(4)-1 + &
+            5*(fg(5)-1 + 5*(fg(6)-1 + 5*(fg(7)-1 + 5*(fg(8)-1)))))))
+          if (molecule%fepgrp_cmap(idx) == 0) then
+            ! FEP: If the cmap are not set to any group of FEP, exclude this cmap.
+            cycle
+          else if (molecule%fepgrp_cmap(idx) == 2) then
+            ! FEP: If the cmap includes singleB atoms
+            flag_singleB = .true.
+          end if
+          do j = 1, 8
+            ! FEP: If list(j) is singleB atom, its ID is replaced with singleA's ID.
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == list(j)) then
+                  exit
+                end if
+              end do
+              list(j) = molecule%id_singleA(k)
+            end if
+          end do
+        end if
+
         lists(1:8) = list(1:8) + ioffset
 
         icel1 = id_g2l(1,lists(1))
@@ -1451,6 +2085,12 @@ contains
             enefunc%cmap_type(k,icel_local) = prmtop%cmap_list(6,i)
             enefunc%cmap_pbc(1:6,k,icel_local) = 13
 
+            if (domain%fep_use) then
+              ! FEP: flag for singleB cmap
+              if (flag_singleB) &
+                enefunc%cmap_singleB(k,icel_local) = 1
+            end if
+ 
           end if
 
         end if
@@ -1663,13 +2303,27 @@ contains
         domain%atom_cls_no(ix,i) = atmcls_map_g2l(domain%atom_cls_no(ix,i))
       end do
     end do
-    domain%water%atom_cls_no(1:3)  &
-      = atmcls_map_g2l(domain%water%atom_cls_no(1:3))
-    enefunc%table%atom_cls_no_O = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
-    enefunc%table%atom_cls_no_H = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
-    if (constraints%water_type == TIP4) then
-      enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
-      domain%water%atom_cls_no(4) = atmcls_map_g2l(domain%water%atom_cls_no(4))
+
+    if (enefunc%table%num_water > 0) then
+      domain%water%atom_cls_no(1:3)  &
+        = atmcls_map_g2l(domain%water%atom_cls_no(1:3))
+      enefunc%table%atom_cls_no_O = atmcls_map_g2l(enefunc%table%atom_cls_no_O)
+      enefunc%table%atom_cls_no_H = atmcls_map_g2l(enefunc%table%atom_cls_no_H)
+      if (constraints%water_type == TIP4) then
+        enefunc%table%atom_cls_no_D = atmcls_map_g2l(enefunc%table%atom_cls_no_D)
+        domain%water%atom_cls_no(4) = atmcls_map_g2l(domain%water%atom_cls_no(4))
+      end if
+    end if
+
+    ! FEP
+    if (domain%fep_use) then
+      do i = 1, domain%num_cell_local+domain%num_cell_boundary
+        do ix = 1, domain%num_atom(i)
+          if (domain%fepgrp(ix,i) == 1) then
+            domain%fep_atmcls_singleB(ix,i) = atmcls_map_g2l(domain%fep_atmcls_singleB(ix,i))
+          end if
+        end do
+      end do
     end if
 
     deallocate(check_cls,     &
@@ -1689,13 +2343,22 @@ contains
     call alloc_enefunc(enefunc, EneFuncNonb,     ncel, maxcell_near)
     call alloc_enefunc(enefunc, EneFuncNonbList, ncel, maxcell_near)
 
-    if (constraints%rigid_bond) then
-
-      call count_nonb_excl(.true., .true., constraints, domain, enefunc)
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_enefunc(enefunc, EneFuncNonbFEPList, ncel, maxcell_near)
+      if (constraints%rigid_bond) then
+        call count_nonb_excl_fep(.true., .true., constraints, domain, enefunc)
+      else
+        call count_nonb_excl_fep(.true., .false., constraints, domain, enefunc)
+      end if
 
     else
 
-      call count_nonb_excl(.true., .false., constraints, domain, enefunc)
+      if (constraints%rigid_bond) then
+        call count_nonb_excl(.true., .true., constraints, domain, enefunc)
+      else
+        call count_nonb_excl(.true., .false., constraints, domain, enefunc)
+      end if
 
     end if
 

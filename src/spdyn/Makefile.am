@@ -36,6 +36,7 @@ spdyn_SOURCES = \
 	sp_dynvars_str.fpp \
 	sp_dynamics_str.fpp \
 	sp_minimize_str.fpp \
+	sp_alchemy_str.fpp \
 	sp_output_str.fpp \
 	sp_remd_str.fpp \
 	sp_rpath_str.fpp \
@@ -56,6 +57,8 @@ spdyn_SOURCES = \
 	sp_energy_nonbond_fugaku.fpp \
 	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
+	sp_energy_nonbond_fep.fpp \
+	sp_energy_nonbond_vacuum.fpp \
 	sp_energy_table_linear.fpp \
 	sp_energy_14_notable.fpp \
 	sp_energy_nonbond_pme_table.fpp \
@@ -76,6 +79,7 @@ spdyn_SOURCES = \
 	sp_energy_gamd.fpp \
 	sp_energy.fpp \
 	sp_grest_energy.fpp \
+	sp_fep_energy.fpp \
 	sp_enefunc_table.fpp \
 	sp_enefunc_restraints.fpp \
 	sp_enefunc_localres.fpp \
@@ -97,7 +101,9 @@ spdyn_SOURCES = \
 	sp_md_vverlet.fpp \
 	sp_md_respa.fpp \
 	sp_md_mts.fpp \
+	sp_alchemy.fpp \
 	sp_remd.fpp \
+    sp_fep_topology.fpp \
 	sp_rpath.fpp \
 	sp_gamd.fpp \
 	sp_dynamics.fpp \
@@ -131,6 +137,7 @@ prst_setup_SOURCES = \
 	sp_ensemble_str.fpp \
 	sp_dynvars_str.fpp \
 	sp_dynamics_str.fpp \
+	sp_alchemy_str.fpp \
 	sp_minimize_str.fpp \
 	sp_output_str.fpp \
 	sp_remd_str.fpp \
@@ -152,6 +159,8 @@ prst_setup_SOURCES = \
 	sp_energy_nonbond_fugaku.fpp \
 	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
+	sp_energy_nonbond_fep.fpp \
+	sp_energy_nonbond_vacuum.fpp \
 	sp_energy_table_linear.fpp \
 	sp_energy_14_notable.fpp \
 	sp_energy_nonbond_pme_table.fpp \
@@ -172,6 +181,7 @@ prst_setup_SOURCES = \
 	sp_energy_gamd.fpp \
 	sp_energy.fpp \
 	sp_grest_energy.fpp \
+	sp_fep_energy.fpp \
 	sp_enefunc_table.fpp \
 	sp_enefunc_restraints.fpp \
 	sp_enefunc_localres.fpp \
@@ -193,7 +203,9 @@ prst_setup_SOURCES = \
 	sp_md_vverlet.fpp \
 	sp_md_respa.fpp \
 	sp_md_mts.fpp \
+	sp_alchemy.fpp \
 	sp_remd.fpp \
+    sp_fep_topology.fpp \
 	sp_rpath.fpp \
 	sp_gamd.fpp \
 	sp_dynamics.fpp \

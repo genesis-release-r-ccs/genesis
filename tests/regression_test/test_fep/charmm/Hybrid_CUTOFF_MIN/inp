@@ -1,0 +1,55 @@
+[INPUT]
+topfile  =  top, top2
+parfile  =  par, par2
+strfile  =  str, str2
+psffile  =  psf
+pdbfile  =  pdb
+
+[OUTPUT]
+
+[ALCHEMY]
+fep_topology  = Hybrid
+singleA       = 1
+singleB       = 2
+dualA         = 3
+dualB         = 4
+sc_alpha      = 5.0
+sc_beta       = 0.5
+lambljA       = 1.0
+lambljB       = 1.0
+lambelA       = 1.0
+lambelB       = 1.0
+lambbondA     = 1.0
+lambbondB     = 1.0
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = CUTOFF
+switchdist       = 10.0
+cutoffdist       = 12.0
+pairlistdist     = 13.5
+pme_alpha        = auto
+vdw_force_switch = YES
+contact_check    = NO
+output_style     = GENESIS
+table_density    = 20.000
+
+[MINIMIZE]
+method        = SD
+nsteps        = 50
+eneout_period = 5
+
+[CONSTRAINTS]
+rigid_bond = NO
+
+[BOUNDARY]
+type       = PBC
+box_size_x = 50
+box_size_y = 50
+box_size_z = 50
+
+[SELECTION]
+group1 = segid:SB3 and (ai:1-27 or ai:34-63)
+group2 = segid:SBX and (ai:69-95 or ai:102-131)
+group3 = segid:SB3 and (ai:28-33 or ai:64-68)
+group4 = segid:SBX and (ai:96-101 or ai:132-142)

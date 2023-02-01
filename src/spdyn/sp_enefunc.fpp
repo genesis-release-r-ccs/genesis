@@ -63,6 +63,10 @@ module sp_enefunc_mod
   private :: setup_enefunc_nonb_pio
   private :: setup_enefunc_dispcorr
   private :: check_bonding
+  ! FEP
+  public  :: update_enefunc_fep
+  private :: setup_enefunc_dispcorr_fep
+  private :: set_fepgrp_nonb
 
 contains
 
@@ -136,6 +140,15 @@ contains
     enefunc%efield_virial     = ene_info%efield_virial
     enefunc%efield_normal     = ene_info%efield_normal
 
+    ! For Vacuum
+    enefunc%vacuum            = ene_info%vacuum
+
+    ! FEP
+    if (domain%fep_use) then
+      enefunc%fep_topology = molecule%fep_topology
+      call set_fepgrp_nonb(enefunc)
+    end if
+
     if (abs(enefunc%efield(1)) > EPS .or. abs(enefunc%efield(2)) > EPS .or. &
         abs(enefunc%efield(3)) > EPS) then
       enefunc%use_efield = .true.
@@ -175,7 +188,12 @@ contains
 
     ! dispersion correction
     !
-    call setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
+    if (domain%fep_use) then
+      ! FEP
+      call setup_enefunc_dispcorr_fep(ene_info, domain, enefunc, constraints)
+    else
+      call setup_enefunc_dispcorr(ene_info, domain, enefunc, constraints)
+    end if
 
     ! bonding_checker
     !
@@ -1854,5 +1872,355 @@ contains
     return
 
   end subroutine check_bonding
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_enefunc_fep
+  !> @brief        a driver subroutine for updating potential energy functions
+  !                for FEP
+  !! @authors      HO
+  !! @param[inout] domain      : domain information
+  !! @param[inout] comm        : communication information
+  !! @param[inout] enefunc     : energy potential functions information
+  !! @param[inout] constraints : constraints information [optional]
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_enefunc_fep(domain, comm, enefunc, constraints)
+
+    ! formal arguments
+    type(s_domain),                intent(inout) :: domain
+    type(s_comm),                  intent(inout) :: comm
+    type(s_enefunc),               intent(inout) :: enefunc
+    type(s_constraints), optional, intent(inout) :: constraints
+
+    ! local variables
+    logical                        :: first
+
+
+    ! sending the bonding information to other domain
+    !
+
+    ! bond
+    !
+    call update_outgoing_enefunc_bond_fep(domain, enefunc)
+
+    ! enm
+    !
+    if (enefunc%enm_use) then
+      call update_enefunc_enm(domain, enefunc)
+      call update_cell_size_enm(domain, enefunc, comm)
+      call update_cell_boundary_enm(domain, enefunc, comm)
+    end if
+
+    ! angle
+    !
+    call update_outgoing_enefunc_angl_fep(domain, enefunc)
+
+    ! dihedral
+    !
+    call update_outgoing_enefunc_dihe_fep(domain, enefunc)
+
+    ! Ryckaert-Bellemans dihedral
+    !
+    call update_outgoing_enefunc_rb_dihe_fep(domain, enefunc)
+
+    ! improper dihedral
+    !
+    call update_outgoing_enefunc_impr_fep(domain, enefunc)
+
+    ! cmap
+    !
+    call update_outgoing_enefunc_cmap_fep(domain, enefunc)
+
+    ! restraint
+    !
+    call update_outgoing_enefunc_restraint(domain, enefunc)
+
+    ! fitting
+    !
+    call update_outgoing_enefunc_fitting(domain, enefunc)
+
+    ! communicate neighbour domain
+    !
+    call communicate_bond_fep(domain, comm, enefunc)
+
+    ! bond
+    !
+    call update_incoming_enefunc_bond_fep(domain, enefunc)
+
+    ! angle
+    !
+    call update_incoming_enefunc_angl_fep(domain, enefunc)
+
+    ! dihedral
+    !
+    call update_incoming_enefunc_dihe_fep(domain, enefunc)
+
+    ! Ryckaert-Bellemans dihedral
+    !
+    call update_incoming_enefunc_rb_dihe_fep(domain, enefunc)
+
+    ! improper dihedral
+    !
+    call update_incoming_enefunc_impr_fep(domain, enefunc)
+
+    ! cmap
+    !
+    call update_incoming_enefunc_cmap_fep(domain, enefunc)
+
+    ! restraint
+    !
+    call update_incoming_enefunc_restraint(domain, enefunc)
+
+    ! fitting
+    !
+    call update_incoming_enefunc_fitting(domain, enefunc)
+
+    ! re-count nonbond exclusion list
+    !
+
+    first = .false.
+
+    if (constraints%rigid_bond) then
+
+      call count_nonb_excl_fep(first, .true., constraints, domain, enefunc)
+
+    else
+
+      call count_nonb_excl_fep(first, .false., constraints, domain, enefunc)
+
+    end if
+
+    if (enefunc%bonding_check) call check_bonding(enefunc, domain)
+
+    return
+
+  end subroutine update_enefunc_fep
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_dispcorr_fep
+  !> @brief        define dispersion correction term for FEP
+  !! @authors      HO
+  !! @param[in]    ene_info    : ENERGY section control parameters information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : energy potential functions information
+  !! @param[inout] constraints : constraints information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_dispcorr_fep(ene_info, domain, enefunc, constraints)
+
+    ! formal arguments
+    type(s_ene_info),        intent(in)    :: ene_info
+    type(s_domain),  target, intent(inout) :: domain
+    type(s_enefunc), target, intent(inout) :: enefunc
+    type(s_constraints),     intent(inout) :: constraints
+
+    ! local variables
+    integer                  :: i, j, iatmcls, jatmcls, ntypes
+    integer                  :: icel1, icel2, icel3, icel4
+    integer                  :: i1, i2, i3, i4, k, ih
+    real(wip)                :: diff_cs, diff_cs2, diff_cs3, diff_cs4
+    real(wip)                :: cutoff , cutoff2, cutoff3, cutoff4
+    real(wip)                :: cutoff5, cutoff6, cutoff7, cutoff8
+    real(wip)                :: cutoff14
+    real(wip)                :: inv_cutoff3, inv_cutoff6, inv_cutoff12
+    real(wip)                :: switchdist , switchdist2, switchdist3
+    real(wip)                :: switchdist4, switchdist5
+    real(wip)                :: switchdist6, switchdist7, switchdist8
+    real(wip)                :: shift_a, shift_b, shift_c
+    real(wip)                :: vswitch, eswitch, vlong
+
+    integer(int2),   pointer :: id_g2l(:,:)
+    integer,         pointer :: bondlist(:,:,:),anglelist(:,:,:)
+    integer,         pointer :: dihelist(:,:,:),rb_dihelist(:,:,:)
+    integer,         pointer :: atmcls(:,:),imprlist(:,:,:)
+
+    ! FEP
+    integer                  :: num_all_atoms_C
+    integer                  :: num_all_atoms_A
+    integer                  :: num_all_atoms_B
+    integer                  :: fg1, fg2
+    real(wip)                :: lj6_tot_CC, lj6_tot_AC, lj6_tot_BC
+    real(wip)                :: lj6_tot_AA, lj6_tot_BB, lj6_tot_AB
+    real(wip)                :: factor_CC, factor_AC, factor_BC
+    real(wip)                :: factor_AA, factor_BB, factor_AB
+    integer,     allocatable :: atype_C(:), atype_A(:), atype_B(:)
+
+    if (ene_info%dispersion_corr == Disp_corr_NONE) return
+
+    bondlist    => enefunc%bond_list
+    anglelist   => enefunc%angle_list
+    dihelist    => enefunc%dihe_list
+    rb_dihelist => enefunc%rb_dihe_list
+    imprlist    => enefunc%impr_list
+    atmcls      => domain%atom_cls_no
+    id_g2l      => domain%id_g2l
+
+    ntypes = enefunc%num_atom_cls
+    allocate(atype_C(1:ntypes), atype_A(1:ntypes), atype_B(1:ntypes))
+
+    atype_C(1:ntypes) = 0
+    atype_A(1:ntypes) = 0
+    atype_B(1:ntypes) = 0
+    num_all_atoms_C   = 0
+    num_all_atoms_A   = 0
+    num_all_atoms_B   = 0
+
+    do i = 1, domain%num_cell_local
+      do j = 1, domain%num_atom(i)
+        iatmcls = atmcls(j,i)
+        if(enefunc%fep_topology == 2) then
+          ! Dual
+          if (domain%fepgrp(j,i) == 5) then
+            atype_C(iatmcls) = atype_C(iatmcls)+1
+            num_all_atoms_C = num_all_atoms_C + 1
+          else if (domain%fepgrp(j,i) == 3) then
+            atype_A(iatmcls) = atype_A(iatmcls)+1
+            num_all_atoms_A = num_all_atoms_A + 1
+          else if (domain%fepgrp(j,i) == 4) then
+            atype_B(iatmcls) = atype_B(iatmcls)+1
+            num_all_atoms_B = num_all_atoms_B + 1
+          end if
+        else
+          ! Hybrid
+          if (domain%fepgrp(j,i) == 5) then
+            atype_C(iatmcls) = atype_C(iatmcls)+1
+            num_all_atoms_C = num_all_atoms_C + 1
+          else if (domain%fepgrp(j,i) == 1) then
+            atype_A(iatmcls) = atype_A(iatmcls)+1
+            atype_B(iatmcls) = atype_B(iatmcls)+1
+            num_all_atoms_A = num_all_atoms_A + 1
+            num_all_atoms_B = num_all_atoms_B + 1
+          else if (domain%fepgrp(j,i) == 3) then
+            atype_A(iatmcls) = atype_A(iatmcls)+1
+            num_all_atoms_A = num_all_atoms_A + 1
+          else if (domain%fepgrp(j,i) == 4) then
+            atype_B(iatmcls) = atype_B(iatmcls)+1
+            num_all_atoms_B = num_all_atoms_B + 1
+          end if
+        end if
+      end do
+    end do
+
+
+#ifdef HAVE_MPI_GENESIS
+    call mpi_allreduce(mpi_in_place, atype_C, ntypes, mpi_integer, &
+                       mpi_sum, mpi_comm_country, ierror)
+    call mpi_allreduce(mpi_in_place, atype_A, ntypes, mpi_integer, &
+                       mpi_sum, mpi_comm_country, ierror)
+    call mpi_allreduce(mpi_in_place, atype_B, ntypes, mpi_integer, &
+                       mpi_sum, mpi_comm_country, ierror)
+#endif
+
+    lj6_tot_CC = 0.0_wip
+    lj6_tot_AC = 0.0_wip
+    lj6_tot_BC = 0.0_wip
+    lj6_tot_AA = 0.0_wip
+    lj6_tot_BB = 0.0_wip
+    lj6_tot_AB = 0.0_wip
+    do i = 1, ntypes
+      do j = 1, ntypes
+        lj6_tot_CC = lj6_tot_CC + enefunc%nonb_lj6(i,j)*atype_C(i)*atype_C(j)
+        lj6_tot_AC = lj6_tot_AC + enefunc%nonb_lj6(i,j)*atype_A(i)*atype_C(j)
+        lj6_tot_AC = lj6_tot_AC + enefunc%nonb_lj6(i,j)*atype_C(i)*atype_A(j)
+        lj6_tot_AA = lj6_tot_AA + enefunc%nonb_lj6(i,j)*atype_A(i)*atype_A(j)
+        lj6_tot_BC = lj6_tot_BC + enefunc%nonb_lj6(i,j)*atype_B(i)*atype_C(j)
+        lj6_tot_BC = lj6_tot_BC + enefunc%nonb_lj6(i,j)*atype_C(i)*atype_B(j)
+        lj6_tot_BB = lj6_tot_BB + enefunc%nonb_lj6(i,j)*atype_B(i)*atype_B(j)
+        lj6_tot_AB = lj6_tot_AB + enefunc%nonb_lj6(i,j)*atype_A(i)*atype_B(j)
+        lj6_tot_AB = lj6_tot_AB + enefunc%nonb_lj6(i,j)*atype_B(i)*atype_A(j)
+      end do
+    end do
+
+    deallocate(atype_C, atype_A, atype_B)
+
+    cutoff       = enefunc%cutoffdist
+    cutoff2      = cutoff*cutoff
+    cutoff3      = cutoff2*cutoff
+    inv_cutoff3  = 1.0_wip/cutoff3
+
+    eswitch = 0.0_wip
+    vswitch = 0.0_wip
+    vlong   = inv_cutoff3/3.0_wip
+
+    if (enefunc%forcefield == ForcefieldAMBER ) then
+
+      factor_CC = 2.0_wip*PI*lj6_tot_CC
+      factor_AC = 2.0_wip*PI*lj6_tot_AC
+      factor_BC = 2.0_wip*PI*lj6_tot_BC
+      factor_AA = 2.0_wip*PI*lj6_tot_AA
+      factor_BB = 2.0_wip*PI*lj6_tot_BB
+      factor_AB = 2.0_wip*PI*lj6_tot_AB
+      enefunc%dispersion_energy_CC = -factor_CC*vlong
+      enefunc%dispersion_energy_AC = -factor_AC*vlong
+      enefunc%dispersion_energy_BC = -factor_BC*vlong
+      enefunc%dispersion_energy_AA = -factor_AA*vlong
+      enefunc%dispersion_energy_BB = -factor_BB*vlong
+      enefunc%dispersion_energy_AB = -factor_AB*vlong
+      enefunc%dispersion_virial_CC = -2.0_wip*factor_CC*vlong
+      enefunc%dispersion_virial_AC = -2.0_wip*factor_AC*vlong
+      enefunc%dispersion_virial_BC = -2.0_wip*factor_BC*vlong
+      enefunc%dispersion_virial_AA = -2.0_wip*factor_AA*vlong
+      enefunc%dispersion_virial_BB = -2.0_wip*factor_BB*vlong
+      enefunc%dispersion_virial_AB = -2.0_wip*factor_AB*vlong
+
+    else
+      call error_msg('Setup_Enefunc_DispCorr_Fep> This force field is not available in FEP')
+    end if
+
+    return
+
+  end subroutine setup_enefunc_dispcorr_fep
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine set_fepgrp_nonb(enefunc)
+
+    ! formal arguments
+    type(s_enefunc), target, intent(inout) :: enefunc
+
+    ! local variables
+    integer                  :: fg1, fg2
+    integer                  :: i1, i2, i3, i4
+    integer                  :: i5, i6, i7, i8
+    integer                  :: idx
+    integer,         pointer :: fepgrp_nonb(:,:)
+
+    fepgrp_nonb       => enefunc%fepgrp_nonb
+
+    ! Make lambda table for calculation of nonbonded energy
+    !
+    fepgrp_nonb(:,:) = 0
+
+    do fg1 = 1, 5
+      do fg2 = 1, 5
+
+        ! Make table of lambda and softcore in FEP
+        !
+        if (((fg1==1).or.(fg1==2).or.(fg1==5)) .and. &
+          ((fg2==1).or.(fg2==2).or.(fg2==5))) then
+          fepgrp_nonb(fg1,fg2) = 5
+        else if ((fg1==3).or.(fg2==3)) then
+          fepgrp_nonb(fg1,fg2) = 3
+        else if ((fg1==4).or.(fg2==4)) then
+          fepgrp_nonb(fg1,fg2) = 4
+        end if
+
+        ! Interactons between partA and partB are set to 0,
+        ! while others are set to 1.
+        !
+        if (((fg1==3).and.(fg2==4)) .or. ((fg1==4).and.(fg2==3))) then
+          fepgrp_nonb(fg1,fg2) = 0
+        end if
+
+      end do
+    end do
+
+    return
+
+  end subroutine set_fepgrp_nonb
 
 end module sp_enefunc_mod

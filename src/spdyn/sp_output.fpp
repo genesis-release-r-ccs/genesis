@@ -30,6 +30,7 @@ module sp_output_mod
   use sp_remd_str_mod
   use sp_rpath_str_mod
   use sp_constraints_mod
+  use sp_alchemy_str_mod
   use sp_grest_energy_mod
   use molecules_str_mod
   use fileio_control_mod
@@ -61,6 +62,7 @@ module sp_output_mod
     character(MaxFilename) :: mfrcfile   = ''
     character(MaxFilename) :: rpathlogfile  = ''
     character(MaxFilename) :: gamdfile   = ''
+    character(MaxFilename) :: fepfile    = ''
   end type s_out_info
 
   ! valiables
@@ -92,6 +94,9 @@ module sp_output_mod
   private :: write_trajectory_dcdvel
   private :: reduce_coord
   private :: include_id_to_filename
+  ! FEP
+  public  :: output_fep_energy
+  private :: match_fep_coord
 
 contains
 
@@ -119,12 +124,13 @@ contains
       case ('md')
 
         write(MsgOut,'(A)') '[OUTPUT]'
-        write(MsgOut,'(A)') '# dcdfile    = sample.dcd   # DCD trajectory file'
-        write(MsgOut,'(A)') '# dcdvelfile = sample.dcd   # DCD velocity file'
-        write(MsgOut,'(A)') '# rstfile    = sample.rst   # restart file'
-        write(MsgOut,'(A)') '# rstfile    = sample().rst # parallel I/O restart file'
-        write(MsgOut,'(A)') '# pdbfile    = sample.pdb   # PDB file'
-        write(MsgOut,'(A)') '# gamdfile   = sample.gamd  # gamd file'
+        write(MsgOut,'(A)') '# dcdfile    = sample.dcd    # DCD trajectory file'
+        write(MsgOut,'(A)') '# dcdvelfile = sample.dcd    # DCD velocity file'
+        write(MsgOut,'(A)') '# rstfile    = sample.rst    # restart file'
+        write(MsgOut,'(A)') '# rstfile    = sample().rst  # parallel I/O restart file'
+        write(MsgOut,'(A)') '# pdbfile    = sample.pdb    # PDB file'
+        write(MsgOut,'(A)') '# gamdfile   = sample.gamd   # gamd file'
+        write(MsgOut,'(A)') '# fepfile    = sample.fepout # fep file'
         write(MsgOut,'(A)') ' '
 
       case ('min')
@@ -140,12 +146,13 @@ contains
 
         write(MsgOut,'(A)') '[OUTPUT]'
         write(MsgOut,'(A)') 'logfile    = sample{}.log # log file of each replica'
-        write(MsgOut,'(A)') '# dcdfile    = sample{}.dcd # DCD trajectory file'
-        write(MsgOut,'(A)') '# dcdvelfile = sample{}.dcd # DCD velocity file'
-        write(MsgOut,'(A)') '# rstfile    = sample{}.rst # restart file'
-        write(MsgOut,'(A)') '# pdbfile    = sample{}.pdb # PDB file'
-        write(MsgOut,'(A)') '# remfile    = sample{}.rem # replica exchange ID file'
-        write(MsgOut,'(A)') '# enefile    = sample{}.ene # energy output for grest (only when analysis_grest = YES'
+        write(MsgOut,'(A)') '# dcdfile    = sample{}.dcd  # DCD trajectory file'
+        write(MsgOut,'(A)') '# dcdvelfile = sample{}.dcd  # DCD velocity file'
+        write(MsgOut,'(A)') '# rstfile    = sample{}.rst  # restart file'
+        write(MsgOut,'(A)') '# pdbfile    = sample{}.pdb  # PDB file'
+        write(MsgOut,'(A)') '# remfile    = sample{}.rem  # replica exchange ID file'
+        write(MsgOut,'(A)') '# enefile    = sample{}.ene  # energy output for grest (only when analysis_grest = YES'
+        write(MsgOut,'(A)') '# fepfile    = sample.fepout # fep file'
         write(MsgOut,'(A)') ' '
 
       case ('rpath')
@@ -216,6 +223,7 @@ contains
     call read_ctrlfile_string(handle, Section, 'rpathlogfile', out_info%rpathlogfile)
     call read_ctrlfile_string(handle, Section, 'mfrcfile', out_info%mfrcfile)
     call read_ctrlfile_string(handle, Section, 'gamdfile',  out_info%gamdfile)
+    call read_ctrlfile_string(handle, Section, 'fepfile',   out_info%fepfile)
 
     call end_ctrlfile_section(handle)
 
@@ -248,6 +256,8 @@ contains
         write(MsgOut,*) ' mfrcfile   = ', trim(out_info%mfrcfile)
       if (out_info%gamdfile .ne. '') &
         write(MsgOut,*) ' gamdfile   = ', trim(out_info%gamdfile)
+      if (out_info%fepfile /= '') &
+        write(MsgOut,*) ' fepfile    = ', trim(out_info%fepfile)
       write(MsgOut,'(A)') ' '
     end if
 
@@ -312,6 +322,14 @@ contains
     if (out_info%gamdfile .ne. '') then
       output%gamdout  = .true.
       output%gamdfile = out_info%gamdfile
+    end if
+
+    if (dynamics%fepout_period > 0) then
+      if (out_info%fepfile == '') &
+        call error_msg('Setup_Output_Md> Error: fepfile name is not'//&
+                  ' specified in [OUTPUT] (fepout_period > 0 in [ALCHEMY])')
+      output%fepout  = .true.
+      output%fepfile = out_info%fepfile
     end if
 
     return
@@ -457,6 +475,25 @@ contains
     end if
 
     if (out_info%remfile .ne. '') then
+      output%remfile = out_info%remfile
+      call include_id_to_filename(output%remfile)
+      output%remfile = output%remfile
+      output%remout  = .true.
+    end if
+
+    if (dynamics%fepout_period > 0) then
+      if (out_info%fepfile == '') &
+        call error_msg('Setup_Output_Remd> Error: fepfile name is not'//&
+                  ' specified in [OUTPUT] (fepout_period > 0 in [ALCHEMY])')
+      output%fepfile = out_info%fepfile
+      call include_id_to_filename(output%fepfile)
+      output%fepfile = output%fepfile
+      output%fepout  = .true.
+
+      ! output remfile to sort fepfile
+      if (out_info%remfile == '') &
+        call error_msg('Setup_Output_Remd> Error: remfile name is not'//&
+                  ' specified in [OUTPUT]')
       output%remfile = out_info%remfile
       call include_id_to_filename(output%remfile)
       output%remfile = output%remfile
@@ -720,6 +757,15 @@ contains
       if (main_rank .or. replica_main_rank) then
         call open_file(file, output%gamdfile, IOFileOutputNew)
         output%gamdunit = file
+      end if
+    end if
+
+    ! open fepfile
+    !
+    if (output%fepout) then
+      if (main_rank .or. replica_main_rank) then
+        call open_file(file, output%fepfile, IOFileOutputNew)
+        output%fepunit = file
       end if
     end if
 
@@ -1580,6 +1626,12 @@ contains
     end do
 
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    if (domain%fep_use) then
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
+
     rst%coord(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
 
     ! reduce velocities
@@ -1592,6 +1644,11 @@ contains
     end do
 
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+    if (domain%fep_use) then
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
+
     rst%velocity(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
 
     ! output restart information
@@ -1675,6 +1732,12 @@ contains
     end do
 
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    if (domain%fep_use) then 
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
+
     rst%coord(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
 
     ! output restart information
@@ -1760,6 +1823,12 @@ contains
     end do
 
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+    
+    if (domain%fep_use) then
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
+
     rst%coord(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
 
     ! reduce velocities
@@ -1772,6 +1841,12 @@ contains
     end do
 
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    if (domain%fep_use) then
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
+
     rst%velocity(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
 
     if (remd%equilibration_only) then
@@ -1963,6 +2038,11 @@ contains
       end do
     end do
     call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    if (domain%fep_use) then
+      ! FEP: copy singleA atoms to singleB atoms
+      call match_fep_coord(domain, tmp_coord1)
+    end if
 
     if (output%replica) then
       if (.not. replica_main_rank) return
@@ -2333,5 +2413,142 @@ contains
     return
 
   end subroutine include_id_to_filename
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_fep_energy
+  !> @brief        output energy difference between adjacent states in FEP
+  !! @authors      HO
+  !! @param[in]    output   : output information
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    dynvars  : dynamical variables information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_fep_energy(output, enefunc, dynvars)
+
+    ! formal arguments
+    type(s_output),             intent(in) :: output
+    type(s_enefunc),            intent(in) :: enefunc
+    type(s_dynvars),            intent(in) :: dynvars
+
+    ! local variables
+    integer,parameter        :: clength=16, flength=4
+    integer                  :: i, ifm
+    character(16)            :: title
+    character(16)            :: category(999)
+    character                :: frmt*5, frmt_res*10, rfrmt*7
+    character                :: rfrmt_cont*9,frmt_cont*7
+    real(dp)                 :: values(999)
+    real(dp)                 :: ene_restraint
+    logical, save            :: fep_title = .true.
+
+    if (output%replica) then
+      if (.not. replica_main_rank) return
+    else if (output%rpath) then
+      if (.not. replica_main_rank) return
+    else
+      if (.not. main_rank) return
+    end if
+
+    title = '#     STEP'
+    write(frmt,'(A2,I2,A)') '(A',clength,')'
+    write(frmt_cont,'(A2,I2,A3)') '(A',clength,',$)'
+    write(frmt_res,'(A2,I2,A6)') '(A',clength-3,',I3.3)'
+    write(rfrmt,'(A2,I2,A1,I1,A1)') '(F',clength,'.',flength,')'
+    write(rfrmt_cont,'(A2,I2,A1,I1,A3)') '(F',clength,'.',flength,',$)'
+
+    ifm = 1
+
+    write(category(ifm),frmt) 'Total_E_ref'
+    values(ifm) = dynvars%energy%deltU_fep(1)
+    ifm = ifm+1
+
+    if (enefunc%num_fep_neighbor == 2) then
+
+      write(category(ifm),frmt) 'Delta_E_rev'
+      values(ifm) = dynvars%energy%deltU_fep(2)
+      ifm = ifm+1
+
+      write(category(ifm),frmt) 'Delta_E_fwd'
+      values(ifm) = dynvars%energy%deltU_fep(3)
+      ifm = ifm+1
+
+    else if (enefunc%num_fep_neighbor == 1) then
+
+      if (enefunc%fep_direction == FEP_Forward) then
+
+        write(category(ifm),frmt) 'Delta_E_fwd'
+        values(ifm) = dynvars%energy%deltU_fep(2)
+        ifm = ifm+1
+
+      else if (enefunc%fep_direction == FEP_Reverse) then
+
+        write(category(ifm),frmt) 'Delta_E_rev'
+        values(ifm) = dynvars%energy%deltU_fep(2)
+        ifm = ifm+1
+
+      end if
+
+    end if
+
+    if (fep_title) then
+
+      write(output%fepunit,'(A10,$)') title
+
+      do i = 1, ifm-1
+
+        if (i == ifm-1) then
+          write(output%fepunit,frmt) category(i)
+        else
+          write(output%fepunit,frmt_cont) category(i)
+        endif
+      end do
+
+      fep_title = .false.
+    end if
+
+    write(output%fepunit,'(I10,$)') dynvars%step
+
+    do i = 1, ifm-1
+      if (i == ifm-1) then
+        write(output%fepunit,rfrmt) values(i)
+      else
+        write(output%fepunit,rfrmt_cont) values(i)
+      endif
+    end do
+
+    return
+
+  end subroutine output_fep_energy
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    match_fep_single
+  !> @brief        match up coordinates of single-topology parts
+  !! @authors      HO
+  !! @param[in]    domain : domain information
+  !! @param[inout] coord  : coordinates to be matched
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine match_fep_coord(domain, coord)
+
+    ! formal arguments
+    type(s_domain), intent(in)    :: domain
+    real(wip),      intent(inout) :: coord(:,:)
+
+    ! local variables
+    integer                       :: i, iatomA, iatomB 
+
+    do i = 1, domain%num_atom_single_all
+      iatomA = domain%id_singleA(i)
+      iatomB = domain%id_singleB(i)
+      coord(1:3,iatomB) = coord(1:3,iatomA)
+    end do
+
+    return
+
+  end subroutine match_fep_coord
 
 end module sp_output_mod

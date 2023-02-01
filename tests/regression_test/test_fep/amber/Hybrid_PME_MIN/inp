@@ -1,0 +1,60 @@
+[INPUT]
+prmtopfile = prmtop
+ambcrdfile = inpcrd
+
+[OUTPUT]
+
+[ALCHEMY]
+fep_topology  = Hybrid
+singleA       = 1
+singleB       = 2
+dualA         = 3
+dualB         = 4
+fepout_period = 1
+sc_alpha      = 5.0
+sc_beta       = 0.5
+lambljA       = 1.0
+lambljB       = 1.0
+lambelA       = 0.5
+lambelB       = 0.5
+lambbondA     = 0.5
+lambbondB     = 0.5
+
+[ENERGY]
+forcefield       = AMBER
+electrostatic    = PME       # [CUTOFF,PME]
+switchdist       = 8.0      # switch distance
+cutoffdist       = 8.0      # cutoff distance
+pairlistdist     = 10.0      # pairlist distance
+contact_check    = NO
+output_style     = GENESIS
+pme_nspline      = 4
+pme_alpha        = 0.34864
+pme_alpha_tol    = 0.100E-04
+pme_ngrid_x      = 40
+pme_ngrid_y      = 36
+pme_ngrid_z      = 36
+pme_scheme       = NOOPT_2DALLTOALL
+table_density    = 20.000
+dispersion_corr  = epress
+
+[MINIMIZE]
+method          = SD
+nsteps          = 8
+eneout_period   = 2
+nbupdate_period = 2
+
+[CONSTRAINTS]
+rigid_bond       = NO
+
+[BOUNDARY]
+type             = PBC
+box_size_x       = 42
+box_size_y       = 42
+box_size_z       = 42
+
+[SELECTION]
+group1 = rno:1 and (ai:1-27 or ai:34-63)
+group2 = rno:2 and (ai:69-95 or ai:102-131)
+group3 = rno:1 and (ai:28-33 or ai:64-68)
+group4 = rno:2 and (ai:96-101 or ai:132-142)

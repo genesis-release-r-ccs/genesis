@@ -75,6 +75,9 @@ module sp_setup_spdyn_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+  use sp_fep_topology_mod
+  use sp_alchemy_mod
+  use sp_alchemy_str_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -97,7 +100,7 @@ contains
   !
   !  Subroutine    setup_spdyn_md
   !> @brief        setup variables and structures in MD simulation
-  !! @authors      JJ
+  !! @authors      JJ, HO
   !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
@@ -115,7 +118,7 @@ contains
 
   subroutine setup_spdyn_md(ctrl_data, output, molecule, enefunc, pairlist,    &
                            dynvars, dynamics, constraints, ensemble, boundary, &
-                           domain, comm)
+                           domain, comm, alchemy)
 
     ! formal arguments
     type(s_ctrl_data),       intent(inout) :: ctrl_data
@@ -130,6 +133,7 @@ contains
     type(s_boundary),        intent(inout) :: boundary
     type(s_domain),          intent(inout) :: domain
     type(s_comm),            intent(inout) :: comm
+    type(s_alchemy),optional,intent(inout) :: alchemy
 
     ! local variables
     type(s_restraints)       :: restraints
@@ -175,6 +179,12 @@ contains
     call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
                           mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
 
+    if (present(alchemy)) then
+      ! FEP: define singleA, singleB, dualA, dualB, and preserved regions
+      call define_fep_topology(molecule, par, prmtop, ctrl_data%sel_info, &
+        ctrl_data%alch_info)
+    end if
+
     call dealloc_pdb_all(pdb)
     call dealloc_crd_all(crd)
     call dealloc_top_all(top)
@@ -207,9 +217,16 @@ contains
   
     ! set parameters for domain 
     !
-    call setup_domain(ctrl_data%ene_info,  &
+    if (present(alchemy)) then
+      ! FEP
+      call setup_domain_fep(ctrl_data%ene_info,  &
                       ctrl_data%cons_info, &
                       boundary, molecule, enefunc, constraints, domain)
+    else
+      call setup_domain(ctrl_data%ene_info,  &
+                        ctrl_data%cons_info, &
+                        boundary, molecule, enefunc, constraints, domain)
+    end if
 
     ! set parameters for communication
     !
@@ -242,6 +259,10 @@ contains
     call dealloc_restraints_all(restraints)
     call dealloc_localres(localres, LocalRestraint)
 
+    if (domain%fep_use) then
+      ! FEP: setup alchemy
+      call setup_alchemy_md(ctrl_data%alch_info, domain, enefunc, alchemy)
+    end if
 
     ! set parameters for pairlist
     !
@@ -252,6 +273,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
+        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -265,7 +287,9 @@ contains
     !
     call setup_dynamics(ctrl_data%dyn_info,   &
                         ctrl_data%bound_info, &
-                        ctrl_data%res_info, molecule, dynamics)
+                        ctrl_data%res_info,   &
+                        ctrl_data%alch_info,  &
+                        molecule, dynamics)
 
     ! mass repartitioning
     !
@@ -282,12 +306,30 @@ contains
     !
     call setup_ensemble(ctrl_data%ens_info, dynamics, ensemble)
 
+    if (domain%fep_use) then
+      ! FEP: Some thermostat and barostat are not available in FEP
+      if (ensemble%tpcontrol  == TpcontrolBerendsen) then
+        call error_msg('Setup_Ensemble> Berendsen is not allowed in FEP')
+      else if (ensemble%tpcontrol  == TpcontrolNoseHoover) then
+        call error_msg('Setup_Ensemble> NoseHoover is not allowed in FEP')
+      else if (ensemble%tpcontrol  == TpcontrolMTK) then
+        call error_msg('Setup_Ensemble> MTK is not allowed in FEP')
+      end if
+    end if
 
     ! set parameters for constraints
     !
     call setup_constraints(ctrl_data%cons_info, &
                            par, prmtop, grotop, molecule, domain, &
                            enefunc, constraints)
+
+    if (domain%fep_use) then
+      ! FEP: remove degree of freedom of singleB
+      call update_num_deg_freedom('After removing degrees of freedom &
+        &of singleB in FEP',    &
+        -3*molecule%num_atoms_fep(2), &
+        molecule%num_deg_freedom)
+    end if
 
     call dealloc_molecules_all(molecule)
     call dealloc_par_all(par)
@@ -321,6 +363,17 @@ contains
 
     domain%num_deg_freedom = molecule%num_deg_freedom
 
+    ! turn off group T/P when vacuum is used
+    !
+    if (ensemble%group_tp) then
+      if (enefunc%vacuum) then
+        if (main_rank)      &
+          write(MsgOut,'(A)') &
+            'Setup_Spdyn_Md> group_tp = No is assigned with vacuum = yes'
+        ensemble%group_tp = .false.
+      end if
+    end if
+
     ! pressure degree of freedom for group pressure
     !
     if (ensemble%group_tp) then
@@ -342,7 +395,7 @@ contains
   !
   !  Subroutine    setup_spdyn_min
   !> @brief        setup variables and structures in minimization
-  !! @authors      TM, JJ
+  !! @authors      TM, JJ, HO 
   !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
@@ -359,7 +412,7 @@ contains
 
   subroutine setup_spdyn_min(ctrl_data, output, molecule, enefunc, pairlist, &
                              dynvars, minimize, constraints, boundary,       &
-                             domain, comm)
+                             domain, comm, alchemy)
 
     ! formal arguments
     type(s_ctrl_data),       intent(inout) :: ctrl_data
@@ -373,6 +426,7 @@ contains
     type(s_boundary),        intent(inout) :: boundary
     type(s_domain),          intent(inout) :: domain
     type(s_comm),            intent(inout) :: comm
+    type(s_alchemy),optional,intent(inout) :: alchemy
 
     ! local variables
     type(s_restraints)       :: restraints
@@ -419,6 +473,12 @@ contains
     !
     call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
                           mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
+
+    if (present(alchemy)) then
+      ! FEP: define singleA, singleB, dualA, dualB, and preserved regions
+      call define_fep_topology(molecule, par, prmtop, ctrl_data%sel_info, &
+        ctrl_data%alch_info)
+    end if
 
     call dealloc_pdb_all(pdb)
     call dealloc_crd_all(crd)
@@ -472,9 +532,16 @@ contains
       end if
     end if
       
-    call setup_domain(ctrl_data%ene_info,  &
+    if (present(alchemy)) then
+      ! FEP
+      call setup_domain_fep(ctrl_data%ene_info,  &
                       ctrl_data%cons_info, &
                       boundary, molecule, enefunc, constraints, domain)
+    else
+      call setup_domain(ctrl_data%ene_info,  &
+                        ctrl_data%cons_info, &
+                        boundary, molecule, enefunc, constraints, domain)
+    end if
 
 
     ! set parameters for communication
@@ -504,9 +571,17 @@ contains
                            grotop, molecule, domain,         &
                            enefunc, constraints)
     ! setup experiments
-        !
-            call setup_experiments(ctrl_data%exp_info, molecule, restraints, &
-                                               enefunc)
+    !
+    call setup_experiments(ctrl_data%exp_info, molecule, restraints, &
+                           enefunc)
+
+    if (domain%fep_use) then
+      ! FEP: remove degree of freedom of singleB
+      call update_num_deg_freedom('After removing degrees of freedom &
+        &of singleB in FEP',    &
+        -3*molecule%num_atoms_fep(2), &
+        molecule%num_deg_freedom)
+    end if
 
     call dealloc_restraints_all(restraints)
     call dealloc_molecules_all(molecule)
@@ -516,6 +591,11 @@ contains
     call dealloc_localres(localres, LocalRestraint)
     
 
+    if (domain%fep_use) then
+      ! FEP: setup alchemy
+      call setup_alchemy_min(ctrl_data%alch_info, domain, enefunc, alchemy)
+    end if
+    
     ! set parameters for pairlist
     !
     call setup_pairlist(enefunc, domain, pairlist)
@@ -525,6 +605,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
+        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -564,7 +645,7 @@ contains
   !
   !  Subroutine    setup_spdyn_remd
   !> @brief        setup variables and structures in REMD simulation
-  !! @authors      TM
+  !! @authors      TM, HO
   !! @param[inout] ctrl_data   : information of control parameters
   !! @param[out]   output      : information of output
   !! @param[out]   molecule    : information of molecules
@@ -583,7 +664,7 @@ contains
 
   subroutine setup_spdyn_remd(ctrl_data, output, molecule, enefunc, pairlist,  &
                            dynvars, dynamics, constraints, ensemble, boundary, &
-                           domain, comm, remd)
+                           domain, comm, remd, alchemy)
 
     ! formal arguments
     type(s_ctrl_data),       intent(inout) :: ctrl_data
@@ -599,6 +680,7 @@ contains
     type(s_domain),          intent(inout) :: domain
     type(s_comm),            intent(inout) :: comm
     type(s_remd),            intent(inout) :: remd
+    type(s_alchemy),optional,intent(inout) :: alchemy
 
     ! local variables
     type(s_restraints)       :: restraints
@@ -643,6 +725,12 @@ contains
     call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
                           mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
 
+    if (present(alchemy)) then
+      ! FEP: define singleA, singleB, dualA, dualB, and preserved regions
+      call define_fep_topology(molecule, par, prmtop, ctrl_data%sel_info, &
+        ctrl_data%alch_info)
+    end if
+
     call dealloc_pdb_all(pdb)
     call dealloc_crd_all(crd)
     call dealloc_top_all(top)
@@ -684,9 +772,16 @@ contains
 
     ! set parameters for domain 
     !
-    call setup_domain(ctrl_data%ene_info,  &
+    if (present(alchemy)) then
+      ! FEP
+      call setup_domain_fep(ctrl_data%ene_info,  &
                       ctrl_data%cons_info, &
                       boundary, molecule, enefunc, constraints, domain)
+    else
+      call setup_domain(ctrl_data%ene_info,  &
+                        ctrl_data%cons_info, &
+                        boundary, molecule, enefunc, constraints, domain)
+    end if
 
     ! set parameters for communication
     !
@@ -704,6 +799,11 @@ contains
 
     call dealloc_localres(localres, LocalRestraint)
 
+    if (domain%fep_use) then
+      ! FEP: setup alchemy
+      call setup_alchemy_remd(ctrl_data%alch_info, domain, enefunc, alchemy)
+    end if
+
     ! set parameters for pairlist
     !
     call setup_pairlist(enefunc, domain, pairlist)
@@ -712,6 +812,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
+        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -724,7 +825,9 @@ contains
     !
     call setup_dynamics(ctrl_data%dyn_info,   &
                         ctrl_data%bound_info, &
-                        ctrl_data%res_info, molecule, dynamics)
+                        ctrl_data%res_info,   &
+                        ctrl_data%alch_info,  &
+                        molecule, dynamics)
 
     ! mass repartitioning
     !
@@ -740,6 +843,17 @@ contains
     !
     call setup_ensemble(ctrl_data%ens_info, dynamics, ensemble)
 
+    if (domain%fep_use) then
+      ! FEP: Some thermostat and barostat are not available in FEP
+      if (ensemble%tpcontrol  == TpcontrolBerendsen) then
+        call error_msg('Setup_Ensemble> Berendsen is not allowed in FEP')
+      else if (ensemble%tpcontrol  == TpcontrolNoseHoover) then
+        call error_msg('Setup_Ensemble> NoseHoover is not allowed in FEP')
+      else if (ensemble%tpcontrol  == TpcontrolMTK) then
+        call error_msg('Setup_Ensemble> MTK is not allowed in FEP')
+      end if
+    end if
+
     ! set parameters for constraints
     !
     call setup_constraints(ctrl_data%cons_info, &
@@ -752,7 +866,16 @@ contains
     ! setup remd
     !
     call setup_remd(ctrl_data%rep_info, rst, boundary, dynamics, molecule, &
-                    domain, restraints, ensemble, enefunc, remd)
+                    domain, restraints, ensemble, enefunc, remd, alchemy)
+
+    if (domain%fep_use) then
+      ! FEP:remove degree of freedom of singleB
+      call update_num_deg_freedom('After removing degrees of freedom &
+        &of singleB in FEP',    &
+        -3*molecule%num_atoms_fep(2), &
+        molecule%num_deg_freedom)
+    end if
+
     call dealloc_restraints_all(restraints)
     call dealloc_molecules_all(molecule)
 
@@ -772,6 +895,17 @@ contains
     end if
 
     domain%num_deg_freedom = molecule%num_deg_freedom
+
+    ! turn off group T/P when vacuum is used
+    !
+    if (ensemble%group_tp) then
+      if (enefunc%vacuum) then
+        if (main_rank)      &
+          write(MsgOut,'(A)') &
+            'Setup_Spdyn_Md> group_tp = No is assigned with vacuum = yes'
+        ensemble%group_tp = .false.
+      end if
+    end if
 
     ! pressure degree of freedom for group pressure
     !
@@ -951,7 +1085,9 @@ contains
     !
     call setup_dynamics(ctrl_data%dyn_info,   &
                         ctrl_data%bound_info, &
-                        ctrl_data%res_info, molecule, dynamics)
+                        ctrl_data%res_info,   &
+                        ctrl_data%alch_info,  &
+                        molecule, dynamics)
 
     ! mass repartitioning
     !

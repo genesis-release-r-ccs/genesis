@@ -1,0 +1,69 @@
+[INPUT]
+prmtopfile = prmtop
+ambcrdfile = inpcrd
+rstfile    = rst
+
+[OUTPUT]
+fepfile = out.fepout
+
+[ALCHEMY]
+fep_direction = Bothsides
+fep_topology  = Dual
+dualA         = 1
+dualB         = 2
+fepout_period = 4
+equilsteps    = 8
+sc_alpha      = 5.0
+sc_beta       = 0.5
+lambljA       = 0.9 0.8
+lambljB       = 0.1 0.2
+lambelA       = 0.5 0.4
+lambelB       = 0.0 0.0
+lambbondA     = 0.8 0.7
+lambbondB     = 0.2 0.3
+
+[ENERGY]
+forcefield       = AMBER
+electrostatic    = PME
+switchdist       = 8.0
+cutoffdist       = 8.0
+pairlistdist     = 10.0
+output_style     = GENESIS
+pme_nspline      = 4
+pme_alpha        = 0.34864
+pme_alpha_tol    = 0.100E-04
+pme_ngrid_x      = 40
+pme_ngrid_y      = 36
+pme_ngrid_z      = 36
+pme_scheme       = NOOPT_2DALLTOALL
+table_density    = 20.000
+dispersion_corr  = epress
+
+[DYNAMICS]
+integrator        = VRES
+nsteps            = 8
+timestep          = 0.0025
+eneout_period     = 4
+nbupdate_period   = 8
+elec_long_period  = 2
+thermostat_period = 4
+barostat_period   = 4
+stoptr_period     = 8
+iseed = 1
+
+[CONSTRAINTS]
+rigid_bond       = YES
+water_model      = WAT
+
+[ENSEMBLE]
+ensemble         = NPT
+tpcontrol        = BUSSI
+temperature      = 300
+pressure         = 1.0
+
+[BOUNDARY]
+type             = PBC
+
+[SELECTION]
+group1 = rno:3
+group2 = rno:6

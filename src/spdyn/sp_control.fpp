@@ -35,6 +35,7 @@ module sp_control_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+  use sp_alchemy_mod
 #ifdef RICC
   use service_routines
 #endif
@@ -89,6 +90,9 @@ module sp_control_mod
 
     ! data for section gamd
     type(s_gamd_info)     :: gamd_info
+
+    ! data for section alchemy
+    type(s_alch_info)     :: alch_info
 
     ! add more parameters here
 
@@ -253,6 +257,13 @@ contains
     call read_ctrl_gamd(handle, ctrl_data%gamd_info)
 
 
+    ! read alchemy section
+    !
+    if (find_ctrlfile_section(filename, 'ALCHEMY')) then
+      call read_ctrl_alchemy(handle, ctrl_data%alch_info)
+    end if
+
+
     ! read energy section
     !
     call read_ctrl_energy(handle, ctrl_data%ene_info)
@@ -342,6 +353,13 @@ contains
     ! read output section
     !
     call read_ctrl_output(handle, ctrl_data%out_info)
+
+
+    ! read alchemy section
+    !
+    if (find_ctrlfile_section(filename, 'ALCHEMY')) then
+      call read_ctrl_alchemy(handle, ctrl_data%alch_info)
+    end if
 
 
     ! read energy section
@@ -436,6 +454,13 @@ contains
     ! read gamd section
     !
     call read_ctrl_gamd(handle, ctrl_data%gamd_info)
+
+
+    ! read alchemy section
+    !
+    if (find_ctrlfile_section(filename, 'ALCHEMY')) then
+      call read_ctrl_alchemy(handle, ctrl_data%alch_info)
+    end if
 
 
     ! read energy section
@@ -655,6 +680,11 @@ contains
     ! show gamd section
     !
     call show_ctrl_gamd(show_all, run_mode)
+
+
+    ! show alchemy section
+    !
+    call show_ctrl_alchemy(show_all, run_mode)
 
 
     ! show energy section

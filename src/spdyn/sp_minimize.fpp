@@ -38,6 +38,8 @@ module sp_minimize_mod
   use constants_mod
   use string_mod
   use mpi_parallel_mod
+  use sp_alchemy_str_mod
+  use sp_fep_energy_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -385,12 +387,11 @@ contains
 
   end subroutine run_min
 
-
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    steepest_descent
   !> @brief        steepest descent integrator
-  !> @authors      JJ
+  !> @authors      JJ, HO
   !! @param[inout] output      : output information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : potential energy functions information
@@ -453,6 +454,12 @@ contains
     delta_rmax = real(minimize%force_scale_max,wip)
     delta_r    = delta_rini
 
+    if (domain%fep_use) then
+      ! FEP: Copy lambda of enefunc to domain, because they are needed for 
+      ! calculation of virial in SHAKE.
+      domain%lambbondA = enefunc%lambbondA
+      domain%lambbondB = enefunc%lambbondB
+    end if
 
     ! Compute energy of the initial structure
     !
@@ -493,7 +500,13 @@ contains
                     + force(3,jx,j)*force(3,jx,j)
       end do
     end do
-    rmsg = rmsg / real(3*domain%num_atom_all,dp)
+
+    if (domain%fep_use) then
+      ! FEP: subtract the number of singleB atoms
+      rmsg = rmsg / real(3*(domain%num_atom_all-domain%num_atom_single_all),dp)
+    else
+      rmsg = rmsg / real(3*domain%num_atom_all,dp)
+    end if
 
 #ifdef HAVE_MPI_GENESIS
     call mpi_allreduce(mpi_in_place, rmsg, 1, mpi_real8, mpi_sum, &
@@ -586,7 +599,13 @@ contains
         end do
       end do
 
-      rmsg = rmsg / real(3*domain%num_atom_all,dp)
+      if (domain%fep_use) then
+        ! FEP: subtract the number of singleB atoms
+        rmsg = rmsg / real(3*(domain%num_atom_all&
+                              -domain%num_atom_single_all),dp)
+      else
+        rmsg = rmsg / real(3*domain%num_atom_all,dp)
+      end if
 
 #ifdef HAVE_MPI_GENESIS
       call mpi_allreduce(mpi_in_place, rmsg, 1, mpi_real8, mpi_sum, &
@@ -623,9 +642,15 @@ contains
       !
       if (minimize%nbupdate_period > 0) then
 
-        call domain_interaction_update(i, minimize%nbupdate_period, domain, &
-                                       enefunc, pairlist, boundary,         &
+        if (domain%fep_use) then
+          call domain_interaction_update_fep(i, minimize%nbupdate_period,     &
+                                       domain, enefunc, pairlist, boundary,   &
                                        constraints, comm)
+        else
+          call domain_interaction_update(i, minimize%nbupdate_period, domain, &
+                                         enefunc, pairlist, boundary,         &
+                                         constraints, comm)
+        end if
 
       end if
 

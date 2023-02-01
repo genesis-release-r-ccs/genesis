@@ -191,6 +191,48 @@ module sp_domain_str_mod
     real(wp),         allocatable :: charge_pio(:,:,:)
     real(wip),        allocatable :: mass_pio(:,:,:)
 
+    ! FEP
+    logical                       :: fep_use = .false. ! FEP flag
+    integer(iintegers)            :: num_atom_single_all
+    real(wp)                      :: lambljA   ! lambda for LJ of part A
+    real(wp)                      :: lambljB   ! lambda for LJ of part B
+    real(wp)                      :: lambelA   ! lambda for elec of part A
+    real(wp)                      :: lambelB   ! lambda for elec of part B
+    real(wp)                      :: lambbondA ! lambda for bond of single A
+    real(wp)                      :: lambbondB ! lambda for bond of single B
+    real(wp)                      :: lambrest  ! lambda for restraint
+    ! Array for correspondence of singleA and singleB atoms.
+    ! For the i-th atom in single-topology region, id_singleA(i) and id_singleB(i)
+    ! represent the original global indices of singleA and singleB in molecule, resepectively.
+    integer,          allocatable :: id_singleA(:)
+    integer,          allocatable :: id_singleB(:)
+    ! Temporary array for forces from restraints 
+    real(wp),         allocatable :: f_fep_omp(:,:,:,:)
+    ! fepgrp represents atom group in FEP calculation.
+    ! fepgrp has a value of 1, 2, 3, 4, or 5, which represents
+    ! singleA, singleB, dualA, dualB, and preserved, respectively.
+!#ifndef PGICUDA
+    integer,          allocatable :: fepgrp(:,:)
+!#else
+!    integer,   allocatable,pinned :: fepgrp(:,:)
+!#endif
+    ! Charges in perturbed region, which are required to save the original charges,
+    ! because the charges are scaled by lambda in FEP.
+    real(wp),         allocatable :: fep_chargeA(:,:)
+    real(wp),         allocatable :: fep_chargeB(:,:)
+    ! IDs of atom classes in singleB atoms, which are used to scale LJ parametesrs.
+    integer,          allocatable :: fep_atmcls_singleB(:,:)
+    ! Arrays for generic kernel for FEP
+    ! If the fugaku kernel is used, the order of translated or force_pbc is 
+    ! different from the array for FEP.
+    real(wp),         allocatable :: translated_fep(:,:,:)
+    real(wp),         allocatable :: force_pbc_fep(:,:,:,:)
+    !
+#ifndef PGICUDA
+    integer(1),       allocatable :: fepgrp_pbc(:)
+#else
+    integer(1),allocatable,pinned :: fepgrp_pbc(:)
+#endif
   end type s_domain
 
   ! Pairlist kernel constants
@@ -231,6 +273,10 @@ module sp_domain_str_mod
   integer,      public, parameter :: DomainUnivCellPairList = 13
   integer,      public, parameter :: DomainDynvar_pio       = 14
   integer,      public, parameter :: DomainDynvar_Atom_pio  = 15
+  integer,      public, parameter :: DomainFEP              = 17
+  integer,      public, parameter :: DomainPtlMove_FEP      = 18
+  integer,      public, parameter :: DomainWaterMove_FEP    = 19
+  integer,      public, parameter :: DomainAlchemyMove_FEP  = 20
 
   ! variables for maximum numbers in one cell
   integer,      public            :: MaxAtom                = 150
@@ -879,6 +925,113 @@ contains
       domain%water%move_real(1:6*var_size2,1:MaxWaterMove,1:var_size) = 0.0_wip
       domain%water%stay_real(1:6*var_size2,1:MaxWater,1:var_size1)    = 0.0_wip
 
+    case (DomainFEP)
+
+      if (allocated(domain%fepgrp)) then
+        if (size(domain%fepgrp(1,:)) /= var_size) then
+#ifdef USE_GPU
+          call unset_pinned_memory(domain%fepgrp_pbc)
+#endif
+          deallocate(domain%fepgrp,   &
+                     domain%f_fep_omp,          &
+                     domain%fep_chargeA,         &
+                     domain%fep_chargeB,         &
+                     domain%fep_atmcls_singleB,  &
+                     domain%translated_fep,     &
+                     domain%force_pbc_fep,      &
+                     stat = dealloc_stat)
+        end if
+      end if
+
+      if (.not. allocated(domain%fepgrp))    then
+        allocate(domain%fepgrp(MaxAtom, var_size),   &
+                 domain%f_fep_omp(3, MaxAtom, var_size, nthread), &
+                 domain%fep_chargeA       (MaxAtom, var_size),  &
+                 domain%fep_chargeB       (MaxAtom, var_size),  &
+                 domain%fep_atmcls_singleB(MaxAtom, var_size),  &
+                 domain%translated_fep(MaxAtom, 3, var_size),  &
+                 domain%force_pbc_fep (MaxAtom, 3, var_size, nthread), &
+                 stat = alloc_stat)
+        if (domain%nonbond_kernel == NBK_GPU) then
+          allocate(domain%fepgrp_pbc(MaxAtom*var_size),      &
+                   stat = alloc_stat)
+        else
+          allocate(domain%fepgrp_pbc(1),      &
+                   stat = alloc_stat)
+        end if
+#ifdef USE_GPU
+        call set_pinned_memory(domain%fepgrp_pbc, MaxAtom*var_size)
+#endif
+      end if
+
+      domain%fepgrp            (1:MaxAtom, 1:var_size)   = 5
+      domain%f_fep_omp(1:3, 1:MaxAtom, 1:var_size, 1:nthread) = 0.0_wp
+      domain%fep_chargeA       (1:MaxAtom, 1:var_size)   = 0.0_wp
+      domain%fep_chargeB       (1:MaxAtom, 1:var_size)   = 0.0_wp
+      domain%fep_atmcls_singleB(1:MaxAtom, 1:var_size)   = 0
+      domain%translated_fep(1:MaxAtom, 1:3, 1:var_size)   = 0.0_wp
+      domain%force_pbc_fep (1:MaxAtom, 1:3, 1:var_size, 1:nthread) = 0.0_wp
+      if (domain%nonbond_kernel == NBK_GPU) then
+        domain%fepgrp_pbc   (1:MaxAtom*var_size) = 0
+      else
+        domain%fepgrp_pbc   (1) = 0
+      end if
+
+    case (DomainPtlMove_FEP) 
+
+      if (allocated(domain%buf_real)) then
+        if (size(domain%buf_real(1,1,:)) /= var_size) &
+          deallocate(domain%buf_real,       &
+                     domain%buf_integer,    &
+                     domain%ptl_add,        &
+                     domain%ptl_exit,       &
+                     domain%ptl_exit_index, &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(domain%buf_real)) &
+        allocate(domain%buf_real      (10, MaxMove, var_size), &
+                 domain%buf_integer   (9, MaxMove, var_size), &
+                 domain%ptl_add       (var_size),             &
+                 domain%ptl_exit      (var_size1),            &
+                 domain%ptl_exit_index(MaxMove, var_size1),   &
+                 stat = alloc_stat)
+
+      domain%buf_real      (1:10, 1:MaxMove, 1:var_size) = 0.0_wip
+      domain%buf_integer   (1:9, 1:MaxMove, 1:var_size) = 0
+      domain%ptl_add       (1:var_size)                 = 0
+      domain%ptl_exit      (1:var_size1)                = 0
+      domain%ptl_exit_index(1:MaxMove, 1:var_size1)     = 0
+
+    case (DomainWaterMove_FEP)
+
+      if (allocated(domain%water%move)) then
+        if (size(domain%water%move(:)) /= var_size) &
+          deallocate(domain%water%move,         &
+                     domain%water%stay,         &
+                     domain%water%move_integer, &
+                     domain%water%stay_integer, &
+                     domain%water%move_real,    &
+                     domain%water%stay_real,    &
+                     stat = dealloc_stat )
+      end if
+
+      if (.not. allocated(domain%water%move)) &
+        allocate(domain%water%move        (var_size),                          &
+                 domain%water%stay        (var_size1),                         &
+                 domain%water%move_integer(2*var_size2, MaxWaterMove, var_size), &
+                 domain%water%stay_integer(2*var_size2, MaxWater, var_size1),    &
+                 domain%water%move_real (6*var_size2, MaxWaterMove, var_size), &
+                 domain%water%stay_real   (6*var_size2, MaxWater, var_size1),  &
+                 stat = alloc_stat)
+
+      domain%water%move        (1:var_size)                       = 0
+      domain%water%stay        (1:var_size1)                      = 0
+      domain%water%move_integer(1:2*var_size2, 1:MaxWaterMove, 1:var_size)  = 0
+      domain%water%stay_integer(1:2*var_size2, 1:MaxWater, 1:var_size1)     = 0
+      domain%water%move_real(1:6*var_size2,1:MaxWaterMove,1:var_size) = 0.0_wip
+      domain%water%stay_real(1:6*var_size2,1:MaxWater,1:var_size1)    = 0.0_wip
+
     case default
 
       call error_msg('Alloc_Domain> bad variable')
@@ -1136,6 +1289,24 @@ contains
                    stat = dealloc_stat )
       end if
 
+    case (DomainFEP)
+
+      if (allocated(domain%coord)) then
+#ifdef USE_GPU
+        call unset_pinned_memory(domain%fepgrp)
+#endif
+        deallocate(domain%fepgrp,                  &
+                   domain%id_singleA,              &
+                   domain%id_singleB,              &
+                   domain%f_fep_omp,               &
+                   domain%fep_chargeA,             &
+                   domain%fep_chargeB,             &
+                   domain%fep_atmcls_singleB,      &
+                   domain%translated_fep,          &
+                   domain%force_pbc_fep,           &
+                   stat = dealloc_stat)
+      end if
+
     case default
 
       call error_msg('Dealloc_Domain> bad variable')
@@ -1175,6 +1346,7 @@ contains
     call dealloc_domain(domain, DomainGlobal)
     call dealloc_domain(domain, DomainPtlMove)
     call dealloc_domain(domain, DomainWaterMove)
+    call dealloc_domain(domain, DomainFEP)
 
     return
 

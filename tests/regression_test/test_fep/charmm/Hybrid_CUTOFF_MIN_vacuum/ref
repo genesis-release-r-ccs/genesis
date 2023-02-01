@@ -1,0 +1,432 @@
+****************************************************
+*                                                  *
+*                  GENESIS SPDYN                   *
+*                                                  *
+*        A Molecular Dynamics Simulator with       *
+*           Spatial Decomposition Scheme           *
+*                                                  *
+*               Developed by RIKEN                 *
+*                                                  *
+****************************************************
+ 
+[STEP0] Architecture and Compiler Information
+ 
+GENESIS_Information> GENESIS Information
+  version      = 2.0.0
+  commit ID    = $GENESIS_VERSION$
+  precision    = double
+  nonbonding   = CPU
+
+Build_Information> Compiler Information
+  build host   = oshima@goby
+  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  option       =  -O0 -g -traceback -CB -assume byterecl -qopenmp  
+  C            = icc (ICC) 19.0.5.281 20190815
+  option       = -O0 -g -traceback -CB -qopenmp 
+  defined var. = 
+  -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DDEBUG 
+ -DDEBUG -DINTEL
+  link option  = 
+  -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
+ core -lmkl_lapack95_lp64   
+  MPI Compiler = Open MPI
+
+Runtime_Information> Machine and Library Information
+  date       = 2023/02/01 16:06:41
+  cpu model    = Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
+  exec. host   = oshima@goby22
+  LD library   = 
+ /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
+ intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
+ linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_librar
+ ies_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compile
+ rs_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel
+ /compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+ MPI Runtime = 
+ Open MPI v4.0.2, package: Open MPI mdsoft@goby Distribution, ident: 4.0.2, repo
+  rev: v4.0.2, Oct 07, 2019
+
+[STEP1] Read Control Parameters
+ 
+Read_Ctrl_Input> Input Files
+  topfile = top, top2
+  parfile = par, par2
+  strfile = str, str2
+  psffile = psf
+  pdbfile = pdb
+ 
+Read_Ctrl_Output> Output Files
+ 
+Read_Ctrl_ALCHEMY> Alchemy information
+  fep_direction  = Bothsides
+  fep_topology  = Hybrid
+  fep_md_type  = Serial  
+  singleA group = 1
+  singleB group = 2
+  dualA group = 3
+  dualB group = 4
+  fepout_period =          0
+  equilsteps     =          0
+  sc_alpha       =  5.00
+  sc_beta        =  0.50
+  lambljA  = 1.0
+  lambljB  = 1.0
+  lambelA  = 1.0
+  lambelB  = 0.0
+  lambbondA  = 1.0
+  lambbondB  = 0.0
+  lambrest = 1.0
+
+Read_Ctrl_Energy> Parameters of Energy Calculations
+  forcefield      =          CHARMM
+  switchdist      =         300.000
+  cutoffdist      =         300.000
+  pairlistdist    =         305.000
+  dielec_const    =           1.000
+  VDW type        =          CUTOFF
+  electrostatic   =          CUTOFF
+  output_style    =         GENESIS
+  dispersion_corr =            none
+  nonb_limiter    =              no
+  contact_check   =              no
+  efield_x        =           0.000
+  efield_y        =           0.000
+  efield_z        =           0.000
+  efield_normal   =              no
+  efield_virial   =              no
+  vacuum          =             yes
+ 
+Read_Ctrl_Minimize> Parameters of MIN
+  method          =         SD  nsteps          =         50
+  eneout_period   =          5  crdout_period   =          0
+  rstout_period   =          0  nbupdate_period =         10
+  force_scale_init=      0.000  force_scale_max =      0.000
+  verbose         =         no
+  check_structure            =        yes  fix_ring_error             =         no
+  fix_chirality_error        =         no
+ 
+Read_Ctrl_Constraints> Parameters for Constraints
+  rigid_bond      =         no
+ 
+Read_Ctrl_Boundary> Parameters of Boundary Condition
+  type            =        PBC
+  box_size(x,y,z) =    922.000   922.000   922.000
+ 
+Read_Ctrl_Selection> Parameters of Selection
+  # of groups     =          4
+    group 1 = segid:SB3 and (ai:1-27 or ai:34-63)
+    group 2 = segid:SBX and (ai:69-95 or ai:102-131)
+    group 3 = segid:SB3 and (ai:28-33 or ai:64-68)
+    group 4 = segid:SBX and (ai:96-101 or ai:132-142)
+  # of mole names =          0
+ 
+Read_Ctrl_Restraints> No restraint in the system
+
+Read_Ctrl_Fitting_MD> Parameters of Fitting
+  fitting method  =  TR+ROT   
+  fitting atom    = group1
+  mass_weight     =         no
+ 
+[STEP2] Setup MPI
+ 
+Setup_Mpi_Md> Summary of Setup MPI
+  number of MPI processes   =          8
+  number of OpenMP threads  =          4
+  total number of CPU cores =         32
+
+[STEP3] Set Relevant Variables and Structures
+ 
+Read_Top> Summary of Topfile
+  num_atom_class  =         53  num_resi_type   =         50
+ 
+Read_Top> Summary of Topfile
+  num_atom_class  =        156  num_resi_type   =        586
+ 
+Input_Top> Summary of Topfile
+  num_atom_class  =        209  num_resi_type   =        636
+ 
+Read_Par> Summary of Parfile
+  num_bonds       =        132  num_angles      =        364
+  num_dihedrals   =        706  num_impropers   =         35
+  num_atom_cls    =         53  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+Read_Par> Summary of Parfile
+  num_bonds       =        492  num_angles      =       1517
+  num_dihedrals   =       3796  num_impropers   =        122
+  num_atom_cls    =        156  num_nbfix       =          0
+  num_cmap_terms  =          0
+ 
+Input_Par> Summary of Parfile
+  num_bonds       =        624  num_angles      =       1881
+  num_dihedrals   =       4502  num_impropers   =        157
+  num_atom_cls    =        209  num_nbfix       =          0
+  num_cmap_terms  =          6
+ 
+Read_Top> Summary of Topfile
+  num_atom_class  =         15  num_resi_type   =         14
+ 
+Read_Par> Summary of Parfile
+  num_bonds       =          3  num_angles      =          1
+  num_dihedrals   =          0  num_impropers   =          0
+  num_atom_cls    =         15  num_nbfix       =          2
+  num_cmap_terms  =          0
+ 
+Read_Par> Summary of Parfile
+  num_bonds       =          0  num_angles      =          0
+  num_dihedrals   =          0  num_impropers   =          0
+  num_atom_cls    =          0  num_nbfix       =          9
+  num_cmap_terms  =          0
+ 
+Read_Top> Summary of Topfile
+  num_atom_class  =          0  num_resi_type   =          2
+ 
+Read_Par> Summary of Parfile
+  num_bonds       =          4  num_angles      =         17
+  num_dihedrals   =         54  num_impropers   =          2
+  num_atom_cls    =          0  num_nbfix       =          0
+  num_cmap_terms  =          0
+ 
+Input_Str> Summary of Top information
+  num_atom_class  =        224  num_resi_type   =        652
+ 
+Input_Str> Summary of Par information
+  num_bonds       =        631  num_angles      =       1899
+  num_dihedrals   =       4556  num_impropers   =        159
+  num_atom_cls    =        224  num_nbfix       =         11
+  num_cmap_terms  =          6
+ 
+Read_Psf> Summary of Psffile
+  psftype         =      xplor
+  num_atoms       =        142  num_bonds       =        146
+  num_angles      =        272  num_dihedrals   =        407
+  num_impropers   =          6  num_cmap_terms  =          0
+  num_HB_donors   =          0  num_HB_acceptors=          0
+  num_NB_exclusion=          0  num_groups      =          1
+  total_charge    =     -0.000
+ 
+Read_Pdb> Summary of Data in PDB file
+  num_atoms       =        142
+ 
+Define_Molecule> Summary of molecules
+  num_atoms       =        142  num_bonds       =        146
+  num_angles      =        272  num_dihedrals   =        407
+  num_impropers   =          6  num_cmap_terms  =          0
+  num_residues    =          2  num_molecules   =          2
+  num_segments    =          2  num_deg_freedom =        426
+  total_charge    =     -0.000
+ 
+Define_FEP_Topology> Hybrid topology is assigned for FEP.
+ 
+Delete Bonds> Summary of delete bond lists
+Delete          0 bonds
+
+ 
+Delete Angles> Summary of delete angle lists
+Delete          0 angles
+
+ 
+Delete Dihedrals> Summary of delete dihedral lists
+Delete          0 dihedrals
+
+ 
+Delete Impropers> Summary of delete improper lists
+Delete          0 impropers
+
+ 
+Delete Cmaps> Summary of delete cmap lists
+Delete          0 cmaps
+
+ 
+Define_FEP_Topology> Summary of molecules for FEP
+  num_atoms_singleA              57  num_atoms_singleB              57
+  num_atoms_dualA                11  num_atoms_dualB                17
+  num_atoms_preserve              0
+  num_bonds_singleA              58  num_bonds_singleB              58
+  num_bonds_dualA                12  num_bonds_dualB                18
+  num_bonds_preserve              0
+  num_angles_singleA            106  num_angles_singleB            106
+  num_angles_dualA               21  num_angles_dualB               39
+  num_angles_preserve             0
+  num_dihedrals_singleA         153  num_dihedrals_singleB         153
+  num_dihedrals_dualA            34  num_dihedrals_dualB            67
+  num_dihedrals_preserve          0
+  num_impropers_singleA           3  num_impropers_singleB           3
+  num_impropers_dualA             0  num_impropers_dualB             0
+  num_impropers_preserve          0
+  num_cmaps_singleA               0  num_cmaps_singleB               0
+  num_cmaps_dualA                 0  num_cmaps_dualB                 0
+  num_cmaps_preserve              0
+  num_residues                    2  num_molecules                   2
+  num_segments                    2  num_deg_freedom               426
+  total_charge               -0.000
+ 
+Setup_Structure_Check> Setup for checking the ring size and chirality errors of proteins and DNA/RNA
+  num_ring_grps   =          0  num_chiral_grps =          0
+ 
+Debuging > cutoff   307.00000000
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell_[x,y,z]       6       6       6
+Setup_Boundary_Cell> Set Variables for Boundary Condition
+  domains (x,y,z) =          2         2         2
+  ncells (x,y,z)  =          6         6         6
+ 
+Select_kernel> 
+  Pairlist        = GENERIC     
+  Nonbond         = GENERIC     
+
+ Cell volume                      :    3628599.29629630     
+ 
+ sp_domain_str     ::MaxAtom      :          142
+ sp_domain_str     ::MaxWater     :          142
+ sp_domain_str     ::MaxMove      :          142
+ sp_domain_str     ::MaxWaterMove :          142
+ 
+ sp_enefunc_str    ::MaxBond      :          146
+ sp_enefunc_str    ::MaxAngle     :          272
+ sp_enefunc_str    ::MaxDihe      :         4070
+ sp_enefunc_str    ::MaxImpr      :            6
+ sp_enefunc_str    ::MaxCmap      :            0
+ sp_enefunc_str    ::BondMove     :          146
+ sp_enefunc_str    ::AngleMove    :          272
+ sp_enefunc_str    ::DiheMove     :         4070
+ sp_enefunc_str    ::ImprMove     :            6
+ sp_enefunc_str    ::CmapMove     :            0
+ 
+ sp_enefunc_str    ::MaxNb15      :        20164
+ sp_enefunc_str    ::MaxNb15_fep  :        16188
+ sp_enefunc_str    ::MaxNb15Water :         2016
+ 
+ sp_constraints_str::HGroupMax    :          142
+ sp_constraints_str::HGrpMaxMove  :          142
+ 
+ 
+ sp_domain_str     ::MaxAtom      :          142
+ sp_domain_str     ::MaxWater     :          142
+ sp_domain_str     ::MaxMove      :          142
+ sp_domain_str     ::MaxWaterMove :          142
+ 
+ sp_enefunc_str    ::MaxNb15      :        20164
+ sp_enefunc_str    ::MaxNb15Water :         2016
+ 
+ sp_constraints_str::HGroupMax    :          142
+ sp_constraints_str::HGrpMaxMove  :          142
+ 
+Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
+
+Define_Enefunc_Charmm> Number of Interactions in Each Term
+  bond_ene        =        146  angle_ene       =        272
+  torsion_ene     =        473  improper_ene    =          6
+  cmap_ene        =          0
+  nb_exclusions   =        254  nb14_calc       =        147
+  nb14_calc_fep   =         95
+ 
+Setup_Fitting_Spdyn> NO fitting is applied, skip
+  fitting method  =  NO
+ 
+Update_Num_Deg_Freedom> Number of degrees of freedom was updated
+  num_deg_freedom =        255 (After removing degrees of freedom of singleB in FEP)
+ 
+Setup_Alchemy_Min> Alchemy information
+  sc_alpha       =    5.00000
+  sc_beta        =    0.50000
+  lambljA  =    1.00000
+  lambljB  =    1.00000
+  lambelA  =    1.00000
+  lambelB  =    0.00000
+  lambbondA  =    1.00000
+  lambbondB  =    0.00000
+  lambrest =    1.00000
+  fep_direction  = NONE     
+
+[STEP4] Compute Single Point Energy for Molecules
+ 
+            STEP            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER         VDWAALS           ELECT
+ --------------- --------------- --------------- --------------- ---------------
+               0        228.6070         77.0496         96.5741         56.0390          0.5555        498.0632        100.4419
+
+[STEP5] Perform FEP Energy Minimization
+ 
+INFO:       STEP   POTENTIAL_ENE            RMSG            BOND           ANGLE    UREY-BRADLEY        DIHEDRAL        IMPROPER         VDWAALS           ELECT
+ --------------- --------------- --------------- --------------- ---------------
+INFO:          0       1057.3304        278.7402        228.6070         77.0496         96.5741         56.0390          0.5555        498.0632        100.4419
+
+INFO:          5       1032.2118        256.3839        228.2031         76.9513         96.4442         56.0492          0.5546        473.5677        100.4417
+
+INFO:         10       1001.2893        229.2612        227.6020         76.8176         96.2592         56.0629          0.5532        443.5530        100.4413
+
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell, nb      27      98
+INFO:         15        973.6101        205.4393        226.9333         76.6832         96.0627         56.0766          0.5517        416.8616        100.4409
+
+INFO:         20        948.7789        184.5244        226.1916         76.5476         95.8537         56.0902          0.5499        393.1053        100.4405
+
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell, nb      27      98
+INFO:         25        926.4476        166.1736        225.3716         76.4104         95.6311         56.1037          0.5480        371.9426        100.4401
+
+INFO:         30        906.3086        150.0874        224.4681         76.2713         95.3938         56.1170          0.5459        353.0728        100.4397
+
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell, nb      27      98
+INFO:         35        888.0904        136.0035        223.4765         76.1299         95.1409         56.1302          0.5435        336.2301        100.4393
+
+INFO:         40        871.5526        123.6905        222.3930         75.9858         94.8713         56.1432          0.5409        321.1795        100.4389
+
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell, nb      27      98
+INFO:         45        856.4829        112.9436        221.2147         75.8390         94.5845         56.1559          0.5380        307.7124        100.4384
+
+INFO:         50        842.6934        103.5802        219.9397         75.6891         94.2799         56.1684          0.5348        295.6436        100.4380
+
+Debuging > bsize_[x,y,z]   922.00000000   922.00000000   922.00000000
+Debuging > ncell, nb      27      98
+Check_Ring_Structure> Check ring structure
+ 
+  No suspicious residue was detected.
+ 
+Check_Chirality> Check chirality
+ 
+  No suspicious residue was detected.
+ 
+ 
+[STEP6] Deallocate Arrays
+ 
+Output_Time> Averaged timer profile (Min, Max)
+  total time      =       1.635
+    setup         =       1.443
+    dynamics      =       0.192
+      energy      =       0.058
+      integrator  =       0.000
+      pairlist    =       0.001 (       0.000,       0.001)
+  energy           
+    bond          =       0.001 (       0.000,       0.001)
+    angle         =       0.002 (       0.000,       0.004)
+    dihedral      =       0.006 (       0.001,       0.009)
+    base stacking =       0.000 (       0.000,       0.000)
+    nonbond       =       0.011 (       0.004,       0.022)
+      CG exv      =       0.000 (       0.000,       0.000)
+      CG DNA bp   =       0.000 (       0.000,       0.000)
+      CG DNA exv  =       0.000 (       0.000,       0.000)
+      CG ele      =       0.000 (       0.000,       0.000)
+      CG PWMcos   =       0.000 (       0.000,       0.000)
+      CG PWMcosns =       0.000 (       0.000,       0.000)
+      CG IDR-HPS  =       0.000 (       0.000,       0.000)
+      CG IDR-KH   =       0.000 (       0.000,       0.000)
+      CG KH       =       0.000 (       0.000,       0.000)
+      Contact     =       0.000 (       0.000,       0.000)
+      pme real    =       0.000 (       0.000,       0.000)
+      pme recip   =       0.000 (       0.000,       0.000)
+    solvation     =       0.000 (       0.000,       0.000)
+      polar       =       0.000 (       0.000,       0.000)
+      non-polar   =       0.000 (       0.000,       0.000)
+    restraint     =       0.000 (       0.000,       0.000)
+    qmmm          =       0.000 (       0.000,       0.000)
+    morph         =       0.000 (       0.000,       0.000)
+  integrator       
+    constraint    =       0.000 (       0.000,       0.000)
+    update        =       0.003 (       0.003,       0.004)
+    comm_coord    =       0.000 (       0.000,       0.000)
+    comm_force    =       0.000 (       0.000,       0.000)
+    comm_migrate  =       0.001 (       0.001,       0.002)
+

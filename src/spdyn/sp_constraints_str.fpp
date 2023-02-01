@@ -95,6 +95,7 @@ module sp_constraints_str_mod
   integer,      public, parameter :: ConstraintsHGroupMove     = 4
   integer,      public, parameter :: ConstraintsRing           = 5
   integer,      public, parameter :: ConstraintsDomainBond_pio = 6
+  integer,      public, parameter :: ConstraintsHGroupMove_FEP = 7
 
   ! parameters
   integer,      public, parameter :: ConstraintAtomName  = 1
@@ -343,6 +344,45 @@ contains
            (1:9*(var_size+1), 1:HGrpMaxMove, 1:var_size, 1:var_size1)  = 0.0_wip
       constraints%HGr_stay_real &
            (1:9*(var_size+1), 1:HGroupMax, 1:var_size, 1:var_size1)    = 0.0_wip
+
+    case (ConstraintsHGroupMove_FEP)
+
+      if (allocated(constraints%HGr_move)) then
+        if (size(constraints%HGr_move) /= var_size*var_size1) &
+          deallocate(constraints%HGr_move,      &
+                     constraints%HGr_stay,      &
+                     constraints%HGr_move_int,  &
+                     constraints%HGr_stay_int,  &
+                     constraints%HGr_move_real, &
+                     constraints%HGr_stay_real, &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(constraints%HGr_move)) &
+        allocate(constraints%HGr_move                                    &
+                      (var_size, var_size1),                             &
+                 constraints%HGr_stay                                    &
+                      (var_size, var_size1),                             &
+                 constraints%HGr_move_int                                &
+                      (5*(var_size+1), HGrpMaxMove, var_size, var_size1),&
+                 constraints%HGr_stay_int                                &
+                      (5*(var_size+1), HGroupMax, var_size, var_size1),  &
+                 constraints%HGr_move_real                               &
+                      (11*(var_size+1), HGrpMaxMove, var_size, var_size1),&
+                 constraints%HGr_stay_real                               &
+                      (11*(var_size+1), HGroupMax, var_size, var_size1),  &
+                 stat = alloc_stat)
+
+      constraints%HGr_move (1:var_size, 1:var_size1)                   = 0
+      constraints%HGr_stay (1:var_size, 1:var_size1)                   = 0
+      constraints%HGr_move_int  &
+           (1:5*(var_size+1), 1:HGrpMaxMove, 1:var_size, 1:var_size1)  = 0
+      constraints%HGr_stay_int  &
+           (1:5*(var_size+1), 1:HGroupMax, 1:var_size, 1:var_size1)    = 0
+      constraints%HGr_move_real &
+           (1:11*(var_size+1), 1:HGrpMaxMove, 1:var_size, 1:var_size1)  = 0.0_wip
+      constraints%HGr_stay_real &
+           (1:11*(var_size+1), 1:HGroupMax, 1:var_size, 1:var_size1)    = 0.0_wip
 
     case default
 

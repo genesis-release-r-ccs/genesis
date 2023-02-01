@@ -52,6 +52,8 @@ module sp_enefunc_charmm_mod
   private :: setup_enefunc_nonb
   public  :: count_nonb_excl
   public  :: check_pbc
+  ! FEP
+  public  :: count_nonb_excl_fep
 
 contains
 
@@ -59,7 +61,7 @@ contains
   !
   !  Subroutine    define_enefunc_charmm
   !> @brief        a driver subroutine for defining potential energy functions
-  !! @authors      YS, TI, JJ, CK
+  !! @authors      YS, TI, JJ, CK, HO
   !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    localres    : local restraint information
@@ -99,6 +101,11 @@ contains
     call alloc_enefunc(enefunc, EneFuncDihe, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncImpr, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_enefunc(enefunc, EneFuncBondCell_FEP, ncel, ncelb)
+      call alloc_enefunc(enefunc, EneFuncFEPBonded, ncel, ncel)
+    end if
 
     if (.not. constraints%rigid_bond) then
 
@@ -167,6 +174,10 @@ contains
       write(MsgOut,'(A20,I10,A20,I10)')                  &
            '  nb_exclusions   = ', enefunc%num_excl_all, &
            '  nb14_calc       = ', enefunc%num_nb14_all
+      if (domain%fep_use) then
+        write(MsgOut,'(A20,I10)')                        &
+           '  nb14_calc_fep   = ', enefunc%num_nb14_all_fep
+      end if
       write(MsgOut,'(A)') ' '
     end if
 
@@ -178,7 +189,7 @@ contains
   !
   !  Subroutine    setup_enefunc_bond
   !> @brief        define BOND term for each cell in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      YS, JJ, TM, HO
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -216,6 +227,10 @@ contains
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: bond_pbc(:,:)
 
+    ! FEP
+    integer                  :: nbond_fep, k, fg1, fg2
+    logical                  :: flag_singleB
+    integer,         pointer :: bond_singleB(:,:)
 
     mol_bond_list => molecule%bond_list
     mol_cls_name  => molecule%atom_cls_name
@@ -237,6 +252,11 @@ contains
     nbond         = molecule%num_bonds
     nbond_p       = par%num_bonds
 
+    ! FEP
+    if (domain%fep_use) then
+      bond_singleB => enefunc%bond_singleB
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = (dupl-1) * enefunc%table%num_all
@@ -253,6 +273,38 @@ contains
         if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
             ri1(1:3) .ne. 'SOL' .and. ri2(1:3) .ne. 'TIP' .and. &
             ri2(1:3) .ne. 'WAT' .and. ri2(1:3) .ne. 'SOL') then
+
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            fg1 = molecule%fepgrp(i1)
+            fg2 = molecule%fepgrp(i2)
+            if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+              ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+              cycle
+            else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+              ! FEP: If 2-2 or 2-5, flag is set to true.
+              flag_singleB = .true.
+            end if
+            ! FEP: If i1 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg1==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i1) then
+                  exit
+                end if
+              end do
+              i1 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i2 is singleB atom, its ID is replaced with singleA's ID.
+            if (fg2==2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  exit
+                end if
+              end do
+              i2 = molecule%id_singleA(k)
+            end if
+          end if
 
           ia  = i1 + ioffset
           ib  = i2 + ioffset
@@ -284,6 +336,13 @@ contains
                   dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
                   call check_pbc(box_size, dij, pbc_int)
                   bond_pbc(bond(icel_local),icel_local) = pbc_int
+
+                  if (domain%fep_use) then
+                    ! FEP: flag for singleB bond
+                    if (flag_singleB) &
+                      bond_singleB (bond(icel_local),icel_local) = 1
+                  end if
+
                   exit
   
                 end if
@@ -368,8 +427,21 @@ contains
 #endif
     enefunc%num_bond_all = enefunc%num_bond_all + wat_bonds*domain%num_duplicate
 
-    if (enefunc%num_bond_all /= nbond*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+    if (domain%fep_use) then
+
+      nbond_fep = 0
+      do i = 1, 5
+        nbond_fep = nbond_fep + molecule%num_bonds_fep(i)
+      end do
+      if (enefunc%num_bond_all /= nbond_fep*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+
+    else
+
+      if (enefunc%num_bond_all /= nbond*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+
+    end if
 
     return
 
@@ -379,7 +451,7 @@ contains
   !
   !  Subroutine    setup_enefunc_bond_constraint
   !> @brief        define BOND term between heavy atoms
-  !! @authors      JJ
+  !! @authors      JJ, HO
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -424,6 +496,10 @@ contains
     logical,             pointer :: mol_light_name(:), mol_light_mass(:)
     integer,             pointer :: bond_pbc(:,:)
 
+    ! FEP
+    integer                      :: l, nbond_fep, fg1, fg2
+    logical                      :: flag_singleB
+    integer,             pointer :: bond_singleB(:,:)
 
     mol_bond_list  => molecule%bond_list
     mol_no         => molecule%molecule_no
@@ -459,6 +535,11 @@ contains
     nbond_a        = 0
     nbond_c        = 0
 
+    ! FEP
+    if (domain%fep_use) then
+      bond_singleB => enefunc%bond_singleB
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = (dupl-1) * enefunc%table%num_all
@@ -490,6 +571,38 @@ contains
             cl2 = (cl2 .or. mi2) 
           end if
   
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            fg1 = molecule%fepgrp(i1)
+            fg2 = molecule%fepgrp(i2)
+            if (molecule%fepgrp_bond(fg1,fg2) == 0) then
+              ! FEP: If the bond are not set to any group of FEP, exclude this bond.
+              cycle
+            else if (molecule%fepgrp_bond(fg1,fg2) == 2) then
+              ! FEP: If 2-2 or 2-5, flag is set to true.
+              flag_singleB = .true.
+            end if
+            ! FEP: If i1 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+            if (fg1 == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i1) then
+                  exit
+                end if
+              end do
+              i1 = molecule%id_singleA(k)
+            end if
+            ! FEP: If i2 is singleB atom, its ID is replaced with the ID corresponding to singleA.
+            if (fg2 == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == i2) then
+                  exit
+                end if
+              end do
+              i2 = molecule%id_singleA(k)
+            end if
+          end if
+
           ia  = i1 + ioffset
           ib  = i2 + ioffset
   
@@ -523,6 +636,13 @@ contains
                     dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
                     call check_pbc(box_size, dij, pbc_int)
                     bond_pbc(bond(icel_local),icel_local) = pbc_int
+
+                    if (domain%fep_use) then
+                      ! FEP: flag for singleB bond
+                      if (flag_singleB) &
+                        bond_singleB (bond(icel_local),icel_local) = 1
+                    end if
+
                     exit
     
                   end if
@@ -538,7 +658,12 @@ contains
             end if
     
           else
-  
+
+            if (domain%fep_use) then
+              ! FEP: skip singleB atoms if the bond connects with hydrogen.
+              if (flag_singleB) cycle
+            end if
+   
             icel1 = id_g2l(1,ia)
             icel2 = id_g2l(1,ib)
   
@@ -633,11 +758,30 @@ contains
     constraints%num_bonds = nbond_c
 #endif
 
-    if (enefunc%num_bond_all /= (nbond*domain%num_duplicate   &
-                                   -constraints%num_bonds     &
-                                   -wat_bonds*domain%num_duplicate)) then
-      call error_msg( &
-        'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+    if (domain%fep_use) then
+
+      nbond_fep = 0
+      do i = 1, 5
+        nbond_fep = nbond_fep + molecule%num_bonds_fep(i)
+      end do
+!        if (enefunc%num_bond_all /= (nbond_fep*domain%num_duplicate &
+!                                    -2*constraints%num_bonds &
+!                                    -wat_bonds*domain%num_duplicate)) then
+!          call error_msg( &
+!            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+!        end if
+
+    else
+
+      if (enefunc%num_bond_all /= (nbond*domain%num_duplicate &
+                                     -constraints%num_bonds     &
+                                     -wat_bonds*domain%num_duplicate)) then
+        call error_msg( &
+          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+      end if
+
+
+
     end if
 
     return
@@ -648,7 +792,7 @@ contains
   !
   !  Subroutine    setup_enefunc_angl
   !> @brief        define ANGLE term for each cell in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      YS, JJ, TM, HO
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -686,6 +830,11 @@ contains
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
+    ! FEP
+    integer                  :: nangl_fep, k, fg(3)
+    logical                  :: flag_singleB
+    integer,         pointer :: angl_singleB(:,:)
+
 
     mol_angl_list => molecule%angl_list
     mol_cls_name  => molecule%atom_cls_name
@@ -709,6 +858,11 @@ contains
     nangl     = molecule%num_angles
     nangl_p   = par%num_angles
 
+    ! FEP
+    if (domain%fep_use) then
+      angl_singleB => enefunc%angl_singleB
+    end if
+
     do dupl = 1, domain%num_duplicate
 
       ioffset = (dupl-1)*enefunc%table%num_all
@@ -726,6 +880,32 @@ contains
         if (ri1(1:3) .ne. 'TIP' .and. ri1(1:3) .ne. 'WAT' .and. &
             ri1(1:3) .ne. 'SOL' .and. ri3(1:3) .ne. 'TIP' .and. &
             ri3(1:3) .ne. 'WAT' .and. ri3(1:3) .ne. 'SOL') then
+
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            do j = 1, 3
+              fg(j) = molecule%fepgrp(list(j))
+            end do
+            if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+              ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+              cycle
+            else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+              ! FEP: If 2-2 and 2-5
+              flag_singleB = .true.
+            end if
+            do j = 1, 3
+              ! FEP: If list(j) is singleB atom, its ID is replaced with the ID corresonding to singleA.
+              if (fg(j) == 2) then
+                do k = 1, molecule%num_atoms_fep(2)
+                  if (molecule%id_singleB(k) == list(j)) then
+                    exit
+                  end if
+                end do
+                list(j) = molecule%id_singleA(k)
+              end if
+            end do
+          end if
 
           lists(1:3) = list(1:3) + ioffset
 
@@ -769,6 +949,13 @@ contains
                   dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
                   call check_pbc(box_size, dij, pbc_int)
                   angl_pbc(3,angle(icel_local),icel_local) = pbc_int
+
+                  if (domain%fep_use) then
+                    ! FEP: flag for singleB angle
+                    if (flag_singleB) &
+                      angl_singleB (angle(icel_local),icel_local) = 1
+                  end if
+
                   exit
   
                 end if
@@ -830,8 +1017,21 @@ contains
     enefunc%num_angl_all = found
 #endif
 
-    if (enefunc%num_angl_all /= nangl*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Angl> Some angle paremeters are missing.')
+    if (domain%fep_use) then
+
+      nangl_fep = 0
+      do i = 1, 5
+        nangl_fep = nangl_fep + molecule%num_angles_fep(i)
+      end do
+      if (enefunc%num_angl_all /= nangl_fep*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Angl> Some angle paremeters are missing.')
+
+    else
+
+      if (enefunc%num_angl_all /= nangl*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Angl> Some angle paremeters are missing.')
+
+    end if
 
     return
 
@@ -842,7 +1042,7 @@ contains
   !  Subroutine    setup_enefunc_angl_constraint
   !> @brief        define ANGLE term for each cell in potential energy function
   !                with SETTLE constraint
-  !! @authors      JJ
+  !! @authors      JJ, HO
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -884,6 +1084,10 @@ contains
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
+    ! FEP
+    integer                  :: nangl_fep, k, fg(3)
+    logical                  :: flag_singleB
+    integer,         pointer :: angl_singleB(:,:)
 
     mol_angl_list  => molecule%angl_list
     mol_no         => molecule%molecule_no
@@ -910,6 +1114,11 @@ contains
     nangl_p   = par%num_angles
 
     nangl_per_water = 0
+
+    ! FEP
+    if (domain%fep_use) then
+      angl_singleB => enefunc%angl_singleB
+    end if
 
     if (num_water > 0) then
 
@@ -953,6 +1162,32 @@ contains
             ri2(1:4) /= constraints%water_model .and. &
             ri3(1:4) /= constraints%water_model) then
 
+          ! FEP
+          if (domain%fep_use) then
+            flag_singleB = .false.
+            do j = 1, 3
+              fg(j) = molecule%fepgrp(list(j))
+            end do
+            if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 0) then
+              ! FEP: If the angle are not set to any group of FEP, exclude this angle.
+              cycle
+            else if (molecule%fepgrp_angl(fg(1),fg(2),fg(3)) == 2) then
+              ! FEP: If 2-2 and 2-5
+              flag_singleB = .true.
+            end if
+            do j = 1, 3
+              ! FEP: If list(j) is singleB atom, its ID is replaced with singleA's ID.
+              if (fg(j) == 2) then
+                do k = 1, molecule%num_atoms_fep(2)
+                  if (molecule%id_singleB(k) == list(j)) then
+                    exit
+                  end if
+                end do
+                list(j) = molecule%id_singleA(k)
+              end if
+            end do
+          end if
+
           lists(1:3) = list(1:3) + ioffset
 
           icel1 = id_g2l(1,lists(1))
@@ -995,6 +1230,13 @@ contains
                   dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
                   call check_pbc(box_size, dij, pbc_int)
                   angl_pbc(3,angle(icel_local),icel_local) = pbc_int
+
+                  if (domain%fep_use) then
+                    ! FEP: flag for singleB angle
+                    if (flag_singleB) &
+                      angl_singleB (angle(icel_local),icel_local) = 1
+                  end if
+
                   exit
   
                 end if
@@ -1028,10 +1270,25 @@ contains
     enefunc%num_angl_all = found
 #endif
 
-    if (enefunc%num_angl_all /= &
-        domain%num_duplicate*(nangl - nangl_per_water*num_water)) &
-      call error_msg( &
+    if (domain%fep_use) then
+
+      nangl_fep = 0
+      do i = 1, 5
+        nangl_fep = nangl_fep + molecule%num_angles_fep(i)
+      end do
+      if (enefunc%num_angl_all /= &
+          domain%num_duplicate*(nangl_fep - nangl_per_water*num_water)) &
+        call error_msg( &
+        'Setup_Enefunc_Angl> Some angle paremeters are missing.')
+
+    else
+
+      if (enefunc%num_angl_all /= &
+          domain%num_duplicate*(nangl - nangl_per_water*num_water)) &
+        call error_msg( &
         'Setup_Enefunc_Angl_Constraint> Some angle paremeters are missing.')
+
+    end if
 
     return
 
@@ -1041,7 +1298,7 @@ contains
   !
   !  Subroutine    setup_enefunc_dihe
   !> @brief        define DIHEDRAL term in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      YS, JJ, TM, HO
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -1079,6 +1336,10 @@ contains
     character(6),     pointer :: mol_cls_name(:)
     integer,          pointer :: dihe_pbc(:,:,:)
 
+    ! FEP
+    integer                   :: ndihe_fep, k, fg(4)
+    logical                   :: flag_singleB
+    integer,          pointer :: dihe_singleB(:,:)
 
     mol_dihe_list  => molecule%dihe_list
     mol_cls_name   => molecule%atom_cls_name
@@ -1100,6 +1361,11 @@ contains
 
     ndihe     = molecule%num_dihedrals
     ndihe_p   = par%num_dihedrals
+
+    ! FEP
+    if (domain%fep_use) then
+      dihe_singleB => enefunc%dihe_singleB
+    end if
 
     ! check usage of wild card
     !
@@ -1131,6 +1397,32 @@ contains
         ci2 = mol_cls_name(list(2))
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral are not set to any group of FEP, exclude this dihedral.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: 2-2 and 2-5
+            flag_singleB = .true.
+          end if
+          do j = 1, 4
+            ! FEP: If list(j) is singleB atom, its ID is replaced with singleA's ID.
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == list(j)) then
+                  exit
+                end if
+              end do
+              list(j) = molecule%id_singleA(k)
+            end if
+          end do
+        end if
 
         lists(1:4) = list(1:4) + ioffset
 
@@ -1179,7 +1471,13 @@ contains
                   dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
                   call check_pbc(box_size, dij, pbc_int)
                   dihe_pbc(3,dihedral(icel_local),icel_local) = pbc_int
- 
+
+                  if (domain%fep_use) then
+                    ! FEP: flag for singleB dihedral
+                    if (flag_singleB) &
+                      dihe_singleB (dihedral(icel_local),icel_local) = 1
+                  end if
+  
                   if (period(dihedral(icel_local),icel_local) >  &
                   enefunc%notation_14types) &
                   call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
@@ -1219,6 +1517,12 @@ contains
                     call check_pbc(box_size, dij, pbc_int)
                     dihe_pbc(3,dihedral(icel_local),icel_local) = pbc_int
 
+                    if (domain%fep_use) then
+                      ! FEP: flag for singleB dihedral
+                      if (flag_singleB) &
+                        dihe_singleB (dihedral(icel_local),icel_local) = 1
+                    end if
+ 
                     if (period(dihedral(icel_local),icel_local) >  &
                     enefunc%notation_14types) &
                     call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
@@ -1252,9 +1556,23 @@ contains
     enefunc%num_dihe_all = found
 #endif
 
-    if (enefunc%num_dihe_all < ndihe*domain%num_duplicate) &
-      call error_msg( &
-         'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+    if (domain%fep_use) then
+
+      ndihe_fep = 0
+      do i = 1, 5
+        ndihe_fep = ndihe_fep + molecule%num_dihedrals_fep(i)
+      end do
+      if (enefunc%num_dihe_all < ndihe_fep*domain%num_duplicate) &
+        call error_msg( &
+           'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+
+    else
+
+      if (enefunc%num_dihe_all < ndihe*domain%num_duplicate) &
+        call error_msg( &
+           'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+
+    end if
 
     return
 
@@ -1264,7 +1582,7 @@ contains
   !
   !  Subroutine    setup_enefunc_impr
   !> @brief        define IMPROPER term in potential energy function
-  !! @authors      YS,JJ
+  !! @authors      YS,JJ,HO
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -1302,6 +1620,10 @@ contains
     character(6),     pointer :: mol_cls_name(:)
     integer,          pointer :: impr_pbc(:,:,:)
 
+    ! FEP
+    integer                   :: nimpr_fep, k, fg(4)
+    logical                   :: flag_singleB
+    integer,          pointer :: impr_singleB(:,:)
 
     mol_impr_list  => molecule%impr_list
     mol_cls_name   => molecule%atom_cls_name
@@ -1320,6 +1642,11 @@ contains
 
     nimpr     = molecule%num_impropers
     nimpr_p   = par%num_impropers
+
+    ! FEP
+    if (domain%fep_use) then
+      impr_singleB => enefunc%impr_singleB
+    end if
 
     ! check usage of wild card
     !
@@ -1382,6 +1709,32 @@ contains
         ci3 = mol_cls_name(list(3))
         ci4 = mol_cls_name(list(4))
 
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          do j = 1, 4
+            fg(j) = molecule%fepgrp(list(j))
+          end do
+          if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 0) then
+            ! FEP: If the dihedral are not set to any group of FEP, exclude this dihedral.
+            cycle
+          else if (molecule%fepgrp_dihe(fg(1),fg(2),fg(3),fg(4)) == 2) then
+            ! FEP: 2-2 and 2-5
+            flag_singleB = .true.
+          end if
+          do j = 1, 4
+            ! FEP: If list(j) is singleB atom, its ID is replaced with singleA's ID.
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == list(j)) then
+                  exit
+                end if
+              end do
+              list(j) = molecule%id_singleA(k)
+            end if
+          end do
+        end if
+
         lists(1:4) = list(1:4) + ioffset
 
         icel1 = id_g2l(1,lists(1))
@@ -1428,6 +1781,12 @@ contains
                   call check_pbc(box_size, dij, pbc_int)
                   impr_pbc(3,improper(icel_local),icel_local) = pbc_int
 
+                  if (domain%fep_use) then
+                    ! FEP: flag for singleB improper
+                    if (flag_singleB) &
+                      impr_singleB (improper(icel_local),icel_local) = 1
+                  end if
+
                   exit
   
                 end if
@@ -1468,6 +1827,12 @@ contains
                     call check_pbc(box_size, dij, pbc_int)
                     impr_pbc(3,improper(icel_local),icel_local) = pbc_int
 
+                    if (domain%fep_use) then
+                      ! FEP: flag for singleB improper
+                      if (flag_singleB) &
+                        impr_singleB (improper(icel_local),icel_local) = 1
+                    end if
+
                     exit
   
                   end if
@@ -1506,6 +1871,12 @@ contains
                     dij(1:3) = cwork(1:3,4) - cwork(1:3,3)
                     call check_pbc(box_size, dij, pbc_int)
                     impr_pbc(3,improper(icel_local),icel_local) = pbc_int
+
+                    if (domain%fep_use) then
+                      ! FEP: flag for singleB improper
+                      if (flag_singleB) &
+                        impr_singleB (improper(icel_local),icel_local) = 1
+                    end if
 
                     exit
   
@@ -1546,6 +1917,12 @@ contains
                     call check_pbc(box_size, dij, pbc_int)
                     impr_pbc(3,improper(icel_local),icel_local) = pbc_int
 
+                    if (domain%fep_use) then
+                      ! FEP: flag for singleB improper
+                      if (flag_singleB) &
+                        impr_singleB (improper(icel_local),icel_local) = 1
+                    end if
+
                     exit
   
                   end if
@@ -1581,9 +1958,23 @@ contains
     enefunc%num_impr_all = found
 #endif
 
-    if (enefunc%num_impr_all < nimpr*domain%num_duplicate) &
-      call error_msg( &
-        'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+    if (domain%fep_use) then
+
+      nimpr_fep = 0
+      do i = 1, 5
+        nimpr_fep = nimpr_fep + molecule%num_impropers_fep(i)
+      end do
+      if (enefunc%num_impr_all < nimpr_fep*domain%num_duplicate) &
+        call error_msg( &
+          'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+
+    else
+
+      if (enefunc%num_impr_all < nimpr*domain%num_duplicate) &
+        call error_msg( &
+          'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+
+    end if
 
     return
 
@@ -1593,7 +1984,7 @@ contains
   !
   !  Subroutine    setup_enefunc_cmap
   !> @brief        define cmap term in potential energy function with DD
-  !! @authors      TY, TM
+  !! @authors      TY, TM, HO
   !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
@@ -1643,6 +2034,9 @@ contains
 
     real(wp),    allocatable :: c_ij(:,:,:,:) ! cmap coeffs
 
+    ! FEP
+    integer                  :: ncmap_fep, idx, fg(8)
+    logical                  :: flag_singleB
 
     mol_cmap_list => molecule%cmap_list
     mol_cls_name  => molecule%atom_cls_name
@@ -1712,6 +2106,46 @@ contains
       do i = 1, molecule%num_cmaps
 
         list(1:8) = mol_cmap_list(1:8,i) 
+
+        ! ci* will be atom-type strings
+        !
+        ci1 = mol_cls_name(list(1))
+        ci2 = mol_cls_name(list(2))
+        ci3 = mol_cls_name(list(3))
+        ci4 = mol_cls_name(list(4))
+        ci5 = mol_cls_name(list(5))
+        ci6 = mol_cls_name(list(6))
+        ci7 = mol_cls_name(list(7))
+        ci8 = mol_cls_name(list(8))
+
+        ! FEP
+        if (domain%fep_use) then
+          flag_singleB = .false.
+          do j = 1, 8
+            fg(j) = molecule%fepgrp(list(j))
+          end do
+          idx = fg(1) + 5*(fg(2)-1 + 5*(fg(3)-1 + 5*(fg(4)-1 + &
+            5*(fg(5)-1 + 5*(fg(6)-1 + 5*(fg(7)-1 + 5*(fg(8)-1)))))))
+          if (molecule%fepgrp_cmap(idx) == 0) then
+            ! FEP: If the cmap are not set to any group of FEP, exclude this cmap.
+            cycle
+          else if (molecule%fepgrp_cmap(idx) == 2) then
+            ! FEP: 2-2 and 2-5
+            flag_singleB = .true.
+          end if
+          do j = 1, 8
+            ! FEP: If list(j) is singleB atom, its ID is replaced with singleA's ID.
+            if (fg(j) == 2) then
+              do k = 1, molecule%num_atoms_fep(2)
+                if (molecule%id_singleB(k) == list(j)) then
+                  exit
+                end if
+              end do
+              list(j) = molecule%id_singleA(k)
+            end if
+          end do
+        end if
+
         lists(1:8) = list(1:8)+ioffset
 
         icel1 = id_g2l(1,lists(1))
@@ -1723,16 +2157,6 @@ contains
 
           if (icel_local >= 1 .and. icel_local <= ncel) then
 
-            ! ci* will be atom-type strings
-            !
-            ci1 = mol_cls_name(list(1))
-            ci2 = mol_cls_name(list(2))
-            ci3 = mol_cls_name(list(3))
-            ci4 = mol_cls_name(list(4))
-            ci5 = mol_cls_name(list(5))
-            ci6 = mol_cls_name(list(6))
-            ci7 = mol_cls_name(list(7))
-            ci8 = mol_cls_name(list(8))
             flag_cmap_type = -1
   
             ! assign cmap type ID to each (psi,phi) pair
@@ -1778,6 +2202,12 @@ contains
                 dij(1:3) = cwork(1:3,8) - cwork(1:3,7)
                 call check_pbc(box_size, dij, pbc_int)
                 enefunc%cmap_pbc(6,k,icel_local) = pbc_int
+
+                if (domain%fep_use) then
+                  ! FEP: flag for singleB cmap
+                  if (flag_singleB) &
+                   enefunc%cmap_singleB(k,icel_local) = 1
+                end if
 
                 exit
   
@@ -1835,8 +2265,21 @@ contains
     enefunc%num_cmap_all = found
 #endif
 
-    if (enefunc%num_cmap_all /=  molecule%num_cmaps*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+    if (domain%fep_use) then
+
+      ncmap_fep = 0
+      do i = 1, 5
+        ncmap_fep = ncmap_fep + molecule%num_cmaps_fep(i)
+      end do
+      if (enefunc%num_cmap_all /= ncmap_fep*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+
+    else
+
+      if (enefunc%num_cmap_all /=  molecule%num_cmaps*domain%num_duplicate) &
+        call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+
+    end if
 
     return
 
@@ -2053,6 +2496,17 @@ contains
 
     end if
 
+    ! FEP
+    if (domain%fep_use) then
+      do i = 1, domain%num_cell_local+domain%num_cell_boundary
+        do ix = 1, domain%num_atom(i)
+          if (domain%fepgrp(ix,i) == 1) then
+            domain%fep_atmcls_singleB(ix,i) = atmcls_map_g2l(domain%fep_atmcls_singleB(ix,i))
+          end if
+        end do
+      end do
+    end if
+
     deallocate(nonb_atom_cls,  &
                check_cls,      &
                atmcls_map_g2l, &
@@ -2072,13 +2526,22 @@ contains
     call alloc_enefunc(enefunc, EneFuncNonb,     ncel, maxcell_near)
     call alloc_enefunc(enefunc, EneFuncNonbList, ncel, maxcell_near)
 
-    if (constraints%rigid_bond) then
-
-      call count_nonb_excl(.true., .true., constraints, domain, enefunc)
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_enefunc(enefunc, EneFuncNonbFEPList, ncel, maxcell_near)
+      if (constraints%rigid_bond) then
+        call count_nonb_excl_fep(.true., .true., constraints, domain, enefunc)
+      else
+        call count_nonb_excl_fep(.true., .false., constraints, domain, enefunc)
+      end if
 
     else
 
-      call count_nonb_excl(.true., .false., constraints, domain, enefunc)
+      if (constraints%rigid_bond) then
+        call count_nonb_excl(.true., .true., constraints, domain, enefunc)
+      else
+        call count_nonb_excl(.true., .false., constraints, domain, enefunc)
+      end if
 
     end if
 
@@ -2767,5 +3230,768 @@ contains
     return
 
   end subroutine check_pbc
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    count_nonb_excl_fep
+  !> @brief        exclude 1-2, 1-3 interactions and constraints for FEP
+  !! @authors      HO
+  !! @param[in]    first       : flag for first call or not
+  !! @param[in]    constraint  : flag for constraint usage
+  !! @param[in]    constraints : constraints information   
+  !! @param[inout] domain      : structure of domain
+  !! @param[inout] enefunc     : structure of enefunc
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine count_nonb_excl_fep(first, constraint, constraints, domain, enefunc)
+
+    ! formal arguments
+    logical,                     intent(in)    :: first
+    logical,                     intent(in)    :: constraint
+    type(s_constraints), target, intent(in)    :: constraints
+    type(s_domain),      target, intent(inout) :: domain
+    type(s_enefunc),     target, intent(inout) :: enefunc
+
+    ! local variables
+    integer                  :: ncell, ncell_local, i, ii, ix, k, i1, i2, i3
+    integer                  :: icel, icel1, icel2
+    integer                  :: ic, j, ih, ij, index(4)
+    integer                  :: num_excl, num_nb14, id, omp_get_thread_num
+    integer                  :: found1, found2
+    integer                  :: fkind
+    integer                  :: list1, list2, list3, step
+
+    integer,         pointer :: natom(:), nwater(:), start_atom(:)
+    integer(int2),   pointer :: id_g2l(:,:)
+    integer,         pointer :: water_list(:,:,:)
+    integer,         pointer :: nbond(:), bond_list(:,:,:)
+    integer,         pointer :: nangle(:), angl_list(:,:,:)
+    integer(1),      pointer :: bond_kind(:,:), angl_kind(:,:), dihe_kind(:,:)
+    integer,         pointer :: ndihedral(:), dihe_list(:,:,:)
+    integer,         pointer :: cell_pairlist2(:,:)
+    integer(int2),   pointer :: cell_pairlist1(:,:), cell_pair(:,:)
+    integer,         pointer :: nonb_excl_list(:,:,:)
+    integer,         pointer :: nb14_calc_list(:,:,:)
+    integer(1),      pointer :: exclusion_mask(:,:,:), exclusion_mask1(:,:,:)
+    integer,         pointer :: sc_calc_list(:,:)
+    integer,         pointer :: num_nonb_excl(:), num_nb14_calc(:)
+    integer,         pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
+    real(wp),        pointer :: nb14_qq_scale(:,:), nb14_lj_scale(:,:)
+    real(wp),        pointer :: dihe_scnb(:), dihe_scee(:)
+    real(wp),        pointer :: charge(:,:)
+
+    ! FEP
+    integer                  :: fg1, fg2
+    integer                  :: num_nb14_fep
+    integer                  :: found_fep1, found_fep2
+    integer(1)               :: flag_bond, flag_angl, flag_dihe
+    integer,         pointer :: nb14_calc_list_fep(:,:,:)
+    integer,         pointer :: sc_calc_list_fep(:,:)
+    integer,         pointer :: num_nb14_calc_fep(:)
+    real(wp),        pointer :: nb14_qq_scale_fep(:,:), nb14_lj_scale_fep(:,:)
+
+    natom           => domain%num_atom
+    nwater          => domain%num_water
+    start_atom      => domain%start_atom
+    water_list      => domain%water_list
+    id_g2l          => domain%id_g2l
+    cell_pair       => domain%cell_pair
+    cell_pairlist1  => domain%cell_pairlist1
+    cell_pairlist2  => domain%cell_pairlist2
+    charge          => domain%charge
+
+    nbond           => enefunc%num_bond
+    nangle          => enefunc%num_angle
+    ndihedral       => enefunc%num_dihedral
+    bond_list       => enefunc%bond_list
+    bond_kind       => enefunc%bond_kind
+    angl_list       => enefunc%angle_list
+    angl_kind       => enefunc%angle_kind
+    dihe_list       => enefunc%dihe_list
+    dihe_kind       => enefunc%dihe_kind
+    nonb_excl_list  => enefunc%nonb_excl_list
+    nb14_calc_list  => enefunc%nb14_calc_list
+    sc_calc_list    => enefunc%sc_calc_list
+    num_nonb_excl   => enefunc%num_nonb_excl
+    num_nb14_calc   => enefunc%num_nb14_calc
+    exclusion_mask  => enefunc%exclusion_mask
+    exclusion_mask1 => enefunc%exclusion_mask1
+    nb14_qq_scale   => enefunc%nb14_qq_scale
+    nb14_lj_scale   => enefunc%nb14_lj_scale
+    dihe_scnb       => enefunc%dihe_scnb
+    dihe_scee       => enefunc%dihe_scee
+
+    ! FEP
+    nb14_calc_list_fep  => enefunc%nb14_calc_list_fep
+    sc_calc_list_fep    => enefunc%sc_calc_list_fep
+    num_nb14_calc_fep   => enefunc%num_nb14_calc_fep
+    nb14_qq_scale_fep   => enefunc%nb14_qq_scale_fep
+    nb14_lj_scale_fep   => enefunc%nb14_lj_scale_fep
+
+    ncell_local = domain%num_cell_local
+    ncell       = domain%num_cell_local + domain%num_cell_boundary
+
+    domain%max_num_atom = 0
+    do i = 1, ncell
+      domain%max_num_atom = max(domain%max_num_atom,domain%num_atom(i))
+    end do
+
+    ! initialization
+    !
+    num_nonb_excl(1:ncell_local)  = 0
+    num_nb14_calc(1:ncell_local)  = 0
+    ! FEP
+    num_nb14_calc_fep(1:ncell_local)  = 0
+
+    domain%start_atom(1:ncell) = 0
+    ij = natom(1)
+    !ocl nosimd
+    !dir$ novector
+    do i = 2, ncell
+      domain%start_atom(i) = domain%start_atom(i-1) + natom(i-1)
+      ij = ij + natom(i)
+    end do
+    domain%num_atom_domain = ij
+
+    ! exclude 1-2 interaction
+    !
+    !$omp parallel default(shared)                                     &
+    !$omp private(id, i, ix, icel1, icel2, icel, i1, i2, i3, num_excl, &
+    !$omp         k, num_nb14, ic, j, ih, list1, list2, ii, ij, fkind, &
+    !$omp         index, flag_bond, flag_angl)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    do i = id+1, ncell_local, nthread
+      k = natom(i)
+      exclusion_mask1(1:k,1:k,i) = 1
+      do i1 = 1, k
+        exclusion_mask1(i1,i1,i) = 0
+      end do
+    end do
+    do ij = id+1, maxcell_near, nthread
+      i = cell_pairlist1(1,ij)
+      j = cell_pairlist1(2,ij)
+      i1 = max(natom(i),natom(j))
+      exclusion_mask(1:i1,1:i1,ij) = 1
+    end do
+    !$omp barrier
+
+    if (enefunc%excl_level > 0) then
+
+      do i = id+1, ncell_local, nthread
+        do ix = 1, nbond(i)
+
+          fkind = bond_kind(ix,i)
+
+          ! FEP
+          flag_bond = enefunc%bond_singleB(ix,i)
+
+          if ((fkind == 0) .and. (flag_bond == 0)) then
+
+            list1 = bond_list(1,ix,i)
+            list2 = bond_list(2,ix,i)
+            icel1 = id_g2l(1,list1)
+            icel2 = id_g2l(1,list2)
+            i1    = id_g2l(2,list1)
+            i2    = id_g2l(2,list2)
+            num_excl = num_nonb_excl(i) + 1
+            num_nonb_excl(i) = num_excl
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+              nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+            else
+              nonb_excl_list(1,num_excl,i) = icel1
+              nonb_excl_list(2,num_excl,i) = icel2
+              nonb_excl_list(3,num_excl,i) = i1
+              nonb_excl_list(4,num_excl,i) = i2
+            end if
+
+            if (icel1 /= icel2) then
+
+              icel  = cell_pairlist2(icel1,icel2)
+              if (icel1 < icel2) then
+                exclusion_mask(i2,i1,icel) = 0
+              else if (icel1 > icel2) then
+                exclusion_mask(i1,i2,icel) = 0
+              end if
+  
+            else
+
+              if (i1 < i2) then
+                exclusion_mask1(i2,i1,i) = 0
+              else if (i1 > i2) then
+                exclusion_mask1(i1,i2,i) = 0
+              end if
+
+            end if
+
+          end if
+
+        end do
+      end do
+   
+      ! exclude constraint
+      !
+      if (constraint) then
+
+        HGr_local       => constraints%HGr_local
+        HGr_bond_list   => constraints%HGr_bond_list
+        do icel = id+1, ncell_local, nthread
+          do ic = 1, constraints%connect
+            do j = 1, HGr_local(ic,icel)
+
+              i1 = HGr_bond_list(1,j,ic,icel)
+!ocl nosimd
+              do ih = 1, ic
+                i2 = HGr_bond_list(ih+1,j,ic,icel)
+                num_excl = num_nonb_excl(icel) + 1
+                num_nonb_excl(icel) = num_excl
+                if (domain%nonbond_kernel == NBK_Intel  .or. &
+                    domain%nonbond_kernel == NBK_Fugaku) then
+                  nonb_excl_list(1,num_excl,icel) = start_atom(icel) + i1
+                  nonb_excl_list(2,num_excl,icel) = start_atom(icel) + i2
+                else
+                  nonb_excl_list(1,num_excl,icel) = icel
+                  nonb_excl_list(2,num_excl,icel) = icel
+                  nonb_excl_list(3,num_excl,icel) = i1
+                  nonb_excl_list(4,num_excl,icel) = i2
+                end if
+                exclusion_mask1(i2,i1,icel) = 0
+              end do
+
+            end do
+          end do
+        end do
+
+      end if
+
+    end if
+
+    !$omp barrier
+
+    ! exclude water
+    !
+    if (enefunc%excl_level > 1) then
+
+      if (constraints%water_type == TIP4) then
+
+        do icel = id+1, ncell_local, nthread
+          do ic = 1, nwater(icel)
+
+            index(1) = water_list(1,ic,icel)
+            index(2) = water_list(2,ic,icel)
+            index(3) = water_list(3,ic,icel)
+            index(4) = water_list(4,ic,icel)
+
+!ocl nosimd
+            do i1 = 2, 3
+              do i2 = i1+1, 4
+                num_excl = num_nonb_excl(icel) + 1
+                num_nonb_excl(icel) = num_excl
+                if (domain%nonbond_kernel == NBK_Intel  .or. &
+                    domain%nonbond_kernel == NBK_Fugaku) then
+                  nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(i1)
+                  nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(i2)
+                else
+                  nonb_excl_list(1,num_excl,icel) = icel
+                  nonb_excl_list(2,num_excl,icel) = icel
+                  nonb_excl_list(3,num_excl,icel) = index(i1)
+                  nonb_excl_list(4,num_excl,icel) = index(i2)
+                end if
+                exclusion_mask1(index(i2),index(i1),icel) = 0
+              end do
+            end do
+            i1 = 1
+            do i2 = 2, 4
+              exclusion_mask1(index(i2),index(i1),icel) = 0
+            end do
+
+          end do
+        end do
+
+      else
+
+        do icel = id+1, ncell_local, nthread
+          do ic = 1, nwater(icel)
+
+            index(1) = water_list(1,ic,icel)
+            index(2) = water_list(2,ic,icel)
+            index(3) = water_list(3,ic,icel)
+          
+            num_excl = num_nonb_excl(icel) + 1
+            num_nonb_excl(icel) = num_excl
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(1)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(2)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(1)
+              nonb_excl_list(4,num_excl,icel) = index(2)
+            end if
+
+            num_excl = num_nonb_excl(icel) + 1
+            num_nonb_excl(icel) = num_excl
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(1)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(3)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(1)
+              nonb_excl_list(4,num_excl,icel) = index(3)
+            end if
+
+            num_excl = num_nonb_excl(icel) + 1
+            num_nonb_excl(icel) = num_excl
+            if (domain%nonbond_kernel == NBK_Intel  .or. &
+                domain%nonbond_kernel == NBK_Fugaku) then
+              nonb_excl_list(1,num_excl,icel) = start_atom(icel) + index(2)
+              nonb_excl_list(2,num_excl,icel) = start_atom(icel) + index(3)
+            else
+              nonb_excl_list(1,num_excl,icel) = icel
+              nonb_excl_list(2,num_excl,icel) = icel
+              nonb_excl_list(3,num_excl,icel) = index(2)
+              nonb_excl_list(4,num_excl,icel) = index(3)
+            end if
+
+            exclusion_mask1(index(2),index(1),icel) = 0
+            exclusion_mask1(index(3),index(1),icel) = 0
+            exclusion_mask1(index(3),index(2),icel) = 0
+
+          end do
+        end do
+
+      end if
+
+      ! exclude 1-3 interaction
+      !
+      do i = id+1, ncell_local, nthread
+        do ix = 1, nangle(i)
+
+          fkind = angl_kind(ix,i)
+
+          ! FEP
+          flag_angl = enefunc%angl_singleB(ix,i)
+
+          if ((fkind == 0) .and. (flag_angl == 0)) then
+
+            list1 = angl_list(1,ix,i)
+            list2 = angl_list(3,ix,i)
+            icel1 = id_g2l(1,list1)
+            icel2 = id_g2l(1,list2)
+            i1    = id_g2l(2,list1)
+            i2    = id_g2l(2,list2)
+
+            if (icel1 /= icel2) then
+
+              icel  = cell_pairlist2(icel1,icel2)
+
+              if (icel1 < icel2) then
+
+                if (exclusion_mask(i2,i1,icel)==1) then
+!                  if (abs(charge(i1,icel1)) > EPS .and. &
+!                      abs(charge(i2,icel2)) > EPS) then
+                    num_excl = num_nonb_excl(i) + 1
+                    num_nonb_excl(i) = num_excl
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
+!                  end if
+                  exclusion_mask(i2,i1,icel) = 0
+                end if
+
+              else if (icel1 > icel2) then
+
+                if (exclusion_mask(i1,i2,icel)==1) then
+!                  if (abs(charge(i1,icel1)) > EPS .and. &
+!                      abs(charge(i2,icel2)) > EPS) then
+                    num_excl = num_nonb_excl(i) + 1
+                    num_nonb_excl(i) = num_excl
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
+!                  end if
+                  exclusion_mask(i1,i2,icel) = 0
+                end if
+
+              end if
+
+            else
+
+              if (i1 < i2) then
+
+                if (exclusion_mask1(i2,i1,i)==1) then
+!                  if (abs(charge(i1,icel1)) > EPS .and. &
+!                      abs(charge(i2,icel2)) > EPS) then
+                    num_excl = num_nonb_excl(i) + 1
+                    num_nonb_excl(i) = num_excl
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
+!                  end if
+                  exclusion_mask1(i2,i1,i) = 0
+                end if
+
+              else if (i1 > i2) then
+
+                if (exclusion_mask1(i1,i2,i)==1) then
+!                  if (abs(charge(i1,icel1)) > EPS .and. &
+!                      abs(charge(i2,icel2)) > EPS) then
+                    num_excl = num_nonb_excl(i) + 1
+                    num_nonb_excl(i) = num_excl
+                    if (domain%nonbond_kernel == NBK_Intel  .or. &
+                        domain%nonbond_kernel == NBK_Fugaku) then
+                      nonb_excl_list(1,num_excl,i) = start_atom(icel1) + i1
+                      nonb_excl_list(2,num_excl,i) = start_atom(icel2) + i2
+                    else
+                      nonb_excl_list(1,num_excl,i) = icel1
+                      nonb_excl_list(2,num_excl,i) = icel2
+                      nonb_excl_list(3,num_excl,i) = i1
+                      nonb_excl_list(4,num_excl,i) = i2
+                    end if
+!                  end if
+                  exclusion_mask1(i1,i2,i) = 0
+                end if
+
+              end if
+
+            end if
+
+          end if
+        end do
+      end do
+
+    end if
+    !$omp end parallel
+
+    ! count 1-4 interaction
+    !
+    if (enefunc%excl_level > 2) then
+
+      do ii = 1, 2
+
+        if (ii == 2) then
+          ndihedral => enefunc%num_rb_dihedral
+          dihe_list => enefunc%rb_dihe_list
+        end if
+
+        !$omp parallel default(shared)                                     &
+        !$omp private(id, i, ix, icel1, icel2, icel, i1, i2, list1, list2, &
+        !$omp         num_nb14, fkind, fg1, fg2, num_nb14_fep, flag_dihe)
+        !
+#ifdef OMP
+        id = omp_get_thread_num()
+#else
+        id = 0
+#endif
+        do i = id+1, ncell_local, nthread
+
+          do ix = 1, ndihedral(i)
+
+            fkind = dihe_kind(ix,i)
+
+            ! FEP
+            if (ii == 2) then
+              flag_dihe = enefunc%rb_dihe_singleB(ix,i)
+            else
+              flag_dihe = enefunc%dihe_singleB(ix,i)
+            end if
+
+
+            if ((fkind == 0) .and. (flag_dihe==0)) then
+
+              list1 = dihe_list(1,ix,i)
+              list2 = dihe_list(4,ix,i)
+              icel1 = id_g2l(1,list1)
+              icel2 = id_g2l(1,list2)
+              i1    = id_g2l(2,list1)
+              i2    = id_g2l(2,list2)
+
+              ! FEP
+              fg1 = domain%fepgrp(i1,icel1)
+              fg2 = domain%fepgrp(i2,icel2)
+
+              if (icel1 /= icel2) then
+
+                icel  = cell_pairlist2(icel1,icel2)
+
+                if (icel1 < icel2) then
+
+                  if (exclusion_mask(i2,i1,icel)==1) then
+
+                    if (enefunc%fepgrp_nonb(fg1,fg2) == 5) then
+                      ! FEP: non-perturbed
+                      num_nb14 = num_nb14_calc(i) + 1
+                      num_nb14_calc(i) = num_nb14
+                      if (domain%nonbond_kernel == NBK_Intel  .or. &
+                          domain%nonbond_kernel == NBK_Fugaku) then
+                        nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                        nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                      else
+                        nb14_calc_list(1,num_nb14,i) = icel1
+                        nb14_calc_list(2,num_nb14,i) = icel2
+                        nb14_calc_list(3,num_nb14,i) = i1
+                        nb14_calc_list(4,num_nb14,i) = i2
+                      end if
+                      sc_calc_list(num_nb14,i)     = &
+                        int(enefunc%dihe_periodicity(ix,i) &
+                            / enefunc%notation_14types)
+                      exclusion_mask(i2,i1,icel) = 0
+                    else if (enefunc%fepgrp_nonb(fg1,fg2) /= 0) then
+                      ! FEP: perturbed
+                      num_nb14_fep = num_nb14_calc_fep(i) + 1
+                      num_nb14_calc_fep(i) = num_nb14_fep
+                      nb14_calc_list_fep(1,num_nb14_fep,i) = icel1
+                      nb14_calc_list_fep(2,num_nb14_fep,i) = icel2
+                      nb14_calc_list_fep(3,num_nb14_fep,i) = i1
+                      nb14_calc_list_fep(4,num_nb14_fep,i) = i2
+                      sc_calc_list_fep(num_nb14_fep,i)     = int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      exclusion_mask(i2,i1,icel) = 0
+                    else
+                      exclusion_mask(i2,i1,icel) = 0
+                    end if
+
+                  end if
+
+                else if (icel1 > icel2) then
+
+                  if (exclusion_mask(i1,i2,icel)==1) then
+
+                    if (enefunc%fepgrp_nonb(fg1,fg2) == 5) then
+                      ! FEP: non-perturbed
+                      num_nb14 = num_nb14_calc(i) + 1
+                      num_nb14_calc(i) = num_nb14
+                      if (domain%nonbond_kernel == NBK_Intel  .or. &
+                          domain%nonbond_kernel == NBK_Fugaku) then
+                        nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                        nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                      else
+                        nb14_calc_list(1,num_nb14,i) = icel1
+                        nb14_calc_list(2,num_nb14,i) = icel2
+                        nb14_calc_list(3,num_nb14,i) = i1
+                        nb14_calc_list(4,num_nb14,i) = i2
+                      end if
+                      sc_calc_list(num_nb14,i)     = &
+                        int(enefunc%dihe_periodicity(ix,i) &
+                            / enefunc%notation_14types)
+                      exclusion_mask(i1,i2,icel) = 0
+                    else if (enefunc%fepgrp_nonb(fg1,fg2) /= 0) then
+                      ! FEP: perturbed
+                      num_nb14_fep = num_nb14_calc_fep(i) + 1
+                      num_nb14_calc_fep(i) = num_nb14_fep
+                      nb14_calc_list_fep(1,num_nb14_fep,i) = icel1
+                      nb14_calc_list_fep(2,num_nb14_fep,i) = icel2
+                      nb14_calc_list_fep(3,num_nb14_fep,i) = i1
+                      nb14_calc_list_fep(4,num_nb14_fep,i) = i2
+                      sc_calc_list_fep(num_nb14_fep,i)     = int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      exclusion_mask(i1,i2,icel) = 0
+                    else
+                      exclusion_mask(i1,i2,icel) = 0
+                    end if
+
+                  end if
+
+                end if
+
+              else
+
+                if (i1 < i2) then
+
+                  if (exclusion_mask1(i2,i1,i)==1) then
+
+                    if (enefunc%fepgrp_nonb(fg1,fg2) == 5) then
+                      ! FEP: non-perturbed
+                      num_nb14 = num_nb14_calc(i) + 1
+                      num_nb14_calc(i) = num_nb14
+                      if (domain%nonbond_kernel == NBK_Intel  .or. &
+                          domain%nonbond_kernel == NBK_Fugaku) then
+                        nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                        nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                      else
+                        nb14_calc_list(1,num_nb14,i) = icel1
+                        nb14_calc_list(2,num_nb14,i) = icel2
+                        nb14_calc_list(3,num_nb14,i) = i1
+                        nb14_calc_list(4,num_nb14,i) = i2
+                      end if
+                      sc_calc_list(num_nb14,i)     = &
+                        int(enefunc%dihe_periodicity(ix,i) &
+                            / enefunc%notation_14types)
+                      exclusion_mask1(i2,i1,i) = 0
+                    else if (enefunc%fepgrp_nonb(fg1,fg2) /= 0) then
+                      ! FEP: perturbed
+                      num_nb14_fep = num_nb14_calc_fep(i) + 1
+                      num_nb14_calc_fep(i) = num_nb14_fep
+                      nb14_calc_list_fep(1,num_nb14_fep,i) = icel1
+                      nb14_calc_list_fep(2,num_nb14_fep,i) = icel2
+                      nb14_calc_list_fep(3,num_nb14_fep,i) = i1
+                      nb14_calc_list_fep(4,num_nb14_fep,i) = i2
+                      sc_calc_list_fep(num_nb14_fep,i)     = int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      exclusion_mask1(i2,i1,i) = 0
+                    else
+                      exclusion_mask1(i2,i1,i) = 0
+                    end if
+
+                  end if
+
+                else if (i1 > i2) then
+
+                  if (exclusion_mask1(i1,i2,i)==1) then
+
+                    if (enefunc%fepgrp_nonb(fg1,fg2) == 5) then
+                      ! FEP: non-perturbed
+                      num_nb14 = num_nb14_calc(i) + 1
+                      num_nb14_calc(i) = num_nb14
+                      if (domain%nonbond_kernel == NBK_Intel  .or. &
+                          domain%nonbond_kernel == NBK_Fugaku) then
+                        nb14_calc_list(1,num_nb14,i) = start_atom(icel1) + i1
+                        nb14_calc_list(2,num_nb14,i) = start_atom(icel2) + i2
+                      else
+                        nb14_calc_list(1,num_nb14,i) = icel1
+                        nb14_calc_list(2,num_nb14,i) = icel2
+                        nb14_calc_list(3,num_nb14,i) = i1
+                        nb14_calc_list(4,num_nb14,i) = i2
+                      end if
+                      sc_calc_list(num_nb14,i)     = &
+                        int(enefunc%dihe_periodicity(ix,i) &
+                            / enefunc%notation_14types)
+                      exclusion_mask1(i1,i2,i) = 0
+                    else if (enefunc%fepgrp_nonb(fg1,fg2) /= 0) then
+                      ! FEP: perturbed
+                      num_nb14_fep = num_nb14_calc_fep(i) + 1
+                      num_nb14_calc_fep(i) = num_nb14_fep
+                      nb14_calc_list_fep(1,num_nb14_fep,i) = icel1
+                      nb14_calc_list_fep(2,num_nb14_fep,i) = icel2
+                      nb14_calc_list_fep(3,num_nb14_fep,i) = i1
+                      nb14_calc_list_fep(4,num_nb14_fep,i) = i2
+                      sc_calc_list_fep(num_nb14_fep,i)     = int(enefunc%dihe_periodicity(ix,i)/enefunc%notation_14types)
+                      exclusion_mask1(i1,i2,i) = 0
+                    else
+                      exclusion_mask1(i1,i2,i) = 0
+                    end if
+
+                  end if
+
+                end if
+
+              end if
+
+            end if
+          end do
+        end do
+        !$omp end parallel
+
+      end do
+
+    end if
+
+    ! scnb/fudge_lj & scee/fudge_qq
+    !
+    !$omp parallel default(shared)            &
+    !$omp private(id, i, ix, list1, list2)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+    if (enefunc%forcefield == ForcefieldAMBER) then
+      do i = id+1, ncell_local, nthread
+        do ix = 1, num_nb14_calc(i)
+          list1 = sc_calc_list(ix,i)
+          nb14_lj_scale(ix,i) = dihe_scnb(list1)
+          nb14_qq_scale(ix,i) = dihe_scee(list1)
+        end do
+        ! FEP
+        do ix = 1, num_nb14_calc_fep(i)
+          list1 = sc_calc_list_fep(ix,i)
+          nb14_lj_scale_fep(ix,i) = dihe_scnb(list1)
+          nb14_qq_scale_fep(ix,i) = dihe_scee(list1)
+        end do
+      end do
+    end if
+    if (enefunc%forcefield == ForcefieldGROAMBER .or. &
+        enefunc%forcefield == ForcefieldGROMARTINI) then
+      do i = id+1, ncell_local, nthread
+        do ix = 1, num_nb14_calc(i)
+          list1 = sc_calc_list(ix,i)
+          nb14_lj_scale(ix,i) = enefunc%fudge_lj
+          nb14_qq_scale(ix,i) = enefunc%fudge_qq
+        end do
+        ! FEP
+        do ix = 1, num_nb14_calc_fep(i)
+          list1 = sc_calc_list_fep(ix,i)
+          nb14_lj_scale_fep(ix,i) = enefunc%fudge_lj
+          nb14_qq_scale_fep(ix,i) = enefunc%fudge_qq
+        end do
+      end do
+    end if
+    !$omp end parallel
+
+    ! Check the total number of exclusion list
+    !
+    if (first) then
+
+      found1 = 0
+      found2 = 0
+      ! FEP
+      found_fep2 = 0
+
+      do icel = 1, ncell_local
+        found1 = found1 + num_nonb_excl(icel)
+        found2 = found2 + num_nb14_calc(icel)
+        ! FEP
+        found_fep2 = found_fep2 + num_nb14_calc_fep(icel)
+      end do
+
+#ifdef HAVE_MPI_GENESIS
+      call mpi_reduce(found1, enefunc%num_excl_all, 1, mpi_integer, mpi_sum, &
+                      0, mpi_comm_country, ierror)
+      call mpi_reduce(found2, enefunc%num_nb14_all, 1, mpi_integer, mpi_sum, &
+                      0, mpi_comm_country, ierror)
+      ! FEP
+      call mpi_reduce(found_fep2, enefunc%num_nb14_all_fep, 1, mpi_integer, mpi_sum, &
+                      0, mpi_comm_country, ierror)
+#else
+    enefunc%num_excl_all = found1
+    enefunc%num_nb14_all = found2
+    ! FEP
+    enefunc%num_nb14_all_fep = found_fep2
+#endif
+    end if
+
+    return
+
+  end subroutine count_nonb_excl_fep
 
 end module sp_enefunc_charmm_mod

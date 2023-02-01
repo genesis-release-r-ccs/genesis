@@ -60,6 +60,9 @@ module sp_dynamics_str_mod
     real(wp)            :: hmr_ratio_ring
     real(wp)            :: initial_rmsd
     real(wp)            :: final_rmsd
+    ! FEP
+    integer             :: fepout_period
+    integer             :: equilsteps
   end type s_dynamics
 
   ! parameters
@@ -130,6 +133,9 @@ contains
     dynamics%iseed_read           = .false.
     dynamics%hydrogen_mr          = .false.
     dynamics%hmr_ratio            = 3.0_wp
+    ! FEP
+    dynamics%fepout_period        = 0
+    dynamics%equilsteps           = 0
 
     return
 

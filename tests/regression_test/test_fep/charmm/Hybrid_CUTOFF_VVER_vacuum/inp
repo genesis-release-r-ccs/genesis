@@ -1,0 +1,63 @@
+[INPUT]
+topfile  =  top, top2
+parfile  =  par, par2
+strfile  =  str, str2
+psffile  =  psf
+pdbfile  =  pdb
+rstfile  =  rst
+
+[OUTPUT]
+fepfile = out.fepout
+
+[ALCHEMY]
+fep_direction = Bothsides
+fep_topology  = Hybrid
+singleA       = 1
+singleB       = 2
+dualA         = 3
+dualB         = 4
+fepout_period = 10
+sc_alpha      = 5.0
+sc_beta       = 0.5
+equilsteps    = 100
+lambljA       = 0.9 0.8
+lambljB       = 0.1 0.2
+lambelA       = 0.5 0.4
+lambelB       = 0.0 0.0
+lambbondA     = 0.8 0.7
+lambbondB     = 0.2 0.3
+lambrest      = 1.0 1.0
+
+[ENERGY]
+forcefield       = CHARMM
+electrostatic    = CUTOFF
+switchdist       = 300.0
+cutoffdist       = 300.0
+pairlistdist     = 305.0
+output_style     = GENESIS
+vacuum           = YES
+
+[DYNAMICS]
+integrator    = VVER
+nsteps        = 100
+timestep      = 0.002
+eneout_period = 10
+iseed         = 12345
+
+[CONSTRAINTS]
+rigid_bond = YES
+
+[ENSEMBLE]
+ensemble    = NVT
+temperature = 300.0
+tpcontrol   = BUSSI
+group_tp    = no
+
+[BOUNDARY]
+type = PBC
+
+[SELECTION]
+group1 = segid:SB3 and (ai:1-27 or ai:34-63)
+group2 = segid:SBX and (ai:69-95 or ai:102-131)
+group3 = segid:SB3 and (ai:28-33 or ai:64-68)
+group4 = segid:SBX and (ai:96-101 or ai:132-142)

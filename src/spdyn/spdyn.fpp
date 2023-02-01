@@ -48,6 +48,7 @@ program spdyn
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+  use sp_alchemy_str_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -59,6 +60,9 @@ program spdyn
   integer, parameter  :: GenesisMIN   = 2
   integer, parameter  :: GenesisREMD  = 3
   integer, parameter  :: GenesisRPATH = 4
+  integer, parameter  :: GenesisFEPMD   = 5
+  integer, parameter  :: GenesisFEPMIN  = 6
+  integer, parameter  :: GenesisFEPREMD = 7
 
   ! local variables
   character(MaxFilename)      :: ctrl_filename
@@ -79,6 +83,7 @@ program spdyn
   type(s_rpath)               :: rpath
   integer                     :: omp_get_max_threads, i
   real(dp)                    :: sas, eae
+  type(s_alchemy)             :: alchemy
 
 #ifdef HAVE_MPI_GENESIS
   call mpi_init(ierror)
@@ -137,7 +142,17 @@ contains
     integer,                 intent(inout) :: genesis_run_mode
 
 
-    if (find_ctrlfile_section(ctrl_filename, 'REMD')) then
+    if (find_ctrlfile_section(ctrl_filename, 'ALCHEMY')) then
+      if (find_ctrlfile_section(ctrl_filename, 'MINIMIZE')) then
+        genesis_run_mode = GenesisFEPMIN
+      else if (find_ctrlfile_section(ctrl_filename, 'REMD')) then
+        genesis_run_mode = GenesisFEPREMD
+      else if (find_ctrlfile_section(ctrl_filename, 'DYNAMICS')) then
+        genesis_run_mode = GenesisFEPMD
+      else
+        call error_msg('Get_Genesis_Mode> ERROR: Unknown control file format.')
+      end if
+    else  if (find_ctrlfile_section(ctrl_filename, 'REMD')) then
       genesis_run_mode = GenesisREMD
 
     else if (find_ctrlfile_section(ctrl_filename, 'RPATH')) then
@@ -207,15 +222,15 @@ contains
 
     select case (genesis_run_mode)
 
-    case (GenesisMD)
+    case (GenesisMD,GenesisFEPMD)
 
       call control_md  (ctrl_filename, ctrl_data)
 
-    case (GenesisMIN)
+    case (GenesisMIN,GenesisFEPMIN)
 
       call control_min (ctrl_filename, ctrl_data)
 
-    case (GenesisREMD)
+    case (GenesisREMD,GenesisFEPREMD)
 
       call control_remd(ctrl_filename, ctrl_data)
 
@@ -235,11 +250,11 @@ contains
 
     select case (genesis_run_mode)
 
-    case (GenesisMD,GenesisMIN)
+    case (GenesisMD,GenesisMIN,GenesisFEPMD,GenesisFEPMIN)
 
       call setup_mpi_md  (ctrl_data%ene_info)
 
-    case (GenesisREMD)
+    case (GenesisREMD,GenesisFEPREMD)
 
       call setup_mpi_remd(ctrl_data%ene_info, ctrl_data%rep_info, &
                           ctrl_data%bound_info)
@@ -278,9 +293,27 @@ contains
 
     case (GenesisRPATH)
 
-      call setup_spdyn_rpath(ctrl_data, output, molecule, enefunc, pairlist, &
+      call setup_spdyn_rpath(ctrl_data, output, molecule, enefunc, pairlist,  &
                           dynvars, dynamics, constraints, ensemble, boundary,&
                           domain, comm, rpath)
+
+    case (GenesisFEPMD)
+
+      call setup_spdyn_md(ctrl_data, output, molecule, enefunc, pairlist,  &
+                         dynvars, dynamics, constraints, ensemble, boundary, &
+                         domain, comm, alchemy)
+
+    case (GenesisFEPMIN)
+
+      call setup_spdyn_min(ctrl_data, output, molecule, enefunc, pairlist, &
+                         dynvars, minimize, constraints, boundary, domain,     &
+                         comm, alchemy)
+
+    case (GenesisFEPREMD)
+
+      call setup_spdyn_remd(ctrl_data, output, molecule, enefunc, pairlist,&
+                          dynvars, dynamics, constraints, ensemble, boundary,&
+                          domain, comm, remd, alchemy)
 
     end select
 
@@ -359,6 +392,36 @@ contains
       call run_rpath(output, domain, enefunc, dynvars, dynamics, pairlist, &
                     boundary, constraints, ensemble, comm, rpath, remd)
 
+    case (GenesisFEPMD)
+
+      if (main_rank) then
+        write(MsgOut,'(A)') '[STEP5] Perform FEP MD Simulation'
+        write(MsgOut,'(A)') ' '
+      end if
+
+      call run_md_fep(output, domain, enefunc, dynvars, dynamics, pairlist, &
+                  boundary, constraints, ensemble, comm, remd, alchemy)
+    
+    case (GenesisFEPMIN)
+
+      if (main_rank) then
+        write(MsgOut,'(A)') '[STEP5] Perform FEP Energy Minimization'
+        write(MsgOut,'(A)') ' '
+      end if
+
+      call run_min(output, domain, enefunc, dynvars, minimize,       &
+                   pairlist, boundary, constraints, comm)
+
+    case (GenesisFEPREMD)
+
+      if (main_rank) then
+        write(MsgOut,'(A)') '[STEP5] Perform FEP REMD Simulation'
+        write(MsgOut,'(A)') ' '
+      end if
+
+      call run_remd_fep(output, domain, enefunc, dynvars, dynamics, pairlist, &
+                    boundary, constraints, ensemble, comm, remd, alchemy)
+
     end select
 
     call timer(TimerDynamics, TimerOff)
@@ -378,6 +441,11 @@ contains
     call dealloc_pairlist_all   (pairlist)
     call dealloc_enefunc_all    (enefunc)
     call dealloc_domain_all     (domain)
+    if ((genesis_run_mode == GenesisFEPMD) .or.    &
+        (genesis_run_mode == GenesisFEPMIN) .or.   &
+        (genesis_run_mode == GenesisFEPREMD)) then
+        call dealloc_alchemy(alchemy)
+    end if
 
     call timer(TimerTotal, TimerOff)
 

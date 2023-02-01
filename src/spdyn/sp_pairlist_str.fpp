@@ -63,6 +63,13 @@ module sp_pairlist_str_mod
     integer                 :: univ_update = 0
     integer                 :: univ_mask2_size = 0
     integer                 :: pack_univ_mask2_size = 0
+    ! for FEP
+    integer,            allocatable :: num_nb15_calc_fep(:,:)
+    integer,            allocatable :: num_nb15_calc1_fep(:,:)
+    integer,            allocatable :: nb15_calc_list_fep(:,:)
+    integer,            allocatable :: nb15_calc_list1_fep(:,:)
+    integer,            allocatable :: nb15_cell_fep(:)
+    integer,            allocatable :: nb15_list_fep(:,:)
   end type s_pairlist
 
   ! parameters for allocatable variables
@@ -70,6 +77,7 @@ module sp_pairlist_str_mod
   integer,        public, parameter :: PairListGPU         = 2
   integer,        public, parameter :: PairListIntelGeneric= 3
   integer,        public, parameter :: PairListFugaku      = 4
+  integer,        public, parameter :: PairListFEP         = 6
 
   ! variables for maximum numbers in one cell
   integer,        public            :: MaxNb15        = 15000
@@ -78,6 +86,8 @@ module sp_pairlist_str_mod
   integer,        public            :: MaxNb15_S      = 1000
   integer,        public            :: MaxNb15_W      = 1000
   integer,        public            :: MaxNb15_W_P    = 1000
+  ! FEP: MaxNb15_fep will be changed depending on the numbe of perturbed atoms.
+  integer,        public            :: MaxNb15_fep    = 15000
 
   ! subroutines
   public  :: init_pairlist
@@ -242,6 +252,31 @@ contains
       pairlist%univ_iy_natom(:)     = 0
       pairlist%univ_iy_list(:,:)    = 0
 
+    case (PairListFEP)
+
+      if (allocated(pairlist%num_nb15_calc1_fep)) then
+        if (size(pairlist%num_nb15_calc1_fep) /= var_size*MaxAtom) &
+          deallocate(pairlist%num_nb15_calc1_fep,  &
+                     pairlist%num_nb15_calc_fep,   &
+                     pairlist%nb15_calc_list1_fep, &
+                     pairlist%nb15_calc_list_fep,  &
+                     pairlist%nb15_cell_fep,       &
+                     pairlist%nb15_list_fep,       &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(pairlist%num_nb15_calc1_fep)) &
+        allocate(pairlist%num_nb15_calc1_fep (MaxAtom, var_size), &
+                 pairlist%num_nb15_calc_fep  (MaxAtom, maxcell),  &
+                 pairlist%nb15_calc_list1_fep(MaxNb15_fep, var_size), &
+                 pairlist%nb15_calc_list_fep (MaxNb15_fep, maxcell),  &
+                 pairlist%nb15_cell_fep      (maxcell),           &
+                 pairlist%nb15_list_fep      (MaxAtom, maxcell),  &
+                 stat = alloc_stat)
+
+      pairlist%num_nb15_calc1_fep (1:MaxAtom, 1:var_size)  = 0
+      pairlist%num_nb15_calc_fep  (1:MaxAtom, 1:maxcell)   = 0
+
     end select
 
     if (alloc_stat /=0)   call error_msg_alloc
@@ -317,6 +352,18 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case (PairListFEP)
+
+      if (allocated(pairlist%num_nb15_calc1_fep)) then
+        deallocate(pairlist%num_nb15_calc1_fep,  &
+                   pairlist%num_nb15_calc_fep,   &
+                   pairlist%nb15_calc_list1_fep, &
+                   pairlist%nb15_calc_list_fep,  &
+                   pairlist%nb15_cell_fep,       &
+                   pairlist%nb15_list_fep,       &
+                   stat = dealloc_stat)
+      end if
+ 
     end select
 
     if (dealloc_stat /=0) call error_msg_dealloc
@@ -343,6 +390,7 @@ contains
     call dealloc_pairlist(pairlist, PairListGeneric)
     call dealloc_pairlist(pairlist, PairListIntelGeneric)
     call dealloc_pairlist(pairlist, PairListGPU)
+    call dealloc_pairlist(pairlist, PairListFEP)
 
     return
 

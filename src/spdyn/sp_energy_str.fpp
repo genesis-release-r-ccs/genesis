@@ -50,6 +50,8 @@ module sp_energy_str_mod
     ! gamd
     real(dp)         :: total_gamd
     real(dp)         :: dihedral_gamd
+    ! FEP
+    real(dp)         :: deltU_fep(3)
   end type s_energy
 
   ! parameters
@@ -121,6 +123,8 @@ contains
     energy%emcorr             = 0.0_dp
     energy%total_gamd         = 0.0_dp
     energy%dihedral_gamd      = 0.0_dp
+    ! FEP
+    energy%deltU_fep          = 0.0_dp
 
     return
 

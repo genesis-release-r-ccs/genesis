@@ -506,6 +506,71 @@ module sp_enefunc_str_mod
     logical                       :: gamd_use
     type(s_enefunc_gamd)          :: gamd
 
+    ! For vacuum
+    logical                       :: vacuum
+
+    !FEP
+    real(wp)                      :: sc_alpha
+    real(wp)                      :: sc_beta
+    integer                       :: num_fep_neighbor
+    integer                       :: fep_direction
+    real(wp)                      :: lambljA
+    real(wp)                      :: lambljB
+    real(wp)                      :: lambelA
+    real(wp)                      :: lambelB
+    real(wp)                      :: lambbondA
+    real(wp)                      :: lambbondB
+    real(wp)                      :: lambrest
+    integer                       :: fep_topology
+    ! table_nonb_lambda is for parameters of lambda, softcore, and exclusion.
+    ! table_nonb_lambda(index, fepgrp1, fepgrp2)
+    ! index is an index for lambda, softcore, and exclusion (1-5). 1, 2, 3, and 4
+    ! correspond to lambdaA, lambdaB, softcore for A, and softcore for B.
+    ! 5 represents the excludion of interactions between partA-partB.
+    ! fepgrp1 and fepgrp2 are indicies for perturbed states of each atom
+    ! pair (1-5). If fepgrp has 1, 2, 3, 4, and 5, the perturbed state of 
+    ! an atom correpond to singleA, singleB, dualA, dualB, and preserved,
+    ! respectively.
+    integer(1)                    :: fep_mask(5,5)
+    real(wp)                      :: table_sclj(5,5)
+    real(wp)                      :: table_scel(5,5)
+    ! table_bond_lambda(fepgrp1,fepgrp2)
+    ! table_angl_lambda(fepgrp1,fepgrp2,fepgrp3)
+    ! table_dihe_lambda(fepgrp1,fepgrp2,fepgrp3,fepgrp4)
+    ! table_cmap_lambda(fepgrp1*fepgrp2*fepgrp3*fepgrp4*
+    !                   fepgrp5*fepgrp6*fepgrp7*fepgrp8)
+    real(wp)                      :: table_bond_lambda(5,5)
+    real(wp)                      :: table_angl_lambda(5,5,5)
+    real(wp)                      :: table_dihe_lambda(5,5,5,5)
+    real(wp)                      :: table_cmap_lambda(5*5*5*5*5*5*5*5)
+    integer                       :: fepgrp_nonb(5,5)
+    !
+    real(wp)                      :: dispersion_energy_CC
+    real(wp)                      :: dispersion_energy_AC
+    real(wp)                      :: dispersion_energy_BC
+    real(wp)                      :: dispersion_energy_AA
+    real(wp)                      :: dispersion_energy_BB
+    real(wp)                      :: dispersion_energy_AB
+    real(wp)                      :: dispersion_virial_CC
+    real(wp)                      :: dispersion_virial_AC
+    real(wp)                      :: dispersion_virial_BC
+    real(wp)                      :: dispersion_virial_AA
+    real(wp)                      :: dispersion_virial_BB
+    real(wp)                      :: dispersion_virial_AB
+    !
+    integer                       :: num_nb14_all_fep
+    integer,          allocatable :: num_nb14_calc_fep(:)
+    integer,          allocatable :: nb14_calc_list_fep(:,:,:)
+    integer,          allocatable :: sc_calc_list_fep(:,:)
+    real(wp),         allocatable :: nb14_qq_scale_fep(:,:)
+    real(wp),         allocatable :: nb14_lj_scale_fep(:,:)
+    ! Flag for singleB bonded
+    integer,          allocatable :: bond_singleB(:,:)
+    integer,          allocatable :: angl_singleB(:,:)
+    integer,          allocatable :: dihe_singleB(:,:)
+    integer,          allocatable :: rb_dihe_singleB(:,:)
+    integer,          allocatable :: impr_singleB(:,:)
+    integer,          allocatable :: cmap_singleB(:,:)
   end type s_enefunc
 
   ! parameter for allocatable variables
@@ -548,6 +613,9 @@ module sp_enefunc_str_mod
   integer,      public, parameter :: EneFuncGamdRest      = 37
   integer,      public, parameter :: EneFuncEnm           = 38
   integer,      public, parameter :: EneFuncExcl          = 39
+  integer,      public, parameter :: EneFuncNonbFEPList   = 46
+  integer,      public, parameter :: EneFuncFEPBonded     = 47
+  integer,      public, parameter :: EneFuncBondCell_FEP  = 48
 
   ! water model type
   integer,      public, parameter :: TIP1                 = 1
@@ -598,6 +666,11 @@ module sp_enefunc_str_mod
   character(*), public, parameter :: Disp_corr_Types(3)   = (/'NONE  ', &
                                                               'ENERGY', &
                                                               'EPRESS'/)
+
+  ! parameters (FEP calculation)
+  integer,      public, parameter :: FEP_PRESERVE         = 0
+  integer,      public, parameter :: FEP_APPEAR           = 1
+  integer,      public, parameter :: FEP_VANISH           = -1
 
   ! variables for maximum numbers in one cell (these number will be updated)
   integer,      public            :: MaxBond   = 0
@@ -1218,6 +1291,34 @@ contains
       enefunc%cmap_list_pio(1:8, 1:MaxCmap, 1:var_size, 1:var_size1) = 0
       enefunc%cmap_type_pio(1:MaxCmap, 1:var_size, 1:var_size1)      = 0
       enefunc%cmap_pbc_pio (1:6, 1:MaxCmap, 1:var_size, 1:var_size1) = 13
+    case (EneFuncFEPBonded)
+
+      if (allocated(enefunc%bond_singleB)) then
+        if (size(enefunc%bond_singleB(1,:)) /= var_size) &
+          deallocate(enefunc%bond_singleB,        &
+                     enefunc%angl_singleB,        &
+                     enefunc%dihe_singleB,        &
+                     enefunc%rb_dihe_singleB,     &
+                     enefunc%impr_singleB,        &
+                     enefunc%cmap_singleB,        &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(enefunc%bond_singleB)) &
+        allocate(enefunc%bond_singleB   (MaxBond, var_size),  &
+                 enefunc%angl_singleB   (MaxAngle, var_size), &
+                 enefunc%dihe_singleB   (MaxDihe, var_size),  &
+                 enefunc%rb_dihe_singleB(MaxDihe, var_size),  &
+                 enefunc%impr_singleB   (MaxImpr, var_size),  &
+                 enefunc%cmap_singleB   (MaxCmap, var_size),  &
+                 stat = alloc_stat)
+
+      enefunc%bond_singleB   (1:MaxBond, 1:var_size)  = 0
+      enefunc%angl_singleB   (1:MaxAngle, 1:var_size) = 0
+      enefunc%dihe_singleB   (1:MaxDihe, 1:var_size)  = 0
+      enefunc%rb_dihe_singleB(1:MaxDihe, 1:var_size)  = 0
+      enefunc%impr_singleB   (1:MaxImpr, 1:var_size)  = 0
+      enefunc%cmap_singleB   (1:MaxCmap, 1:var_size)  = 0
 
     case (EneFuncNbon)
 
@@ -1302,6 +1403,33 @@ contains
       enefunc%sc_calc_list   (1:var_size4, 1:var_size)      = 0
       enefunc%nb14_qq_scale  (1:var_size4, 1:var_size)      = 0.0_wp
       enefunc%nb14_lj_scale  (1:var_size4, 1:var_size)      = 0.0_wp
+
+    case (EneFuncNonbFEPList)
+
+      if (allocated(enefunc%nb14_calc_list_fep)) then
+        if (size(enefunc%nb14_calc_list_fep(1,1,:)) /= var_size) &
+          deallocate(enefunc%nb14_calc_list_fep,  &
+                     enefunc%sc_calc_list_fep,    &
+                     enefunc%nb14_qq_scale_fep,   &
+                     enefunc%nb14_lj_scale_fep,   &
+                     enefunc%num_nb14_calc_fep,   &
+                     stat = dealloc_stat)
+      end if
+
+      var_size3 = MaxDihe*2+MaxImpr
+      if (.not. allocated(enefunc%nb14_calc_list_fep)) &
+        allocate(enefunc%nb14_calc_list_fep (4, var_size3, var_size),   &
+                 enefunc%sc_calc_list_fep   (var_size3, var_size),      &
+                 enefunc%nb14_qq_scale_fep  (var_size3, var_size),      &
+                 enefunc%nb14_lj_scale_fep  (var_size3, var_size),      &
+                 enefunc%num_nb14_calc_fep  (var_size),             &
+                 stat = alloc_stat)
+
+      enefunc%nb14_calc_list_fep (1:4, 1:var_size3, 1:var_size) = 0
+      enefunc%sc_calc_list_fep   (1:var_size3, 1:var_size)      = 0
+      enefunc%nb14_qq_scale_fep  (1:var_size3, 1:var_size)      = 0.0_wp
+      enefunc%nb14_lj_scale_fep  (1:var_size3, 1:var_size)      = 0.0_wp
+      enefunc%num_nb14_calc_fep(1:var_size)                     = 0
 
     case (EneFuncRefg)
 
@@ -1629,6 +1757,35 @@ contains
       enefunc%fitting_exit_index   (1:RestMove, 1:var_size)        = 0
       enefunc%buf_fitting_integer  (1:RestMove, 1:var_size1)       = 0
       enefunc%buf_fitting_real     (1:7, RestMove, 1:var_size1)    = 0.0_wp
+
+    case (EneFuncBondCell_FEP)
+      ! Deallocate bond, angle, dihed, rb_dihed, impr, cmap for FEP
+      if (allocated(enefunc%buf_bond_integer)) then
+        deallocate(enefunc%buf_bond_integer,      &
+                   enefunc%buf_angle_integer,     &
+                   enefunc%buf_dihed_integer,     &
+                   enefunc%buf_rb_dihed_integer,  &
+                   enefunc%buf_impr_integer,      &
+                   enefunc%buf_cmap_integer,      &
+                   stat = dealloc_stat)
+      end if
+
+      ! Reallocate bond, angle, dihed, rb_dihed, impr, cmap for FEP
+      if (.not. allocated(enefunc%buf_bond_integer)) &
+        allocate(enefunc%buf_bond_integer     (5, BondMove, var_size1), &
+                 enefunc%buf_angle_integer    (8, AngleMove, var_size1),&
+                 enefunc%buf_dihed_integer    (10, DiheMove, var_size1), &
+                 enefunc%buf_rb_dihed_integer (8, DiheMove, var_size1), &
+                 enefunc%buf_impr_integer     (9, ImprMove, var_size1), &
+                 enefunc%buf_cmap_integer     (16,CmapMove, var_size1), &
+                 stat = alloc_stat)
+
+      enefunc%buf_bond_integer     (1:5, 1:BondMove, 1:var_size1)  = 0
+      enefunc%buf_angle_integer    (1:8, 1:AngleMove, 1:var_size1) = 0
+      enefunc%buf_dihed_integer    (1:10, 1:DiheMove, 1:var_size1)  = 0
+      enefunc%buf_rb_dihed_integer (1:8, 1:DiheMove, 1:var_size1)  = 0
+      enefunc%buf_impr_integer     (1:9, 1:ImprMove, 1:var_size1)  = 0
+      enefunc%buf_cmap_integer     (1:16, 1:CmapMove, 1:var_size1)  = 0
 
     case (EneFuncTableWat)
 
@@ -2058,6 +2215,18 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case (EneFuncFEPBonded)
+
+      if (allocated(enefunc%bond_singleB)) then
+        deallocate(enefunc%bond_singleB, &
+                   enefunc%angl_singleB, &
+                   enefunc%dihe_singleB, &
+                   enefunc%rb_dihe_singleB, &
+                   enefunc%impr_singleB, &
+                   enefunc%cmap_singleB, &
+                   stat = dealloc_stat)
+      end if
+
     case (EneFuncNbon)
 
       if (allocated(enefunc%nonb_atom_cls)) then
@@ -2088,6 +2257,16 @@ contains
                    enefunc%sc_calc_list,    &
                    enefunc%nb14_qq_scale,   &
                    enefunc%nb14_lj_scale,   &
+                   stat = dealloc_stat)
+      end if
+
+    case (EneFuncNonbFEPList)
+
+      if (allocated(enefunc%nb14_calc_list_fep)) then
+        deallocate(enefunc%nb14_calc_list_fep,  &
+                   enefunc%sc_calc_list_fep,    &
+                   enefunc%nb14_qq_scale_fep,   &
+                   enefunc%nb14_lj_scale_fep,   &
                    stat = dealloc_stat)
       end if
 
@@ -2352,6 +2531,8 @@ contains
     call dealloc_enefunc(enefunc, EneFuncFitd)
     call dealloc_enefunc(enefunc, EneFuncGamdDih)
     call dealloc_enefunc(enefunc, EneFuncGamdRest)
+    call dealloc_enefunc(enefunc, EneFuncNonbFEPList)
+    call dealloc_enefunc(enefunc, EneFuncFEPBonded)
 
     return
 

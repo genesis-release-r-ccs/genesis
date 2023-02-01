@@ -214,6 +214,10 @@ contains
     rmsg = 0.0_dp
     do i = 1, ncell
       do ix = 1, natom(i)
+        ! FEP: skip singleB to avoid duplication
+        if (domain%fep_use) then
+          if (domain%fepgrp(ix,i) == 2) cycle
+        end if
         rmsg = rmsg + force(1,ix,i)*force(1,ix,i) &
                     + force(2,ix,i)*force(2,ix,i) &
                     + force(3,ix,i)*force(3,ix,i)
@@ -223,6 +227,10 @@ contains
     ekin_sum = 0.0_dp
     do i = 1, ncell
       do ix = 1, natom(i)
+        ! FEP: skip singleB to avoid duplication
+        if (domain%fep_use) then
+          if (domain%fepgrp(ix,i) == 2) cycle
+        end if
         ekin_sum = ekin_sum + mass(ix,i)*(vel_ref(1,ix,i)*vel_ref(1,ix,i) &
                                          +vel_ref(2,ix,i)*vel_ref(2,ix,i) &
                                          +vel_ref(3,ix,i)*vel_ref(3,ix,i))
@@ -329,7 +337,13 @@ contains
                               + dynvars%pressure_zz
     dynvars%internal_pressure = dynvars%internal_pressure / 3.0_wip
 
-    dynvars%rms_gradient = dsqrt(rmsg/real(3*domain%num_atom_all,dp))
+    if (domain%fep_use) then
+      ! FEP: subtract the number of singleB atoms
+      dynvars%rms_gradient = dsqrt(rmsg/real(3* &
+        (domain%num_atom_all-domain%num_atom_single_all),dp))
+    else
+      dynvars%rms_gradient = dsqrt(rmsg/real(3*domain%num_atom_all,dp))
+    end if
 
     viri_ke =  virial_sum(1) + virial_sum(2) + virial_sum(3)
 

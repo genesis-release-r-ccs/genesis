@@ -85,6 +85,12 @@ contains
 
     end if
 
+
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_pairlist(pairlist, PairListFEP, domain%num_cell_local)
+    end if
+
     call timer(TimerPairList, TimerOn)
 
     if (enefunc%pairlist_check) then
@@ -118,26 +124,55 @@ contains
     type(s_domain),   target, intent(inout) :: domain
     type(s_pairlist), target, intent(inout) :: pairlist
 
-    if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
-      call update_pairlist_pbc_generic(enefunc, domain, pairlist)
+    if (domain%fep_use) then
+      ! FEP
+      if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
+        call update_pairlist_pbc_generic_fep(enefunc, domain, pairlist)
+
+      else
+
+        select case (domain%pairlist_kernel)
+
+        case (PLK_Generic)
+          call update_pairlist_pbc_generic_fep(enefunc, domain, pairlist)
+    
+        case (PLK_Fugaku)
+          call update_pairlist_pbc_fugaku_fep(enefunc, domain, pairlist)
+
+        case (PLK_Intel)
+          call update_pairlist_pbc_fugaku_fep(enefunc, domain, pairlist)
+
+        case (PLK_GPU)
+          call update_pairlist_pbc_gpu(enefunc, domain, pairlist)
+
+        end select
+
+      end if
 
     else
 
-      select case (domain%pairlist_kernel)
-
-      case (PLK_Generic)
+      if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
         call update_pairlist_pbc_generic(enefunc, domain, pairlist)
-  
-      case (PLK_Fugaku)
-        call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
 
-      case (PLK_Intel)
-        call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
+      else
 
-      case (PLK_GPU)
-        call update_pairlist_pbc_gpu(enefunc, domain, pairlist)
+        select case (domain%pairlist_kernel)
 
-      end select
+        case (PLK_Generic)
+          call update_pairlist_pbc_generic(enefunc, domain, pairlist)
+    
+        case (PLK_Fugaku)
+          call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
+
+        case (PLK_Intel)
+          call update_pairlist_pbc_fugaku(enefunc, domain, pairlist)
+
+        case (PLK_GPU)
+          call update_pairlist_pbc_gpu(enefunc, domain, pairlist)
+
+        end select
+
+      end if
 
     end if
 
@@ -165,7 +200,16 @@ contains
     type(s_pairlist), target, intent(inout) :: pairlist
 
 
-    call update_pairlist_pbc_check_generic(enefunc, domain, pairlist)
+    if (domain%fep_use) then
+
+      ! FEP
+      call update_pairlist_pbc_check_generic_fep(enefunc, domain, pairlist)
+
+    else
+
+      call update_pairlist_pbc_check_generic(enefunc, domain, pairlist)
+
+    end if
 
     return
 

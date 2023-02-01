@@ -1,0 +1,7 @@
+# FEP window index        1
+#     STEP     Total_E_ref     Delta_E_rev     Delta_E_fwd
+        15     -21241.4263          0.0000         -3.6193
+        20     -21156.6852          0.0000         -2.9842
+# FEP window index        2
+        35     -21179.2427          4.3333          0.0000
+        40     -21149.1611          6.3705          0.0000

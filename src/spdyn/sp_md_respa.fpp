@@ -38,6 +38,8 @@ module sp_md_respa_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+  use sp_alchemy_str_mod
+  use sp_fep_energy_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -64,6 +66,9 @@ module sp_md_respa_mod
   private :: langevin_barostat_vv2
   private :: update_barostat
   private :: update_barostat_mtk
+  ! FEP
+  public  :: vverlet_respa_dynamics_fep
+  private :: initial_vverlet_fep
 
 contains
 
@@ -3863,5 +3868,621 @@ contains
     return
 
   end subroutine simulated_annealing_vverlet
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    vverlet_respa_dynamics_fep
+  !> @brief        velocity verlet integrator using respa for FEP
+  !! @authors      HO
+  !! @param[inout] output      : output information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] dynamics    : dynamics information
+  !! @param[inout] pairlist    : non-bond pair list information
+  !! @param[inout] boundary    : boundary conditions information
+  !! @param[inout] constraints : bond constraint information
+  !! @param[inout] ensemble    : ensemble information
+  !! @param[inout] comm        : information of communication
+  !! @param[inout] remd        : remd information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine vverlet_respa_dynamics_fep(output, domain, enefunc, dynvars, &
+                                        dynamics, pairlist, boundary,     &
+                                        constraints, ensemble, comm, remd,&
+                                        alchemy)
+
+    use Ctim
+
+    ! formal arguments
+    type(s_output),            intent(inout) :: output
+    type(s_domain),  target,   intent(inout) :: domain
+    type(s_enefunc),           intent(inout) :: enefunc
+    type(s_dynvars), target,   intent(inout) :: dynvars
+    type(s_dynamics),target,   intent(inout) :: dynamics
+    type(s_pairlist),          intent(inout) :: pairlist
+    type(s_boundary),          intent(inout) :: boundary
+    type(s_constraints),       intent(inout) :: constraints
+    type(s_ensemble),          intent(inout) :: ensemble
+    type(s_comm),              intent(inout) :: comm
+    type(s_remd),              intent(inout) :: remd
+    type(s_alchemy), optional, intent(inout) :: alchemy
+
+    ! local variables
+    real(wip)                :: simtim, temperature
+    real(wip)                :: dt_short, dt_long
+    real(wip)                :: min_time
+    integer                  :: i, j, k, jx, nsteps, ii
+    integer                  :: istep, multistep
+    integer                  :: iseed, istart, iend
+    integer                  :: min_k, k_min, k_max
+    logical                  :: npt, npt1
+
+    integer,         pointer :: atmcls_pbc(:)
+    real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
+    real(wp),        pointer :: coord_pbc(:,:,:)
+    real(wip),       pointer :: coord_old(:,:,:)
+    real(wip),       pointer :: vel(:,:,:), vel_ref(:,:,:)
+    real(wip),       pointer :: mass(:,:), inv_mass(:,:)
+    real(wp),        pointer :: force_pbc(:,:,:,:), force_omp(:,:,:,:)
+    real(wip),       pointer :: force(:,:,:)
+    real(dp),        pointer :: virial_cell(:,:), virial_extern(:,:)
+    real(dp),        pointer :: virial(:,:), virial_long(:,:)
+    real(wip),       pointer :: force_short(:,:,:), force_long(:,:,:)
+    integer,         pointer :: ncell, natom(:)
+    logical,         pointer :: XI_RESPA, XO_RESPA
+
+
+    atmcls_pbc    => domain%atmcls_pbc
+    ncell         => domain%num_cell_local
+    natom         => domain%num_atom
+    mass          => domain%mass
+    inv_mass      => domain%inv_mass
+    coord         => domain%coord
+    coord_ref     => domain%coord_ref
+    coord_old     => domain%coord_old
+    coord_pbc     => domain%translated
+    force         => domain%force    
+    force_omp     => domain%force_omp
+    force_short   => domain%force_short
+    force_long    => domain%force_long
+    vel           => domain%velocity
+    vel_ref       => domain%velocity_ref
+    force_pbc     => domain%force_pbc
+    virial_cell   => domain%virial_cellpair
+    virial        => dynvars%virial
+    virial_long   => dynvars%virial_long
+    virial_extern => dynvars%virial_extern
+
+    temperature   =  ensemble%temperature
+    nsteps        =  dynamics%nsteps
+    istart        =  dynamics%istart_step
+    iend          =  dynamics%iend_step
+    multistep     =  dynamics%elec_long_period
+    dt_short      =  dynamics%timestep/AKMA_PS
+    dt_long       =  real(multistep,wip)*dt_short
+    simtim        =  dynamics%initial_time
+    iseed         =  dynamics%iseed_init_velocity
+    npt           =  ensemble%use_barostat
+
+    ! FEP: Copy lambda of enefunc to domain, because they are needed for 
+    ! calculation of virial in SHAKE.
+    domain%lambljA   = enefunc%lambljA
+    domain%lambljB   = enefunc%lambljB
+    domain%lambelA   = enefunc%lambelA
+    domain%lambelB   = enefunc%lambelB
+    domain%lambbondA = enefunc%lambbondA
+    domain%lambbondB = enefunc%lambbondB
+    domain%lambrest  = enefunc%lambrest
+
+    if (abs(dynamics%initial_rmsd) < 0.001_wip)  &
+      dynamics%initial_rmsd = real(dynvars%energy%rmsd,wip)
+    if (dynamics%target_md) enefunc%rmsd_force = 1 / (dt_long*dt_long)
+
+    ! Check restart
+    !
+    if (.not. dynamics%restart) then
+
+      call initial_velocity(temperature,            &
+                            domain%num_atom,        &
+                            domain%num_deg_freedom, &
+                            domain%num_cell_local,  &
+                            domain%id_g2l,          &
+                            domain%inv_mass,        &
+                            iseed,                  &
+                            domain%velocity)
+
+      call stop_trans_rotation(domain%num_cell_local,         &
+                               domain%num_atom,               &
+                               dynamics%stop_com_translation, &
+                               dynamics%stop_com_rotation,    &
+                               domain%mass,                   &
+                               domain%coord,                  &
+                               domain%velocity)
+
+      ! FEP
+      call initial_vverlet_fep(npt, output, enefunc, dynamics,       &
+                           pairlist, boundary, ensemble, constraints, &
+                           domain, dynvars, comm)
+
+    else
+
+      ! After 2nd cycle of REMD simulation (istart /= 1), this is skipped
+      !
+      if (istart == 1) then
+
+        call communicate_coor(domain, comm)
+
+        call compute_energy(domain, enefunc, pairlist, boundary, coord,  &
+                            npt, .false., .true., .false.,               &
+                            enefunc%nonb_limiter,                        &
+                            dynvars%energy, atmcls_pbc,                  &
+                            coord_pbc, force_short,                      &
+                            force_long, force_omp, force_pbc,            &
+                            virial_cell, virial, virial_long, virial_extern)
+ 
+        call communicate_force(domain, comm, force_short)
+        call communicate_force(domain, comm, force_long)
+
+        if (constraints%water_type == TIP4) then
+          call water_force_redistribution(constraints, domain, &
+                                          force_short, virial)
+          call water_force_redistribution(constraints, domain, &
+                                          force_long, virial_long)
+        end if
+
+      end if
+    
+    end if
+
+    call mpi_barrier(mpi_comm_country, ierror)
+    Timt=0.0d0
+    Timb=0.0d0
+    mpi_tot_tran=0.d0
+
+    ! Main loop
+    !
+    do i = istart, iend-multistep+1, multistep
+
+      mpi_tran = 0.0_dp
+      mpi_bari = 0.0_dp
+      dynvars%time = dynamics%timestep * real(i-1,dp)
+      dynvars%step = i - 1
+      enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
+
+      ! output trajectory and restart data
+      !
+      if (i > istart) then
+        call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                       constraints, dynvars, domain, enefunc, remd)
+
+        ! FEP: Compute and output energy differnces between adjacent states
+        if ((domain%fep_use).and.(present(alchemy))) then
+          if (dynamics%fepout_period > 0) then
+            if ((mod(i-1,dynamics%fepout_period) == 0) .and. &
+              (mod(i-1,dynamics%eneout_period) == 0)) then
+              if (i-1 > dynamics%equilsteps) then
+                call compute_fep_energy(domain, enefunc, dynvars, pairlist, &
+                  ensemble, boundary, alchemy, remd)
+                call output_fep_energy(output, enefunc, dynvars)
+              end if
+            end if
+          end if
+        end if
+      end if
+
+      ! Inner integrator
+      !
+      do j = 1, multistep
+
+        istep = i + j - 1
+
+        if (dynamics%target_md .or. dynamics%steered_md) &
+          enefunc%rmsd_target = dynamics%initial_rmsd &
+                              + (dynamics%final_rmsd-dynamics%initial_rmsd) &
+                               *real(istep,wip)/real(nsteps,wip)
+
+        ! save coordiantes for constraint
+        !
+        call timer(TimerIntegrator, TimerOn)
+
+        ! VV1
+        !
+        call integrate_vv1(dynamics, istep, istart, j, dt_long, dt_short,  &
+                           ensemble, domain, constraints, boundary, dynvars)
+
+        call timer(TimerIntegrator, TimerOff)
+
+        if (mod(istep-1, dynamics%eneout_period) == 0 .and. istep > istart) then
+          call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, &
+                               dynvars)
+          call output_dynvars (output, enefunc, dynvars, ensemble)
+        end if
+
+        ! Remove translational and rotational motion about COM(t + dt)
+        !
+        if (dynamics%stoptr_period > 0) then
+          if (mod(istep-1,dynamics%stoptr_period) == 0) then
+              call stop_trans_rotation(domain%num_cell_local,         &
+                                       domain%num_atom,               &
+                                       dynamics%stop_com_translation, &
+                                       dynamics%stop_com_rotation,    &
+                                       domain%mass,                   &
+                                       domain%coord,                  &
+                                       domain%velocity)
+          end if
+        end if
+
+        ! cell migration and update cell pairlist
+        !
+        if (dynamics%nbupdate_period > 0 .and. &
+            j == multistep .and. i > istart) then
+
+          ! FEP
+          call domain_interaction_update_fep(istep, dynamics%nbupdate_period, &
+                                         domain, enefunc, pairlist, boundary, &
+                                         constraints, comm)
+
+        end if
+
+        ! Simulated annealing
+        !
+        if (dynamics%anneal_period > 0) then
+          if (i > istart .and. mod(istep-1,dynamics%anneal_period) == 0) then
+            call simulated_annealing_vverlet(dynamics, ensemble)
+          end if
+        end if
+
+        ! short range forces
+        !
+        call timer(TimerIntegrator, TimerOn)
+        call timer(TimerComm1, TimerOn)
+
+        call communicate_coor(domain, comm)
+
+        call timer(TimerComm1, TimerOff)
+
+        call timer(TimerIntegrator, TimerOff)
+
+        if (j < multistep) then
+
+          pairlist%univ_update = 0
+          enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
+          npt1 = npt .and. mod(istep-1,dynamics%baro_period) == 0
+
+          call compute_energy_short(domain, enefunc, pairlist, boundary, coord,&
+                                    npt1,                                      &
+                                    dynvars%energy,                            &
+                                    atmcls_pbc,                                &
+                                    coord_pbc,                                 &
+                                    force_short,                               &
+                                    force_omp,                                 &
+                                    force_pbc,                                 &
+                                    virial_cell,                               &
+                                    virial, virial_extern)
+
+
+          call timer(TimerIntegrator, TimerOn)
+          call timer(TimerComm2, TimerOn)
+
+          call communicate_force(domain, comm, force_short)
+
+          if (constraints%water_type == TIP4) &
+            call water_force_redistribution(constraints, domain, force_short, &
+                                            virial)
+          call timer(TimerComm2, TimerOff)
+          call timer(TimerIntegrator, TimerOff)
+
+        end if
+        
+        ! full step velocities with foce_short
+        ! long range force for last inner step
+        !
+        if (j == multistep) then
+
+          enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
+          npt1 = npt .and. mod(istep,dynamics%baro_period) == 0
+
+          call compute_energy(domain, enefunc, pairlist, boundary, coord,      &
+                              npt1,.false.,                                    &
+                              mod(istep,dynamics%eneout_period) == 0,          &
+                              .false.,                                         &
+                              enefunc%nonb_limiter,                            &
+                              dynvars%energy,                                  &
+                              atmcls_pbc,                                      &
+                              coord_pbc,                                       &
+                              force_short,                                     &
+                              force_long,                                      &
+                              force_omp,                                       &
+                              force_pbc,                                       &
+                              virial_cell,                                     &
+                              virial, virial_long, virial_extern)
+
+          call timer(TimerIntegrator, TimerOn)
+          call timer(TimerComm2, TimerOn)
+
+          call communicate_force(domain, comm, force_long)
+          call communicate_force(domain, comm, force_short)
+
+          if (constraints%water_type == TIP4) then
+            call water_force_redistribution(constraints, domain, &
+                                            force_short, virial)
+            call water_force_redistribution(constraints, domain, &
+                                            force_long, virial_long)
+          end if
+          call timer(TimerComm2, TimerOff)
+          call timer(TimerIntegrator, TimerOff)
+
+        end if
+
+        ! VV2
+        !
+        call integrate_vv2(dynamics, istep, j, dt_long, dt_short, ensemble,    &
+                           domain, constraints, boundary, dynvars)
+
+      end do
+
+    end do
+
+    ! for final output
+    !
+    dynvars%time = dynamics%timestep * real(iend,dp)
+    dynvars%step = iend
+
+    ! output trajectory(t + dt) and restart data
+    !
+    call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                   constraints, dynvars, domain, enefunc, remd)
+
+!   ! output parallel I/O restart
+!   !
+!   call output_prst_md(output, enefunc, dynamics, boundary, &
+!                       dynvars, domain, constraints)
+
+    ! FEP: Compute and output energy differnces between adjacent states
+    if ((domain%fep_use).and.(present(alchemy))) then
+      if (dynamics%fepout_period > 0) then
+        call compute_fep_energy(domain, enefunc, dynvars, pairlist, &
+          ensemble, boundary, alchemy, remd)
+        call output_fep_energy(output, enefunc, dynvars)
+      end if
+    end if
+
+    call integrate_vv1(dynamics, iend+1, istart, 1, dt_long, dt_short, ensemble, &
+                       domain, constraints, boundary, dynvars)
+
+    call coord_vel_ref(domain, dynvars)
+    if (ensemble%tpcontrol == TpcontrolNHC) &
+      dynvars%nh_velocity(1:5) = dynvars%nh_velocity_ref(1:5) 
+
+    call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, &
+                         dynvars)
+    call output_dynvars (output, enefunc, dynvars, ensemble)
+
+    return
+
+  end subroutine vverlet_respa_dynamics_fep
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    initial_vverlet_fep
+  !> @brief        compute the first step (0+dt) for FEP
+  !! @authors      HO
+  !! @param[in]    npt         : flag for NPT or not
+  !! @param[in]    output      : output information
+  !! @param[inout] enefunc     : potential energy functions information
+  !! @param[inout] dynamics    : dynamics information
+  !! @param[in]    pairlist    : pairlist information
+  !! @param[in]    boundary    : boundary information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] domain      : domain information
+  !! @param[inout] dynvars     : dynamic variables information
+  !! @param[inout] comm        : communication information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine initial_vverlet_fep(npt, output, enefunc, dynamics, pairlist, &
+                              boundary, ensemble, constraints, domain,  &
+                              dynvars, comm)
+
+    ! formal arguments
+    logical,                 intent(in)    :: npt
+    type(s_output),          intent(in)    :: output
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_dynamics),        intent(inout) :: dynamics
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    type(s_ensemble),        intent(in)    :: ensemble
+    type(s_constraints),     intent(inout) :: constraints
+    type(s_domain),  target, intent(inout) :: domain
+    type(s_dynvars), target, intent(inout) :: dynvars
+    type(s_comm),            intent(inout) :: comm
+
+    ! local variables
+    real(dp)                 :: temperature
+    real(wip)                :: simtim, dt, half_dt, friction
+    integer                  :: i, k, l, ix, ncell
+
+    integer,         pointer :: atmcls_pbc(:)
+    real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
+    real(wp),        pointer :: coord_pbc(:,:,:)
+    real(wip),       pointer :: vel(:,:,:), vel_ref(:,:,:)
+    real(wip),       pointer :: mass(:,:), inv_mass(:,:)
+    real(wip),       pointer :: force(:,:,:)
+    real(wp),        pointer :: force_omp(:,:,:,:)
+    real(wp),        pointer :: force_pbc(:,:,:,:)
+    real(dp),        pointer :: virial_cell(:,:)
+    real(dp),        pointer :: virial_const(:,:), virial_extern(:,:)
+    real(dp),        pointer :: virial(:,:), virial_long(:,:)
+    real(dp),        pointer :: kin_half(:), ekin_half
+    real(dp),        pointer :: kin_ref(:), ekin_ref
+    real(dp),        pointer :: kin_full(:), ekin_full
+    real(wip),       pointer :: force_short(:,:,:), force_long(:,:,:)
+    integer,         pointer :: natom(:)
+
+
+    atmcls_pbc    => domain%atmcls_pbc
+    natom         => domain%num_atom
+    coord         => domain%coord
+    coord_ref     => domain%coord_ref
+    coord_pbc     => domain%translated
+    force         => domain%force
+    force_short   => domain%force_short
+    force_long    => domain%force_long 
+    force_omp     => domain%force_omp
+    vel           => domain%velocity
+    vel_ref       => domain%velocity_ref
+    mass          => domain%mass
+    inv_mass      => domain%inv_mass
+    force_pbc     => domain%force_pbc
+    virial_cell   => domain%virial_cellpair
+    virial        => dynvars%virial
+    virial_long   => dynvars%virial_long
+    virial_extern => dynvars%virial_extern
+    virial_const  => dynvars%virial_const 
+    kin_half      => dynvars%kin_half
+    ekin_half     => dynvars%ekin_half
+    kin_full      => dynvars%kin_full
+    ekin_full     => dynvars%ekin_full
+    kin_ref       => dynvars%kin_ref
+    ekin_ref      => dynvars%ekin_ref
+
+    dt            =  dynamics%timestep/AKMA_PS
+    half_dt       =  0.5_wip * dt
+    simtim        =  dynamics%initial_time
+    temperature   =  ensemble%temperature
+    friction      =  ensemble%gamma_t * AKMA_PS
+    ncell         =  domain%num_cell_local
+
+    dynvars%time  = simtim
+    dynvars%step  = 0
+
+    ! save coordinates(0) and velocities(0)
+    ! if rigid-body on, update coordinates(0)
+    !
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        coord_ref(1:3,ix,i) = coord(1:3,ix,i)
+        vel_ref(1:3,ix,i)   = vel(1:3,ix,i)
+      end do
+    end do
+
+    if (constraints%rigid_bond) then
+
+      call compute_constraints(ConstraintModeLEAP, .false., dt, coord_ref, &
+                               domain, constraints, coord, vel,            &
+                               virial_const)
+
+      do i = 1, ncell
+        do ix = 1, natom(i)
+          coord_ref(1:3,ix,i) = coord(1:3,ix,i)
+        end do
+      end do
+
+    else if (constraints%water_type == TIP4) then
+
+      call decide_dummy(domain, constraints, coord)
+
+    end if
+
+    ! calculate energy(0) and forces(0)
+    !
+    call communicate_coor(domain, comm)
+
+    call compute_energy(domain, enefunc, pairlist, boundary, coord,     &
+                        npt, .false., .true., .false.,                  &
+                        enefunc%nonb_limiter,                           &
+                        dynvars%energy, atmcls_pbc,                     &
+                        coord_pbc, force_short,                         &
+                        force_long, force_omp, force_pbc,               &
+                        virial_cell, virial, virial_long, virial_extern)
+
+    call communicate_force(domain, comm, force_short)
+    call communicate_force(domain, comm, force_long)
+    if (constraints%water_type == TIP4) then
+      call water_force_redistribution(constraints, domain, &
+                                      force_short, virial)
+      call water_force_redistribution(constraints, domain, &
+                                      force_long, virial_long)
+    end if
+
+    ! force
+    !
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        force(1:3,ix,i) = force_short(1:3,ix,i) + force_long(1:3,ix,i)
+      end do
+    end do
+
+    ! velocities at 0 + dt/2
+    !
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        vel(1:3,ix,i) = vel_ref(1:3,ix,i) &
+                      + half_dt*force(1:3,ix,i)*inv_mass(ix,i)
+        coord(1:3,ix,i) = coord_ref(1:3,ix,i) + dt*vel(1:3,ix,i)
+      end do
+    end do
+
+    if (constraints%rigid_bond) then
+      call compute_constraints(ConstraintModeLEAP, .false., dt, coord_ref,    &
+                               domain, constraints, coord, vel, virial_const)
+      virial_const(1:3,1:3) = 2.0_dp * virial_const(1:3,1:3)
+    end if
+
+    call calc_kinetic(ncell, natom, mass, vel, kin_half, ekin_half)
+
+    ! velocities at 0 + dt/2
+    ! 
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        vel_ref(1:3,ix,i) = vel_ref(1:3,ix,i)                                &
+                          - half_dt*force(1:3,ix,i)*inv_mass(ix,i)
+        coord(1:3,ix,i) = coord_ref(1:3,ix,i) - dt*vel_ref(1:3,ix,i)
+      end do
+    end do
+
+    call compute_constraints(ConstraintModeLEAP, .false., -dt, coord_ref,    &
+                             domain, constraints, coord, vel_ref,            &
+                             virial_const)
+    virial_const(1:3,1:3) = 2.0_dp * virial_const(1:3,1:3)
+
+    call calc_kinetic(ncell, natom, mass, vel_ref, kin_ref, ekin_ref)
+
+    ! calculate velocity(0)
+    !
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        vel_ref(1:3,ix,i) = 0.5_wip*(vel(1:3,ix,i) + vel_ref(1:3,ix,i))
+      end do
+    end do
+
+    call calc_kinetic(ncell, natom, mass, vel_ref, kin_full, ekin_full)
+
+    ! vel <= updated velocities (0) and coord <= constrained coordinates(0)
+    !
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        vel(1:3,ix,i) = vel_ref(1:3,ix,i)
+        coord(1:3,ix,i) = coord_ref(1:3,ix,i)
+      end do
+    end do
+
+    ! output dynvars(0)
+    !
+    dynvars%time = 0.0_wip
+    dynvars%step = 0
+
+    call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, dynvars)
+
+    call output_dynvars(output, enefunc, dynvars, ensemble)
+
+    dynamics%restart = .true.
+
+    return
+
+  end subroutine initial_vverlet_fep
 
 end module sp_md_respa_mod

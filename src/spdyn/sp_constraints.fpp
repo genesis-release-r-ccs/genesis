@@ -3862,6 +3862,8 @@ contains
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
     integer,             pointer :: ncell
 
+    ! FEP
+    real(dp)                     :: lambbond
 
     mass            => domain%mass
     ncell           => domain%num_cell_local
@@ -4028,6 +4030,35 @@ contains
         end do
       end do
     end do
+
+    ! FEP: virials for atoms in single topology are scaled by lambbond
+    if (domain%fep_use) then
+      do icel = id+1, ncell, nthread
+        do j = 1, connect
+          do k = 1, HGr_local(j,icel)
+            iatm(1:j+1) = HGr_bond_list(1:j+1,k,j,icel)
+            do ih = 1, j
+              if ((domain%fepgrp(iatm(ih+1),icel) == 1) .and. &
+                  (domain%fepgrp(iatm(1),icel) == 1)) then
+                lambbond = real(domain%lambbondA+domain%lambbondB,dp)
+              else
+                lambbond = 1.0_dp
+              end if
+              x12_old = HGr_bond_vector(1,ih,k,j,icel)
+              y12_old = HGr_bond_vector(2,ih,k,j,icel)
+              z12_old = HGr_bond_vector(3,ih,k,j,icel)
+              g12 = real(HGr_shake_force(ih,k,j,icel),dp) * (lambbond - 1.0_dp)
+              fx  = g12 * x12_old
+              fy  = g12 * y12_old
+              fz  = g12 * z12_old
+              viri(1) = viri(1) + x12_old * fx
+              viri(2) = viri(2) + y12_old * fy
+              viri(3) = viri(3) + z12_old * fz
+            end do
+          end do
+        end do
+      end do
+    end if
 
     virial_omp(1,1,id+1) = virial_omp(1,1,id+1) - viri(1)
     virial_omp(2,2,id+1) = virial_omp(2,2,id+1) - viri(2)
