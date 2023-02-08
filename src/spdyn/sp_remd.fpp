@@ -4843,11 +4843,11 @@ contains
       if (dynamics%integrator == IntegratorLEAP) then
         call error_msg('LEAP integrator is not available in FEP')
       else if (dynamics%integrator == IntegratorVVER) then
-        call vverlet_dynamics_fep (output, domain, enefunc, dynvars, dynamics, &
+        call vverlet_dynamics (output, domain, enefunc, dynvars, dynamics, &
                                pairlist, boundary, constraints, ensemble,  &
                                comm, remd, alchemy)
       else if (dynamics%integrator == IntegratorVRES) then
-        call vverlet_respa_dynamics_fep(output, domain, enefunc, dynvars,      &
+        call vverlet_respa_dynamics(output, domain, enefunc, dynvars,      &
                                dynamics, pairlist, boundary, constraints,  &
                                ensemble, comm, remd, alchemy)
       end if

@@ -976,13 +976,13 @@ contains
 
       case (IntegratorVVER)
 
-        call vverlet_dynamics_fep (output, domain, enefunc, dynvars, dynamics, &
+        call vverlet_dynamics (output, domain, enefunc, dynvars, dynamics, &
                                pairlist, boundary, constraints, ensemble,  &
                                comm, remd, alchemy)
 
       case (IntegratorVRES)
 
-        call vverlet_respa_dynamics_fep (output, domain, enefunc, dynvars, dynamics, &
+        call vverlet_respa_dynamics(output, domain, enefunc, dynvars, dynamics, &
                                pairlist, boundary, constraints, ensemble, comm,  &
                                remd, alchemy)
 
