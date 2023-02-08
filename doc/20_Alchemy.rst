@@ -8,8 +8,6 @@ Alchemy section
 Free energy perturbation (FEP)
 ==============================
 
-*FEP is available only in* **version 1.7.X of GENESIS**.
-
 In the **[Alchemy]** section, the users can specify keywords for the free-energy perturbation (FEP) method, which is one of the alchemical free energy calculations.
 The FEP method calculates the free-energy difference between two states by gradually changing a part of the system from one state to another. 
 Since the free energy depends only on the initial and final states, any intermediate states can be chosen, regardless of whether they are physically realizable.
@@ -77,6 +75,61 @@ The states of :math:`i = 0` and :math:`n` correspond to state A and B, respectiv
    Insertion of intermediate states. Some intermediate states are inserted between the reference and target states to overlap energy distributions.
 
 
+Modified Hamiltonian
+--------------------
+
+In conventional FEP (cFEP), to smoothly connect two thermodynamic states, the scaling factors of :math:`\lambda_i` are introduced to the non-bonded energy as described above.
+However, when the PME method is used for electrostatic calculations, cFEP requires two reciprocal-space calculations, because :math:`U_{\text{A}}` and :math:`U_{\text{B}}` must be individually calculated to obtain the total electrostatic energy.
+This implies that twice FFT calculates must be required every time step compared to normal MD simulations, which largely decreases the computational performance.
+In particular for large chemical or biological systems, it is computational expensive, because the computational time of the FFT calculation increases as :math:`O(N \log N)`, where :math:`N` is the number of degrees of freedom in the system.
+
+To overcome the problem in cFEP, instead of interpolation of the end state potential energies, another scaling method is proposed :cite:`Jorgensen:1985,Mezei:1986,Giese2018,Oshima:2022`. The partial charge of atom :math:`\alpha`, :math:`q_\alpha`, which is involved in the perturbed parts (parts A or B), is scaled by :math:`1-\lambda_i` or :math:`\lambda_i`.
+The interactions between non-perturbed atoms are not changed by this scaling, while the interactions between a perturbed atom and a non-perturbed one are changed as:
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::  
+     U_{\alpha \beta}^{\text{pert-nonpert}}(\lambda_i) &= \frac{(\lambda_i q_{\alpha}) q_{\beta}}{\epsilon r_{\alpha\beta}} \\
+     &= \lambda_i \frac{q_{\alpha} q_{\beta}}{\epsilon r_{\alpha\beta}} \\
+     &= \lambda_i U_{\alpha \beta}^{\text{pert-nonpert}},
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+where :math:`U_{\alpha \beta}^{\text{pert-nonpert}}` is an interaction energy between atoms :math:`\alpha` and :math:`\beta`, which are perturbed and non-perturbed atoms, respectively.
+:math:`U_{\alpha \beta}^{\text{pert-nonpert}}` without argument represents the non-scaled interaction (i.e., original one).
+Similarly, the interactions between perturbed atoms are changed as:
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::  
+     U_{\alpha \beta}^{\text{pert-pert}}(\lambda_i) &= \frac{(\lambda_i q_{\alpha}) (\lambda_i q_{\beta})}{\epsilon r_{\alpha\beta}} \\
+     &= \lambda_i^2 \frac{q_{\alpha} q_{\beta}}{\epsilon r_{\alpha\beta}} \\
+     &= \lambda_i^2 U_{\alpha \beta}^{\text{pert-pert}}
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+Since each energy term is scaled by 1, :math:`\lambda_i`, or :math:`\lambda_i^2`, the non-uniform scaling of :math:`\lambda_i` is introduced into the Hamiltonian.
+The partial charge scaling can be considered just as the modification of the force field parameters, which implies that
+the modified Hamiltonian corresponds to the normal Hamiltonian for the system with the modified partial charges.
+The modified Hamiltonian can be calculated by applying the normal PME method (i.e., only one reciprocal-space calculation per each time step) to the system with the modified partial charges.
+The scheme of the modified Hamiltonian is referred to as modified FEP :cite:`Oshima:2022`.
+
+We note that the alchemical calculation paths used in cFEP and modified FEP are different.
+In intermediate states, the non-bonded energies of cFEP and modified FEP are different, even if the same lambda value is used.
+However, modified FEP can reproduce the results for cFEP, because the free-energy change depends only on the end states, at which both methods can correspond to states A or B :cite:`Oshima:2022`.
+The reduction of PME reciprocal-space calculations greatly improves the computational performance, in particular in the CPU+GPU hybrid computation (at most 35% speeding-up) :cite:`Oshima:2022`.
+The modified scaling can be applied to the LJ energy: :math:`\epsilon` of atom :math:`i` is scaled by :math:`1-\lambda_i` or :math:`\lambda_i` :cite:`Giese2018`.
+In GENESIS version 2.1 or later, modified scalings for LJ and electrostatic energies are employed.
+
+
 Dual topology approach
 ----------------------
 
@@ -111,10 +164,11 @@ The non-bonded potential energy is defined as the following to smoothly connect 
 
   .. math::  
      U_{\text{nonbond}} &= U_{\text{LJ}}^{\text{other-other}} + U_{\text{LJ}}^{\text{other-common}} + U_{\text{LJ}}^{\text{common-common}} + U_{\text{elec}}^{\text{other-other}} + U_{\text{elec}}^{\text{other-common}} + U_{\text{elec}}^{\text{common-common}} \\
-	 & + \lambda_{\text{LJ}}^A (U_{\text{LJ}}^{\text{other-dualA}} + U_{\text{LJ}}^{\text{common-dualA}} + U_{\text{LJ}}^{\text{dualA-dualA}}) \\
-	 & + \lambda_{\text{LJ}}^B (U_{\text{LJ}}^{\text{other-dualB}} + U_{\text{LJ}}^{\text{common-dualB}} + U_{\text{LJ}}^{\text{dualB-dualB}}) \\
-	 & + \lambda_{\text{elec}}^A (U_{\text{elec}}^{\text{other-dualA}} + U_{\text{elec}}^{\text{common-dualA}} + U_{\text{elec}}^{\text{dualA-dualA}}) \\
-	 & + \lambda_{\text{elec}}^B (U_{\text{elec}}^{\text{other-dualB}} + U_{\text{elec}}^{\text{common-dualB}} + U_{\text{elec}}^{\text{dualB-dualB}}) 
+	 & + \lambda_{\text{LJ}}^A (U_{\text{LJ}}^{\text{other-dualA}} + U_{\text{LJ}}^{\text{common-dualA}}) + {\lambda_{\text{LJ}}^A}^2 U_{\text{LJ}}^{\text{dualA-dualA}} \\
+	 & + \lambda_{\text{LJ}}^B (U_{\text{LJ}}^{\text{other-dualB}} + U_{\text{LJ}}^{\text{common-dualB}}) + {\lambda_{\text{LJ}}^B}^2 U_{\text{LJ}}^{\text{dualB-dualB}} \\
+	 & + \lambda_{\text{elec}}^A (U_{\text{elec}}^{\text{other-dualA}} + U_{\text{elec}}^{\text{common-dualA}}) + {\lambda_{\text{elec}}^A}^2 U_{\text{elec}}^{\text{dualA-dualA}} \\
+	 & + \lambda_{\text{elec}}^B (U_{\text{elec}}^{\text{other-dualB}} + U_{\text{elec}}^{\text{common-dualB}}) + {\lambda_{\text{elec}}^B}^2 U_{\text{elec}}^{\text{dualB-dualB}} \\
+     & + \lambda_{\text{elec}}^A \lambda_{\text{elec}}^B U_{\text{elec}}^{\text{dualA-dualB}}
 
   .. raw:: latex
 
@@ -122,8 +176,15 @@ The non-bonded potential energy is defined as the following to smoothly connect 
 
 where "common", "dualA", "dualB", and "other" in the superscripts respectively represent the common atoms, the atoms existing only at state A, the atoms existing only at state B, and the other molecules including solvent molecules, proteins, or other ligands.
 For example, :math:`U_{\text{LJ}}^{\text{common-dualA}}` represents the LJ interaction between a common atom and a dualA atom.
+Here the modified Hamiltonian is employed for LJ and electrostatic potentials.
 The potential energy at :math:`\lambda_{\text{LJ}}^{A}=1`, :math:`\lambda_{\text{elec}}^{A}=1`, :math:`\lambda_{\text{LJ}}^{B}=0`, and :math:`\lambda_{\text{elec}}^{B}=0` corresponds to that of state A, while the energy at :math:`\lambda_{\text{LJ}}^{A}=0`, :math:`\lambda_{\text{elec}}^{A}=0`, :math:`\lambda_{\text{LJ}}^{B}=1`, and :math:`\lambda_{\text{elec}}^{B}=1` corresponds to that of state B.
 By gradually changing :math:`\lambda_{\text{LJ}}^{A}`, :math:`\lambda_{\text{elec}}^{A}`, :math:`\lambda_{\text{LJ}}^{B}`, and :math:`\lambda_{\text{elec}}^{B}`, states A and B can be connected smoothly.
+
+In modified FEP, the cross term, :math:`U_{\text{elec}}^{\text{dualA-dualB}}`, appears in the electrostatic potential. Since this term becomes infinitely large when the dualA atoms overlap the dualB atoms, the term should be removed from the calculation of the potential. The real-space part (i.e., the short-range part) of the term can be excluded from the calculation, because the part is pairwise additive in the real-space calculation.
+In contrast, the reciprocal-space part (i.e., long-range part) of the cross term cannot be removed because the PME reciprocal-space calculation includes all pair interactions involving A-B interactions.
+However, this part of energy always has a small value even if the atoms in dualA and dualB parts overlap, and its gradient does not become infinite :cite:`Oshima:2022`.
+In GENESIS, the real-space part of the cross term is removed using the exclusion list, while the reciprocal-space part is included in the potential energy.
+The remaining cross term provides minor effect on the potential energy and might be not important in free-energy calculations :cite:`Oshima:2022`.
 
 In GENESIS, the dual-topology approach is available by specifying **fep_topology = Dual** in the [ALCHEMY] section.
 The users should select the atoms of the dual-topology part in the [SELECTION] section and assign their group numbers to **dualA** and **dualB** in the [ALCHEMY] section.
@@ -177,10 +238,15 @@ In the hybrid topology approach, the potential energy is scaled by :math:`\lambd
 
   .. math::  
      U_{\text{nonbond}} &= U_{\text{LJ}}^{\text{other-other}} + U_{\text{elec}}^{\text{other-other}} \\
-	 & + \lambda_{\text{LJ}}^A (U_{\text{LJ}}^{\text{other-singleA}} + U_{\text{LJ}}^{\text{other-dualA}} + U_{\text{LJ}}^{\text{singleA-singleA}} + U_{\text{LJ}}^{\text{singleA-dualA}} + U_{\text{LJ}}^{\text{dualA-dualA}}) \\
-	 & + \lambda_{\text{LJ}}^B (U_{\text{LJ}}^{\text{other-singleB}} + U_{\text{LJ}}^{\text{other-dualB}} + U_{\text{LJ}}^{\text{singleB-singleB}} + U_{\text{LJ}}^{\text{singleB-dualB}} + U_{\text{LJ}}^{\text{dualB-dualB}}) \\
-	 & + \lambda_{\text{elec}}^A (U_{\text{elec}}^{\text{other-singleA}} + U_{\text{elec}}^{\text{other-dualA}} + U_{\text{elec}}^{\text{singleA-singleA}} + U_{\text{elec}}^{\text{singleA-dualA}} + U_{\text{elec}}^{\text{dualA-dualA}}) \\
-	 & + \lambda_{\text{elec}}^B (U_{\text{elec}}^{\text{other-singleB}} + U_{\text{elec}}^{\text{other-dualB}} + U_{\text{elec}}^{\text{singleB-singleB}} + U_{\text{elec}}^{\text{singleB-dualB}} + U_{\text{elec}}^{\text{dualB-dualB}}) \\
+	 & + \lambda_{\text{LJ}}^A (U_{\text{LJ}}^{\text{other-singleA}} + U_{\text{LJ}}^{\text{other-dualA}}) \\
+     & + {\lambda_{\text{LJ}}^A}^2 (U_{\text{LJ}}^{\text{singleA-singleA}} + U_{\text{LJ}}^{\text{singleA-dualA}} + U_{\text{LJ}}^{\text{dualA-dualA}}) \\
+	 & + \lambda_{\text{LJ}}^B (U_{\text{LJ}}^{\text{other-singleB}} + U_{\text{LJ}}^{\text{other-dualB}}) \\
+     & + {\lambda_{\text{LJ}}^B}^2 (U_{\text{LJ}}^{\text{singleB-singleB}} + U_{\text{LJ}}^{\text{singleB-dualB}} + U_{\text{LJ}}^{\text{dualB-dualB}}) \\
+	 & + \lambda_{\text{elec}}^A (U_{\text{elec}}^{\text{other-singleA}} + U_{\text{elec}}^{\text{other-dualA}}) \\
+     & + {\lambda_{\text{elec}}^A}^2 (U_{\text{elec}}^{\text{singleA-singleA}} + U_{\text{elec}}^{\text{singleA-dualA}} + U_{\text{elec}}^{\text{dualA-dualA}}) \\
+	 & + \lambda_{\text{elec}}^B (U_{\text{elec}}^{\text{other-singleB}} + U_{\text{elec}}^{\text{other-dualB}}) \\
+     & + {\lambda_{\text{elec}}^B}^2 (U_{\text{elec}}^{\text{singleB-singleB}} + U_{\text{elec}}^{\text{singleB-dualB}} + U_{\text{elec}}^{\text{dualB-dualB}}) \\
+     & + \lambda_{\text{elec}}^A \lambda_{\text{elec}}^B (U_{\text{elec}}^{\text{singleA-singleB}} + U_{\text{elec}}^{\text{singleA-dualB}} + U_{\text{elec}}^{\text{dualA-singleB}} + U_{\text{elec}}^{\text{dualA-dualB}}) \\
      \\
      U_{\text{bond}} &= U_{\text{bond}}^{\text{other}} + U_{\text{bond}}^{\text{dualA}} + U_{\text{bond}}^{\text{dualB}} + U_{\text{bond}}^{\text{singleA-dualA}} + U_{\text{bond}}^{\text{singleB-dualB}} \\
 	 & + \lambda_{\text{bond}}^A (U_{\text{bond}}^{s\text{ingleA}}) \\
@@ -191,9 +257,13 @@ In the hybrid topology approach, the potential energy is scaled by :math:`\lambd
      \vspace{-3mm}
 
 where "singleA", "singleB", "dualA", and "dualB" in the superscripts respectively represent the atoms corresponding to "singleA", "singleB", "dualA", and "dualB" parts, respectively, and "other" represents the other molecules including solvent molecules, proteins, or other ligands.
+Here the modified Hamiltonian is employed for LJ and electrostatic potentials.
 The potential energy at :math:`\lambda_{\text{LJ}}^{A}=1`, :math:`\lambda_{\text{elec}}^{A}=1`, :math:`\lambda_{\text{bond}}^{A}=1`, :math:`\lambda_{\text{LJ}}^{B}=0`, :math:`\lambda_{\text{elec}}^{B}=0`, and :math:`\lambda_{\text{bond}}^{B}=0` corresponds to that of state A,
 while the energy at :math:`\lambda_{\text{LJ}}^{A}=0`, :math:`\lambda_{\text{elec}}^{A}=0`, :math:`\lambda_{\text{bond}}^{A}=0`, :math:`\lambda_{\text{LJ}}^{B}=1`, :math:`\lambda_{\text{elec}}^{B}=1`, and :math:`\lambda_{\text{bond}}^{B}=1` corresponds to that of state B.
 By gradually changing the lambda values, states A and B can be connected smoothly.
+
+Similar to the dual-topology apporach, there are some cross terms in the modified potential energy for the hybrid-topology approach.
+In GENESIS, the real-space part of the cross term is removed using the exclusion list, while the reciprocal-space part is included in the potential energy.
 
 In GENESIS, the hybrid-topology approach is available by specifying **fep_topology = Hybrid** in the [ALCHEMY] section.
 The users should select the atoms of the single-topology and dual-topology parts in the [SELECTION] section and assign their group numbers to **singleA**, **singleB**, **dualA**, and **dualB** in the [ALCHEMY] section.
@@ -257,7 +327,7 @@ It is important that the soft-core potential equals to the original LJ potential
      \vspace{-5mm}
 
   .. math::  
-     U_{\text{LJ}}(r_{ij}, \lambda_{\text{LJ}}=1) &= 4 \epsilon \left[ \left( \frac{\sigma}{r_{ij}} \right)^{12} - \left( \frac{\sigma}{r_{ij})} \right)^6 \right], \\
+     U_{\text{LJ}}(r_{ij}, \lambda_{\text{LJ}}=1) &= 4 \epsilon \left[ \left( \frac{\sigma}{r_{ij}} \right)^{12} - \left( \frac{\sigma}{r_{ij}} \right)^6 \right], \\
      U_{\text{LJ}}(r_{ij}, \lambda_{\text{LJ}}=0) &= 0,
 
   .. raw:: latex
