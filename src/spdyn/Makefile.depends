@@ -8,217 +8,205 @@ pr_charmm2cache.o: pr_charmm2cache.fpp pr_pdb2cache_mod.mod pr_cached_molecule_m
 pr_charmm2cache_mod.mod: pr_charmm2cache.fpp pr_charmm2cache.o
 pr_charmm2hm.o: pr_charmm2hm.fpp pr_pdb2hm_mod.mod pr_huge_molecule_mod.mod 
 pr_charmm2hm_mod.mod: pr_charmm2hm.fpp pr_charmm2hm.o
-pr_control.o: pr_control.fpp sp_energy_mod.mod sp_boundary_mod.mod sp_constraints_mod.mod sp_ensemble_mod.mod sp_dynamics_mod.mod sp_output_mod.mod sp_ensemble_str_mod.mod sp_input_mod.mod sp_restraints_mod.mod 
+pr_control.o: pr_control.fpp sp_ensemble_mod.mod sp_restraints_mod.mod sp_energy_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_boundary_mod.mod sp_output_mod.mod sp_dynamics_mod.mod sp_input_mod.mod 
 pr_control_mod.mod: pr_control.fpp pr_control.o
-pr_domain_index.o: pr_domain_index.fpp  
-pr_domain_index_file.o: pr_domain_index_file.fpp sp_boundary_str_mod.mod pr_huge_molecule_mod.mod 
-pr_domain_index_mod.mod: pr_domain_index_file.fpp pr_domain_index_file.o
-pr_domain_index_mem.o: pr_domain_index_mem.fpp sp_boundary_str_mod.mod pr_huge_molecule_mod.mod 
-pr_domain_index_mod.mod: pr_domain_index_mem.fpp pr_domain_index_mem.o
+pr_domain_index.o: pr_domain_index.fpp  pr_huge_molecule_mod.mod sp_boundary_str_mod.mod
+pr_domain_index_mod.mod: pr_domain_index.fpp pr_domain_index.o
 pr_gromacs2cache.o: pr_gromacs2cache.fpp pr_pdb2cache_mod.mod pr_cached_molecule_mod.mod 
 pr_gromacs2cache_mod.mod: pr_gromacs2cache.fpp pr_gromacs2cache.o
 pr_gromacs2hm.o: pr_gromacs2hm.fpp pr_pdb2hm_mod.mod pr_huge_molecule_mod.mod 
 pr_gromacs2hm_mod.mod: pr_gromacs2hm.fpp pr_gromacs2hm.o
 pr_huge_molecule.o: pr_huge_molecule.fpp  
-pr_huge_molecule_file.o: pr_huge_molecule_file.fpp  
-pr_huge_molecule_mod.mod: pr_huge_molecule_file.fpp pr_huge_molecule_file.o
-pr_huge_molecule_mem.o: pr_huge_molecule_mem.fpp  
-pr_huge_molecule_mod.mod: pr_huge_molecule_mem.fpp pr_huge_molecule_mem.o
+pr_huge_molecule_mod.mod: pr_huge_molecule.fpp pr_huge_molecule.o  
 pr_pdb2cache.o: pr_pdb2cache.fpp pr_cached_molecule_mod.mod 
 pr_pdb2cache_mod.mod: pr_pdb2cache.fpp pr_pdb2cache.o
 pr_pdb2hm.o: pr_pdb2hm.fpp pr_huge_molecule_mod.mod 
 pr_pdb2hm_mod.mod: pr_pdb2hm.fpp pr_pdb2hm.o
-pr_run_prst_setup.o: pr_run_prst_setup.fpp sp_dynamics_str_mod.mod sp_parallel_io_mod.mod sp_constraints_str_mod.mod pr_domain_index_mod.mod sp_domain_str_mod.mod sp_boundary_str_mod.mod sp_domain_mod.mod sp_dynvars_str_mod.mod pr_amber2hm_mod.mod pr_control_mod.mod pr_gromacs2hm_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod pr_setup_spdyn_peer_mod.mod pr_huge_molecule_mod.mod pr_charmm2hm_mod.mod 
+pr_run_prst_setup.o: pr_run_prst_setup.fpp sp_dynamics_str_mod.mod pr_setup_spdyn_peer_mod.mod pr_amber2hm_mod.mod sp_domain_mod.mod sp_parallel_io_mod.mod sp_domain_str_mod.mod pr_huge_molecule_mod.mod sp_dynvars_str_mod.mod pr_gromacs2hm_mod.mod sp_boundary_str_mod.mod pr_domain_index_mod.mod sp_constraints_str_mod.mod pr_charmm2hm_mod.mod pr_control_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod 
 pr_run_prst_setup_mod.mod: pr_run_prst_setup.fpp pr_run_prst_setup.o
 pr_select_atoms_peer.o: pr_select_atoms_peer.fpp pr_huge_molecule_mod.mod 
 pr_select_atoms_peer_mod.mod: pr_select_atoms_peer.fpp pr_select_atoms_peer.o
-pr_setup_spdyn_peer.o: pr_setup_spdyn_peer.fpp sp_dynamics_str_mod.mod sp_constraints_str_mod.mod pr_domain_index_mod.mod sp_domain_str_mod.mod pr_select_atoms_peer_mod.mod sp_energy_mod.mod sp_enefunc_restraints_mod.mod sp_dynamics_mod.mod sp_boundary_str_mod.mod sp_domain_mod.mod sp_dynvars_str_mod.mod pr_control_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_boundary_mod.mod sp_constraints_mod.mod sp_restraints_str_mod.mod pr_huge_molecule_mod.mod sp_restraints_mod.mod 
+pr_setup_spdyn_peer.o: pr_setup_spdyn_peer.fpp sp_dynamics_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_dynamics_mod.mod sp_enefunc_restraints_mod.mod sp_energy_mod.mod sp_domain_mod.mod sp_domain_str_mod.mod pr_huge_molecule_mod.mod sp_restraints_mod.mod sp_dynvars_str_mod.mod sp_boundary_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod pr_domain_index_mod.mod sp_constraints_str_mod.mod pr_control_mod.mod sp_restraints_str_mod.mod pr_select_atoms_peer_mod.mod 
 pr_setup_spdyn_peer_mod.mod: pr_setup_spdyn_peer.fpp pr_setup_spdyn_peer.o
-prst_setup.o: prst_setup.fpp pr_control_mod.mod pr_run_prst_setup_mod.mod pr_huge_molecule_mod.mod 
+prst_setup.o: prst_setup.fpp pr_huge_molecule_mod.mod pr_control_mod.mod pr_run_prst_setup_mod.mod 
 sp_alchemy.o: sp_alchemy.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_energy_mod.mod sp_fep_energy_mod.mod sp_energy_str_mod.mod sp_output_str_mod.mod sp_alchemy_str_mod.mod 
 sp_alchemy_mod.mod: sp_alchemy.fpp sp_alchemy.o
 sp_alchemy_str.o: sp_alchemy_str.fpp  
 sp_alchemy_str_mod.mod: sp_alchemy_str.fpp sp_alchemy_str.o
 sp_assign_velocity.o: sp_assign_velocity.fpp sp_dynvars_mod.mod 
 sp_assign_velocity_mod.mod: sp_assign_velocity.fpp sp_assign_velocity.o
-sp_boundary.o: sp_boundary.fpp sp_boundary_str_mod.mod sp_ensemble_str_mod.mod 
+sp_boundary.o: sp_boundary.fpp sp_ensemble_str_mod.mod sp_boundary_str_mod.mod 
 sp_boundary_mod.mod: sp_boundary.fpp sp_boundary.o
 sp_boundary_str.o: sp_boundary_str.fpp  
 sp_boundary_str_mod.mod: sp_boundary_str.fpp sp_boundary_str.o
 sp_communicate.o: sp_communicate.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_communicate_mod.mod: sp_communicate.fpp sp_communicate.o
-sp_constraints.o: sp_constraints.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_dynamics_str_mod.mod 
+sp_constraints.o: sp_constraints.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod 
 sp_constraints_mod.mod: sp_constraints.fpp sp_constraints.o
 sp_constraints_str.o: sp_constraints_str.fpp  
 sp_constraints_str_mod.mod: sp_constraints_str.fpp sp_constraints_str.o
-sp_control.o: sp_control.fpp sp_rpath_mod.mod sp_energy_mod.mod sp_remd_mod.mod sp_dynamics_mod.mod sp_alchemy_mod.mod sp_output_mod.mod sp_input_mod.mod sp_minimize_mod.mod sp_boundary_mod.mod sp_constraints_mod.mod sp_ensemble_mod.mod sp_experiments_mod.mod sp_gamd_mod.mod sp_restraints_mod.mod 
+sp_control.o: sp_control.fpp sp_minimize_mod.mod sp_experiments_mod.mod sp_ensemble_mod.mod sp_remd_mod.mod sp_restraints_mod.mod sp_energy_mod.mod sp_constraints_mod.mod sp_rpath_mod.mod sp_boundary_mod.mod sp_gamd_mod.mod sp_output_mod.mod sp_dynamics_mod.mod sp_input_mod.mod sp_alchemy_mod.mod 
 sp_control_mod.mod: sp_control.fpp sp_control.o
-sp_domain.o: sp_domain.fpp sp_ensemble_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_enefunc_str_mod.mod sp_boundary_mod.mod sp_constraints_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
+sp_domain.o: sp_domain.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_str_mod.mod sp_energy_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_str_mod.mod sp_boundary_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_boundary_str_mod.mod 
 sp_domain_mod.mod: sp_domain.fpp sp_domain.o
 sp_domain_str.o: sp_domain_str.fpp  
 sp_domain_str_mod.mod: sp_domain_str.fpp sp_domain_str.o
-sp_dynamics.o: sp_dynamics.fpp sp_remd_str_mod.mod sp_fep_energy_mod.mod sp_ensemble_str_mod.mod sp_md_leapfrog_mod.mod sp_dynamics_str_mod.mod sp_parallel_io_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_md_respa_mod.mod sp_alchemy_str_mod.mod sp_alchemy_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_mod.mod sp_restraints_str_mod.mod sp_md_vverlet_mod.mod sp_pairlist_str_mod.mod sp_restraints_mod.mod 
+sp_dynamics.o: sp_dynamics.fpp sp_md_vverlet_mod.mod sp_dynamics_str_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_md_leapfrog_mod.mod sp_remd_str_mod.mod sp_parallel_io_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_restraints_mod.mod sp_dynvars_str_mod.mod sp_boundary_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_md_respa_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_alchemy_mod.mod sp_fep_energy_mod.mod 
 sp_dynamics_mod.mod: sp_dynamics.fpp sp_dynamics.o
 sp_dynamics_str.o: sp_dynamics_str.fpp  
 sp_dynamics_str_mod.mod: sp_dynamics_str.fpp sp_dynamics_str.o
-sp_dynvars.o: sp_dynvars.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_ensemble_str_mod.mod sp_output_str_mod.mod sp_dynamics_str_mod.mod sp_dynvars_str_mod.mod 
+spdyn.o: spdyn.fpp sp_md_vverlet_mod.mod sp_minimize_str_mod.mod sp_ensemble_str_mod.mod sp_control_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_dynamics_mod.mod sp_md_leapfrog_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_setup_spdyn_mod.mod sp_domain_str_mod.mod sp_remd_mod.mod sp_dynvars_str_mod.mod sp_rpath_mod.mod sp_dynamics_str_mod.mod sp_setup_mpi_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_minimize_mod.mod sp_constraints_str_mod.mod sp_rpath_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod 
+sp_dynvars.o: sp_dynvars.fpp sp_output_str_mod.mod sp_domain_str_mod.mod sp_ensemble_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_dynvars_mod.mod: sp_dynvars.fpp sp_dynvars.o
 sp_dynvars_str.o: sp_dynvars_str.fpp sp_energy_str_mod.mod 
 sp_dynvars_str_mod.mod: sp_dynvars_str.fpp sp_dynvars_str.o
-sp_enefunc.o: sp_enefunc.fpp sp_enefunc_amber_mod.mod sp_enefunc_charmm_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_enefunc_restraints_mod.mod sp_migration_mod.mod sp_communicate_mod.mod sp_enefunc_table_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_energy_str_mod.mod sp_enefunc_gromacs_mod.mod sp_enefunc_localres_mod.mod 
-sp_enefunc_mod.mod: sp_enefunc.fpp sp_enefunc.o
-sp_enefunc_amber.o: sp_enefunc_amber.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_table_mod.mod sp_energy_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_restraints_mod.mod sp_energy_str_mod.mod sp_enefunc_charmm_mod.mod 
+sp_enefunc_amber.o: sp_enefunc_amber.fpp sp_enefunc_restraints_mod.mod sp_constraints_str_mod.mod sp_enefunc_charmm_mod.mod sp_enefunc_table_mod.mod sp_energy_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_enefunc_amber_mod.mod: sp_enefunc_amber.fpp sp_enefunc_amber.o
-sp_enefunc_charmm.o: sp_enefunc_charmm.fpp sp_enefunc_fit_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_enefunc_restraints_mod.mod sp_enefunc_table_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_energy_str_mod.mod sp_enefunc_localres_mod.mod 
+sp_enefunc_charmm.o: sp_enefunc_charmm.fpp sp_enefunc_restraints_mod.mod sp_constraints_str_mod.mod sp_enefunc_localres_mod.mod sp_energy_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_domain_str_mod.mod sp_enefunc_fit_mod.mod sp_enefunc_table_mod.mod 
 sp_enefunc_charmm_mod.mod: sp_enefunc_charmm.fpp sp_enefunc_charmm.o
-sp_enefunc_fit.o: sp_enefunc_fit.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod 
+sp_enefunc_fit.o: sp_enefunc_fit.fpp sp_domain_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_fit_mod.mod: sp_enefunc_fit.fpp sp_enefunc_fit.o
-sp_enefunc_gamd.o: sp_enefunc_gamd.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
+sp_enefunc.o: sp_enefunc.fpp sp_enefunc_gromacs_mod.mod sp_enefunc_table_mod.mod sp_migration_mod.mod sp_enefunc_restraints_mod.mod sp_enefunc_localres_mod.mod sp_energy_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_constraints_str_mod.mod sp_enefunc_charmm_mod.mod sp_enefunc_amber_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_communicate_mod.mod 
+sp_enefunc_mod.mod: sp_enefunc.fpp sp_enefunc.o
+sp_enefunc_gamd.o: sp_enefunc_gamd.fpp sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_enefunc_gamd_mod.mod: sp_enefunc_gamd.fpp sp_enefunc_gamd.o
-sp_enefunc_gromacs.o: sp_enefunc_gromacs.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_table_mod.mod sp_energy_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_restraints_mod.mod sp_energy_str_mod.mod sp_enefunc_charmm_mod.mod 
+sp_enefunc_gromacs.o: sp_enefunc_gromacs.fpp sp_enefunc_restraints_mod.mod sp_constraints_str_mod.mod sp_enefunc_charmm_mod.mod sp_enefunc_table_mod.mod sp_energy_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_enefunc_gromacs_mod.mod: sp_enefunc_gromacs.fpp sp_enefunc_gromacs.o
 sp_enefunc_localres.o: sp_enefunc_localres.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_localres_mod.mod: sp_enefunc_localres.fpp sp_enefunc_localres.o
-sp_enefunc_restraints.o: sp_enefunc_restraints.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod 
+sp_enefunc_restraints.o: sp_enefunc_restraints.fpp sp_domain_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_restraints_mod.mod: sp_enefunc_restraints.fpp sp_enefunc_restraints.o
 sp_enefunc_str.o: sp_enefunc_str.fpp sp_domain_str_mod.mod 
 sp_enefunc_str_mod.mod: sp_enefunc_str.fpp sp_enefunc_str.o
-sp_enefunc_table.o: sp_enefunc_table.fpp sp_enefunc_str_mod.mod sp_energy_mod.mod sp_boundary_mod.mod sp_energy_pme_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
+sp_enefunc_table.o: sp_enefunc_table.fpp sp_energy_mod.mod sp_energy_str_mod.mod sp_boundary_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod 
 sp_enefunc_table_mod.mod: sp_enefunc_table.fpp sp_enefunc_table.o
-sp_energy.o: sp_energy.fpp sp_energy_dihedrals_mod.mod sp_energy_efield_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_domain_str_mod.mod sp_energy_nonbonds_mod.mod sp_boundary_str_mod.mod sp_energy_14_notable_mod.mod sp_enefunc_gamd_mod.mod sp_energy_table_linear_mod.mod sp_energy_gamd_mod.mod sp_enefunc_str_mod.mod sp_energy_angles_mod.mod sp_restraints_str_mod.mod sp_energy_bonds_mod.mod sp_energy_restraints_mod.mod sp_experiments_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
-sp_energy_mod.mod: sp_energy.fpp sp_energy.o
-sp_energy_14_notable.o: sp_energy_14_notable.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_energy_14_notable.o: sp_energy_14_notable.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_energy_14_notable_mod.mod: sp_energy_14_notable.fpp sp_energy_14_notable.o
-sp_energy_angles.o: sp_energy_angles.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_angles.o: sp_energy_angles.fpp sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_energy_angles_mod.mod: sp_energy_angles.fpp sp_energy_angles.o
-sp_energy_bonds.o: sp_energy_bonds.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_bonds.o: sp_energy_bonds.fpp sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_energy_bonds_mod.mod: sp_energy_bonds.fpp sp_energy_bonds.o
 sp_energy_dihedrals.o: sp_energy_dihedrals.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
 sp_energy_dihedrals_mod.mod: sp_energy_dihedrals.fpp sp_energy_dihedrals.o
-sp_energy_efield.o: sp_energy_efield.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_efield.o: sp_energy_efield.fpp sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_energy_efield_mod.mod: sp_energy_efield.fpp sp_energy_efield.o
-sp_energy_gamd.o: sp_energy_gamd.fpp sp_domain_str_mod.mod sp_energy_dihedrals_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_boundary_str_mod.mod sp_energy_restraints_mod.mod sp_energy_str_mod.mod 
+sp_energy.o: sp_energy.fpp sp_energy_gamd_mod.mod sp_energy_dihedrals_mod.mod sp_pairlist_str_mod.mod sp_energy_restraints_mod.mod sp_energy_bonds_mod.mod sp_energy_table_linear_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_energy_nonbonds_mod.mod sp_domain_str_mod.mod sp_energy_efield_mod.mod sp_boundary_str_mod.mod sp_experiments_mod.mod sp_enefunc_gamd_mod.mod sp_energy_14_notable_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_energy_angles_mod.mod 
+sp_energy_mod.mod: sp_energy.fpp sp_energy.o
+sp_energy_gamd.o: sp_energy_gamd.fpp sp_domain_str_mod.mod sp_energy_dihedrals_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_energy_restraints_mod.mod sp_boundary_str_mod.mod 
 sp_energy_gamd_mod.mod: sp_energy_gamd.fpp sp_energy_gamd.o
+sp_energy_nonbond_fugaku.o: sp_energy_nonbond_fugaku.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbond_fugaku_mod.mod: sp_energy_nonbond_fugaku.fpp sp_energy_nonbond_fugaku.o
+sp_energy_nonbond_generic.o: sp_energy_nonbond_generic.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbond_generic_mod.mod: sp_energy_nonbond_generic.fpp sp_energy_nonbond_generic.o
+sp_energy_nonbond_gpu.o: sp_energy_nonbond_gpu.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbond_gpu_mod.mod: sp_energy_nonbond_gpu.fpp sp_energy_nonbond_gpu.o
+sp_energy_nonbond_intel.o: sp_energy_nonbond_intel.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbond_intel_mod.mod: sp_energy_nonbond_intel.fpp sp_energy_nonbond_intel.o
+sp_energy_nonbond_k_generic.o: sp_energy_nonbond_k_generic.fpp sp_domain_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbond_k_generic_mod.mod: sp_energy_nonbond_k_generic.fpp sp_energy_nonbond_k_generic.o
 sp_energy_nonbond_fep.o: sp_energy_nonbond_fep.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_energy_nonbond_fep_mod.mod: sp_energy_nonbond_fep.fpp sp_energy_nonbond_fep.o
-sp_energy_nonbond_fugaku.o: sp_energy_nonbond_fugaku.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_fugaku_mod.mod: sp_energy_nonbond_fugaku.fpp sp_energy_nonbond_fugaku.o
-sp_energy_nonbond_generic.o: sp_energy_nonbond_generic.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_generic_mod.mod: sp_energy_nonbond_generic.fpp sp_energy_nonbond_generic.o
-sp_energy_nonbond_gpu.o: sp_energy_nonbond_gpu.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_gpu_mod.mod: sp_energy_nonbond_gpu.fpp sp_energy_nonbond_gpu.o
-sp_energy_nonbond_intel.o: sp_energy_nonbond_intel.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_intel_mod.mod: sp_energy_nonbond_intel.fpp sp_energy_nonbond_intel.o
-sp_energy_nonbond_intel_knl.o: sp_energy_nonbond_intel_knl.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_intel_knl_mod.mod: sp_energy_nonbond_intel_knl.fpp sp_energy_nonbond_intel_knl.o
-sp_energy_nonbond_k_generic.o: sp_energy_nonbond_k_generic.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_pairlist_str_mod.mod 
-sp_energy_nonbond_k_generic_mod.mod: sp_energy_nonbond_k_generic.fpp sp_energy_nonbond_k_generic.o
-sp_energy_nonbond_ljpme.o: sp_energy_nonbond_ljpme.fpp sp_domain_str_mod.mod sp_energy_nonbond_fugaku_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_intel_mod.mod sp_energy_nonbond_gpu_mod.mod sp_pairlist_str_mod.mod 
+sp_energy_nonbond_ljpme.o: sp_energy_nonbond_ljpme.fpp sp_energy_nonbond_fugaku_mod.mod sp_domain_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_gpu_mod.mod sp_energy_nonbond_intel_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_energy_nonbond_ljpme_mod.mod: sp_energy_nonbond_ljpme.fpp sp_energy_nonbond_ljpme.o
-sp_energy_nonbond_pme_notable.o: sp_energy_nonbond_pme_notable.fpp sp_domain_str_mod.mod sp_energy_nonbond_fugaku_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_intel_mod.mod sp_energy_nonbond_gpu_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_fep_mod.mod 
+sp_energy_nonbond_pme_notable.o: sp_energy_nonbond_pme_notable.fpp sp_energy_nonbond_fugaku_mod.mod sp_domain_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_gpu_mod.mod sp_energy_nonbond_intel_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_fep_mod.mod 
 sp_energy_nonbond_pme_notable_mod.mod: sp_energy_nonbond_pme_notable.fpp sp_energy_nonbond_pme_notable.o
-sp_energy_nonbond_pme_table.o: sp_energy_nonbond_pme_table.fpp sp_domain_str_mod.mod sp_energy_nonbond_fugaku_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_intel_mod.mod sp_energy_nonbond_gpu_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_fep_mod.mod 
+sp_energy_nonbond_pme_table.o: sp_energy_nonbond_pme_table.fpp sp_energy_nonbond_fugaku_mod.mod sp_domain_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_gpu_mod.mod sp_energy_nonbond_intel_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_fep_mod.mod 
 sp_energy_nonbond_pme_table_mod.mod: sp_energy_nonbond_pme_table.fpp sp_energy_nonbond_pme_table.o
 sp_energy_nonbond_vacuum.o: sp_energy_nonbond_vacuum.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_energy_nonbond_vacuum_mod.mod: sp_energy_nonbond_vacuum.fpp sp_energy_nonbond_vacuum.o
-sp_energy_nonbonds.o: sp_energy_nonbonds.fpp sp_energy_table_cubic_mod.mod sp_domain_str_mod.mod sp_energy_nonbond_ljpme_mod.mod sp_enefunc_str_mod.mod sp_energy_str_mod.mod sp_energy_nonbond_pme_table_mod.mod sp_energy_nonbond_vacuum_mod.mod sp_energy_nonbond_generic_mod.mod sp_boundary_str_mod.mod sp_energy_pme_mod.mod sp_pairlist_str_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_energy_nonbond_pme_notable_mod.mod sp_energy_table_linear_mod.mod 
+sp_energy_nonbonds.o: sp_energy_nonbonds.fpp sp_domain_str_mod.mod sp_energy_nonbond_ljpme_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_table_linear_mod.mod sp_energy_table_cubic_mod.mod sp_energy_nonbond_pme_table_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_energy_nonbond_pme_notable_mod.mod sp_energy_str_mod.mod sp_boundary_str_mod.mod sp_energy_nonbond_vacuum_mod.mod 
 sp_energy_nonbonds_mod.mod: sp_energy_nonbonds.fpp sp_energy_nonbonds.o
-sp_energy_pme.o: sp_energy_pme.fpp sp_energy_pme_opt_slab_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_energy_pme_noopt_2dalltoall_mod.mod sp_energy_pme_noopt_1dalltoall_mod.mod sp_energy_pme_opt_2dalltoall_mod.mod sp_energy_pme_opt_1dalltoall_mod.mod sp_energy_pme_noopt_slab_mod.mod 
+sp_energy_pme.o: sp_energy_pme.fpp sp_energy_pme_opt_2dalltoall_mod.mod sp_energy_pme_noopt_1dalltoall_mod.mod sp_domain_str_mod.mod sp_energy_pme_noopt_2dalltoall_mod.mod sp_energy_pme_noopt_slab_mod.mod sp_enefunc_str_mod.mod sp_energy_pme_opt_1dalltoall_mod.mod sp_energy_pme_opt_slab_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_mod.mod: sp_energy_pme.fpp sp_energy_pme.o
-sp_energy_pme_noopt_1dalltoall.o: sp_energy_pme_noopt_1dalltoall.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_pme_noopt_1dalltoall.o: sp_energy_pme_noopt_1dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_noopt_1dalltoall_mod.mod: sp_energy_pme_noopt_1dalltoall.fpp sp_energy_pme_noopt_1dalltoall.o
-sp_energy_pme_noopt_2dalltoall.o: sp_energy_pme_noopt_2dalltoall.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_pme_noopt_2dalltoall.o: sp_energy_pme_noopt_2dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_noopt_2dalltoall_mod.mod: sp_energy_pme_noopt_2dalltoall.fpp sp_energy_pme_noopt_2dalltoall.o
 sp_energy_pme_noopt_slab.o: sp_energy_pme_noopt_slab.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_noopt_slab_mod.mod: sp_energy_pme_noopt_slab.fpp sp_energy_pme_noopt_slab.o
-sp_energy_pme_opt_1dalltoall.o: sp_energy_pme_opt_1dalltoall.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_pme_opt_1dalltoall.o: sp_energy_pme_opt_1dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_opt_1dalltoall_mod.mod: sp_energy_pme_opt_1dalltoall.fpp sp_energy_pme_opt_1dalltoall.o
-sp_energy_pme_opt_2dalltoall.o: sp_energy_pme_opt_2dalltoall.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_pme_opt_2dalltoall.o: sp_energy_pme_opt_2dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_opt_2dalltoall_mod.mod: sp_energy_pme_opt_2dalltoall.fpp sp_energy_pme_opt_2dalltoall.o
 sp_energy_pme_opt_slab.o: sp_energy_pme_opt_slab.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_opt_slab_mod.mod: sp_energy_pme_opt_slab.fpp sp_energy_pme_opt_slab.o
-sp_energy_restraints.o: sp_energy_restraints.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_boundary_str_mod.mod sp_experiments_mod.mod sp_rpath_str_mod.mod sp_enefunc_fit_mod.mod 
+sp_energy_restraints.o: sp_energy_restraints.fpp sp_experiments_mod.mod sp_domain_str_mod.mod sp_rpath_str_mod.mod sp_enefunc_fit_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod sp_restraints_str_mod.mod 
 sp_energy_restraints_mod.mod: sp_energy_restraints.fpp sp_energy_restraints.o
 sp_energy_str.o: sp_energy_str.fpp  
 sp_energy_str_mod.mod: sp_energy_str.fpp sp_energy_str.o
-sp_energy_table_cubic.o: sp_energy_table_cubic.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_energy_table_cubic.o: sp_energy_table_cubic.fpp sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_energy_table_cubic_mod.mod: sp_energy_table_cubic.fpp sp_energy_table_cubic.o
-sp_energy_table_linear.o: sp_energy_table_linear.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
-sp_energy_table_linear_mod.mod: sp_energy_table_linear.fpp sp_energy_table_linear.o
-sp_energy_table_linear_bondcorr.o: sp_energy_table_linear_bondcorr.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_table_linear_bondcorr.o: sp_energy_table_linear_bondcorr.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_energy_table_linear_bondcorr_mod.mod: sp_energy_table_linear_bondcorr.fpp sp_energy_table_linear_bondcorr.o
-sp_energy_table_linear_nowater.o: sp_energy_table_linear_nowater.fpp sp_domain_str_mod.mod sp_energy_nonbond_fugaku_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_generic_mod.mod sp_energy_nonbond_intel_knl_mod.mod sp_energy_nonbond_gpu_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_k_generic_mod.mod 
-sp_energy_table_linear_nowater_mod.mod: sp_energy_table_linear_nowater.fpp sp_energy_table_linear_nowater.o
-sp_energy_table_linear_water.o: sp_energy_table_linear_water.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_energy_table_linear.o: sp_energy_table_linear.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_table_linear_mod.mod: sp_energy_table_linear.fpp sp_energy_table_linear.o
+sp_energy_table_linear_water.o: sp_energy_table_linear_water.fpp sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_domain_str_mod.mod 
 sp_energy_table_linear_water_mod.mod: sp_energy_table_linear_water.fpp sp_energy_table_linear_water.o
 sp_ensemble.o: sp_ensemble.fpp sp_ensemble_str_mod.mod sp_dynamics_str_mod.mod 
 sp_ensemble_mod.mod: sp_ensemble.fpp sp_ensemble.o
 sp_ensemble_str.o: sp_ensemble_str.fpp  
 sp_ensemble_str_mod.mod: sp_ensemble_str.fpp sp_ensemble_str.o
-sp_experiments.o: sp_experiments.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_boundary_str_mod.mod sp_experiments_str_mod.mod 
+sp_experiments.o: sp_experiments.fpp sp_experiments_str_mod.mod sp_domain_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_experiments_mod.mod: sp_experiments.fpp sp_experiments.o
 sp_experiments_str.o: sp_experiments_str.fpp  
 sp_experiments_str_mod.mod: sp_experiments_str.fpp sp_experiments_str.o
+sp_gamd.o: sp_gamd.fpp sp_domain_str_mod.mod sp_enefunc_gamd_mod.mod sp_dynamics_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod 
+sp_gamd_mod.mod: sp_gamd.fpp sp_gamd.o
+sp_grest_energy.o: sp_grest_energy.fpp sp_domain_str_mod.mod sp_ensemble_str_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_boundary_str_mod.mod 
+sp_grest_energy_mod.mod: sp_grest_energy.fpp sp_grest_energy.o
 sp_fep_energy.o: sp_fep_energy.fpp sp_domain_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_energy_pme_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod sp_dynvars_str_mod.mod sp_alchemy_str_mod.mod 
 sp_fep_energy_mod.mod: sp_fep_energy.fpp sp_fep_energy.o
 sp_fep_topology.o: sp_fep_topology.fpp sp_alchemy_mod.mod sp_alchemy_str_mod.mod 
 sp_fep_topology_mod.mod: sp_fep_topology.fpp sp_fep_topology.o
-sp_gamd.o: sp_gamd.fpp sp_domain_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_enefunc_gamd_mod.mod sp_dynamics_str_mod.mod 
-sp_gamd_mod.mod: sp_gamd.fpp sp_gamd.o
-sp_grest_energy.o: sp_grest_energy.fpp sp_domain_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_energy_pme_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
-sp_grest_energy_mod.mod: sp_grest_energy.fpp sp_grest_energy.o
 sp_input.o: sp_input.fpp  
 sp_input_mod.mod: sp_input.fpp sp_input.o
-sp_md_leapfrog.o: sp_md_leapfrog.fpp sp_remd_str_mod.mod sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_dynamics_str_mod.mod sp_parallel_io_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_enefunc_gamd_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_assign_velocity_mod.mod sp_pairlist_str_mod.mod 
+sp_md_leapfrog.o: sp_md_leapfrog.fpp sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_parallel_io_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_assign_velocity_mod.mod sp_constraints_str_mod.mod sp_enefunc_gamd_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod 
 sp_md_leapfrog_mod.mod: sp_md_leapfrog.fpp sp_md_leapfrog.o
-sp_md_mts.o: sp_md_mts.fpp sp_remd_str_mod.mod sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_assign_velocity_mod.mod sp_pairlist_str_mod.mod 
+sp_md_mts.o: sp_md_mts.fpp sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_assign_velocity_mod.mod sp_constraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod 
 sp_md_mts_mod.mod: sp_md_mts.fpp sp_md_mts.o
-sp_md_respa.o: sp_md_respa.fpp sp_remd_str_mod.mod sp_fep_energy_mod.mod sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_assign_velocity_mod.mod sp_pairlist_str_mod.mod 
+sp_md_respa.o: sp_md_respa.fpp sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_assign_velocity_mod.mod sp_constraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_fep_energy_mod.mod sp_alchemy_str_mod.mod 
 sp_md_respa_mod.mod: sp_md_respa.fpp sp_md_respa.o
-sp_md_vverlet.o: sp_md_vverlet.fpp sp_remd_str_mod.mod sp_fep_energy_mod.mod sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_enefunc_gamd_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_assign_velocity_mod.mod sp_pairlist_str_mod.mod 
+sp_md_vverlet.o: sp_md_vverlet.fpp sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_assign_velocity_mod.mod sp_constraints_str_mod.mod sp_enefunc_gamd_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_fep_energy_mod.mod sp_alchemy_str_mod.mod 
 sp_md_vverlet_mod.mod: sp_md_vverlet.fpp sp_md_vverlet.o
 sp_migration.o: sp_migration.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_migration_mod.mod: sp_migration.fpp sp_migration.o
-sp_minimize.o: sp_minimize.fpp sp_fep_energy_mod.mod sp_update_domain_mod.mod sp_minimize_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_output_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_pairlist_str_mod.mod 
+sp_minimize.o: sp_minimize.fpp sp_update_domain_mod.mod sp_minimize_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_fep_energy_mod.mod sp_alchemy_str_mod.mod 
 sp_minimize_mod.mod: sp_minimize.fpp sp_minimize.o
 sp_minimize_str.o: sp_minimize_str.fpp  
 sp_minimize_str_mod.mod: sp_minimize_str.fpp sp_minimize_str.o
-sp_output.o: sp_output.fpp sp_remd_str_mod.mod sp_grest_energy_mod.mod sp_ensemble_str_mod.mod sp_minimize_str_mod.mod sp_dynamics_str_mod.mod sp_parallel_io_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_alchemy_str_mod.mod sp_rpath_str_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_constraints_mod.mod sp_pairlist_str_mod.mod 
+sp_output.o: sp_output.fpp sp_grest_energy_mod.mod sp_minimize_str_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_remd_str_mod.mod sp_parallel_io_mod.mod sp_domain_str_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_rpath_str_mod.mod sp_enefunc_str_mod.mod sp_alchemy_str_mod.mod 
 sp_output_mod.mod: sp_output.fpp sp_output.o
 sp_output_str.o: sp_output_str.fpp  
 sp_output_str_mod.mod: sp_output_str.fpp sp_output_str.o
-sp_pairlist.o: sp_pairlist.fpp sp_domain_str_mod.mod sp_pairlist_fugaku_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_pairlist_gpu_mod.mod sp_pairlist_generic_mod.mod 
+sp_pairlist.o: sp_pairlist.fpp sp_domain_str_mod.mod sp_pairlist_gpu_mod.mod sp_pairlist_fugaku_mod.mod sp_pairlist_generic_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_pairlist_mod.mod: sp_pairlist.fpp sp_pairlist.o
-sp_pairlist_fugaku.o: sp_pairlist_fugaku.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_pairlist_fugaku.o: sp_pairlist_fugaku.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_pairlist_fugaku_mod.mod: sp_pairlist_fugaku.fpp sp_pairlist_fugaku.o
-sp_pairlist_generic.o: sp_pairlist_generic.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_pairlist_generic.o: sp_pairlist_generic.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_pairlist_generic_mod.mod: sp_pairlist_generic.fpp sp_pairlist_generic.o
-sp_pairlist_gpu.o: sp_pairlist_gpu.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_pairlist_gpu.o: sp_pairlist_gpu.fpp sp_domain_str_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod 
 sp_pairlist_gpu_mod.mod: sp_pairlist_gpu.fpp sp_pairlist_gpu.o
-sp_pairlist_knl.o: sp_pairlist_knl.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
-sp_pairlist_knl_mod.mod: sp_pairlist_knl.fpp sp_pairlist_knl.o
 sp_pairlist_str.o: sp_pairlist_str.fpp sp_domain_str_mod.mod 
 sp_pairlist_str_mod.mod: sp_pairlist_str.fpp sp_pairlist_str.o
-sp_parallel_io.o: sp_parallel_io.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_boundary_str_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_dynamics_str_mod.mod sp_dynvars_str_mod.mod 
+sp_parallel_io.o: sp_parallel_io.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_ensemble_str_mod.mod sp_pairlist_str_mod.mod sp_dynvars_str_mod.mod sp_restraints_str_mod.mod sp_dynamics_str_mod.mod sp_remd_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_parallel_io_mod.mod: sp_parallel_io.fpp sp_parallel_io.o
-sp_remd.o: sp_remd.fpp sp_remd_str_mod.mod sp_fep_energy_mod.mod sp_ensemble_str_mod.mod sp_md_leapfrog_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_enefunc_restraints_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_md_respa_mod.mod sp_output_mod.mod sp_energy_pme_mod.mod sp_pairlist_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_constraints_mod.mod sp_boundary_mod.mod sp_energy_restraints_mod.mod sp_md_vverlet_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
+sp_remd.o: sp_remd.fpp sp_md_vverlet_mod.mod sp_pairlist_mod.mod sp_boundary_mod.mod sp_ensemble_str_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_enefunc_restraints_mod.mod sp_md_leapfrog_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_energy_restraints_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_md_respa_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_fep_energy_mod.mod 
 sp_remd_mod.mod: sp_remd.fpp sp_remd.o
 sp_remd_str.o: sp_remd_str.fpp sp_energy_str_mod.mod 
 sp_remd_str_mod.mod: sp_remd_str.fpp sp_remd_str.o
-sp_restart.o: sp_restart.fpp sp_dynamics_str_mod.mod sp_dynvars_str_mod.mod 
+sp_restart.o: sp_restart.fpp sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod 
 sp_restart_mod.mod: sp_restart.fpp sp_restart.o
-sp_restraints.o: sp_restraints.fpp sp_enefunc_str_mod.mod sp_restraints_str_mod.mod 
+sp_restraints.o: sp_restraints.fpp sp_restraints_str_mod.mod sp_enefunc_str_mod.mod 
 sp_restraints_mod.mod: sp_restraints.fpp sp_restraints.o
 sp_restraints_str.o: sp_restraints_str.fpp  
 sp_restraints_str_mod.mod: sp_restraints_str.fpp sp_restraints_str.o
-sp_rpath.o: sp_rpath.fpp sp_remd_str_mod.mod sp_ensemble_str_mod.mod sp_md_leapfrog_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_enefunc_restraints_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_md_respa_mod.mod sp_output_mod.mod sp_pairlist_mod.mod sp_rpath_str_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_restraints_str_mod.mod sp_boundary_mod.mod sp_energy_restraints_mod.mod sp_md_vverlet_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod 
+sp_rpath.o: sp_rpath.fpp sp_md_vverlet_mod.mod sp_pairlist_mod.mod sp_boundary_mod.mod sp_ensemble_str_mod.mod sp_dynvars_mod.mod sp_pairlist_str_mod.mod sp_enefunc_restraints_mod.mod sp_md_leapfrog_mod.mod sp_energy_mod.mod sp_remd_str_mod.mod sp_energy_restraints_mod.mod sp_output_mod.mod sp_domain_str_mod.mod sp_md_respa_mod.mod sp_dynvars_str_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_output_str_mod.mod sp_constraints_str_mod.mod sp_rpath_str_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod 
 sp_rpath_mod.mod: sp_rpath.fpp sp_rpath.o
 sp_rpath_str.o: sp_rpath_str.fpp sp_output_str_mod.mod 
 sp_rpath_str_mod.mod: sp_rpath_str.fpp sp_rpath_str.o
-sp_setup_mpi.o: sp_setup_mpi.fpp sp_energy_mod.mod sp_rpath_mod.mod sp_boundary_mod.mod sp_remd_mod.mod sp_energy_str_mod.mod 
+sp_setup_mpi.o: sp_setup_mpi.fpp sp_remd_mod.mod sp_energy_mod.mod sp_energy_str_mod.mod sp_rpath_mod.mod sp_boundary_mod.mod 
 sp_setup_mpi_mod.mod: sp_setup_mpi.fpp sp_setup_mpi.o
-sp_setup_spdyn.o: sp_setup_spdyn.fpp sp_remd_str_mod.mod sp_rpath_mod.mod sp_update_domain_mod.mod sp_ensemble_str_mod.mod sp_minimize_str_mod.mod sp_dynamics_str_mod.mod sp_enefunc_mod.mod sp_parallel_io_mod.mod sp_enefunc_fit_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_remd_mod.mod sp_control_mod.mod sp_dynamics_mod.mod sp_boundary_str_mod.mod sp_restart_mod.mod sp_domain_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_fep_topology_mod.mod sp_alchemy_mod.mod sp_output_mod.mod sp_energy_pme_mod.mod sp_input_mod.mod sp_pairlist_mod.mod sp_rpath_str_mod.mod sp_output_str_mod.mod sp_dynvars_mod.mod sp_minimize_mod.mod sp_enefunc_table_mod.mod sp_enefunc_str_mod.mod sp_boundary_mod.mod sp_constraints_mod.mod sp_restraints_str_mod.mod sp_ensemble_mod.mod sp_experiments_mod.mod sp_gamd_mod.mod sp_pairlist_str_mod.mod sp_energy_str_mod.mod sp_restraints_mod.mod 
+sp_setup_spdyn.o: sp_setup_spdyn.fpp sp_pairlist_mod.mod sp_update_domain_mod.mod sp_minimize_str_mod.mod sp_ensemble_str_mod.mod sp_control_mod.mod sp_constraints_mod.mod sp_dynvars_mod.mod sp_experiments_mod.mod sp_pairlist_str_mod.mod sp_energy_pme_mod.mod sp_dynamics_str_mod.mod sp_dynamics_mod.mod sp_enefunc_mod.mod sp_ensemble_mod.mod sp_energy_mod.mod sp_domain_mod.mod sp_remd_str_mod.mod sp_parallel_io_mod.mod sp_output_mod.mod sp_enefunc_fit_mod.mod sp_remd_mod.mod sp_domain_str_mod.mod sp_restart_mod.mod sp_restraints_mod.mod sp_dynvars_str_mod.mod sp_rpath_mod.mod sp_enefunc_table_mod.mod sp_boundary_mod.mod sp_boundary_str_mod.mod sp_input_mod.mod sp_minimize_mod.mod sp_constraints_str_mod.mod sp_output_str_mod.mod sp_rpath_str_mod.mod sp_energy_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_gamd_mod.mod sp_alchemy_str_mod.mod sp_fep_topology_mod.mod sp_alchemy_mod.mod 
 sp_setup_spdyn_mod.mod: sp_setup_spdyn.fpp sp_setup_spdyn.o
-sp_update_domain.o: sp_update_domain.fpp sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_migration_mod.mod sp_boundary_str_mod.mod sp_pairlist_str_mod.mod sp_pairlist_mod.mod sp_domain_mod.mod sp_minimize_str_mod.mod sp_dynamics_str_mod.mod sp_enefunc_mod.mod sp_communicate_mod.mod 
+sp_update_domain.o: sp_update_domain.fpp sp_pairlist_mod.mod sp_enefunc_mod.mod sp_domain_str_mod.mod sp_minimize_str_mod.mod sp_domain_mod.mod sp_pairlist_str_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod sp_migration_mod.mod sp_dynamics_str_mod.mod sp_boundary_str_mod.mod sp_constraints_str_mod.mod 
 sp_update_domain_mod.mod: sp_update_domain.fpp sp_update_domain.o
-spdyn.o: spdyn.fpp sp_remd_str_mod.mod sp_rpath_mod.mod sp_setup_mpi_mod.mod sp_ensemble_str_mod.mod sp_minimize_str_mod.mod sp_md_leapfrog_mod.mod sp_dynamics_str_mod.mod sp_constraints_str_mod.mod sp_domain_str_mod.mod sp_energy_mod.mod sp_remd_mod.mod sp_control_mod.mod sp_dynamics_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_communicate_mod.mod sp_alchemy_str_mod.mod sp_energy_pme_mod.mod sp_rpath_str_mod.mod sp_output_str_mod.mod sp_minimize_mod.mod sp_enefunc_str_mod.mod sp_setup_spdyn_mod.mod sp_md_vverlet_mod.mod sp_pairlist_str_mod.mod 
