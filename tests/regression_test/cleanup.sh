@@ -65,6 +65,13 @@ rm test_fep/*/*/error*      >& /dev/null
 rm test_fep/*/*/out*.fepout >& /dev/null
 rm -r test_fep/*/*/output.?*      >& /dev/null
 
+rm test_parallel_IO/*/*/error*     >& /dev/null
+rm test_parallel_IO/*/*/test*      >& /dev/null
+rm test_parallel_IO/*/*/log*      >& /dev/null
+rm test_parallel_IO/*/*/ref*      >& /dev/null
+rm test_parallel_IO/*/*/*.rst      >& /dev/null
+rm -r test_parallel_IO/*/*/cache      >& /dev/null
+
 cd test_analysis
 ./cleanup.sh  >& /dev/null
 cd ..
