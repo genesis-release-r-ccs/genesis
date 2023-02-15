@@ -140,14 +140,14 @@ elif genesis_command[-5:] == "spdyn":
 
 if len(test_dirs) == 0:
     if is_parallelio and is_spdyn:
-        test_dirs = getdirs(os.path.dirname(__file__) + "/test_parallel_IO")
+        test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_parallel_IO")
     elif is_parallelio and (not is_spdyn):
         print("Error: parallel_io is supported by only spdyn, please specify spdyn in command line")
         sys.exit(3)
     elif is_spdyn:
-        test_dirs =  getdirs(os.path.dirname(__file__) + "/test_spdyn")
+        test_dirs =  getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_spdyn")
     elif is_atdyn:
-        test_dirs =  getdirs(os.path.dirname(__file__) + "/test_atdyn")
+        test_dirs =  getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_atdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
