@@ -675,6 +675,7 @@ contains
 
     ! local variables
     character(MaxMultiFilename)            :: filename
+    character(MaxFilenameLong)             :: filename_long
 
 
     call init_top(top)
@@ -701,8 +702,8 @@ contains
     end if
 
     if (inp_info%strfile .ne. '') then
-      filename = inp_info%strfile
-      call input_str(filename, top, par)
+      filename_long = inp_info%strfile
+      call input_str(filename_long, top, par)
     end if
 
     if (inp_info%psffile .ne. '') then
@@ -831,6 +832,7 @@ contains
 
     ! local variables
     character(MaxMultiFilename)            :: filename
+    character(MaxFilenameLong)             :: filename_long
 
 
     call init_top(top)
@@ -858,8 +860,8 @@ contains
     end if
 
     if (inp_info%strfile .ne. '') then
-      filename = inp_info%strfile
-      call input_str(filename, top, par)
+      filename_long = inp_info%strfile
+      call input_str(filename_long, top, par)
     end if
 
     if (inp_info%psffile .ne. '') then
