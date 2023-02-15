@@ -145,9 +145,9 @@ else:
 
 if len(test_dirs) == 0:
     if is_atdyn:
-      test_dirs = getdirs(os.path.dirname(__file__) + "/test_remd_atdyn")
+      test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_remd_atdyn")
     elif is_spdyn:
-      test_dirs = getdirs(os.path.dirname(__file__) + "/test_remd_spdyn")
+      test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_remd_spdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
