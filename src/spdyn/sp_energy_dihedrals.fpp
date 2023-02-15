@@ -2331,8 +2331,20 @@ contains
         fg6 = domain%fepgrp(iatom(6),icel(6))
         fg7 = domain%fepgrp(iatom(7),icel(7))
         fg8 = domain%fepgrp(iatom(8),icel(8))
-        idx = fg1 + 5*(fg2-1 + 5*(fg3-1 + 5*(fg4-1 + 5*(fg5-1 + 5*(fg6-1 + 5*(fg7-1 + 5*(fg8-1)))))))
-        lambbond = enefunc%table_cmap_lambda(idx)
+        lambbond = 1.0_wp
+        if (((fg1 == 1) .or. (fg1 == 5)) .and. &
+          ((fg2 == 1) .or. (fg2 == 5)) .and. &
+          ((fg3 == 1) .or. (fg3 == 5)) .and. &
+          ((fg4 == 1) .or. (fg4 == 5)) .and. &
+          ((fg5 == 1) .or. (fg5 == 5)) .and. &
+          ((fg6 == 1) .or. (fg6 == 5)) .and. &
+          ((fg7 == 1) .or. (fg7 == 5)) .and. &
+          ((fg8 == 1) .or. (fg8 == 5))) then
+          if ((fg1 == 1) .or. (fg2 == 1) .or. (fg3 == 1) .or. (fg4 == 1) .or. &
+            (fg5 == 1) .or. (fg6 == 1) .or. (fg7 == 1) .or. (fg8 == 1)) then
+            lambbond = enefunc%lambbondA
+          end if
+        end if
         lambbond = lambbond &
           + real(enefunc%cmap_singleB(ix,i), wp) &
           * (enefunc%lambbondB - enefunc%lambbondA)

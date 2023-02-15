@@ -537,12 +537,9 @@ module sp_enefunc_str_mod
     ! table_bond_lambda(fepgrp1,fepgrp2)
     ! table_angl_lambda(fepgrp1,fepgrp2,fepgrp3)
     ! table_dihe_lambda(fepgrp1,fepgrp2,fepgrp3,fepgrp4)
-    ! table_cmap_lambda(fepgrp1*fepgrp2*fepgrp3*fepgrp4*
-    !                   fepgrp5*fepgrp6*fepgrp7*fepgrp8)
     real(wp)                      :: table_bond_lambda(5,5)
     real(wp)                      :: table_angl_lambda(5,5,5)
     real(wp)                      :: table_dihe_lambda(5,5,5,5)
-    real(wp)                      :: table_cmap_lambda(5*5*5*5*5*5*5*5)
     integer                       :: fepgrp_nonb(5,5)
     !
     real(wp)                      :: dispersion_energy_CC

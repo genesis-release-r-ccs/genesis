@@ -876,7 +876,6 @@ contains
     real(wp),        pointer :: table_bond_lambda(:,:)
     real(wp),        pointer :: table_angl_lambda(:,:,:)
     real(wp),        pointer :: table_dihe_lambda(:,:,:,:)
-    real(wp),        pointer :: table_cmap_lambda(:)
 
     real(wp),        pointer :: table_sclj(:,:)
     real(wp),        pointer :: table_scel(:,:)
@@ -886,7 +885,6 @@ contains
     table_bond_lambda => enefunc%table_bond_lambda
     table_angl_lambda => enefunc%table_angl_lambda
     table_dihe_lambda => enefunc%table_dihe_lambda
-    table_cmap_lambda => enefunc%table_cmap_lambda
 
     table_sclj => enefunc%table_sclj
     table_scel => enefunc%table_scel
@@ -940,7 +938,6 @@ contains
     table_bond_lambda(:,:) = 0.0_wp
     table_angl_lambda(:,:,:) = 0.0_wp
     table_dihe_lambda(:,:,:,:) = 0.0_wp
-    table_cmap_lambda(:) = 0.0_wp
 
     ! Bond table
     !
@@ -1049,73 +1046,6 @@ contains
               end if
             end if
 
-          end do
-        end do
-      end do
-    end do
-
-    ! CMAP table
-    !
-    do i8 = 1, 5
-      do i7 = 1, 5
-        do i6 = 1, 5
-          do i5 = 1, 5
-            do i4 = 1, 5
-              do i3 = 1, 5
-                do i2 = 1, 5
-                  do i1 = 1, 5
-                    idx = i1 + 5*(i2-1 + 5*(i3-1 + 5*(i4-1 + 5*(i5-1 + 5*(i6-1 + 5*(i7-1 + 5*(i8-1)))))))
-                    ! preserve: all 5
-                    if ((i1 == 5) .and. (i2 == 5) .and. (i3 == 5) .and. (i4 == 5) .and. &
-                        (i5 == 5) .and. (i6 == 5) .and. (i7 == 5) .and. (i8 == 5)) then
-                      table_cmap_lambda(idx) = 1.0_wp
-                    end if
-                    ! single: all 1, 1 and 5
-                    if (((i1 == 1) .or. (i1 == 5)) .and. &
-                        ((i2 == 1) .or. (i2 == 5)) .and. &
-                        ((i3 == 1) .or. (i3 == 5)) .and. &
-                        ((i4 == 1) .or. (i4 == 5)) .and. &
-                        ((i5 == 1) .or. (i5 == 5)) .and. &
-                        ((i6 == 1) .or. (i6 == 5)) .and. &
-                        ((i7 == 1) .or. (i7 == 5)) .and. &
-                        ((i8 == 1) .or. (i8 == 5))) then
-                      if ((i1 == 1) .or. (i2 == 1) .or. (i3 == 1) .or. (i4 == 1) .or. &
-                          (i5 == 1) .or. (i6 == 1) .or. (i7 == 1) .or. (i8 == 1)) then
-                        table_cmap_lambda(idx) = enefunc%lambbondA
-                      end if
-                    end if
-                    ! dualA: all 3, 3 and 5, 3 and 1
-                    if (((i1 == 3) .or. (i1 == 5) .or. (i1 == 1)) .and. &
-                        ((i2 == 3) .or. (i2 == 5) .or. (i2 == 1)) .and. &
-                        ((i3 == 3) .or. (i3 == 5) .or. (i3 == 1)) .and. &
-                        ((i4 == 3) .or. (i4 == 5) .or. (i4 == 1)) .and. &
-                        ((i5 == 3) .or. (i5 == 5) .or. (i5 == 1)) .and. &
-                        ((i6 == 3) .or. (i6 == 5) .or. (i6 == 1)) .and. &
-                        ((i7 == 3) .or. (i7 == 5) .or. (i7 == 1)) .and. &
-                        ((i8 == 3) .or. (i8 == 5) .or. (i8 == 1))) then
-                      if ((i1 == 3) .or. (i2 == 3) .or. (i3 == 3) .or. (i4 == 3) .or. &
-                          (i5 == 3) .or. (i6 == 3) .or. (i7 == 3) .or. (i8 == 3)) then
-                        table_cmap_lambda(idx) = 1.0_wp
-                      end if
-                    end if
-                    ! dualB: all 4, 4 and 5, 4 and 1
-                    if (((i1 == 4) .or. (i1 == 5) .or. (i1 == 1)) .and. &
-                        ((i2 == 4) .or. (i2 == 5) .or. (i2 == 1)) .and. &
-                        ((i3 == 4) .or. (i3 == 5) .or. (i3 == 1)) .and. &
-                        ((i4 == 4) .or. (i4 == 5) .or. (i4 == 1)) .and. &
-                        ((i5 == 4) .or. (i5 == 5) .or. (i5 == 1)) .and. &
-                        ((i6 == 4) .or. (i6 == 5) .or. (i6 == 1)) .and. &
-                        ((i7 == 4) .or. (i7 == 5) .or. (i7 == 1)) .and. &
-                        ((i8 == 4) .or. (i8 == 5) .or. (i8 == 1))) then
-                      if ((i1 == 4) .or. (i2 == 4) .or. (i3 == 4) .or. (i4 == 4) .or. &
-                          (i5 == 4) .or. (i6 == 4) .or. (i7 == 4) .or. (i8 == 4)) then
-                        table_cmap_lambda(idx) = 1.0_wp
-                      end if
-                    end if
-                  end do
-                end do
-              end do
-            end do
           end do
         end do
       end do
