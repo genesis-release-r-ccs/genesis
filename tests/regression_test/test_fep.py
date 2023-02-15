@@ -146,7 +146,7 @@ if genesis_command[-5:] == "atdyn":
 ###### setup test directories
 
 if is_spdyn:
-    test_dirs = getdirs(os.path.dirname(__file__) + "/test_fep")
+    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_fep")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
