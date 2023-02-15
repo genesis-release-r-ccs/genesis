@@ -140,14 +140,14 @@ elif genesis_command[-5:] == "spdyn":
 
 if is_atdyn:
     #test_dirs = getdirs("test_rpath_atdyn")
-    test_dirs = getdirs(os.path.dirname(__file__) + "/test_rpath_atdyn")
+    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_rpath_atdyn")
 
     if (not int(genesis_mpi_number) == 8):
         print("WARNING: test of MEP is not available, please execute # of MPI=8")
 
 elif is_spdyn:
     #test_dirs = getdirs("test_rpath_spdyn")
-    test_dirs = getdirs(os.path.dirname(__file__) + "/test_rpath_spdyn")
+    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_rpath_spdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
