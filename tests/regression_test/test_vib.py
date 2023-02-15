@@ -278,7 +278,7 @@ if is_spdyn:
 ###### setup test directories
 
 if is_atdyn:
-    test_dirs = getdirs(os.path.dirname(__file__) + "/test_vib")
+    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_vib")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
