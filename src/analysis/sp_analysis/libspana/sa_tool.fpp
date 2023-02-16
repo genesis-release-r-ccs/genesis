@@ -186,6 +186,9 @@ contains
     cofm(1:3) = 0
     totmass   = 0
 
+#ifdef KCOMP
+    !OCL NOREDUCTION
+#endif
     do i = 1, natom
 
       ! global id of atom i
