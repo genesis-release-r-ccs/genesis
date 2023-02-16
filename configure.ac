@@ -802,6 +802,9 @@ have_avx=no
 have_sse4_2=no
 have_rtm=no
 have_rdseed=no
+have_mmxext=no
+have_fxsr_opt=no
+have_3dnowprefetch=no
 for vtok in ${cpuinfo} ; do
   if test x"${vtok}" = x"avx512f"; then
 	  have_avx512f=yes
@@ -827,6 +830,12 @@ for vtok in ${cpuinfo} ; do
 	  have_rtm=yes
   elif test x"${vtok}" = x"rdseed"; then
 	  have_rdseed=yes
+  elif test x"${vtok}" = x"mmxext"; then
+      have_mmxext=yes
+  elif test x"${vtok}" = x"3dnowprefetch"; then
+      have_3dnowprefetch=yes
+  elif test x"${vtok}" = x"fxsr_opt"; then
+      have_fxsr_opt=yes
   fi
 done
 
@@ -872,7 +881,18 @@ else
 
 # no-debug no report
     if test x"${FC_ACT}" = x"ifort"; then
-      FARCFLAGS="-xHost"
+      if test x"${have_fxsr_opt}"  = x"yes" -o \
+              x"${have_mmxext}" = x"yes" -o \
+              x"${have_3dnowprefetch}" = x"yes"; then
+#AMD
+        FARCFLAGS=""
+        FARCFLAGS_NOOPT=""
+        FCFLAGS+=" -O3 "
+      else
+        FARCFLAGS=" -xHost "
+        FARCFLAGS_NOOPT=" -axCORE-AVX2 -xHost "
+        FCFLAGS+=" -O3 -ip "
+      fi
       if test x"${with_simd}" != x"auto"; then
         FARCFLAGS+=" -ax${with_simd}"
       elif test ${FC_GNU_VER} -ge 152000 ; then
@@ -900,8 +920,11 @@ else
         fi
       fi
 
-      FCFLAGS+=" -O3 -ip -mkl=parallel "
-      FARCFLAGS_NOOPT=" -xHost -axCORE-AVX2"
+	  if test ${FC_GNU_VER} -ge 20210000; then
+        FCFLAGS+=" -qmkl=parallel "
+      else
+        FCFLAGS+=" -mkl=parallel "
+      fi
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none"
@@ -940,7 +963,12 @@ else
 
 # debug level 1 (without higher optmization ) (default)
     if   test x"${FC_ACT}" = x"ifort"; then
-      FCFLAGS="-ip -axCORE-AVX2 -mkl=parallel -vec-report"
+      FCFLAGS=" -axCORE-AVX2 -vec-report"
+	  if test ${FC_GNU_VER} -ge 20210000; then
+        FCFLAGS+=" -qmkl=parallel "
+      else
+        FCFLAGS+=" -mkl=parallel "
+      fi
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-Wall -ffree-line-length-none"
@@ -976,7 +1004,12 @@ else
     DEFINED_VARIABLES+=" -DDEBUG"
 
     if   test x"${FC_ACT}" = x"ifort"; then
-      FCFLAGS="-g -ip -axCORE-AVX2 -mkl=parallel -vec-report"
+      FCFLAGS="-g -axCORE-AVX2 -vec-report"
+	  if test ${FC_GNU_VER} -ge 20210000; then
+        FCFLAGS+=" -qmkl=parallel "
+      else
+        FCFLAGS+=" -mkl=parallel "
+      fi
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-g -Wall -ffree-line-length-none"
