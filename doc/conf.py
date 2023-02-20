@@ -47,7 +47,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'GENESIS'
-copyright = u'2015-2022'
+copyright = u'2015-2023'
 author = u'RIKEN'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -204,7 +204,7 @@ latex_elements = {
   Hideyo Yoshida (JSOL Corporation),
   Kenta Chaki (JSOL Corporation)
 
-  Copyright \copyright 2014-2022 RIKEN. All Rights Reserved
+  Copyright \copyright 2014-2023 RIKEN. All Rights Reserved
 \end{quote}
 
 \vspace{3ex}
@@ -233,7 +233,7 @@ latex_elements = {
 {\LARGE Copyright Notices}
 
 \begin{quote}
-  Copyright \copyright 2014-2022 RIKEN.
+  Copyright \copyright 2014-2023 RIKEN.
 
   GENESIS is free software; you can redistribute it and/or
   modify it provided that the following conditions are met:
