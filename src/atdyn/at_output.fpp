@@ -2759,7 +2759,7 @@ contains
         j = j + 1
         filename(j:j) = cid(i:i)
       end do
-      do i = ci2+1, MaxFilename
+      do i = ci2+1, MaxFilename-1
         j = j + 1
         filename(j:j) = filename_ori(i:i)
       end do
