@@ -172,9 +172,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -259,9 +262,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy   = nb15_calc_list(k,ij)
           dij(1) = rtmp(1) - coord_pbc(iy,1,j) + trans_x
@@ -781,9 +787,12 @@ contains
 
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -858,9 +867,12 @@ contains
 
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list(k,ij)
@@ -1047,9 +1059,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -1138,9 +1153,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy   = nb15_calc_list(k,ij)
           dij(1) = rtmp(1) - coord_pbc(iy,1,j) + trans_x
@@ -1662,9 +1680,12 @@ contains
 
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -1745,9 +1766,12 @@ contains
 
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list(k,ij)
@@ -1949,9 +1973,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -2046,9 +2073,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy      = nb15_calc_list(k,ij)
           dij(1)  = rtmp(1) - coord_pbc(iy,1,j) + trans_x
@@ -2247,9 +2277,12 @@ contains
         num_nb15  = fin_nb15
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -2334,9 +2367,12 @@ contains
 
         force_local(1:3) = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy      = nb15_calc_list(k,ij)
           dij(1)  = rtmp(1) - coord_pbc(iy,1,j) + trans_x
@@ -2540,9 +2576,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -2637,9 +2676,12 @@ contains
         elec_temp = 0.0_wp
         evdw_temp = 0.0_wp
 
-!ocl norecurrence
-!ocl swp
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl norecurrence
+        !ocl swp
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy      = nb15_calc_list(k,ij)
           dij(1)  = rtmp(1) - coord_pbc(iy,1,j) + trans_x

@@ -2645,8 +2645,9 @@ contains
 
     domain%start_atom(1:ncell) = 0
     ij = natom(1)
+#if defined (FUGAKU)
     !ocl nosimd
-    !dir$ novector
+#endif
     do i = 2, ncell
       domain%start_atom(i) = domain%start_atom(i-1) + natom(i-1)
       ij = ij + natom(i)
@@ -2744,7 +2745,9 @@ contains
             do j = 1, HGr_local(ic,icel)
 
               i1 = HGr_bond_list(1,j,ic,icel)
-!ocl nosimd
+#if defined (FUGAKU)
+              !ocl nosimd
+#endif
               do ih = 1, ic
                 i2 = HGr_bond_list(ih+1,j,ic,icel)
                 num_excl = num_nonb_excl(icel) + 1
@@ -2786,7 +2789,9 @@ contains
             index(3) = water_list(3,ic,icel)
             index(4) = water_list(4,ic,icel)
 
-!ocl nosimd
+#if defined (FUGAKU)
+            !ocl nosimd
+#endif
             do i1 = 2, 3
               do i2 = i1+1, 4
                 num_excl = num_nonb_excl(icel) + 1
@@ -3346,8 +3351,11 @@ contains
 
     domain%start_atom(1:ncell) = 0
     ij = natom(1)
-    !ocl nosimd
-    !dir$ novector
+#if defined (FUGAKU)
+    !ocl simd
+#else
+    !$omp simd
+#endif
     do i = 2, ncell
       domain%start_atom(i) = domain%start_atom(i-1) + natom(i-1)
       ij = ij + natom(i)
@@ -3448,7 +3456,9 @@ contains
             do j = 1, HGr_local(ic,icel)
 
               i1 = HGr_bond_list(1,j,ic,icel)
-!ocl nosimd
+#if defined (FUGAKU)
+              !ocl nosimd
+#endif
               do ih = 1, ic
                 i2 = HGr_bond_list(ih+1,j,ic,icel)
                 num_excl = num_nonb_excl(icel) + 1
@@ -3490,7 +3500,11 @@ contains
             index(3) = water_list(3,ic,icel)
             index(4) = water_list(4,ic,icel)
 
-!ocl nosimd
+#if defined (FUGAKU)
+            !ocl simd
+#else
+            !$omp simd
+#endif
             do i1 = 2, 3
               do i2 = i1+1, 4
                 num_excl = num_nonb_excl(icel) + 1
