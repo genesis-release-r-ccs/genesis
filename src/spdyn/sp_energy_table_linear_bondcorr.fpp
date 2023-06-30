@@ -842,7 +842,7 @@ contains
 
       virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
       virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
-      virial(3,1,id+1) = virial(3,3,id+1) - viri(3)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       eelec(id+1) = eelec(id+1) + elec_temp
 
     end do
@@ -852,6 +852,7 @@ contains
     return
 
   end subroutine pme_bond_corr_gro_amber_intel
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -971,7 +972,7 @@ contains
 
       virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
       virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
-      virial(3,1,id+1) = virial(3,3,id+1) - viri(3)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       eelec(id+1) = eelec(id+1) + elec_temp
 
     end do
@@ -1114,7 +1115,7 @@ contains
 
       virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
       virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
-      virial(3,1,id+1) = virial(3,3,id+1) - viri(3)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       eelec(id+1) = eelec(id+1) + elec_temp
 
     end do
@@ -1249,7 +1250,7 @@ contains
 
       virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
       virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
-      virial(3,1,id+1) = virial(3,3,id+1) - viri(3)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       eelec(id+1) = eelec(id+1) + elec_temp
 
     end do
@@ -2463,7 +2464,7 @@ contains
 
       virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
       virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
-      virial(3,1,id+1) = virial(3,3,id+1) - viri(3)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
       eelec(id+1) = eelec(id+1) + elec_temp
 
     end do
