@@ -305,7 +305,7 @@ contains
       dx1(1:nbin, 1:ndata) = 0.0_wp
 
       ! Periodic CV cannot print out standard type PMF now
-      if((ipmf == 1) .and. (option%is_periodic(1))) exit
+      !if((ipmf == 1) .and. (option%is_periodic(1))) exit
       do ibin = 1, nbin
         if (option%is_periodic(1)) then
           do idata = 1, ndata
