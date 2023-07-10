@@ -558,7 +558,11 @@ contains
       if (main_rank) &
         call random_seed_initial_time(iseed)
 #ifdef HAVE_MPI_GENESIS
-      call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
+      if (nproc_country /= nproc_world) then
+        call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_world, ierror)
+      else
+        call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
+      endif
 #endif
       iseed_init_vel = iseed
       iseed = iseed + my_country_rank
@@ -739,7 +743,11 @@ contains
       if (main_rank) &
         call random_seed_initial_time(iseed)
 #ifdef HAVE_MPI_GENESIS
-      call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
+      if (nproc_country /= nproc_world) then
+        call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_world, ierror)
+      else
+        call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
+      endif
 #endif
       iseed_init_vel = iseed
       iseed = iseed + my_country_rank

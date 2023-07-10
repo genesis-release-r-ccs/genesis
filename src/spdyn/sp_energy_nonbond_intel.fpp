@@ -383,7 +383,11 @@ contains
       viri(2) = 0.0_wp
       viri(3) = 0.0_wp
 
-      !dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else
+      !$omp simd
+#endif
       do k = 1, num_nb15_calc(ixx,1)
 
         ij = nb15_calc_list(k,ixx,1)
@@ -553,7 +557,11 @@ contains
       force_local(2) = 0.0_wp
       force_local(3) = 0.0_wp
 
-      !dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else
+      !$omp simd
+#endif
       do k = 1, num_nb15_calc(kki,1)
 
         ij = nb15_calc_list(k,kki,1)
