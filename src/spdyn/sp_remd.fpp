@@ -4291,7 +4291,7 @@ contains
     type(s_ensemble),        intent(in)    :: ensemble
     type(s_enefunc),         intent(inout) :: enefunc
 
-    integer  :: alist(8), i, j, ix, num, tgt, n, org, ncell, counter
+    integer  :: alist(8), i, j, ix, num, tgt, n, org, ncell, counter, ig
     real(wp) :: coeff_full, coeff_half, wgt, tmp1, tmp2
     real(wp) :: el_fact, alpha
     real(dp) :: u_self_org
@@ -4328,6 +4328,18 @@ contains
           end if
         end do
       end do
+#ifdef USE_GPU
+      if (domain%nonbond_kernel == NBK_GPU) then
+        n = domain%num_atom_domain
+        do i = 1, ncell
+          ig = domain%start_atom(i)
+          do ix = 1, domain%num_atom(i)
+            domain%translated(3*n+ig+ix,1,1) = domain%charge(ix,i)
+          end do
+        end do
+        call gpu_upload_charge(domain%translated);
+      endif
+#endif /* USE_GPU */
 
       ! need to update PME self energy (not necessary for NPT?)
       u_self = 0.0_dp
@@ -4454,8 +4466,10 @@ contains
                  soltemp, enefunc%nonb_lj12)
       end if
 #ifdef USE_GPU
-      if (allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6)) then
-        call gpu_upload_lj_coeffs(n, enefunc%nonb_lj12, enefunc%nonb_lj6);
+      if (domain%nonbond_kernel == NBK_GPU) then
+        if (allocated(enefunc%nonb_lj12) .or. allocated(enefunc%nonb_lj6)) then
+          call gpu_upload_lj_coeffs(n, enefunc%nonb_lj12, enefunc%nonb_lj6);
+        end if
       end if
 #endif /* USE_GPU */
     end if
