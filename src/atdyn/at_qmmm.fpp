@@ -308,6 +308,7 @@ contains
         qmmm_info%qmtyp /= QMtypG09       .and. &
         qmmm_info%qmtyp /= QMtypTERACHEM  .and. &
         qmmm_info%qmtyp /= QMtypDFTBPLUS  .and. &
+        qmmm_info%qmtyp /= QMtypORCA      .and. &
         qmmm_info%qmtyp /= QMtypG09_FRWF)     &
       call error_msg('Read_Ctrl_QMMM> QM program is not defined')
 
@@ -3993,14 +3994,10 @@ contains
         if (.not. found_field) write(MsgOut,'(a)') 'Field is not found!'
       end if
 
-      !
       ! Separate to QM and link atom groups
       call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
         qmmm%qmatom_id, qmmm%linkatom_global_address, &
         force_tmp, 3)
-      call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
-        qmmm%qmatom_id, qmmm%linkatom_global_address, &
-        charge_tmp, 1)
 
       nsta = 0
       do i = 1, qmmm%qm_natoms
@@ -4011,10 +4008,16 @@ contains
         la_force(1:3,i) = -force_tmp(nsta+1:nsta+3)
         nsta = nsta + 3
       end do
+
     end if
 
     if (found_charge) then
       qmmm%is_qm_charge = .true.
+
+      call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
+        qmmm%qmatom_id, qmmm%linkatom_global_address, &
+        charge_tmp, 1)
+
       nsta = 1
       do i = 1, qmmm%qm_natoms
         qm_charge(i) = charge_tmp(nsta)
@@ -5295,8 +5298,9 @@ contains
 
     qm_error       = .true.
     found_energy   = .false.
-    found_force    = .false.
     found_charge   = .false.
+    found_dipole   = .false.
+    found_force    = .false.
     found_mm_force = .false.
 
     ! inquire log file
@@ -5337,18 +5341,21 @@ contains
 
     ! read ORCA log file
     !
-    found_energy  = .false.
-    found_force   = .false.
-    found_mm_force = .false.
-    found_dipole  = .false.
-    found_charge  = .false.
     rewind(file1)
     do while (.true.)
       read(file1, '(a)', end=200) line
 
+      ! retrieve QM energy
+      !
+      if (index(line, "FINAL SINGLE POINT ENERGY") > 0) then
+        nsta = 29
+        nend = 48
+        call read_real(line, nsta, nend, qm_energy)
+        found_energy = .true.
+
       ! retrieve dipole moment
       !
-      if (index(line, "Total Dipole Moment    :") > 0) then
+      else if (index(line, "Total Dipole Moment    :") > 0) then
         nsta = 25
         nend = 37
         call read_real(line, nsta, nend, qmmm%qm_dipole(1))
@@ -5382,61 +5389,68 @@ contains
       if (found_dipole .and. found_charge) exit
 
     end do
+
 200 continue
+
     call close_file(file1)
     
-    ! open engrad file
-    !
-    call open_file(file1, trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//".engrad", IOFileInput)
-    do while (.true.)
-      read(file1, '(a)', end=210) line
+    if (.not. qmmm%ene_only) then
 
-      ! retrieve QM energy
+      ! open engrad file
       !
-      if (index(line, "The current total energy in Eh") > 0) then
-        read(file1, *) line
-        read(file1, *) qm_energy
-        found_energy = .true.
+      call open_file(file1, trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//".engrad", IOFileInput)
+      do while (.true.)
+        read(file1, '(a)', end=210) line
 
-      ! retrieve QM gradient
-      !
-      else if (index(line, "The current gradient in Eh/bohr") > 0) then
-        read(file1, *) line
-        nsta = 0
-        do i = 1, qmmm%qm_natoms + qmmm%num_qmmmbonds
-          read(file1, *) force_tmp(nsta+1)
-          read(file1, *) force_tmp(nsta+2)
-          read(file1, *) force_tmp(nsta+3)
-          nsta = nsta + 3
-        end do
-        ! Separate to QM and link atom groups
+        ! retrieve QM energy
         !
-        call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
-          qmmm%qmatom_id, qmmm%linkatom_global_address, &
-          force_tmp, 3)
+        if (index(line, "The current total energy in Eh") > 0) then
+          read(file1, *) line
+          read(file1, *) qm_energy
+          found_energy = .true.
 
-        found_force = .true.
+        ! retrieve QM gradient
+        !
+        else if (index(line, "The current gradient in Eh/bohr") > 0) then
+          read(file1, *) line
+          nsta = 0
+          do i = 1, qmmm%qm_natoms + qmmm%num_qmmmbonds
+            read(file1, *) force_tmp(nsta+1)
+            read(file1, *) force_tmp(nsta+2)
+            read(file1, *) force_tmp(nsta+3)
+            nsta = nsta + 3
+          end do
 
-      end if
-      if (found_energy .and. found_force) exit
+          ! Separate to QM and link atom groups
+          !
+          call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
+            qmmm%qmatom_id, qmmm%linkatom_global_address, &
+            force_tmp, 3)
 
-    end do
-210 continue
-    call close_file(file1)
+          found_force = .true.
 
-    ! open pcgrad file
-    !
-    call open_file(file1, trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//".pcgrad", IOFileInput)
-    read(file1, *) nline
+        end if
+        if (found_energy .and. found_force) exit
 
-    ! retrieve MM gradient
-    !
-    do i = 1, nline
-      read(file1, *) mm_force(1:3,i)
-    end do
-    mm_force(:,:) = -mm_force(:,:)
-    found_mm_force = .true.
-    call close_file(file1)
+      end do
+210   continue
+      call close_file(file1)
+
+      ! open pcgrad file
+      !
+      call open_file(file1, trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//".pcgrad", IOFileInput)
+      read(file1, *) nline
+
+      ! retrieve MM gradient
+      !
+      do i = 1, nline
+        read(file1, *) mm_force(1:3,i)
+      end do
+      mm_force(:,:) = -mm_force(:,:)
+      found_mm_force = .true.
+      call close_file(file1)
+
+    end if
 
     ! Error check
     !
@@ -5460,19 +5474,53 @@ contains
         return
       end if
 
+      ! Separate to QM and link atom groups
+      call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
+        qmmm%qmatom_id, qmmm%linkatom_global_address, &
+        force_tmp, 3)
+
       nsta = 0
       do i = 1, qmmm%qm_natoms
         qm_force(1:3,i) = -force_tmp(nsta+1:nsta+3)
-        qm_charge(i) = charge_tmp((nsta+3)/3)
         nsta = nsta + 3
       end do
       do i = 1, qmmm%num_qmmmbonds
         la_force(1:3,i) = -force_tmp(nsta+1:nsta+3)
-        la_charge(i) = charge_tmp((nsta+3)/3)
         nsta = nsta + 3
       end do
 
     end if
+
+    if (found_charge) then
+      qmmm%is_qm_charge = .true.
+
+      call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
+        qmmm%qmatom_id, qmmm%linkatom_global_address, &
+        charge_tmp, 1)
+
+      nsta = 1
+      do i = 1, qmmm%qm_natoms
+        qm_charge(i) = charge_tmp(nsta)
+        nsta = nsta + 1
+      end do
+      do i = 1, qmmm%num_qmmmbonds
+        la_charge(i) = charge_tmp(nsta)
+        nsta = nsta + 1
+      end do
+
+    else
+      qmmm%is_qm_charge = .false.
+      if (qmmm%qm_get_esp) then
+        qm_error = .true.
+        write(MsgOut,'(a,i0)') &
+          'Fatal error while reading ORCA logfile for '//trim(qmmm%qmbasename)// &
+          '! Rank = ', my_country_no
+        write(MsgOut,'(a)') 'QM charge is not found!'
+      end if
+
+    end if
+
+    if (qm_error) return
 
     if (qmmm%qm_debug) then
       write(MsgOut,'("QMMM_debug> QM energy = ", f18.10, &
@@ -5489,17 +5537,19 @@ contains
 
       if (qmmm%workdir /= qmmm%savedir) then
 
-        ! save engrad file
-        exec='mv '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.engrad ' & 
-                  //trim(qmmm%savedir)
-        if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
-        call system(exec)
+        if (.not. qmmm%ene_only) then
+          ! save engrad file
+          exec='mv '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.engrad ' & 
+                    //trim(qmmm%savedir)
+          if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
+          call system(exec)
 
-        ! save pcgrad file
-        exec='mv '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.pcgrad ' &
-                  //trim(qmmm%savedir)
-        if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
-        call system(exec)
+          ! save pcgrad file
+          exec='mv '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.pcgrad ' &
+                    //trim(qmmm%savedir)
+          if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
+          call system(exec)
+        end if
 
         ! save xyz files
         exec='mv '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_qm.xyz ' & 
@@ -5516,10 +5566,15 @@ contains
 
     else
 
-      exec='rm '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.engrad ' &
-                //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.pcgrad ' &
-                //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_qm.xyz ' &
-                //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_pc.xyz '
+      if (.not. qmmm%ene_only) then
+        exec='rm '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.engrad ' &
+                  //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.pcgrad ' &
+                  //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_qm.xyz ' &
+                  //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_pc.xyz '
+      else
+        exec='rm '//trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_qm.xyz ' &
+                  //trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'_pc.xyz '
+      end if
       if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
       call system(exec)
 
