@@ -5377,11 +5377,6 @@ contains
           nend = 26
           call read_real(line, nsta, nend, charge_tmp(i))          
         end do
-        !
-        ! Separate to QM and link atom groups
-        call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
-          qmmm%qmatom_id, qmmm%linkatom_global_address, &
-          charge_tmp, 1)
 
         found_charge = .true.
 
@@ -5420,12 +5415,6 @@ contains
             read(file1, *) force_tmp(nsta+3)
             nsta = nsta + 3
           end do
-
-          ! Separate to QM and link atom groups
-          !
-          call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
-            qmmm%qmatom_id, qmmm%linkatom_global_address, &
-            force_tmp, 3)
 
           found_force = .true.
 
@@ -5494,6 +5483,7 @@ contains
     if (found_charge) then
       qmmm%is_qm_charge = .true.
 
+      ! Separate to QM and link atom groups
       call separate_qm_and_linkh(qmmm%qm_natoms, qmmm%num_qmmmbonds, &
         qmmm%qmatom_id, qmmm%linkatom_global_address, &
         charge_tmp, 1)
