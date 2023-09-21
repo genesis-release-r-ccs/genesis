@@ -1,6 +1,15 @@
 =====================================
-GENESIS 2.0.0
+GENESIS 2.1.0
 =====================================
+
+GENESIS website
+===============
+https://www.r-ccs.riken.jp/labs/cbrt/
+
+- System requirements and installation guide: https://www.r-ccs.riken.jp/labs/cbrt/installation/
+- Demo and tutorials: https://www.r-ccs.riken.jp/labs/cbrt/tutorials2022/
+- Instructions for use: https://github.com/RikenSugitaLab/cgdyntest
+
 
 Project Leader: Yuji Sugita (RIKEN)
 
@@ -52,10 +61,6 @@ Project Leader: Yuji Sugita (RIKEN)
   Kazuhiro Hashiba (VINAS)
 
   Copyright (C) 2014-2022 RIKEN. All Rights Reserved
-
-GENESIS website
-===============
-https://www.r-ccs.riken.jp/labs/cbrt/
 
 What is GENESIS?
 ================
