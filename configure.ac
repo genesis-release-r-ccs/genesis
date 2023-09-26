@@ -1,10 +1,10 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.71])
-AC_INIT([genesis],[2.1.0],[genesis@riken.jp])
+AC_PREREQ(2.59)
+AC_INIT(genesis, [2.1.0], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
-AC_CONFIG_HEADERS([src/config.h])
+AC_CONFIG_HEADER([src/config.h])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
