@@ -1,10 +1,10 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.0], genesis@riken.jp)
+AC_PREREQ([2.71])
+AC_INIT([genesis],[2.1.0],[genesis@riken.jp])
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
-AC_CONFIG_HEADER([src/config.h])
+AC_CONFIG_HEADERS([src/config.h])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
@@ -1655,6 +1655,7 @@ AM_COND_IF([ANALYSIS],[AC_CONFIG_FILES([src/analysis/Makefile
                 src/analysis/trj_analysis/tilt_analysis/Makefile
                 src/analysis/trj_analysis/trj_analysis/Makefile
                 src/analysis/trj_analysis/ring_analysis/Makefile
+                src/analysis/trj_analysis/energy_analysis/Makefile
                 src/analysis/sp_analysis/Makefile
                 src/analysis/sp_analysis/libspana/Makefile
                 src/analysis/sp_analysis/rdf_analysis/Makefile
