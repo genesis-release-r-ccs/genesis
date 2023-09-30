@@ -144,7 +144,7 @@ latex_elements = {
     'tableofcontents': r'''
 %%%%%%%
 \begin{center}
-{\Huge GENESIS 2.1.0}
+{\Huge GENESIS 2.1.1}
 \end{center}
 
 \vspace{2ex}
