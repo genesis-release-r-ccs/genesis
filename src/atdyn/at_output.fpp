@@ -1168,6 +1168,7 @@ contains
         write(output%remunit,'(2I10)')          &
           dynvars%step,                         &
           remd%repid2parmsetid(my_country_no+1)
+        flush(output%remunit)
       end if
     end if
 
@@ -1222,6 +1223,7 @@ contains
       write(output%rpathlogunit, '(I10,3F15.8)') &
            dynvars%step, rpath%sum_distance, &
            rpath%distance_init,rpath%distance_prev
+      flush(output%rpathlogunit)
     end if
 
     repid_i = my_country_no + 1
@@ -1237,6 +1239,7 @@ contains
           write(output%rpathunit, '(E15.5,$)') rpath%rest_reference(1,k,repid_i)
         end do
         write(output%rpathunit, *)
+        flush(output%rpathunit)
       end if
 
       ! output restart
@@ -1258,6 +1261,7 @@ contains
           write(output%rpathunit, '(E15.5,$)') rpath%mep_coord(k,repid_i)
         end do
         write(output%rpathunit, *)
+        flush(output%rpathunit)
       end if
 
       ! output restart
@@ -1280,6 +1284,7 @@ contains
           write(output%rpathunit, '(E15.5,$)') rpath%mep_coord(k,repid_i)
         end do
         write(output%rpathunit, *)
+        flush(output%rpathunit)
       end if
 
       ! output energy
@@ -1836,6 +1841,8 @@ contains
 
       write(output%gamdunit,'(A)') ''
     end if
+
+    flush(output%gamdunit)
 
     return
 
@@ -2583,6 +2590,8 @@ contains
     write(file) real(coord(2,:),sp)
     write(file) real(coord(3,:),sp)
 
+    flush(file)
+
     return
 
   end subroutine write_trajectory_dcd
@@ -2692,6 +2701,8 @@ contains
     write(file) real(velocity(2,:),sp)
     write(file) real(velocity(3,:),sp)
 
+    flush(file)
+
     return
 
   end subroutine write_trajectory_dcdvel
@@ -2759,7 +2770,7 @@ contains
         j = j + 1
         filename(j:j) = cid(i:i)
       end do
-      do i = ci2+1, MaxFilename
+      do i = ci2+1, MaxFilename-1
         j = j + 1
         filename(j:j) = filename_ori(i:i)
       end do

@@ -2766,6 +2766,7 @@ contains
       energy%angle              = energy%angle              + eangle_omp(id)
       energy%urey_bradley       = energy%urey_bradley       + eurey_omp(id)
       energy%dihedral           = energy%dihedral           + edihed_omp(id)
+      energy%dihedral           = energy%dihedral           + erbdihed_omp(id)
       energy%electrostatic      = energy%electrostatic      + elec_omp(id)
       energy%van_der_waals      = energy%van_der_waals      + evdw_omp(id)
       energy%electric_field     = energy%electric_field     + efield_omp(id)

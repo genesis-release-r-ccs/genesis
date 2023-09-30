@@ -763,6 +763,7 @@ contains
 
       call setaddress(icyc, vibration%minfo_folder, iatom, ixyz, fname)
       inquire(file=trim(fname), exist = ex)
+      !dbg write(MsgOut,'("file=",a20," , ex=",l4)') trim(fname),ex
       if (ex) then
         call read_minfo_grad(fname, nat, energy_all(icyc), &
                                          grad_all(:,icyc), &
@@ -806,11 +807,12 @@ contains
 
     end if
 #else
+    istart = istart0
     iend = ngrid-1
 #endif
 
     !dbg write(MsgOut,'("replica = ",i4,", istart = ",i4,", iend = ",i4)') &
-    !dbg   replicaid, istart, iend
+    !dbg       replicaid, istart, iend
 
     ! now compute_energy over grid points
     count = 0

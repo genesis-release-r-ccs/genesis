@@ -700,9 +700,11 @@ if test x"${with_cuda}" != x"no"; then
   if test ${NVCC_VER} -lt 080000; then
     AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
   fi
-  GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
-  if test ${NVCC_VER} -gt 065000; then
-    GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
+  if test ${NVCC_VER} -lt 120000; then
+    GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
+    if test ${NVCC_VER} -gt 065000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
+    fi
   fi
   if test ${NVCC_VER} -gt 080000; then
     GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
@@ -1653,6 +1655,7 @@ AM_COND_IF([ANALYSIS],[AC_CONFIG_FILES([src/analysis/Makefile
                 src/analysis/trj_analysis/tilt_analysis/Makefile
                 src/analysis/trj_analysis/trj_analysis/Makefile
                 src/analysis/trj_analysis/ring_analysis/Makefile
+                src/analysis/trj_analysis/energy_analysis/Makefile
                 src/analysis/sp_analysis/Makefile
                 src/analysis/sp_analysis/libspana/Makefile
                 src/analysis/sp_analysis/rdf_analysis/Makefile

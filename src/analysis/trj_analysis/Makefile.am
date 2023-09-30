@@ -21,4 +21,5 @@ SUBDIRS = comcrd_analysis \
 	  msd_analysis \
           diffusion_analysis \
           fret_analysis \
-		  ring_analysis
+		  ring_analysis \
+          energy_analysis

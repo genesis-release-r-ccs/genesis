@@ -3093,9 +3093,6 @@ contains
         eele_tmp = 0.0_wp
         virial_tmp(1:3,1:3) = 0.0_wp
 
-        !#ifdef IFORT19
-        !dir$ simd
-        !#endif
         do j = ini_ele, fin_ele
 
           k = ele_list(j,id)

@@ -195,16 +195,9 @@ contains
     call open_file(file_d, output%pmffile, IOFileOutputNew)
 
     if (option%dimension == 1) then
-      ! Periodic CV cannot print out standard type PMF
-      if (option%is_periodic(1)) then
-        do i = 1, size(pmf1d(1,:))
-          write(file_d,*) option%center(1, i), pmf1d(2, i)
-        end do   
-      else
-        do i = 1, size(pmf1d(1,:))
-          write(file_d,*) option%center(1, i), pmf1d(1, i), pmf1d(2, i)
-        end do
-      end if
+      do i = 1, size(pmf1d(1,:))
+        write(file_d,*) option%center(1, i), pmf1d(1, i), pmf1d(2, i)
+      end do
     else if (option%dimension == 2) then
 
       if(option%output_type == OutputTypeMATLAB) then
@@ -304,14 +297,22 @@ contains
     do ipmf = 1, 2
       dx1(1:nbin, 1:ndata) = 0.0_wp
 
-      ! Periodic CV cannot print out standard type PMF now
-      if((ipmf == 1) .and. (option%is_periodic(1))) exit
       do ibin = 1, nbin
         if (option%is_periodic(1)) then
-          do idata = 1, ndata
-            dx1(ibin, idata) = (periodic(data(1, idata), option%center(1, ibin), &
-              option%box_size(1)) / option%band_width(1))**2.0_wp
-          end do
+          if(ipmf == 2) then
+            ! For Gauusian type PMF
+            do idata = 1, ndata
+              dx1(ibin, idata) = (periodic(data(1, idata), option%center(1, ibin), &
+                option%box_size(1)) / option%band_width(1))**2.0_wp
+            end do
+          else
+            ! For standard type PMF
+            do idata = 1, ndata
+              ddata = data(1, idata) - option%center(1, ibin)
+              if((-option%delta_grid(1) < ddata) .and. (option%delta_grid(1) > ddata)) &
+                dx1(ibin, idata) = dx1(ibin, idata) + 1.0_wp
+            end do
+          end if
         else
           if(ipmf == 2) then
             ! For Gauusian type PMF
