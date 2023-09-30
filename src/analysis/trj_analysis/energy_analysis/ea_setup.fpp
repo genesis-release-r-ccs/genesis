@@ -268,7 +268,7 @@ contains
     call setup_trajectory(ctrl_data%trj_info, molecule, trj_list, trajectory)
 
     ! setup remd
-    !
+    ! The route cannot be selected.
     if ( len_trim(option%remfile) /= 0 .or. &
          option%rest_component .or. &
          option%mbar ) then

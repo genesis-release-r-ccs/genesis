@@ -32,9 +32,9 @@ module ea_option_mod
     logical                :: allow_backup   = .false.
     logical                :: component      = .false.
     logical                :: rest_component = .false.
-    character(MaxFilename) :: remfile        = ''
-    integer                :: tgt_parmid     = 1
-    logical                :: mbar           = .false. ! for MBAR
+    character(MaxFilename) :: remfile        = '' ! hidden parameter
+    integer                :: tgt_parmid     = 1  ! hidden parameter
+    logical                :: mbar           = .false. ! for MBAR, hidden parameter
   end type s_opt_info
 
   public  :: show_ctrl_option
@@ -58,9 +58,7 @@ contains
       write(MsgOut,'(A)') 'check_only     = NO              # only checking input files (YES/NO)'
       write(MsgOut,'(A)') 'allow_backup   = NO              # backup existing output files (YES/NO)'
       write(MsgOut,'(A)') 'component      = NO              # (YES/NO)'
-      write(MsgOut,'(A)') 'remfile        = sample{}.top'
-      write(MsgOut,'(A)') 'tgt_parmid     = 1'
-      write(MsgOut,'(A)') 'mbar           = NO              # for MBAR analysis'
+!      write(MsgOut,'(A)') 'mbar           = NO              # for MBAR analysis'
     end if
 
     return
@@ -99,10 +97,6 @@ contains
                                'component', opt_info%component)
     call read_ctrlfile_logical(handle, Section, &
                                'rest_component', opt_info%rest_component)
-    call read_ctrlfile_string(handle, Section,  &
-                               'remfile', opt_info%remfile)
-    call read_ctrlfile_integer(handle, Section, &
-                               'tgt_parmid', opt_info%tgt_parmid)
     call read_ctrlfile_logical(handle, Section, &
                                'mbar', opt_info%mbar)
     call end_ctrlfile_section(handle)
@@ -129,8 +123,6 @@ contains
       if (opt_info%rest_component) then
         call error_msg('Read_Ctrl_Option> rest_component is not available. Please use analysis_grest in spdyn.')
       end if
-      write(MsgOut,'(A20,A40)')      '  remfile         = ', opt_info%remfile
-      write(MsgOut,'(A20,I40)')      '  tgt_parmid      = ', opt_info%tgt_parmid
       if (opt_info%mbar) then
         write(MsgOut,'(A20,A3)')     '  mbar            = ', 'yes'
       else
