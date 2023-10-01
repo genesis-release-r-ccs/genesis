@@ -1,5 +1,5 @@
 =====================================
-GENESIS 2.1.0
+GENESIS 2.1.1
 =====================================
 
 GENESIS website
@@ -58,7 +58,7 @@ Project Leader: Yuji Sugita (RIKEN)
   Hideyo Yoshida (JSOL Corporation), Kenta Chaki (JSOL Corporation),
   Kazuhiro Hashiba (VINAS)
 
-  Copyright (C) 2014-2022 RIKEN. All Rights Reserved
+  Copyright (C) 2014-2023 RIKEN. All Rights Reserved
 
 What is GENESIS?
 ================
@@ -91,7 +91,7 @@ DOI: 10.1002/jcc.24874
 
 Copyright Notices
 =================
-  Copyright (C) 2014-2022 RIKEN.
+  Copyright (C) 2014-2023 RIKEN.
 
   GENESIS is free software; you can redistribute it and/or
   modify it provided that the following conditions are met:

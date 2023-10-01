@@ -941,6 +941,7 @@ contains
       end if
     end do
     write(DynvarsOut,'(A)') ''
+    flush(DynvarsOut)
 
     return
 

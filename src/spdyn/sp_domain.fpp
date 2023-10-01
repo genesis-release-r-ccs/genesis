@@ -1827,7 +1827,8 @@ contains
            molecule%residue_name(i)(1:3) .eq. 'SOL').and. &
           .not.(molecule%light_atom_mass(i))      .and. &
           .not.(molecule%light_atom_name(i))      .and. &
-           molecule%atom_name(i)(1:1) .ne. 'H') then
+           molecule%atom_name(i)(1:1) .ne. 'H'    .and. &
+           molecule%mass(i) > EPS) then
         nwater = nwater + 1
       else if (molecule%residue_name(i)(1:3) .ne. 'TIP' .and. &
                molecule%residue_name(i)(1:3) .ne. 'WAT' .and. &

@@ -2777,7 +2777,7 @@ contains
       do j = 1, connect
         do k = 1, HGr_local(j,icel)
           total_mass  = 0.0_wip
-          vel_cm(1)   = 0.0_wip
+          vel_cm(1:3)   = 0.0_wip
           do ih = 1, j+1
             iatm(ih)    = HGr_bond_list(ih,k,j,icel)
             total_mass  = total_mass + mass(iatm(ih),icel)

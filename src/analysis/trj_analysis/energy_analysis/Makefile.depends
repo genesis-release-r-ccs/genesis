@@ -1,0 +1,11 @@
+ea_analyze.o: ea_analyze.fpp ea_option_str_mod.mod 
+ea_analyze_mod.mod: ea_analyze.fpp ea_analyze.o
+ea_control.o: ea_control.fpp ea_option_mod.mod 
+ea_control_mod.mod: ea_control.fpp ea_control.o
+ea_main.o: ea_main.fpp ea_analyze_mod.mod ea_control_mod.mod ea_setup_mod.mod ea_option_str_mod.mod ea_option_mod.mod 
+ea_option.o: ea_option.fpp ea_option_str_mod.mod 
+ea_option_mod.mod: ea_option.fpp ea_option.o
+ea_option_str.o: ea_option_str.fpp  
+ea_option_str_mod.mod: ea_option_str.fpp ea_option_str.o
+ea_setup.o: ea_setup.fpp ea_control_mod.mod ea_option_str_mod.mod ea_option_mod.mod 
+ea_setup_mod.mod: ea_setup.fpp ea_setup.o

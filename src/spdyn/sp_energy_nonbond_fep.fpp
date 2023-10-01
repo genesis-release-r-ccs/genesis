@@ -197,7 +197,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -306,7 +310,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy   = nb15_calc_list(k,ij)
           jatmcls = atmcls(iy,j)
@@ -915,7 +923,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -1011,7 +1023,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list(k,ij)
@@ -1232,7 +1248,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -1340,7 +1360,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
           iy   = nb15_calc_list(k,ij)
           jatmcls = atmcls(iy,j)
@@ -1938,7 +1962,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list1(k,i)
@@ -2036,7 +2064,11 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else
+        !$omp simd
+#endif
         do k = ini_nb15, fin_nb15
 
           iy = nb15_calc_list(k,ij)
