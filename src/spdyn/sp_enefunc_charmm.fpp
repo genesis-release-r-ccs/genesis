@@ -3351,11 +3351,8 @@ contains
 
     domain%start_atom(1:ncell) = 0
     ij = natom(1)
-#if defined (FUGAKU)
-    !ocl simd
-#else
-    !$omp simd
-#endif
+    !ocl nosimd
+
     do i = 2, ncell
       domain%start_atom(i) = domain%start_atom(i-1) + natom(i-1)
       ij = ij + natom(i)
@@ -3500,11 +3497,7 @@ contains
             index(3) = water_list(3,ic,icel)
             index(4) = water_list(4,ic,icel)
 
-#if defined (FUGAKU)
-            !ocl simd
-#else
-            !$omp simd
-#endif
+            !ocl nosimd
             do i1 = 2, 3
               do i2 = i1+1, 4
                 num_excl = num_nonb_excl(icel) + 1
