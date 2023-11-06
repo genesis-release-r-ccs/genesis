@@ -304,8 +304,7 @@ if is_parallelio and is_spdyn:
     print("=======================================================================")
     print("Parallel I/O Tests")
     print("=======================================================================")
-    genesis_dir = os.path.dirname(genesis_command_last)
-    genesis_prst_setup = '%s/prst_setup' % genesis_dir
+    genesis_prst_setup = genesis_command_last.replace('spdyn','prst_setup');
     if not os.path.exists(os.path.expanduser(genesis_prst_setup)):
         print("Error: %s does not exist" % genesis_prst_setup)
         sys.exit(3)
