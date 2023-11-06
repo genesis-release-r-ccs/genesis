@@ -86,7 +86,7 @@
             CALL FFT235(CX,D,WX,NX,LNX)
             B(1,J,K)=DBLE(CX(1))
             B(1,J+1,K)=DIMAG(CX(1))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 20 I=2,NX/2+1
               B(I,J,K)=0.5D0*(CX(I)+DCONJG(CX(NX-I+2)))
               B(I,J+1,K)=(0.0D0,-0.5D0)*(CX(I)-DCONJG(CX(NX-I+2)))
@@ -100,7 +100,7 @@
             CALL FFT235(CX,D,WX,NX,LNX)
             B(1,J,K)=DBLE(CX(1))
             B(1,J+1,K)=DIMAG(CX(1))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 50 I=2,NX/2+1
               B(I,J,K)=0.5D0*(CX(I)+DCONJG(CX(NX-I+2)))
               B(I,J+1,K)=(0.0D0,-0.5D0)*(CX(I)-DCONJG(CX(NX-I+2)))
@@ -110,14 +110,14 @@
             CX(I)=DCMPLX(DA(I,NY,K),0.0D0)
    70     CONTINUE
           CALL FFT235(CX,D,WX,NX,LNX)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
           DO 80 I=1,NX/2+1
             B(I,NY,K)=CX(I)
    80     CONTINUE
         END IF
         DO 140 II=1,NX/2+1,NBLK
           DO 100 I=II,MIN0(II+NBLK-1,NX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 90 J=1,NY
               CY(J,I-II+1)=B(I,J,K)
    90       CONTINUE
@@ -126,7 +126,7 @@
             CALL FFT235(CY(1,I-II+1),D,WY,NY,LNY)
   110     CONTINUE
           DO 130 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 120 I=II,MIN0(II+NBLK-1,NX/2+1)
               B(I,J,K)=CY(J,I-II+1)
   120       CONTINUE
@@ -137,7 +137,7 @@
       DO 220 J=1,NY
         DO 210 II=1,NX/2+1,NBLK
           DO 170 I=II,MIN0(II+NBLK-1,NX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 160 K=1,NZ
               CZ(K,I-II+1)=B(I,J,K)
   160       CONTINUE
@@ -146,7 +146,7 @@
             CALL FFT235(CZ(1,I-II+1),D,WZ,NZ,LNZ)
   180     CONTINUE
           DO 200 K=1,NZ
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 190 I=II,MIN0(II+NBLK-1,NX/2+1)
               A(I,J,K)=CZ(K,I-II+1)
   190       CONTINUE

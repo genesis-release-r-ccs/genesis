@@ -28,8 +28,11 @@
       complex(wp) C0,C1
 !     DIMENSION A(2,M,*),B(2,M,*)
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 I=1,M
         C0=A(I,1)
         C1=A(I,2)
@@ -46,8 +49,11 @@
 !     DIMENSION A(2,L,*),B(2,3,*),W(2,2,*)
       DATA C31/0.86602540378443865_WP/C32/0.5_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 J=1,L
         W1=W(1,J)
         W2=W(2,J)
@@ -71,8 +77,11 @@
 !     DIMENSION A(2,M,L,*),B(2,M,3,*),W(2,2,*)
       DATA C31/0.86602540378443865_WP/C32/0.5_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 I=1,M
         C0=A(I,1,1)
         C1=A(I,1,2)
@@ -87,8 +96,11 @@
       DO 30 J=2,L
         W1=W(1,J)
         W2=W(2,J)
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else if defined (INTEL)
+        !$omp simd
+#endif
         DO 20 I=1,M
           C0=A(I,J,1)
           C1=A(I,J,2)
@@ -110,8 +122,11 @@
       complex(wp) C0,C1,C2,C3,D0,D1,D2,D3,W1,W2,W3
 !     DIMENSION A(2,L,*),B(2,4,*),W(2,3,*)
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 J=1,L
         W1=W(1,J)
         W2=W(2,J)
@@ -138,8 +153,11 @@
       complex(wp) C0,C1,C2,C3,D0,D1,D2,D3,W1,W2,W3
 !     DIMENSION A(2,M,L,*),B(2,M,4,*),W(2,3,*)
 
-!!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 I=1,M
         C0=A(I,1,1)
         C1=A(I,1,2)
@@ -158,8 +176,11 @@
         W1=W(1,J)
         W2=W(2,J)
         W3=W(3,J)
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else if defined (INTEL)
+        !$omp simd
+#endif
         DO 20 I=1,M
           C0=A(I,J,1)
           C1=A(I,J,2)
@@ -187,8 +208,11 @@
       DATA C51/0.95105651629515357_WP/C52/0.61803398874989485_WP/ &
            C53/0.55901699437494742_WP/C54/0.25_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 J=1,L
         W1=W(1,J)
         W2=W(2,J)
@@ -228,8 +252,11 @@
       DATA C51/0.95105651629515357_WP/C52/0.61803398874989485_WP/ &
            C53/0.55901699437494742_WP/C54/0.25_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 I=1,M
         C0=A(I,1,1)
         C1=A(I,1,2)
@@ -258,8 +285,11 @@
         W2=W(2,J)
         W3=W(3,J)
         W4=W(4,J)
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+        !ocl simd
+#else if defined (INTEL)
+        !$omp simd
+#endif
         DO 20 I=1,M
           C0=A(I,J,1)
           C1=A(I,J,2)
@@ -295,8 +325,11 @@
 !     DIMENSION A(2,L,*),B(2,8,*),W(2,7,*)
       DATA C81/0.70710678118654752_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 J=1,L
         W1=W(1,J)
         W2=W(2,J)
@@ -351,8 +384,11 @@
 !     DIMENSION A(2,M,L,*),B(2,M,8,*),W(2,7,*)
       DATA C81/0.70710678118654752_WP/
 
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
       DO 10 I=1,M
         C0=A(I,1,1)
         C1=A(I,1,2)
@@ -397,8 +433,11 @@
         W5=W(5,J)
         W6=W(6,J)
         W7=W(7,J)
-!DIR$ VECTOR ALIGNED
-!dir$ simd
+#if defined (FUGAKU)
+      !ocl simd
+#else if defined (INTEL)
+      !$omp simd
+#endif
         DO 20 I=1,M
           C0=A(I,J,1)
           C1=A(I,J,2)
