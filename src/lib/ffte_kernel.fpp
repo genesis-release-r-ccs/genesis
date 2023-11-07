@@ -30,7 +30,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 I=1,M
@@ -51,7 +51,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 J=1,L
@@ -79,7 +79,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 I=1,M
@@ -98,7 +98,7 @@
         W2=W(2,J)
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         DO 20 I=1,M
@@ -124,7 +124,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 J=1,L
@@ -155,7 +155,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 I=1,M
@@ -178,7 +178,7 @@
         W3=W(3,J)
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         DO 20 I=1,M
@@ -210,7 +210,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 J=1,L
@@ -254,7 +254,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 I=1,M
@@ -287,7 +287,7 @@
         W4=W(4,J)
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         DO 20 I=1,M
@@ -327,7 +327,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 J=1,L
@@ -386,7 +386,7 @@
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       DO 10 I=1,M
@@ -435,7 +435,7 @@
         W7=W(7,J)
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
         DO 20 I=1,M

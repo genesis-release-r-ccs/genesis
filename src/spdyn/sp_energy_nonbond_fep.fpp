@@ -199,7 +199,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -312,7 +312,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -925,7 +925,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1025,7 +1025,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1250,7 +1250,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1362,7 +1362,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1964,7 +1964,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -2066,7 +2066,7 @@ contains
 
 #if defined (FUGAKU)
         !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15

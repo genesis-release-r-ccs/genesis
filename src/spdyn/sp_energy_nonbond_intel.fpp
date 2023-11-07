@@ -385,7 +385,7 @@ contains
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       do k = 1, num_nb15_calc(ixx,1)
@@ -559,7 +559,7 @@ contains
 
 #if defined (FUGAKU)
       !ocl simd
-#else if defined (INTEL)
+#elif defined (INTEL)
       !$omp simd
 #endif
       do k = 1, num_nb15_calc(kki,1)
