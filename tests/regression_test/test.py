@@ -304,10 +304,17 @@ if is_parallelio and is_spdyn:
     print("=======================================================================")
     print("Parallel I/O Tests")
     print("=======================================================================")
-    genesis_prst_setup = os.path.abspath(os.path.expanduser(genesis_command_last.replace('spdyn','prst_setup')));
+
+
+    genesis_command_prst_setup_split = genesis_command_split
+    genesis_prst_setup=genesis_command_prst_setup_split[-1].replace('spdyn','prst_setup');
+    genesis_prst_setup = os.path.abspath(os.path.expanduser(genesis_prst_setup));
     if not os.path.exists(os.path.expanduser(genesis_prst_setup)):
         print("Error: %s does not exist" % genesis_prst_setup)
         sys.exit(3)
+
+    genesis_command_prst_setup_split[-1] = genesis_prst_setup
+    genesis_prst_setup = " ".join(genesis_command_prst_setup_split)
         
     cwdname = os.getcwd()
     
