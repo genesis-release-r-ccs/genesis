@@ -254,8 +254,10 @@ elif test x"${FC_ACT}" = x"gfortran"; then
   FC_GNU_VER=`echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__"\
    | ${FC_ACT} -E -P - | xargs printf "%02d%02d%02d"`
 
-  if test ${FC_GNU_VER} -lt 040407; then
-    AC_MSG_ERROR([Gfortran version must be >= 4.4.7])
+  if test ${FC_GNU_VER} -lt 070000; then
+    AC_MSG_ERROR([Gfortran version must be >= 7.0.0])
+  elif test ${FC_GNU_VER} -lt 080500; then
+    AC_MSG_WARN([Gfortran version 8.5.0 or later is preferred])
   fi
 
 elif test x"${FC_ACT}" = x"pgf90"; then
