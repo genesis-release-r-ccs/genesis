@@ -195,7 +195,7 @@ elif test x"${enable_mpi}"=x"yes" ; then
   mpi_ver_info=$(${FC} --showme:version)
   prev=""
   for vtok in ${mpi_ver_info} ; do
-    if echo ${vtok} | egrep -q "MPI"; then
+    if echo ${vtok} | grep -E -q "MPI"; then
       mpitype=${prev}
     fi
     prev=${vtok}
@@ -217,10 +217,10 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT})
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
       version=${vtok}
     fi
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@{8}"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@{8}"; then
       build=${vtok}
     fi
   done
@@ -229,7 +229,7 @@ elif test x"${FC_ACT}" = x"ifort" ; then
     fc_ver_info=$(${FC} -E -v)
 	prev=""
     for vtok in ${fc_ver_info} ; do
-      if echo ${vtok} | egrep -q "MPI"; then
+      if echo ${vtok} | grep -E -q "MPI"; then
         mpitype=${prev}
       fi
 	  prev=${vtok}
@@ -264,7 +264,7 @@ elif test x"${FC_ACT}" = x"pgf90"; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT} )
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
       version=${vtok}
     fi
   done
@@ -629,7 +629,7 @@ if test x"${with_cuda}" != x"no"; then
   if test -z "${cuda_lib_path}"; then
     lib_dirs=$(echo ${LIBRARY_PATH} ${LD_LIBRARY_PATH} |tr ':' ' ')
     for dir in ${lib_dirs}; do
-    if echo ${dir} | egrep -q "cuda"; then
+    if echo ${dir} | grep -E -q "cuda"; then
       AC_CHECK_FILE([${dir}/libcudart.so], [cuda_lib_path=${dir}], [])
       if test x"${cuda_lib_path}" != x""; then
         break
@@ -665,7 +665,7 @@ if test x"${with_cuda}" != x"no"; then
   for vtok in ${nvcc_ver_info} ; do
     if test x"${vtok}" = x"(NVCC)"; then
       check_ver=yes
-    elif echo ${vtok} | egrep -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
+    elif echo ${vtok} | grep -E -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
       version=${vtok}
     fi
   done
