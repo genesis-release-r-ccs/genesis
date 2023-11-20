@@ -247,6 +247,8 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   elif test ${FC_GNU_VER} -eq 150001 -a ${build} -eq 20141023 ; then
     AC_MSG_ERROR([ifort version 15.0.1 (20141023) has a serious problem in GENESIS])
+  elif test ${FC_GNU_VER} -eq 20210701 ; then
+    AC_MSG_ERROR([ifort version 2021.7.1 has a serious problem in GENESIS])
   fi
 
 elif test x"${FC_ACT}" = x"gfortran"; then
