@@ -26,7 +26,7 @@ integrator          = VVER      # [LEAP,VVER,VRES]
 nsteps              = 40
 timestep            = 0.002     # timestep (ps) 
 eneout_period       = 2
-nbupdate_period     = 10        # pairlist update period
+nbupdate_period     = 5         # pairlist update period
 
 [ENSEMBLE]
 ensemble            = NVT
