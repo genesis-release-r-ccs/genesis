@@ -823,7 +823,7 @@ contains
     do istep = 1, 2
 
       bottom = z - (atom_radi + wat_radi) + 0.5_wp*dz
-      top    = z + (atom_radi + wat_radi)
+      top    = z + (atom_radi + wat_radi) - 0.5_wp*dz
 
       icount = 0
       do while (bottom < top)
