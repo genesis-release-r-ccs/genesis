@@ -614,7 +614,7 @@ contains
     real(wp), allocatable,   intent(inout) :: selec_atom_sasa(:)
 
     ! local variables
-    real(wp)                 :: wat_radi, aw_radi, z_radi, dz
+    real(wp)                 :: wat_radi, aw_radi, z_radi, dz, edz
     real(wp)                 :: azp, czp
     real(wp)                 :: aa, total_aa
     integer                  :: icelln
@@ -746,7 +746,7 @@ contains
       aw_radi = selec_atom_radi(is) + wat_radi
 
       call get_zs(molecule, boundary, domain, sasa_option, &
-                  selec_atom_radi, is, zs)
+                  selec_atom_radi, is, zs, edz)
 
       total_aa = 0
       do iz = 1 , size(zs)
@@ -764,7 +764,7 @@ contains
 
       end do ! iz
 
-      selec_atom_sasa(is)= aw_radi*dz* total_aa
+      selec_atom_sasa(is)= aw_radi*edz* total_aa
 
       if (allocated(zs)) then
         deallocate(zs, stat = dealloc_stat)
@@ -787,7 +787,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine get_zs(molecule, boundary, domain, sasa_option, &
-                    selec_atom_radi,  is, zs)
+                    selec_atom_radi,  is, zs, edz)
 
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
@@ -797,12 +797,13 @@ contains
     real(wp),                intent(in)    :: selec_atom_radi(:)
     integer,                 intent(in)    :: is
     real(wp), allocatable,   intent(inout) :: zs(:)
+    real(wp),                intent(inout) :: edz
 
     ! local variables
     real(wp)                 :: z, dz
-    real(wp)                 :: wat_radi, atom_radi
+    real(wp)                 :: wat_radi, atom_radi, aw_radi
     real(wp)                 :: top, bottom
-    integer                  :: ig, istep, icount
+    integer                  :: ig, istep, icount, nz
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
 
@@ -818,30 +819,20 @@ contains
     atom_radi = selec_atom_radi(is)
     ig        = domain%id_selec2global(is)
 
-    z       = molecule%atom_coord(3,ig)
+    z         = molecule%atom_coord(3,ig)
+    aw_radi   = wat_radi + atom_radi
+    nz        = NINT(2.0_wp*aw_radi/dz)
+    edz       = 2.0_wp*aw_radi/nz 
 
-    do istep = 1, 2
+    deallocate(zs, stat = dealloc_stat)
+    allocate(zs(nz), stat = alloc_stat)
 
-      bottom = z - (atom_radi + wat_radi) + 0.5_wp*dz
-      top    = z + (atom_radi + wat_radi) - 0.5_wp*dz
+    bottom = z - (atom_radi + wat_radi) 
 
-      icount = 0
-      do while (bottom < top)
-        icount     = icount +1
+    do icount = 1, nz
+      zs(icount) = bottom + edz*(icount - 0.5_wp) 
+    end do
 
-        if (istep == 2) then
-          zs(icount) = bottom
-        end if
-
-        bottom     = bottom + dz
-      end do
-
-      if (istep == 1) then
-        deallocate(zs, stat = dealloc_stat)
-        allocate(zs(icount), stat = alloc_stat)
-      end if
-
-    end do ! istep
 
     return
 
