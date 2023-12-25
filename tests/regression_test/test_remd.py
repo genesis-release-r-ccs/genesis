@@ -162,11 +162,18 @@ if (is_atdyn or is_spdyn):
     
     cwdname = os.getcwd()
     for test_each in test_dirs:
-        itried = itried + 1
         os.chdir(cwdname)
         dirname = test_each
         if not os.path.isdir(dirname) : 
             continue
+        if ("H-REMD" in dirname) and (is_gpu) :
+            continue
+        if ("REST" in dirname) and (is_gpu) :
+            continue
+        if ("T-REMD" in dirname) and (is_gpu) :
+            continue
+
+        itried = itried + 1
         os.chdir(dirname)
         
         # run MD

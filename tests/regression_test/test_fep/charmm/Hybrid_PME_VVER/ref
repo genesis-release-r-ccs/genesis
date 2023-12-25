@@ -12,39 +12,44 @@
 [STEP0] Architecture and Compiler Information
  
 GENESIS_Information> GENESIS Information
-  version      = 2.0.0
+  version      = 2.1.1
   commit ID    = $GENESIS_VERSION$
   precision    = double
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = oshima@goby
-  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  build host   = jung@scallop
+  fortran      = ifort (IFORT) 2021.9.0 20230302
   option       = 
- -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
-  C            = icc (ICC) 19.0.5.281 20190815
+  -axCORE-AVX512 -g -O3  -qmkl=parallel  -assume byterecl -qopenmp  
+  C            = 
+ icc: remark #10441: The Intel(R) C++ Compiler Classic (ICC) is deprecated and w
+ ill be removed from product release in the second half of 2023. The Intel(R) on
+ eAPI DPC++/C++ Compiler (ICX) is the recommended compiler moving forward. Pleas
+ e transition to use this compiler. Use '-diag-disable=10441' to disable this me
+ ssage.
   option       = -O3 -ip -axCORE-AVX2  -qopenmp 
   defined var. = 
   -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
   -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
- core -lmkl_lapack95_lp64   
+ core -lmkl_lapack95_lp64  
   MPI Compiler = Open MPI
 
 Runtime_Information> Machine and Library Information
-  date       = 2023/01/27 00:15:54
-  cpu model    = Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
-  exec. host   = oshima@goby22
+  date       = 2023/11/24 12:12:55
+  cpu model    = Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz
+  exec. host   = jung@scallop01
   LD library   = 
- /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
- intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
- linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_librar
- ies_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compile
- rs_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel
- /compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+ /usr/local/cuda-12.1/lib64:/home/mdsoft/mpi/mpi_rocky-v8_intel64/openmpi-v4.1.5
+ _intel-v2023.1_eth/lib:/home/mdsoft/intel/intel/oneapi/mkl/2023.1.0/lib/intel64
+ :/home/mdsoft/intel/intel/oneapi/compiler/2023.1.0/linux/lib:/home/mdsoft/intel
+ /intel/oneapi/compiler/2023.1.0/linux/lib/x64:/home/mdsoft/intel/intel/oneapi/c
+ ompiler/2023.1.0/linux/lib/oclfpga/host/linux64/lib:/home/mdsoft/intel/intel/on
+ eapi/compiler/2023.1.0/linux/compiler/lib/intel64_lin
  MPI Runtime = 
- Open MPI v4.0.2, package: Open MPI mdsoft@goby Distribution, ident: 4.0.2, repo
-  rev: v4.0.2, Oct 07, 2019
+ Open MPI v4.1.5, package: Open MPI mdsoft@ray05 Distribution, ident: 4.1.5, rep
+ o rev: v4.1.5, Feb 23, 2023
 
 [STEP1] Read Control Parameters
  
@@ -58,7 +63,7 @@ Read_Ctrl_Input> Input Files
   rstfile = rst
  
 Read_Ctrl_Output> Output Files
-  fepfile    = out.fepout
+  fepfile    = out2.fepout
  
 Read_Ctrl_ALCHEMY> Alchemy information
   fep_direction  = Bothsides
@@ -91,7 +96,7 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   pme_ngrid(x,y,z)=    40   40   40
   pme_nspline     =               4
   pme_alpha       =         0.22664
-  pme_scheme      = NOOPT_2DALLTOAL
+  pme_scheme      = NOOPT_1DALLTOAL
   nonbond_kernel  =      AUTOSELECT
   table_order     =               1
   table_density   =          20.000
@@ -111,7 +116,7 @@ Read_Ctrl_Dynamics> Parameters of MD simulation
   timestep        =     0.0020  initial_time    =     0.0000
   eneout_period   =          5  rstout_period   =          0
   crdout_period   =          0  velout_period   =          0
-  nbupdate_period =         10  stoptr_period   =         10
+  nbupdate_period =          5  stoptr_period   =         10
   iseed           =          1
   annealing       =         no
   verbose         =         no
@@ -156,8 +161,8 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
  
 Setup_Mpi_Md> Summary of Setup MPI
   number of MPI processes   =          8
-  number of OpenMP threads  =          4
-  total number of CPU cores =         32
+  number of OpenMP threads  =          3
+  total number of CPU cores =         24
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -344,37 +349,37 @@ INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE
  --------------- --------------- --------------- --------------- ---------------
 INFO:          5          0.0100     -30597.4575     -37672.0258       7074.5683         13.4534         14.8330         35.1415          7.9591         41.0751          1.4302       4016.9869     -41789.4516        304.9426     117102.6716         48.9240         48.9240         48.9240      -5731.1225       -576.7167       -293.7354       -813.3080       -623.1067
 
-INFO:         10          0.0200     -30594.4482     -37770.7752       7176.3269         13.4623         15.0545         30.3584          8.9269         39.0575          0.9768       4011.7840     -41876.9332        309.2562     117104.0429         48.9242         48.9242         48.9242      -5732.1703       -538.2721       -329.3171       -681.7706       -603.7287
+INFO:         10          0.0200     -30594.4477     -37770.7746       7176.3269         13.4623         15.0545         30.3584          8.9269         39.0575          0.9768       4011.7840     -41876.9327        309.2562     117104.0429         48.9242         48.9242         48.9242      -5732.1668       -538.2701       -329.3136       -681.7687       -603.7278
 
-INFO:         15          0.0300     -30593.0250     -37617.0771       7024.0521         13.4700         12.0181         31.1327          8.4109         43.9048          1.5473       4053.1629     -41767.2537        302.6565     117105.3248         48.9244         48.9244         48.9244      -5278.8274       -332.4300       -125.8194       -542.5734       -328.8972
+INFO:         15          0.0300     -30593.0251     -37617.0772       7024.0521         13.4700         12.0181         31.1327          8.4109         43.9048          1.5473       4053.1629     -41767.2538        302.6565     117105.3248         48.9244         48.9244         48.9244      -5278.8276       -332.4300       -125.8194       -542.5735       -328.8971
 
-INFO:         20          0.0400     -30603.0930     -37594.4633       6991.3704         13.4918         15.8564         31.4959          8.8160         42.0643          0.1450       4099.8655     -41792.7064        301.2926     117106.5438         48.9246         48.9246         48.9246      -5311.9624       -364.3588       -289.0026       -380.8547       -423.2191
+INFO:         20          0.0400     -30603.0930     -37594.4634       6991.3704         13.4918         15.8564         31.4959          8.8160         42.0643          0.1450       4099.8655     -41792.7065        301.2926     117106.5438         48.9246         48.9246         48.9246      -5311.9626       -364.3589       -289.0028       -380.8549       -423.2191
 
 FEP window index        2
-INFO:         25          0.0500     -30609.2091     -37604.6039       6995.3948         13.5145         17.1909         35.3971          8.9381         41.7529          1.5819       4139.8919     -41849.3566        301.5360     117107.5516         48.9247         48.9247         48.9247      -5005.0775       -182.4777       -273.1657        -56.8376       -217.4297
+INFO:         25          0.0500     -30609.2092     -37604.6039       6995.3948         13.5145         17.1909         35.3971          8.9381         41.7529          1.5819       4139.8919     -41849.3567        301.5360     117107.5516         48.9247         48.9247         48.9247      -5005.0777       -182.4778       -273.1657        -56.8379       -217.4297
 
-INFO:         30          0.0600     -30607.3078     -37630.4333       7023.1255         13.5259         14.1001         30.3123          8.1612         40.1205          0.0633       4188.4764     -41911.6672        302.6623     117108.2891         48.9248         48.9248         48.9248      -4809.9154        -57.9594         16.3057       -123.5087        -66.6753
+INFO:         30          0.0600     -30607.3077     -37630.4332       7023.1255         13.5259         14.1001         30.3123          8.1612         40.1205          0.0633       4188.4764     -41911.6671        302.6622     117108.2891         48.9248         48.9248         48.9248      -4809.9145        -57.9589         16.3062       -123.5079        -66.6751
 
-INFO:         35          0.0700     -30600.7990     -37519.4977       6918.6987         13.5253         14.8019         30.0722          6.8253         41.8931          0.9358       4221.6197     -41835.6457        298.2079     117109.0178         48.9249         48.9249         48.9249      -4552.7752         52.1823       -153.1762        -77.0955        386.8187
+INFO:         35          0.0700     -30600.7992     -37519.4977       6918.6986         13.5253         14.8019         30.0722          6.8253         41.8931          0.9358       4221.6197     -41835.6458        298.2079     117109.0178         48.9249         48.9249         48.9249      -4552.7753         52.1823       -153.1763        -77.0954        386.8186
 
-INFO:         40          0.0800     -30610.1237     -37536.8894       6926.7657         13.4918         15.7703         27.4262          6.6108         40.5547          0.4583       4214.8011     -41842.5106        298.5838     117109.7514         48.9250         48.9250         48.9250      -4683.5634        -21.1797       -259.5109       -246.4525        442.4243
+INFO:         40          0.0800     -30610.1238     -37536.8894       6926.7657         13.4918         15.7703         27.4262          6.6108         40.5547          0.4583       4214.8011     -41842.5107        298.5838     117109.7514         48.9250         48.9250         48.9250      -4683.5635        -21.1798       -259.5110       -246.4526        442.4243
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.723
-    setup         =       0.420
-    dynamics      =       0.303
-      energy      =       0.217
-      integrator  =       0.030
-      pairlist    =       0.020 (       0.019,       0.021)
+  total time      =       0.669
+    setup         =       0.351
+    dynamics      =       0.318
+      energy      =       0.247
+      integrator  =       0.031
+      pairlist    =       0.039 (       0.036,       0.041)
   energy           
     bond          =       0.000 (       0.000,       0.000)
     angle         =       0.000 (       0.000,       0.001)
-    dihedral      =       0.001 (       0.000,       0.001)
+    dihedral      =       0.001 (       0.000,       0.002)
     base stacking =       0.000 (       0.000,       0.000)
-    nonbond       =       0.196 (       0.196,       0.196)
+    nonbond       =       0.230 (       0.230,       0.231)
       CG exv      =       0.000 (       0.000,       0.000)
       CG DNA bp   =       0.000 (       0.000,       0.000)
       CG DNA exv  =       0.000 (       0.000,       0.000)
@@ -385,8 +390,8 @@ Output_Time> Averaged timer profile (Min, Max)
       CG IDR-KH   =       0.000 (       0.000,       0.000)
       CG KH       =       0.000 (       0.000,       0.000)
       Contact     =       0.000 (       0.000,       0.000)
-      pme real    =       0.152 (       0.141,       0.161)
-      pme recip   =       0.044 (       0.036,       0.055)
+      pme real    =       0.182 (       0.168,       0.192)
+      pme recip   =       0.048 (       0.038,       0.062)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
@@ -394,9 +399,9 @@ Output_Time> Averaged timer profile (Min, Max)
     qmmm          =       0.000 (       0.000,       0.000)
     morph         =       0.000 (       0.000,       0.000)
   integrator       
-    constraint    =       0.006 (       0.005,       0.006)
-    update        =       0.003 (       0.003,       0.004)
-    comm_coord    =       0.004 (       0.004,       0.005)
-    comm_force    =       0.005 (       0.004,       0.006)
-    comm_migrate  =       0.001 (       0.000,       0.001)
+    constraint    =       0.008 (       0.008,       0.008)
+    update        =       0.006 (       0.005,       0.007)
+    comm_coord    =       0.005 (       0.003,       0.007)
+    comm_force    =       0.005 (       0.003,       0.006)
+    comm_migrate  =       0.001 (       0.000,       0.002)
 

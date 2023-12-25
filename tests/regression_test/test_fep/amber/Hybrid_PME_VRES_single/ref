@@ -12,39 +12,51 @@
 [STEP0] Architecture and Compiler Information
  
 GENESIS_Information> GENESIS Information
-  version      = 2.0.0
+  version      = 2.0.2
   commit ID    = $GENESIS_VERSION$
   precision    = double
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = oshima@goby
-  fortran      = ifort (IFORT) 19.0.5.281 20190815
+  build host   = jung@dolphin1
+  fortran      = ifort (IFORT) 2021.7.1 20221019
   option       = 
  -xHost -axCORE-AVX512 -g -O3 -ip -mkl=parallel  -assume byterecl -qopenmp  
-  C            = icc (ICC) 19.0.5.281 20190815
+  C            = 
+ icc: remark #10441: The Intel(R) C++ Compiler Classic (ICC) is deprecated and w
+ ill be removed from product release in the second half of 2023. The Intel(R) on
+ eAPI DPC++/C++ Compiler (ICX) is the recommended compiler moving forward. Pleas
+ e transition to use this compiler. Use '-diag-disable=10441' to disable this me
+ ssage.
   option       = -O3 -ip -axCORE-AVX2  -qopenmp 
   defined var. = 
   -DHAVE_MPI_GENESIS -DOMP -DIFORT19 -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -DINTEL
   link option  = 
   -assume byterecl -lgfortran -qopenmp  -lmkl_intel_lp64 -lmkl_sequential -lmkl_
- core -lmkl_lapack95_lp64   
-  MPI Compiler = Open MPI
+ core -lmkl_lapack95_lp64  
+  MPI Compiler = Intel(R) MPI
 
 Runtime_Information> Machine and Library Information
-  date       = 2023/01/27 00:01:33
-  cpu model    = Intel(R) Xeon(R) Gold 6242 CPU @ 2.80GHz
-  exec. host   = oshima@goby22
+  date       = 2023/11/06 11:29:28
+  cpu model    = Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz
+  exec. host   = jung@
   LD library   = 
- /usr/local/cuda-10.2/lib64:/home/mdsoft/mpi/mpi_cent-v7_intel64/openmpi-v4.0.2_
- intel-v2019.5/lib:/Ahome/mdsoft/intel/intel/compilers_and_libraries_2019.5.281/
- linux/tbb/lib/intel64_lin/gcc4.7:/Ahome/mdsoft/intel/intel/compilers_and_librar
- ies_2019.5.281/linux/compiler/lib/intel64_lin:/Ahome/mdsoft/intel/intel/compile
- rs_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/Ahome/mdsoft/intel/intel
- /compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
- MPI Runtime = 
- Open MPI v4.0.2, package: Open MPI mdsoft@goby Distribution, ident: 4.0.2, repo
-  rev: v4.0.2, Oct 07, 2019
+ /opt/intel/oneapi/vpl/2022.2.5/lib:/opt/intel/oneapi/tbb/2021.9.0/env/../lib/in
+ tel64/gcc4.8:/opt/intel/oneapi/mpi/2021.9.0//libfabric/lib:/opt/intel/oneapi/mp
+ i/2021.9.0//lib/release:/opt/intel/oneapi/mpi/2021.9.0//lib:/opt/intel/oneapi/m
+ kl/2023.1.0/lib/intel64:/opt/intel/oneapi/itac/2021.9.0/slib:/opt/intel/oneapi/
+ ipp/2021.8.0/lib/intel64:/opt/intel/oneapi/ippcp/2021.7.0/lib/intel64:/opt/inte
+ l/oneapi/ipp/2021.8.0/lib/intel64:/opt/intel/oneapi/dnnl/2023.1.0/cpu_dpcpp_gpu
+ _dpcpp/lib:/opt/intel/oneapi/debugger/2023.1.0/gdb/intel64/lib:/opt/intel/oneap
+ i/debugger/2023.1.0/libipt/intel64/lib:/opt/intel/oneapi/debugger/2023.1.0/dep/
+ lib:/opt/intel/oneapi/dal/2023.1.0/lib/intel64:/opt/intel/oneapi/compiler/2023.
+ 1.0/linux/lib:/opt/intel/oneapi/compiler/2023.1.0/linux/lib/x64:/opt/intel/onea
+ pi/compiler/2023.1.0/linux/lib/oclfpga/host/linux64/lib:/opt/intel/oneapi/compi
+ ler/2023.1.0/linux/compiler/lib/intel64_lin:/opt/intel/oneapi/ccl/2021.9.0/lib/
+ cpu_gpu_dpcpp:/usr/local/cuda/lib64:/home/jung/program/openmpi/gcc/lib:/usr/loc
+ al/lib:
+ MPI Runtime = Intel(R) MPI Library 2021.9 for Linux* OS
+
 
 [STEP1] Read Control Parameters
  
@@ -157,8 +169,8 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
  
 Setup_Mpi_Md> Summary of Setup MPI
   number of MPI processes   =          8
-  number of OpenMP threads  =          4
-  total number of CPU cores =         32
+  number of OpenMP threads  =          3
+  total number of CPU cores =         24
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -346,34 +358,34 @@ Update_Num_Deg_Freedom> Number of degrees of freedom was updated
 FEP window index        2
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE        DIHEDRAL        IMPROPER         VDWAALS   DISP-CORR_ENE           ELECT     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL   DISP-CORR_VIR        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
  --------------- --------------- --------------- --------------- ---------------
-INFO:          4          0.0100     -17131.0107     -21143.3206       4012.3098         14.0257         14.1180         41.9543         32.7901          0.9788       3389.4456       -183.3417     -24439.2657        311.3025      68132.0525         40.8430         40.8430         40.8430      -1052.7439       -366.6834        352.0567        614.7247          9.6507        431.7946
+INFO:          4          0.0100     -17131.0107     -21143.3206       4012.3098         14.0257         14.1180         41.9543         32.7901          0.9788       3389.4456       -183.3417     -24439.2657        311.3025      68132.0525         40.8430         40.8430         40.8430      -1053.3757       -366.6834        351.4209        614.7247          9.6507        429.8872
 
-INFO:          8          0.0200     -17135.5294     -21262.1740       4126.6446         14.0059         11.5739         32.7333         33.6606          1.0311       3366.6678       -183.3389     -24524.5018        313.6305      68133.1312         40.8432         40.8432         40.8432      -1278.1976       -366.6779        134.8044        522.9864       -329.9880        211.4148
+INFO:          8          0.0200     -17135.5294     -21262.1740       4126.6446         14.0059         11.5739         32.7333         33.6606          1.0311       3366.6680       -183.3389     -24524.5020        313.6305      68133.1308         40.8432         40.8432         40.8432      -1278.8168       -366.6779        134.1812        522.9871       -329.9874        209.5440
 
-INFO:         12          0.0300     -17136.3188     -21231.0215       4094.7027         14.0386         14.2202         33.4660         32.4649          2.7764       3371.3404       -183.3359     -24501.9535        311.9905      68134.2903         40.8434         40.8434         40.8434      -1255.0541       -366.6717        152.6504        477.8870       -266.2941        246.3582
+INFO:         12          0.0300     -17136.3188     -21231.0216       4094.7028         14.0386         14.2202         33.4660         32.4649          2.7764       3371.3408       -183.3359     -24501.9540        311.9905      68134.2891         40.8434         40.8434         40.8434      -1255.6594       -366.6717        152.0412        477.8888       -266.2924        244.5271
 
-INFO:         16          0.0400     -17139.8830     -21149.5156       4009.6326         14.0439          9.0914         36.9923         32.8283          2.0728       3403.6129       -183.3326     -24450.7807        310.7556      68135.5397         40.8437         40.8437         40.8437      -1003.8588       -366.6651        397.6322        369.1628        172.8767        650.8570
+INFO:         16          0.0400     -17139.8830     -21149.5157       4009.6327         14.0439          9.0914         36.9923         32.8283          2.0728       3403.6138       -183.3326     -24450.7816        310.7556      68135.5375         40.8437         40.8437         40.8437      -1004.4720       -366.6651        397.0152        369.1662        172.8801        648.9992
 
-INFO:         20          0.0500     -17139.5305     -21200.6260       4061.0956         14.0880         10.9542         39.2769         31.3849          1.0173       3432.0964       -183.3287     -24532.0271        308.5503      68137.0287         40.8439         40.8439         40.8439       -896.9837       -366.6574        494.9895        308.9666        297.7486        878.2534
+INFO:         20          0.0500     -17139.5305     -21200.6262       4061.0958         14.0880         10.9542         39.2769         31.3849          1.0173       3432.0978       -183.3287     -24532.0286        308.5502      68137.0249         40.8439         40.8439         40.8439       -897.6045       -366.6575        494.3649        308.9720        297.7540        876.3686
 
-INFO:         24          0.0600     -17138.8275     -21176.7219       4037.8944         14.0948         13.2498         37.6128         31.8136          0.5726       3435.4989       -183.3241     -24512.1454        307.2178      68138.8151         40.8443         40.8443         40.8443       -969.9243       -366.6482        417.8344        282.1809        400.4898        570.8325
+INFO:         24          0.0600     -17138.8274     -21176.7221       4037.8947         14.0948         13.2498         37.6128         31.8136          0.5726       3435.4986       -183.3241     -24512.1454        307.2178      68138.8095         40.8443         40.8443         40.8443       -970.5542       -366.6482        417.2008        282.1897        400.4984        568.9144
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.353
-    setup         =       0.213
-    dynamics      =       0.140
-      energy      =       0.065
-      integrator  =       0.009
-      pairlist    =       0.008 (       0.008,       0.009)
+  total time      =       0.401
+    setup         =       0.255
+    dynamics      =       0.146
+      energy      =       0.115
+      integrator  =       0.015
+      pairlist    =       0.011 (       0.010,       0.013)
   energy           
     bond          =       0.000 (       0.000,       0.000)
     angle         =       0.000 (       0.000,       0.001)
-    dihedral      =       0.001 (       0.000,       0.001)
+    dihedral      =       0.001 (       0.000,       0.002)
     base stacking =       0.000 (       0.000,       0.000)
-    nonbond       =       0.054 (       0.052,       0.055)
+    nonbond       =       0.097 (       0.095,       0.100)
       CG exv      =       0.000 (       0.000,       0.000)
       CG DNA bp   =       0.000 (       0.000,       0.000)
       CG DNA exv  =       0.000 (       0.000,       0.000)
@@ -384,8 +396,8 @@ Output_Time> Averaged timer profile (Min, Max)
       CG IDR-KH   =       0.000 (       0.000,       0.000)
       CG KH       =       0.000 (       0.000,       0.000)
       Contact     =       0.000 (       0.000,       0.000)
-      pme real    =       0.035 (       0.030,       0.039)
-      pme recip   =       0.018 (       0.016,       0.022)
+      pme real    =       0.070 (       0.062,       0.080)
+      pme recip   =       0.027 (       0.020,       0.035)
     solvation     =       0.000 (       0.000,       0.000)
       polar       =       0.000 (       0.000,       0.000)
       non-polar   =       0.000 (       0.000,       0.000)
@@ -394,8 +406,8 @@ Output_Time> Averaged timer profile (Min, Max)
     morph         =       0.000 (       0.000,       0.000)
   integrator       
     constraint    =       0.001 (       0.001,       0.001)
-    update        =       0.002 (       0.002,       0.003)
-    comm_coord    =       0.003 (       0.002,       0.004)
-    comm_force    =       0.004 (       0.002,       0.006)
-    comm_migrate  =       0.001 (       0.000,       0.001)
+    update        =       0.004 (       0.003,       0.004)
+    comm_coord    =       0.003 (       0.003,       0.004)
+    comm_force    =       0.008 (       0.004,       0.013)
+    comm_migrate  =       0.000 (       0.000,       0.001)
 
