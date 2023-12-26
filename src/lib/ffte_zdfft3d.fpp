@@ -82,7 +82,7 @@
       DO 70 J=1,NY
         DO 60 II=1,NX/2+1,NBLK
           DO 20 I=II,MIN0(II+NBLK-1,NX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 10 K=1,NZ
               CZ(K,I-II+1)=DCONJG(A(I,J,K))
    10       CONTINUE
@@ -91,7 +91,7 @@
             CALL FFT235(CZ(1,I-II+1),D,WZ,NZ,LNZ)
    30     CONTINUE
           DO 50 K=1,NZ
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 40 I=II,MIN0(II+NBLK-1,NX/2+1)
               B(I,J,K)=CZ(K,I-II+1)
    40       CONTINUE
@@ -102,7 +102,7 @@
       DO 220 K=1,NZ
         DO 130 II=1,NX/2+1,NBLK
           DO 90 I=II,MIN0(II+NBLK-1,NX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 80 J=1,NY
               CY(J,I-II+1)=B(I,J,K)
    80       CONTINUE
@@ -111,7 +111,7 @@
             CALL FFT235(CY(1,I-II+1),D,WY,NY,LNY)
   100     CONTINUE
           DO 120 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 110 I=II,MIN0(II+NBLK-1,NX/2+1)
               B(I,J,K)=CY(J,I-II+1)
   110       CONTINUE
@@ -120,7 +120,7 @@
         IF (MOD(NY,2) .EQ. 0) THEN
           DO 160 J=1,NY,2
             CX(1)=DCMPLX(DBLE(B(1,J,K)),DBLE(B(1,J+1,K)))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 140 I=2,NX/2+1
               TEMP=(0.0D0,1.0D0)*B(I,J+1,K)
               CX(I)=B(I,J,K)+TEMP
@@ -135,7 +135,7 @@
         ELSE
           DO 190 J=1,NY-1,2
             CX(1)=DCMPLX(DBLE(B(1,J,K)),DBLE(B(1,J+1,K)))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 170 I=2,NX/2+1
               TEMP=(0.0D0,1.0D0)*B(I,J+1,K)
               CX(I)=B(I,J,K)+TEMP
@@ -148,7 +148,7 @@
   180       CONTINUE
   190     CONTINUE
           CX(1)=DCMPLX(DBLE(B(1,NY,K)),0.0D0)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
           DO 200 I=2,NX/2+1
             CX(I)=B(I,NY,K)
             CX(NX-I+2)=DCONJG(B(I,NY,K))

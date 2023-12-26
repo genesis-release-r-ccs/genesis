@@ -293,12 +293,16 @@ if (is_atdyn or is_spdyn):
     
     cwdname = os.getcwd()
     for test_each in test_dirs:
-        itried = itried + 1
         os.chdir(cwdname)
         dirname = test_each
         if not os.path.isdir(dirname) : 
             continue
         os.chdir(dirname)
+
+        if ("VIB_ADDATOM2_g09" in dirname) and (is_fugaku) : 
+            continue
+
+        itried = itried + 1
         
         # run MD
         print("-----------------------------------------------------------------------")

@@ -49,7 +49,7 @@ integrator       = VVER
 nsteps           = 10
 timestep         = 0.002
 eneout_period    = 5
-nbupdate_period  = 10
+nbupdate_period  = 5 
 iseed = 1
 
 [CONSTRAINTS]

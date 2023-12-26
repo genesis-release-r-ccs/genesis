@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.1], genesis@riken.jp)
+AC_INIT(genesis, [2.1.2], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
@@ -195,7 +195,7 @@ elif test x"${enable_mpi}"=x"yes" ; then
   mpi_ver_info=$(${FC} --showme:version)
   prev=""
   for vtok in ${mpi_ver_info} ; do
-    if echo ${vtok} | egrep -q "MPI"; then
+    if echo ${vtok} | grep -E -q "MPI"; then
       mpitype=${prev}
     fi
     prev=${vtok}
@@ -217,10 +217,10 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT})
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
       version=${vtok}
     fi
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@{8}"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@{8}"; then
       build=${vtok}
     fi
   done
@@ -229,7 +229,7 @@ elif test x"${FC_ACT}" = x"ifort" ; then
     fc_ver_info=$(${FC} -E -v)
 	prev=""
     for vtok in ${fc_ver_info} ; do
-      if echo ${vtok} | egrep -q "MPI"; then
+      if echo ${vtok} | grep -E -q "MPI"; then
         mpitype=${prev}
       fi
 	  prev=${vtok}
@@ -247,6 +247,8 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   elif test ${FC_GNU_VER} -eq 150001 -a ${build} -eq 20141023 ; then
     AC_MSG_ERROR([ifort version 15.0.1 (20141023) has a serious problem in GENESIS])
+  elif test ${FC_GNU_VER} -eq 20210701 ; then
+    AC_MSG_ERROR([ifort version 2021.7.1 has a serious problem in GENESIS])
   fi
 
 elif test x"${FC_ACT}" = x"gfortran"; then
@@ -254,8 +256,10 @@ elif test x"${FC_ACT}" = x"gfortran"; then
   FC_GNU_VER=`echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__"\
    | ${FC_ACT} -E -P - | xargs printf "%02d%02d%02d"`
 
-  if test ${FC_GNU_VER} -lt 040407; then
-    AC_MSG_ERROR([Gfortran version must be >= 4.4.7])
+  if test ${FC_GNU_VER} -lt 070000; then
+    AC_MSG_ERROR([Gfortran version must be >= 7.0.0])
+  elif test ${FC_GNU_VER} -lt 080500; then
+    AC_MSG_WARN([Gfortran version 8.5.0 or later is preferred])
   fi
 
 elif test x"${FC_ACT}" = x"pgf90"; then
@@ -264,7 +268,7 @@ elif test x"${FC_ACT}" = x"pgf90"; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT} )
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
       version=${vtok}
     fi
   done
@@ -629,7 +633,7 @@ if test x"${with_cuda}" != x"no"; then
   if test -z "${cuda_lib_path}"; then
     lib_dirs=$(echo ${LIBRARY_PATH} ${LD_LIBRARY_PATH} |tr ':' ' ')
     for dir in ${lib_dirs}; do
-    if echo ${dir} | egrep -q "cuda"; then
+    if echo ${dir} | grep -E -q "cuda"; then
       AC_CHECK_FILE([${dir}/libcudart.so], [cuda_lib_path=${dir}], [])
       if test x"${cuda_lib_path}" != x""; then
         break
@@ -665,7 +669,7 @@ if test x"${with_cuda}" != x"no"; then
   for vtok in ${nvcc_ver_info} ; do
     if test x"${vtok}" = x"(NVCC)"; then
       check_ver=yes
-    elif echo ${vtok} | egrep -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
+    elif echo ${vtok} | grep -E -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
       version=${vtok}
     fi
   done

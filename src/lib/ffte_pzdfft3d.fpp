@@ -127,12 +127,12 @@
 !$omp DO
         DO 80 K=1,NNZ
           DO 70 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 40 I=1,NNX/2+1
               B(I+(J-1)*(NNX/2+1)+(K-1)*(NNX/2+1)*NY)=AXYZ(I,J,K)
    40       CONTINUE
             DO 60 L=2,NPU
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
               DO 50 I=1,NNX/2
                 B(I+(J-1)*(NNX/2)+(K-1)*(NNX/2)*NY     &
                   +((L-2)*(NNX/2)+(NNX/2+1))*NY*NNZ)   &
@@ -160,7 +160,7 @@
         DO 160 J=1,NY
           DO 150 II=1,NNX/2+1,NBLK
             DO 100 I=II,MIN0(II+NBLK-1,NNX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
               DO 90 K=1,NZ
                 CZ(K,I-II+1)                                     &
                =CONJG(A(I+(J-1)*(NNX/2+1)+(K-1)*(NNX/2+1)*NY))
@@ -171,7 +171,7 @@
   110       CONTINUE
             DO 140 L=1,NPU
               DO 130 K=1,NNZ
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
                 DO 120 I=II,MIN0(II+NBLK-1,NNX/2+1)
                   B(I+(J-1)*(NNX/2+1)+(K-1)*(NNX/2+1)*NY    &
                     +(L-1)*(NNX/2+1)*NY*NNZ)                &
@@ -186,7 +186,7 @@
         DO 240 J=1,NY
           DO 230 II=1,NNX/2,NBLK
             DO 180 I=II,MIN0(II+NBLK-1,NNX/2)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
               DO 170 K=1,NZ
                 CZ(K,I-II+1)                                 &
                =CONJG(A(I+(J-1)*(NNX/2)+(K-1)*(NNX/2)*NY))
@@ -197,7 +197,7 @@
   190       CONTINUE
             DO 220 L=1,NPU
               DO 210 K=1,NNZ
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
                 DO 200 I=II,MIN0(II+NBLK-1,NNX/2)
                   B(I+(J-1)*(NNX/2)+(K-1)*(NNX/2)*NY       &
                     +(L-1)*(NNX/2)*NY*NNZ)                 &
@@ -225,7 +225,7 @@
       DO 380 K=1,NNZ
         DO 300 II=1,NNX/2+1,NBLK
           DO 260 I=II,MIN0(II+NBLK-1,NNX/2+1)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 250 J=1,NY
               CY(J,I-II+1)=A(I+(J-1)*(NNX/2+1)+(K-1)*(NNX/2+1)*NY)
   250       CONTINUE
@@ -234,7 +234,7 @@
             CALL FFT235(CY(1,I-II+1),D,WY,NY,LNY)
   270     CONTINUE
           DO 290 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 280 I=II,MIN0(II+NBLK-1,NNX/2+1)
               BXYZ(I,J,K)=CY(J,I-II+1)
   280       CONTINUE
@@ -243,7 +243,7 @@
         DO 370 L=2,NPU
           DO 360 II=1,NNX/2,NBLK
             DO 320 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
               DO 310 I=II,MIN0(II+NBLK-1,NNX/2)
                 CY(J,I-II+1)                          &
                =A(I+(J-1)*(NNX/2)+(K-1)*(NNX/2)*NY    &
@@ -254,7 +254,7 @@
               CALL FFT235(CY(1,I-II+1),D,WY,NY,LNY)
   330       CONTINUE
             DO 350 J=1,NY
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
               DO 340 I=II,MIN0(II+NBLK-1,NNX/2)
                 BXYZ(I+(L-2)*(NNX/2)+(NNX/2+1),J,K)=CY(J,I-II+1)
   340         CONTINUE
@@ -267,7 +267,7 @@
         IF (MOD(NY,2) .EQ. 0) THEN
           DO 410 J=1,NY,2
             CX(1)=DCMPLX(REAL(BXYZ(1,J,K),WP),REAL(BXYZ(1,J+1,K),WP))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 390 I=2,NX/2+1
               TEMP=(0.0_WP,1.0_WP)*BXYZ(I,J+1,K)
               CX(I)=BXYZ(I,J,K)+TEMP
@@ -282,7 +282,7 @@
         ELSE
           DO 440 J=1,NY-1,2
             CX(1)=DCMPLX(REAL(BXYZ(1,J,K),WP),REAL(BXYZ(1,J+1,K),WP))
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
             DO 420 I=2,NX/2+1
               TEMP=(0.0_WP,1.0_WP)*BXYZ(I,J+1,K)
               CX(I)=BXYZ(I,J,K)+TEMP
@@ -296,7 +296,7 @@
   440     CONTINUE
         END IF
           CX(1)=DCMPLX(REAL(BXYZ(1,NY,K),WP),0.0_WP)
-!DIR$ VECTOR ALIGNED
+!!DIR$ VECTOR ALIGNED
           DO 450 I=2,NX/2+1
             CX(I)=BXYZ(I,NY,K)
             CX(NX-I+2)=CONJG(BXYZ(I,NY,K))
