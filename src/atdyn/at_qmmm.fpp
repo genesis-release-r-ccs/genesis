@@ -3491,7 +3491,7 @@ contains
       read(file1, '(a)', end=200) line
 
       ! QMMM energy
-      if (line(1:29) .eq. ' The QM part of the Energy is') then
+      if (line(1:19) .eq. ' The QM part of the') then
         nsta = 1
         nend = len(line) - 30
         call read_real(line(30:256), nsta, nend, total_energy)
