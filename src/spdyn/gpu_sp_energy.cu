@@ -10849,3 +10849,42 @@ void gpu_upload_table_fep_( const char *_fep_mask, const REAL *_table_sclj, cons
 	gpu_init();
 	gpu_upload_table_fep( _fep_mask, _table_sclj, _table_scel );
 }
+
+// Hardware information
+extern "C"
+void gpu_get_device_count(int* const count) {
+  CUDA_CALL(cudaGetDeviceCount(count));
+}
+
+extern "C"
+void gpu_get_major_version(const int device_id, int* const major) {
+  cudaDeviceProp properties;
+  CUDA_CALL(cudaGetDeviceProperties(&properties, device_id));
+  *major = properties.major;
+}
+
+extern "C"
+void gpu_get_minor_version(const int device_id, int* const minor) {
+  cudaDeviceProp properties;
+  CUDA_CALL(cudaGetDeviceProperties(&properties, device_id));
+  *minor = properties.minor;
+}
+
+extern "C"
+void gpu_set_device(const int device_id) {
+  CUDA_CALL(cudaSetDevice(device_id));
+}
+
+extern "C"
+void gpu_get_ecc_support(const int device_id, int* const ecc_support) {
+  cudaDeviceProp properties;
+  CUDA_CALL(cudaGetDeviceProperties(&properties, device_id));
+  *ecc_support = properties.ECCEnabled;
+}
+
+extern "C"
+void gpu_get_device_name(const int device_id, char* const device_name) {
+  cudaDeviceProp properties;
+  CUDA_CALL(cudaGetDeviceProperties(&properties, device_id));
+  memcpy(device_name, properties.name, 256);
+}

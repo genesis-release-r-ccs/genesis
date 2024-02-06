@@ -34,90 +34,52 @@ module hardwareinfo_mod
   character(13), parameter  :: cpuinfo = "/proc/cpuinfo"
 
 #ifdef USE_GPU
-  type, bind(C) :: f_cudaDeviceProp
-    character(1)         :: name(256)
-    integer(C_LONG_LONG) :: totalGlobalMem
-    integer(C_LONG_LONG) :: sharedMemPerBlock
-    integer(C_INT)       :: regsPerBlock
-    integer(C_INT)       :: warpSize
-    integer(C_LONG_LONG) :: memPitch
-    integer(C_INT)       :: maxThreadsPerBlock
-    integer(C_INT)       :: maxThreadsDim(3)
-    integer(C_INT)       :: maxGridSize(3)
-    integer(C_INT)       :: clockRate
-    integer(C_LONG_LONG) :: totalConstMem
-    integer(C_INT)       :: major
-    integer(C_INT)       :: minor
-    integer(C_LONG_LONG) :: textureAlignment
-    integer(C_LONG_LONG) :: texturePitchAlignment
-    integer(C_INT)       :: deviceOverlap
-    integer(C_INT)       :: multiProcessorCount
-    integer(C_INT)       :: kernelExecTimeoutEnabled
-    integer(C_INT)       :: integrated
-    integer(C_INT)       :: canMapHostMemory
-    integer(C_INT)       :: computeMode
-    integer(C_INT)       :: maxTexture1D
-    integer(C_INT)       :: maxTexture1DMipmap
-    integer(C_INT)       :: maxTexture1DLinear
-    integer(C_INT)       :: maxTexture2D(2)
-    integer(C_INT)       :: maxTexture2DMipmap(2)
-    integer(C_INT)       :: maxTexture2DLinear(3)
-    integer(C_INT)       :: maxTexture2DGather(2)
-    integer(C_INT)       :: maxTexture3D(3)
-    integer(C_INT)       :: maxTexture3DAlt(3)
-    integer(C_INT)       :: maxTextureCubemap
-    integer(C_INT)       :: maxTexture1DLayered(2)
-    integer(C_INT)       :: maxTexture2DLayered(3)
-    integer(C_INT)       :: maxTextureCubemapLayered(2)
-    integer(C_INT)       :: maxSurface1D
-    integer(C_INT)       :: maxSurface2D(2)
-    integer(C_INT)       :: maxSurface3D(3)
-    integer(C_INT)       :: maxSurface1DLayered(2)
-    integer(C_INT)       :: maxSurface2DLayered(3)
-    integer(C_INT)       :: maxSurfaceCubemap
-    integer(C_INT)       :: maxSurfaceCubemapLayered(2)
-    integer(C_LONG_LONG) :: surfaceAlignment
-    integer(C_INT)       :: concurrentKernels
-    integer(C_INT)       :: ECCEnabled
-    integer(C_INT)       :: pciBusID
-    integer(C_INT)       :: pciDeviceID
-    integer(C_INT)       :: pciDomainID
-    integer(C_INT)       :: tccDriver
-    integer(C_INT)       :: asyncEngineCount
-    integer(C_INT)       :: unifiedAddressing
-    integer(C_INT)       :: memoryClockRate
-    integer(C_INT)       :: memoryBusWidth
-    integer(C_INT)       :: l2CacheSize
-    integer(C_INT)       :: maxThreadsPerMultiProcessor
-    integer(C_INT)       :: streamPrioritiesSupported
-    integer(C_INT)       :: globalL1CacheSupported
-    integer(C_INT)       :: localL1CacheSupported
-    integer(C_LONG_LONG) :: sharedMemPerMultiprocessor
-    integer(C_INT)       :: regsPerMultiprocessor
-    integer(C_INT)       :: managedMemSupported
-    integer(C_INT)       :: isMultiGpuBoard
-    integer(C_INT)       :: multiGpuBoardGroupID
-  end type
+  interface get_device_count
+    subroutine gpu_get_device_count(device_count) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int
+      integer(c_int), intent(out) :: device_count
+    end subroutine
+  end interface get_device_count
 
-  interface
-    integer function cudaGetDeviceProperties(cudaDeviceProp, dev) BIND(C, name="cudaGetDeviceProperties")
-      use, intrinsic :: iso_c_binding
+  interface get_major_version
+    subroutine gpu_get_major_version(device_id, major_version) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int
+      integer(c_int), value       :: device_id
+      integer(c_int), intent(out) :: major_version
+    end subroutine
+  end interface get_major_version
 
-      import
+  interface get_minor_version
+    subroutine gpu_get_minor_version(device_id, minor_version) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int
+      integer(c_int), value       :: device_id
+      integer(c_int), intent(out) :: minor_version
+    end subroutine
+  end interface get_minor_version
 
-      type(f_cudaDeviceProp), intent(out) :: cudaDeviceProp
-      integer, value,         intent(in)  :: dev
+  interface set_device
+    subroutine gpu_set_device(device_id) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int
+      integer(c_int), value :: device_id
+    end subroutine
+  end interface set_device
 
-    end function cudaGetDeviceProperties
+  interface get_ecc_support
+    subroutine gpu_get_ecc_support(device_id, ecc_support) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int
+      integer(c_int), value       :: device_id
+      integer(c_int), intent(out) :: ecc_support
+    end subroutine
+  end interface get_ecc_support
 
-    integer function cudaGetDeviceCount(count) BIND(C, name="cudaGetDeviceCount")
-      integer, intent(out) :: count
-    end function cudaGetDeviceCount
+  interface get_device_name
+    subroutine gpu_get_device_name(device_id, device_name) BIND(C)
+      use, intrinsic :: iso_c_binding, only: c_int, c_char
+      integer(c_int),    value       :: device_id
+      character(c_char), intent(out) :: device_name(256)
+    end subroutine
+  end interface get_device_name
 
-    integer function cudaSetDevice(dev) BIND(C, name="cudaSetDevice")
-      integer, value, intent(in) :: dev
-    end function cudaSetDevice
-  end interface
 #endif /* USE_GPU */
 
   public  :: hw_information
@@ -129,7 +91,6 @@ module hardwareinfo_mod
 #ifdef USE_GPU
   public  :: assign_gpu
   private :: get_local_rank
-  private :: get_gpu_information
 #endif /* USE_GPU */
   private :: get_env_information
 
@@ -165,6 +126,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine runtime_information
+    use, intrinsic :: iso_c_binding, only: c_int, c_char
 
     ! local variables
     character(MaxLine)       :: ldlibrary,  rt_user, rt_host
@@ -174,11 +136,12 @@ contains
     integer                  :: leng, ierr
     integer(8)               :: year, month, day, hour, minute, sec
 #ifdef USE_GPU
-    type(f_cudaDeviceProp)   :: gpu
-    integer                  :: itmp
+    integer                  :: itmp, my_device_id
     character(256)           :: gpu_modelname
     character(256)           :: gpu_major, gpu_minor
     logical                  :: gpu_ecc
+    integer(c_int)           :: major, minor, ecc_support
+    character(c_char)        :: device_name(256)
 #endif /* USE_GPU */
 
 
@@ -200,17 +163,25 @@ contains
     write(MsgOut,*) ' cpu model    = ',trim(cpuname)
 #endif
 #ifdef USE_GPU
-    call get_gpu_information(gpu)
+    major = -1
+    minor = -1
+    ecc_support = -1
+    device_name = ""
+    call assign_gpu(my_device_id)
+    call get_major_version(my_device_id, major)
+    call get_minor_version(my_device_id, minor)
+    call get_ecc_support(my_device_id, ecc_support)
+    call get_device_name(my_device_id, device_name)
     gpu_modelname(1:256) = ' '
-    gpu_ecc = (gpu%ECCEnabled > 0)
+    gpu_ecc = (ecc_support > 0)
     do itmp = 1, 256
-      if (gpu%name(itmp) == CHAR(0)) then
+      if (device_name(itmp) == CHAR(0)) then
         exit
       end if
-      gpu_modelname(itmp:itmp) = gpu%name(itmp)
+      gpu_modelname(itmp:itmp) = device_name(itmp)
     end do
-    write(gpu_major,'(i8)') gpu%major
-    write(gpu_minor,'(i8)') gpu%minor
+    write(gpu_major,'(i8)') major
+    write(gpu_minor,'(i8)') minor
     write(MsgOut,*) ' gpu model    = ',trim(gpu_modelname), &
                     " (CC ", trim(adjustl(gpu_major)), ".", &
                     trim(adjustl(gpu_minor)), ")"
@@ -445,45 +416,44 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine assign_gpu(my_device_id)
+    use, intrinsic :: iso_c_binding, only: c_int
 
     ! formal arguments
     integer, intent(out) :: my_device_id
 
     ! local variables
-    integer :: ret, mycount
+    integer :: ret
+    integer :: my_count, major, minor
     integer :: counter, i, not_avail
-    type(f_cudaDeviceProp) :: gpu
     logical, allocatable :: avail_gpus(:)
 
 
     my_device_id = 0
+    my_count = -1
+    major = -1
+    minor = -1
 #ifndef HAVE_MPI_GENESIS
     ! do nothing if MPI is not available
     return
 #else
 
-    ret = cudaGetDeviceCount(mycount)
-    if (ret /= 0) then
-      call error_msg('get_gpu_info> Error: cannot get gpu device count.')
-    end if
+    call get_device_count(my_count)
 
     not_avail = 0
-    if (mycount > 0) then
-      allocate(avail_gpus(mycount))
+    if (my_count > 0) then
+      allocate(avail_gpus(my_count))
       avail_gpus(:) = .true.
-      do i = 1, mycount
-        ret = cudaGetDeviceProperties(gpu, i-1)
-        if (ret /= 0) then
-          call error_msg('get_gpu_info > Error: cannot get gpu device info.')
-        end if
+      do i = 1, my_count
         ! check compute capability (is >= 3.5 or not)
-        if (gpu%major < 3 .or. &
-             (gpu%major == 3 .and. gpu%minor < 5)) then
+        call get_major_version(i-1, major)
+        call get_minor_version(i-1, minor)
+        if (major < 3 .or. &
+             (major == 3 .and. minor < 5)) then
           not_avail = not_avail + 1
           avail_gpus(i) = .false.
         end if
       end do
-      mycount = mycount - not_avail
+      my_count = my_count - not_avail
       if (not_avail > 0) then
         if (main_rank) then
           write(MsgOut,'(a,i5)') "  ignored GPUs =", not_avail
@@ -492,36 +462,33 @@ contains
     end if
 
     if (main_rank) then
-      write(MsgOut,'(a,i5)') "  # of GPUs    =", mycount
+      write(MsgOut,'(a,i5)') "  # of GPUs    =", my_count
     end if
     ! if only 1 GPU is found, do nothing
-    if (mycount == 1) return
+    if (my_count == 1) return
 
     ! put error if no gpu found
-    if (mycount == 0) then
+    if (my_count == 0) then
       call error_msg('get_gpu_info> CUDA enabled GPU is not available')
     endif
 
     call get_local_rank()
-    my_device_id = mod(my_node_local_rank,mycount)
+    my_device_id = mod(my_node_local_rank,my_count)
 
     counter = -1
-    do i = 1, mycount + not_avail
+    do i = 1, my_count + not_avail
       if (avail_gpus(i)) counter = counter + 1
       if (counter == my_device_id) then
         my_device_id = i - 1
         exit
       end if
-      if (i == (mycount + not_avail)) then
+      if (i == (my_count + not_avail)) then
         call error_msg('get_gpu_info> Error: unexpected error')
       end if
     end do
 
     ! assign device
-    ret = cudaSetDevice(my_device_id)
-    if (ret /= 0) then
-      call error_msg('get_gpu_info> Error: cannot set gpu device.')
-    end if
+    call set_device(my_device_id)
 #endif /* HAVE_MPI_GENESIS */
 
     return
@@ -598,33 +565,6 @@ contains
     return
 
   end subroutine get_local_rank
-
-  !======1=========2=========3=========4=========5=========6=========7=========8  !
-  !  Subroutine    get_gpu_information
-  !> @brief        get GPU information
-  !! @param[out]   gpu        :  gpu info
-  !! @authors      MK
-  !
-  !======1=========2=========3=========4=========5=========6=========7=========8
-
-  subroutine get_gpu_information(gpu)
-
-    ! formal arguments
-    type(f_cudaDeviceProp), intent(out) :: gpu
-
-    ! local variables
-    integer :: ret, my_device_id
-
-
-    call assign_gpu(my_device_id)
-    ret = cudaGetDeviceProperties( gpu, my_device_id )
-    if ( ret /= 0 ) then
-      call error_msg('get_gpu_info> Error: cannot get gpu device info.')
-    end if
-
-    return
-
-  end subroutine get_gpu_information
 
 #endif /* USE_GPU */
 
