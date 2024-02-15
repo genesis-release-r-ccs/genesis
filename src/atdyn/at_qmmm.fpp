@@ -3424,7 +3424,7 @@ contains
     integer(4)               :: istat, unlink
     character(len_exec)      :: exec
     character(MaxLine)       :: line
-    character(MaxFilename)   :: efield, fname
+    character(MaxFilename)   :: efield, fname, fchkfile
     logical                  :: exist_energy, exist_fchk, exist_force, ex
     logical                  :: exist_fchk42
     logical                  :: found_energy, found_dipole, found_force
@@ -3548,31 +3548,32 @@ contains
     qmmm%qm_dipole = 0.0_wp
     found_dipole   = .false.
 
-    ! Q-Chem 4.3
-    inquire(file=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.FChk', &
+    ! Q-Chem 5.4
+    inquire(file=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.fchk', &
             exist=exist_fchk)
-    ! Q-Chem 4.2
-    inquire(file=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.inp.0.fchk', &
-            exist=exist_fchk42)
+    if (exist_fchk) fchkfile=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.fchk'
+
+    if (.not. exist_fchk) then
+      ! Q-Chem 4.3, 4.4
+      inquire(file=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.FChk', &
+              exist=exist_fchk)
+      if (exist_fchk) fchkfile=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.FChk'
+    end if
+
+    if (.not. exist_fchk) then
+      ! Q-Chem 4.2
+      inquire(file=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.inp.0.fchk', &
+              exist=exist_fchk)
+      if (exist_fchk) fchkfile=trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.inp.0.fchk'
+    end if
 
     if (exist_fchk) then
-      call open_file(fchk, &
-           trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.FChk', IOFileInput)
-
+      call open_file(fchk, fchkfile, IOFileInput)
       do while (.true.)
         read(fchk, '(a)', end=210) line
         ! QM dipole
-        if (line(1:11) .eq. 'Dipole_Data') then
-          read(fchk, '(a)') line
-          nsta = 1
-          nend = 16
-          call read_real(line, nsta, nend, qmmm%qm_dipole(1))
-          nsta = 17
-          nend = 32
-          call read_real(line, nsta, nend, qmmm%qm_dipole(2))
-          nsta = 33
-          nend = 48
-          call read_real(line, nsta, nend, qmmm%qm_dipole(3))
+        if (index(line,'Dipole_Data') > 0) then
+          read(fchk, *) qmmm%qm_dipole(1:3)
           found_dipole = .true. 
           exit
         end if
@@ -3580,12 +3581,11 @@ contains
       call close_file(fchk)
 
       if (.not. qmmm%savefile) then
-        fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.FChk'
         if (qmmm%qm_debug) &
-          write(MsgOut,'(''QMMM_debug> remove '',a)') trim(fname)
-        istat = unlink(trim(fname))
+          write(MsgOut,'(''QMMM_debug> remove '',a)') trim(fchkfile)
+        istat = unlink(trim(fchkfile))
         if (istat /= 0) &
-          call error_msg ('qm_read_output> Error while removing '//trim(fname))
+          call error_msg ('qm_read_output> Error while removing '//trim(fchkfile))
 
         fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.0.FChk'
         inquire(file=trim(fname), exist=ex)
@@ -3598,55 +3598,17 @@ contains
         end if
 
       else if (qmmm%workdir /= qmmm%savedir) then
-        fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)
-        inquire(file=trim(fname)//'.0.FChk', exist=ex)
+        exec='mv '//trim(fchkfile)//' '//trim(qmmm%savedir)
+        if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
+        call system(exec)
+
+        fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.0.FChk'
+        inquire(file=trim(fname), exist=ex)
         if (ex) then
-          exec='mv '//trim(fname)//'.FChk '//trim(fname)//'.0.FChk '//trim(qmmm%savedir)
-        else
-          exec='mv '//trim(fname)//'.FChk '//trim(qmmm%savedir)
+          exec='mv '//trim(fname)//' '//trim(qmmm%savedir)
+          if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
+          call system(exec)
         end if
-        if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
-        call system(exec)
-
-      end if
-
-    else if (exist_fchk42) then
-      call open_file(fchk, &
-           trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.inp.0.fchk', IOFileInput)
-
-      do while (.true.)
-        read(fchk, '(a)', end=210) line
-        ! QM dipole
-        if (line(1:11) .eq. 'Dipole_Data') then
-          read(fchk, '(a)') line
-          nsta = 1
-          nend = 16
-          call read_real(line, nsta, nend, qmmm%qm_dipole(1))
-          nsta = 17
-          nend = 32
-          call read_real(line, nsta, nend, qmmm%qm_dipole(2))
-          nsta = 33
-          nend = 48
-          call read_real(line, nsta, nend, qmmm%qm_dipole(3))
-          found_dipole = .true. 
-          exit
-        end if
-      end do
-      call close_file(fchk)
-
-      if (.not. qmmm%savefile) then
-        fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)//'.inp.0.fchk'
-        if (qmmm%qm_debug) &
-          write(MsgOut,'(''QMMM_debug> remove '',a)') trim(fname)
-        istat = unlink(trim(fname))
-        if (istat /= 0) &
-          call error_msg ('qm_read_output> Error while removing '//trim(fname))
-
-      else if (qmmm%workdir /= qmmm%savedir) then
-        fname = trim(qmmm%workdir)//'/'//trim(qmmm%qmbasename)
-        exec='mv '//trim(fname)//'.inp.0.fchk '//trim(qmmm%savedir)
-        if (qmmm%qm_debug) write(MsgOut,'(''QMMM_debug> exec '',a)') trim(exec)
-        call system(exec)
 
       end if
 
