@@ -882,7 +882,8 @@ AC_ARG_WITH([simd],
 	[SIMD instruction (default: auto)])],
 	[], [with_simd=auto])
 
-if test x"${FC_ACT}" != x"ifort" -a x"${with_simd}" != x"auto" ; then
+if test  x"${FC_ACT}" != x"ifort" -a \
+	x"${FC_ACT}" != x"ifx" -a x"${with_simd}" != x"auto" ; then
   AC_MSG_ERROR([with-simd is only used in intel fortran])
 fi
 
@@ -916,8 +917,7 @@ else
 # no-debug no report
     if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
       if test x"${have_fxsr_opt}"  = x"yes" -o \
-              x"${have_mmxext}" = x"yes" -o \
-              x"${have_3dnowprefetch}" = x"yes"; then
+	      x"${have_mmxext}" = x"yes"; then
 #AMD
         FARCFLAGS=""
         FARCFLAGS_NOOPT=""
@@ -925,7 +925,11 @@ else
       else
         FARCFLAGS=" -xHost "
         FARCFLAGS_NOOPT=" -axCORE-AVX2 -xHost "
-        FCFLAGS+=" -O3 -ip "
+        if test x"${FC_ACT}" = x"ifort"; then
+          FCFLAGS+=" -O3 -ip "
+	else
+          FCFLAGS+=" -O3 "
+	fi
       fi
       if test x"${with_simd}" != x"auto"; then
         FARCFLAGS+=" -ax${with_simd}"
@@ -1182,7 +1186,7 @@ else
       CFLAGS="-O3 -ip -axCORE-AVX2 "
 
     elif   test x"${CC_ACT}" = x"icx"; then
-      CFLAGS="-O3 -ip -axCORE-AVX2   "
+      CFLAGS="-O3 -axCORE-AVX2   "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O3 -ffast-math -march=native"
