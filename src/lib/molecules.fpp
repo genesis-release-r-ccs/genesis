@@ -970,6 +970,9 @@ contains
                                 gromol%atoms(gromol%num_atoms)%residue_no
 
       end do
+      if (gromol%num_constrs > 0) then
+        call error_msg('Setup_Molecule_Gromacs> [constraints] is not supported.')
+      endif
 
     end do
 
