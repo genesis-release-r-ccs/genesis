@@ -268,9 +268,9 @@ contains
           end if
           exit
 
-        else
+!        else
           
-          g_around_scale = g_around_scale * (IncScale+0.1_wp)
+!          g_around_scale = g_around_scale * (IncScale+0.1_wp)
 
         end if
       end do
@@ -321,9 +321,9 @@ contains
           selatoms_new%idx(:) = selatoms_new0%idx(:)
           exit
 
-        else
+!        else
 
-          g_around_scale = g_around_scale * (DecScale-0.1_wp)
+!          g_around_scale = g_around_scale * (DecScale-0.1_wp)
 
         end if
       end do
