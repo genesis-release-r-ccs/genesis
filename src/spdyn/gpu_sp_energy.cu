@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include <assert.h>
 #include "gpu_common.h"
@@ -90,7 +91,7 @@ static REAL    *dev_coord_pbc = NULL;
 static int     *dev_atmcls_pbc = NULL;
 static REAL    *dev_force = NULL;
 static double  *dev_ene_virial = NULL;
-static char    *dev_cell_move = NULL;
+static int8_t  *dev_cell_move = NULL;
 static int     *dev_natom = NULL;
 static int     *dev_start_atom = NULL;
 static REAL    *dev_nonb_lj12 = NULL;
@@ -100,14 +101,14 @@ static REAL    *dev_table_ene = NULL;
 static REAL    *dev_table_grad = NULL;
 static int     *dev_univ_cell_pairlist1 = NULL;
 static int     *dev_univ_ix_natom = NULL;
-static uchar   *dev_univ_ix_list = NULL;
+static uint8_t *dev_univ_ix_list = NULL;
 static int     *dev_univ_iy_natom = NULL;
-static uchar   *dev_univ_iy_list = NULL;
+static uint8_t *dev_univ_iy_list = NULL;
 static int     *dev_univ_ij_sort_list = NULL;
-static char    *dev_virial_check = NULL;
+static int8_t  *dev_virial_check = NULL;
 static double  *dev_ene_viri_mid = NULL;
-static char    *dev_univ_mask2 = NULL;
-static char    *dev_pack_univ_mask2 = NULL;
+static int8_t  *dev_univ_mask2 = NULL;
+static uint8_t *dev_pack_univ_mask2 = NULL;
 
 static size_t  size_coord_pbc = 0;
 static size_t  size_atmcls_pbc = 0;
@@ -132,8 +133,8 @@ static size_t  size_univ_mask2 = 0;
 static size_t  max_size_univ_mask2 = 0;
 
 /* for FEP */
-static char    *dev_fepgrp_pbc = NULL;
-static char    *dev_fep_mask = NULL;
+static int8_t  *dev_fepgrp_pbc = NULL;
+static int8_t  *dev_fep_mask = NULL;
 static REAL    *dev_table_sclj = NULL;
 static REAL    *dev_table_scel = NULL;
 static size_t  size_fepgrp_pbc = 0;
@@ -142,8 +143,8 @@ static size_t  size_table_sclj = 0;
 static size_t  size_table_scel = 0;
 
 /* for debug */
-static uchar   *tmp_univ_ix_list = NULL;
-static uchar   *tmp_univ_iy_list = NULL;
+static uint8_t *tmp_univ_ix_list = NULL;
+static uint8_t *tmp_univ_iy_list = NULL;
 static int     *tmp_univ_ix_natom = NULL;
 static int     *tmp_univ_iy_natom = NULL;
 
@@ -231,21 +232,21 @@ cudaError_t cudaMalloc_WN( void** devPtr, size_t size )
  *
  */
 void gpu_init_buffer(
-    const REAL   *_force,               // ( 1:atom_domain, 1:3, 1:nthread )
-    const double *_ene_virial,          // ( 2 )
-    const char   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const REAL   *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL   *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL   *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL   *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL   *_table_grad,          // ( 1:6*cutoff_int )
-    const int    *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int    *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const char   *_virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL     *_force,               // ( 1:atom_domain, 1:3, 1:nthread )
+    const double   *_ene_virial,          // ( 2 )
+    const int8_t   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const REAL     *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL     *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL     *_table_grad,          // ( 1:6*cutoff_int )
+    const int      *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int      *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int8_t   *_virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -260,23 +261,23 @@ void gpu_init_buffer(
     int  univ_mask2_size
     )
 {
-    size_force               = sizeof(REAL)   * 3 * MaxAtom * ncel_max;
-    size_ene_virial          = sizeof(double) * 5;
-    size_cell_move           = sizeof(char)   * 3 * ncel_max * ncel_max;
-    size_nonb_lj12           = sizeof(REAL)   * num_atom_cls * num_atom_cls;
-    size_nonb_lj6            = sizeof(REAL)   * num_atom_cls * num_atom_cls;
-    size_nonb_lj6_factor     = sizeof(REAL)   * num_atom_cls;
-    size_table_ene           = sizeof(REAL)   * 6*cutoff_int;
-    size_table_grad          = sizeof(REAL)   * 6*cutoff_int;
-    size_univ_cell_pairlist1 = sizeof(int )   * 2 * univ_maxcell;
-    size_univ_ix_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_iy_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_ix_natom       = sizeof(int)    * univ_maxcell1;
-    size_univ_iy_natom       = sizeof(int)    * univ_maxcell1;
-    size_univ_ij_sort_list   = sizeof(int )   * univ_maxcell1;
-    size_ene_viri_mid        = sizeof(double) * 5 * univ_maxcell;
-    size_virial_check        = sizeof(char)   * ncel_max * ncel_max;
-    // size_univ_mask2          = sizeof(char)   * univ_mask2_size * univ_ncell_near;
+    size_force               = sizeof(REAL)     * 3 * MaxAtom * ncel_max;
+    size_ene_virial          = sizeof(double)   * 5;
+    size_cell_move           = sizeof(int8_t)   * 3 * ncel_max * ncel_max;
+    size_nonb_lj12           = sizeof(REAL)     * num_atom_cls * num_atom_cls;
+    size_nonb_lj6            = sizeof(REAL)     * num_atom_cls * num_atom_cls;
+    size_nonb_lj6_factor     = sizeof(REAL)     * num_atom_cls;
+    size_table_ene           = sizeof(REAL)     * 6*cutoff_int;
+    size_table_grad          = sizeof(REAL)     * 6*cutoff_int;
+    size_univ_cell_pairlist1 = sizeof(int )     * 2 * univ_maxcell;
+    size_univ_ix_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_iy_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_ix_natom       = sizeof(int)      * univ_maxcell1;
+    size_univ_iy_natom       = sizeof(int)      * univ_maxcell1;
+    size_univ_ij_sort_list   = sizeof(int )     * univ_maxcell1;
+    size_ene_viri_mid        = sizeof(double)   * 5 * univ_maxcell;
+    size_virial_check        = sizeof(int8_t)   * ncel_max * ncel_max;
+    // size_univ_mask2          = sizeof(int8_t)   * univ_mask2_size * univ_ncell_near;
     // max_size_univ_mask2      = size_univ_mask2;
 
     show_size();
@@ -310,25 +311,25 @@ void gpu_init_buffer(
 
 // FEP
 void gpu_init_buffer_fep(
-    const REAL   *_force,               // ( 1:atom_domain, 1:3, 1:nthread )
-    const double *_ene_virial,          // ( 2 )
-    const char   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const REAL   *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL   *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL   *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL   *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL   *_table_grad,          // ( 1:6*cutoff_int )
-    const int    *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int    *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const char   *_virial_check,        // ( 1:ncel_max, 1:ncel_max )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL     *_force,               // ( 1:atom_domain, 1:3, 1:nthread )
+    const double   *_ene_virial,          // ( 2 )
+    const int8_t   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const REAL     *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL     *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL     *_table_grad,          // ( 1:6*cutoff_int )
+    const int      *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int      *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int8_t   *_virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const int8_t   *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t   *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL     *_table_sclj, // ( 1:5, 1:5 )
+    const REAL     *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -343,28 +344,28 @@ void gpu_init_buffer_fep(
     int  univ_mask2_size
     )
 {
-    size_force               = sizeof(REAL)   * 3 * MaxAtom * ncel_max;
-    size_ene_virial          = sizeof(double) * 5;
-    size_cell_move           = sizeof(char)   * 3 * ncel_max * ncel_max;
-    size_nonb_lj12           = sizeof(REAL)   * num_atom_cls * num_atom_cls;
-    size_nonb_lj6            = sizeof(REAL)   * num_atom_cls * num_atom_cls;
-    size_nonb_lj6_factor     = sizeof(REAL)   * num_atom_cls;
-    size_table_ene           = sizeof(REAL)   * 6*cutoff_int;
-    size_table_grad          = sizeof(REAL)   * 6*cutoff_int;
-    size_univ_cell_pairlist1 = sizeof(int )   * 2 * univ_maxcell;
-    size_univ_ix_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_iy_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_ix_natom       = sizeof(int)    * univ_maxcell1;
-    size_univ_iy_natom       = sizeof(int)    * univ_maxcell1;
-    size_univ_ij_sort_list   = sizeof(int )   * univ_maxcell1;
-    size_ene_viri_mid        = sizeof(double) * 5 * univ_maxcell;
-    size_virial_check        = sizeof(char)   * ncel_max * ncel_max;
-    // size_univ_mask2          = sizeof(char)   * univ_mask2_size * univ_ncell_near;
+    size_force               = sizeof(REAL)     * 3 * MaxAtom * ncel_max;
+    size_ene_virial          = sizeof(double)   * 5;
+    size_cell_move           = sizeof(int8_t)   * 3 * ncel_max * ncel_max;
+    size_nonb_lj12           = sizeof(REAL)     * num_atom_cls * num_atom_cls;
+    size_nonb_lj6            = sizeof(REAL)     * num_atom_cls * num_atom_cls;
+    size_nonb_lj6_factor     = sizeof(REAL)     * num_atom_cls;
+    size_table_ene           = sizeof(REAL)     * 6*cutoff_int;
+    size_table_grad          = sizeof(REAL)     * 6*cutoff_int;
+    size_univ_cell_pairlist1 = sizeof(int )     * 2 * univ_maxcell;
+    size_univ_ix_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_iy_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_ix_natom       = sizeof(int)      * univ_maxcell1;
+    size_univ_iy_natom       = sizeof(int)      * univ_maxcell1;
+    size_univ_ij_sort_list   = sizeof(int )     * univ_maxcell1;
+    size_ene_viri_mid        = sizeof(double)   * 5 * univ_maxcell;
+    size_virial_check        = sizeof(int8_t)   * ncel_max * ncel_max;
+    // size_univ_mask2          = sizeof(int8_t)   * univ_mask2_size * univ_ncell_near;
     // max_size_univ_mask2      = size_univ_mask2;
-	size_fepgrp_pbc          = sizeof(char)   * MaxAtom * ncel_max;
-	size_fep_mask            = sizeof(char)   * 5 * 5;
-	size_table_sclj          = sizeof(REAL)   * 5 * 5;
-	size_table_scel          = sizeof(REAL)   * 5 * 5;
+    size_fepgrp_pbc          = sizeof(int8_t)   * MaxAtom * ncel_max;
+    size_fep_mask            = sizeof(int8_t)   * 5 * 5;
+    size_table_sclj          = sizeof(REAL)     * 5 * 5;
+    size_table_scel          = sizeof(REAL)     * 5 * 5;
 
     show_size();
 
@@ -404,23 +405,23 @@ void gpu_init_buffer_fep(
  * JJ : send data from host to device before energy/force calculation
  */
 void gpu_memcpy_h2d_energy(
-    const REAL   *_coord_pbc,
-    const REAL   *_force,
-    const double  *_ene_virial,
-    const char   *_cell_move,
-    const REAL   *_nonb_lj12,
-    const REAL   *_nonb_lj6,
-    const REAL   *_nonb_lj6_factor,
-    const REAL   *_table_ene,
-    const REAL   *_table_grad,
-    const int    *_univ_cell_pairlist1,
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,
-    const uchar  *_univ_ix_list,
-    const int    *_univ_iy_natom,
-    const uchar  *_univ_iy_list,
-    const int    *_univ_ij_sort_list,
-    const char   *_virial_check,
+    const REAL     *_coord_pbc,
+    const REAL     *_force,
+    const double   *_ene_virial,
+    const int8_t   *_cell_move,
+    const REAL     *_nonb_lj12,
+    const REAL     *_nonb_lj6,
+    const REAL     *_nonb_lj6_factor,
+    const REAL     *_table_ene,
+    const REAL     *_table_grad,
+    const int      *_univ_cell_pairlist1,
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,
+    const uint8_t  *_univ_ix_list,
+    const int      *_univ_iy_natom,
+    const uint8_t  *_univ_iy_list,
+    const int      *_univ_ij_sort_list,
+    const int8_t   *_virial_check,
     int  atom_domain,
     int  MaxAtom,
     int  univ_maxcell,
@@ -474,7 +475,7 @@ void gpu_memcpy_h2d_energy(
 	}
         CUDA_CALL( cudaMemcpy( dev_univ_ij_sort_list  , _univ_ij_sort_list  , size_univ_ij_sort_list  , cudaMemcpyHostToDevice ) );
 
-        // size_univ_mask2 = sizeof(char) * univ_mask2_size * univ_ncell_near ;
+        // size_univ_mask2 = sizeof(int8_t) * univ_mask2_size * univ_ncell_near ;
         // if (max_size_univ_mask2 < size_univ_mask2){
         //    max_size_univ_mask2 = size_univ_mask2;
         //    CUDA_CALL( cudaFree( dev_univ_mask2 ) );
@@ -494,27 +495,27 @@ void gpu_memcpy_h2d_energy(
 
 // FEP
 void gpu_memcpy_h2d_energy_fep(
-    const REAL   *_coord_pbc,
-    const REAL   *_force,
-    const double  *_ene_virial,
-    const char   *_cell_move,
-    const REAL   *_nonb_lj12,
-    const REAL   *_nonb_lj6,
-    const REAL   *_nonb_lj6_factor,
-    const REAL   *_table_ene,
-    const REAL   *_table_grad,
-    const int    *_univ_cell_pairlist1,
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,
-    const uchar  *_univ_ix_list,
-    const int    *_univ_iy_natom,
-    const uchar  *_univ_iy_list,
-    const int    *_univ_ij_sort_list,
-    const char   *_virial_check,
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL     *_coord_pbc,
+    const REAL     *_force,
+    const double   *_ene_virial,
+    const int8_t   *_cell_move,
+    const REAL     *_nonb_lj12,
+    const REAL     *_nonb_lj6,
+    const REAL     *_nonb_lj6_factor,
+    const REAL     *_table_ene,
+    const REAL     *_table_grad,
+    const int      *_univ_cell_pairlist1,
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,
+    const uint8_t  *_univ_ix_list,
+    const int      *_univ_iy_natom,
+    const uint8_t  *_univ_iy_list,
+    const int      *_univ_ij_sort_list,
+    const int8_t   *_virial_check,
+    const int8_t   *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t   *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL     *_table_sclj, // ( 1:5, 1:5 )
+    const REAL     *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  univ_maxcell,
@@ -578,24 +579,24 @@ void gpu_memcpy_h2d_energy_fep(
  */
 
 void gpu_memcpy_h2d_force(
-    const REAL   *_coord_pbc,
-    const REAL   *_force,
-    const double *_ene_virial,
-    const char   *_cell_move,
-    const int    *_natom,
-    const int    *_start_atom,
-    const REAL   *_nonb_lj12,
-    const REAL   *_nonb_lj6,
-    const REAL   *_nonb_lj6_factor,
-    const REAL   *_table_grad,
-    const int    *_univ_cell_pairlist1,
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,
-    const uchar  *_univ_ix_list,
-    const int    *_univ_iy_natom,
-    const uchar  *_univ_iy_list,
-    const int    *_univ_ij_sort_list,
-    const char   *_virial_check,
+    const REAL     *_coord_pbc,
+    const REAL     *_force,
+    const double   *_ene_virial,
+    const int8_t   *_cell_move,
+    const int      *_natom,
+    const int      *_start_atom,
+    const REAL     *_nonb_lj12,
+    const REAL     *_nonb_lj6,
+    const REAL     *_nonb_lj6_factor,
+    const REAL     *_table_grad,
+    const int      *_univ_cell_pairlist1,
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,
+    const uint8_t  *_univ_ix_list,
+    const int      *_univ_iy_natom,
+    const uint8_t  *_univ_iy_list,
+    const int      *_univ_ij_sort_list,
+    const int8_t   *_virial_check,
     int  atom_domain,
     int  MaxAtom,
     int  univ_maxcell,
@@ -626,7 +627,7 @@ void gpu_memcpy_h2d_force(
 	}
 	CUDA_CALL( cudaMemcpyAsync( dev_univ_ij_sort_list, _univ_ij_sort_list, size_univ_ij_sort_list, cudaMemcpyHostToDevice, st ) );
 
-        // size_univ_mask2 = sizeof(char) * univ_mask2_size * univ_ncell_near ;
+        // size_univ_mask2 = sizeof(int8_t) * univ_mask2_size * univ_ncell_near ;
         // if (max_size_univ_mask2 < size_univ_mask2){
 	//     max_size_univ_mask2 = size_univ_mask2;
 	//     CUDA_CALL( cudaFree( dev_univ_mask2 ) );
@@ -646,28 +647,28 @@ void gpu_memcpy_h2d_force(
 
 // FEP
 void gpu_memcpy_h2d_force_fep(
-    const REAL   *_coord_pbc,
-    const REAL   *_force,
-    const double *_ene_virial,
-    const char   *_cell_move,
-    const int    *_natom,
-    const int    *_start_atom,
-    const REAL   *_nonb_lj12,
-    const REAL   *_nonb_lj6,
-    const REAL   *_nonb_lj6_factor,
-    const REAL   *_table_grad,
-    const int    *_univ_cell_pairlist1,
-    const char   *_univ_mask2,
-    const int    *_univ_ix_natom,
-    const uchar  *_univ_ix_list,
-    const int    *_univ_iy_natom,
-    const uchar  *_univ_iy_list,
-    const int    *_univ_ij_sort_list,
-    const char   *_virial_check,
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL     *_coord_pbc,
+    const REAL     *_force,
+    const double   *_ene_virial,
+    const int8_t   *_cell_move,
+    const int      *_natom,
+    const int      *_start_atom,
+    const REAL     *_nonb_lj12,
+    const REAL     *_nonb_lj6,
+    const REAL     *_nonb_lj6_factor,
+    const REAL     *_table_grad,
+    const int      *_univ_cell_pairlist1,
+    const int8_t   *_univ_mask2,
+    const int      *_univ_ix_natom,
+    const uint8_t  *_univ_ix_list,
+    const int      *_univ_iy_natom,
+    const uint8_t  *_univ_iy_list,
+    const int      *_univ_ij_sort_list,
+    const int8_t   *_virial_check,
+    const int8_t   *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t   *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL     *_table_sclj, // ( 1:5, 1:5 )
+    const REAL     *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  univ_maxcell,
@@ -707,16 +708,16 @@ void gpu_memcpy_h2d_force_fep(
  *
  */
 void gpu_init_buffer_pairlist(
-    const REAL   *_coord_pbc,           // ( 1:MaxAtom*ncel_max, 1:3 )
-    const int    *_atmcls_pbc,          // ( 1:MaxAtom*ncel_max )
-    const char   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int    *_natom,               // ( 1:ncel_max )
-    const int    *_start_atom,          // ( 1:ncel_max )
-    const int    *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const uchar  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const uchar  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int    *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const int    *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const REAL     *_coord_pbc,           // ( 1:MaxAtom*ncel_max, 1:3 )
+    const int      *_atmcls_pbc,          // ( 1:MaxAtom*ncel_max )
+    const int8_t   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int      *_natom,               // ( 1:ncel_max )
+    const int      *_start_atom,          // ( 1:ncel_max )
+    const int      *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const uint8_t  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const uint8_t  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int      *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const int      *_univ_iy_natom,       // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  ncel_local,
@@ -726,15 +727,15 @@ void gpu_init_buffer_pairlist(
     int  univ_maxcell1
     )
 {
-    size_coord_pbc           = sizeof(REAL)   * 4 * MaxAtom * ncel_max;
-    size_atmcls_pbc          = sizeof(int)    * MaxAtom * ncel_max;
-    size_cell_move           = sizeof(char)   * 3 * ncel_max * ncel_max;
-    size_natom               = sizeof(int )   * ncel_max;
-    size_univ_cell_pairlist1 = sizeof(int )   * 2 * univ_maxcell;
-    size_univ_ix_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_iy_list        = sizeof(uchar)  * MaxAtom * univ_maxcell1;
-    size_univ_ix_natom       = sizeof(int)    * univ_maxcell1;
-    size_univ_iy_natom       = sizeof(int)    * univ_maxcell1;
+    size_coord_pbc           = sizeof(REAL)     * 4 * MaxAtom * ncel_max;
+    size_atmcls_pbc          = sizeof(int)      * MaxAtom * ncel_max;
+    size_cell_move           = sizeof(int8_t)   * 3 * ncel_max * ncel_max;
+    size_natom               = sizeof(int )     * ncel_max;
+    size_univ_cell_pairlist1 = sizeof(int )     * 2 * univ_maxcell;
+    size_univ_ix_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_iy_list        = sizeof(uint8_t)  * MaxAtom * univ_maxcell1;
+    size_univ_ix_natom       = sizeof(int)      * univ_maxcell1;
+    size_univ_iy_natom       = sizeof(int)      * univ_maxcell1;
 
     show_size_pairlist();
 
@@ -758,8 +759,8 @@ void gpu_init_buffer_pairlist(
 #endif
 
     /* debug */
-    tmp_univ_ix_list = (uchar*)malloc( size_univ_ix_list );
-    tmp_univ_iy_list = (uchar*)malloc( size_univ_iy_list );
+    tmp_univ_ix_list = (uint8_t*)malloc( size_univ_ix_list );
+    tmp_univ_iy_list = (uint8_t*)malloc( size_univ_iy_list );
     tmp_univ_ix_natom = (int*)malloc( size_univ_ix_natom );
     tmp_univ_iy_natom = (int*)malloc( size_univ_iy_natom );
 }
@@ -768,16 +769,16 @@ void gpu_init_buffer_pairlist(
  *
  */
 void gpu_memcpy_h2d_pairlist(
-    REAL         *_coord_pbc,           // ( 1:atom_domain, 1:3 )
-    const int    *_atmcls_pbc,          // ( 1:atom_domain, 1:3 )
-    const char   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int    *_natom,               // ( 1:ncel_max )
-    const int    *_start_atom,          // ( 1:ncel_max )
-    const int    *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    uchar        *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    uchar        *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    int          *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    int          *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    REAL           *_coord_pbc,           // ( 1:atom_domain, 1:3 )
+    const int      *_atmcls_pbc,          // ( 1:atom_domain, 1:3 )
+    const int8_t   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int      *_natom,               // ( 1:ncel_max )
+    const int      *_start_atom,          // ( 1:ncel_max )
+    const int      *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    uint8_t        *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    uint8_t        *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    int            *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    int            *_univ_iy_natom,       // ( 1:univ_maxcell1 )
     int  first,
     int  atom_domain,
     cudaStream_t  st
@@ -805,10 +806,10 @@ void gpu_memcpy_h2d_pairlist(
  *
  */
 void gpu_memcpy_d2h_pairlist(
-    uchar         *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    uchar         *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    int           *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    int           *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    uint8_t         *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    uint8_t         *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    int             *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    int             *_univ_iy_natom,       // ( 1:univ_maxcell1 )
     cudaStream_t  st,
     int  dummy
     )
@@ -915,25 +916,25 @@ __device__ __inline__ double __shfl_xor( double var, int mask, int width )
 //__launch_bounds__(128,8)  // for DP
 #endif
 __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_intra_cell(
-    REAL        * _coord_pbc,           // ( 1:atom_domain, 1:3 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    REAL          * _coord_pbc,           // ( 1:atom_domain, 1:3 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1089,29 +1090,29 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_intra
 
 // FEP
 __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_intra_cell_fep(
-    REAL        * _coord_pbc,           // ( 1:atom_domain, 1:3 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          * _coord_pbc,           // ( 1:atom_domain, 1:3 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1282,26 +1283,26 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_intra
 
 
 __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_intra_cell(
-    REAL        * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    REAL          * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1466,25 +1467,25 @@ __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_intra_
 //__launch_bounds__(128,8)  // for DP
 #endif
 __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_intra_cell(
-    REAL        * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    REAL          * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1562,10 +1563,12 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_intra_cell
                 dij1 = rtmp1 - __ldg(&coord_pbc(iyy,1));
                 dij2 = rtmp2 - __ldg(&coord_pbc(iyy,2));
                 dij3 = rtmp3 - __ldg(&coord_pbc(iyy,3));
+
                 rij2 = dij1*dij1 + dij2*dij2 + dij3*dij3;
 
                 if ( rij2 < cutoff2) {
 
+//printf("testtestbb %d %d %f %f \n",ixx,iyy,rij2,cutoff2);
                     REAL rij2_inv = 1.0 / rij2;
                     rij2 = cutoff2 * density * rij2_inv;
 
@@ -1632,29 +1635,29 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_intra_cell
 
 // FEP
 __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_intra_cell_fep(
-    REAL        * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1819,24 +1822,24 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_intra_cell
 //__launch_bounds__(128,9)  // for DP
 #endif
 __global__ void kern_compute_force_nonbond_table_linear_univ__force_intra_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -1969,28 +1972,28 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_intra_cell(
 
 // FEP
 __global__ void kern_compute_force_nonbond_table_linear_univ__force_intra_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -2139,25 +2142,25 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_intra_cell_f
 
 
 __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_intra_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -2300,24 +2303,24 @@ __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_intra_cell(
 //__launch_bounds__(128,9)  // for DP
 #endif
 __global__ void kern_compute_force_nonbond_notable_univ__force_intra_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -2451,28 +2454,28 @@ __global__ void kern_compute_force_nonbond_notable_univ__force_intra_cell(
 
 // FEP
 __global__ void kern_compute_force_nonbond_notable_univ__force_intra_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:ncel_max)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -2626,26 +2629,26 @@ __global__ void kern_compute_force_nonbond_notable_univ__force_intra_cell_fep(
 /* */
 //__launch_bounds__(128,NUM_CTA__ENERGYFORCE_INTER_CELL)
 __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -2999,30 +3002,30 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter
 
 // FEP
 __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -3406,27 +3409,27 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ__energyforce_inter
 
 
 __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:MaxAtom, 1:3, 1:ncel_max )
-    REAL        * _force,               // ( 1:MaxAtom, 1:3, 1:ncel_max )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:MaxAtom, 1:ncel_max )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6_factor,     // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:MaxAtom, 1:3, 1:ncel_max )
+    REAL          * _force,               // ( 1:MaxAtom, 1:3, 1:ncel_max )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:MaxAtom, 1:ncel_max )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6_factor,     // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -3797,26 +3800,26 @@ __global__ void kern_compute_energy_nonbond_table_ljpme_univ__energyforce_inter_
 /* */
 //__launch_bounds__(128,NUM_CTA__ENERGYFORCE_INTER_CELL)
 __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -3863,12 +3866,16 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_inter_cell
     if ( index > index_end ) return;
     int  univ_ij = univ_ij_sort_list( index );
 
+
     int  ix_natom = univ_ix_natom(univ_ij);
     int  iy_natom = univ_iy_natom(univ_ij);
     if ( ix_natom * iy_natom <= 0 ) return;
 
     const int  i = univ_cell_pairlist1(1,univ_ij);
     const int  j = univ_cell_pairlist1(2,univ_ij);
+/*    if (id_thread_x == 1 && univ_ij > univ_ncell_near ) {
+	    printf("uni, %d %d\n", i, j);
+    }*/
     const int  start_i = start_atom(i);
     const int  start_j = start_atom(j);
     int  k;
@@ -4161,30 +4168,30 @@ __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_inter_cell
 
 // FEP
 __global__ void kern_compute_energy_nonbond_notable_univ__energyforce_inter_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_ene,           // ( 1:6*cutoff_int )
-    const REAL  * _table_grad,          // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-	const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_ene,           // ( 1:6*cutoff_int )
+    const REAL    * _table_grad,          // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -4585,6 +4592,10 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ_energy_sum(
        virial(2)   += ene_viri_mid(4,ij);
        virial(3)   += ene_viri_mid(5,ij);
     }
+    /*
+    printf("ckck ene:%d %f %f\n",
+		    id_thread, energy_elec,energy_evdw);
+		    */
 
     int width;
     int mask;
@@ -4644,25 +4655,25 @@ __global__ void kern_compute_energy_nonbond_table_linear_univ_energy_sum(
 /* */
 //__launch_bounds__(128,NUM_CTA__FORCE_INTER_CELL)
 __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,         // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,         // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -4727,7 +4738,7 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell(
     sumval(1) = 0.0;  // virial(1)
     sumval(2) = 0.0;  // virial(2)
     sumval(3) = 0.0;  // virial(3)
-    char  check_virial_ij = 0;
+    int8_t  check_virial_ij = 0;
     if ( (check_virial != 0) && (virial_check(j,i) != 0) ) {
 	check_virial_ij = 1;
     }
@@ -4992,29 +5003,29 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell(
 
 // FEP
 __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,         // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,         // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -5079,7 +5090,7 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell_f
     sumval(1) = 0.0;  // virial(1)
     sumval(2) = 0.0;  // virial(2)
     sumval(3) = 0.0;  // virial(3)
-    char  check_virial_ij = 0;
+    int8_t  check_virial_ij = 0;
     if ( (check_virial != 0) && (virial_check(j,i) != 0) ) {
 	check_virial_ij = 1;
     }
@@ -5377,26 +5388,26 @@ __global__ void kern_compute_force_nonbond_table_linear_univ__force_inter_cell_f
 
 
 __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  * _table_grad,         // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    * _table_grad,         // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -5461,7 +5472,7 @@ __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_inter_cell(
     sumval(1) = 0.0;  // virial(1)
     sumval(2) = 0.0;  // virial(2)
     sumval(3) = 0.0;  // virial(3)
-    char  check_virial_ij = 0;
+    int8_t  check_virial_ij = 0;
     if ( (check_virial != 0) && (virial_check(j,i) != 0) ) {
 	check_virial_ij = 1;
     }
@@ -5748,25 +5759,25 @@ __global__ void kern_compute_force_nonbond_table_ljpme_univ__force_inter_cell(
 /* */
 __launch_bounds__(128,NUM_CTA__FORCE_INTER_CELL)
 __global__ void kern_compute_force_nonbond_notable_univ__force_inter_cell(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,         // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,         // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -5831,7 +5842,7 @@ __global__ void kern_compute_force_nonbond_notable_univ__force_inter_cell(
     sumval(1) = 0.0;  // virial(1)
     sumval(2) = 0.0;  // virial(2)
     sumval(3) = 0.0;  // virial(3)
-    char  check_virial_ij = 0;
+    int8_t  check_virial_ij = 0;
     if ( (check_virial != 0) && (virial_check(j,i) != 0) ) {
 	check_virial_ij = 1;
     }
@@ -6103,29 +6114,29 @@ __global__ void kern_compute_force_nonbond_notable_univ__force_inter_cell(
 /* */
 __launch_bounds__(128,NUM_CTA__FORCE_INTER_CELL)
 __global__ void kern_compute_force_nonbond_notable_univ__force_inter_cell_fep(
-    const REAL  * _coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        * _force,               // ( 1:atom_domain, 1:3 )
-    double      * _ene_virial,          // ( 5 )
-    double      * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
-    const char  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   * _atmcls_pbc,          // ( 1:atom_domain )
-    const int   * _natom,               // ( 1:ncel_max )
-    const int   * _start_atom,          // ( 1:ncel_max )
-    const REAL  * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  * _table_grad,         // ( 1:6*cutoff_int )
-    const int   * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  * _univ_mask2,
-    const int   * _univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    const REAL    * _coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          * _force,               // ( 1:atom_domain, 1:3 )
+    double        * _ene_virial,          // ( 5 )
+    double        * _ene_viri_mid,        // ( 1:5, 1:univ_maxcell)
+    const int8_t  * _cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     * _atmcls_pbc,          // ( 1:atom_domain )
+    const int     * _natom,               // ( 1:ncel_max )
+    const int     * _start_atom,          // ( 1:ncel_max )
+    const REAL    * _nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    * _table_grad,         // ( 1:6*cutoff_int )
+    const int     * _univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  * _univ_mask2,
+    const int     * _univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t * _univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     * _univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  * _virial_check,        // ( 1:ncel_max, 1:ncel_max )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  atom_domain,
     int  MaxAtom,
     int  MaxAtomCls,
@@ -6190,7 +6201,7 @@ __global__ void kern_compute_force_nonbond_notable_univ__force_inter_cell_fep(
     sumval(1) = 0.0;  // virial(1)
     sumval(2) = 0.0;  // virial(2)
     sumval(3) = 0.0;  // virial(3)
-    char  check_virial_ij = 0;
+    int8_t  check_virial_ij = 0;
     if ( (check_virial != 0) && (virial_check(j,i) != 0) ) {
 	check_virial_ij = 1;
     }
@@ -6588,27 +6599,27 @@ __device__ int ceil_pow2( int num )
 template <int NUM_WARP, int MAX_ATOM>
 //__launch_bounds__(128,NUM_CTA__BUILD_PAIRLIST)
 __global__ void kern_build_pairlist(
-    const REAL  *_coord_pbc,            // ( 1:atom_domain, 1:3 )
-    const char  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,                // ( 1:ncel_max )
-    const int   *_start_atom,           // ( 1:ncel_max )
-    const int   *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
-    uchar       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    uchar       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    int         *_univ_ix_natom,        // ( 1:univ_maxcell1? )
-    int         *_univ_iy_natom,        // ( 1:univ_maxcell1? )
-    int         atom_domain,
-    int         MaxAtom,
-    int         ncel_local,
-    int         ncel_bound,
-    int         ncel_max,
-    int         univ_maxcell,
-    int         univ_maxcell1,
-    REAL        pairdist2,
-    REAL        cutoffdist2,
-    REAL        system_x,
-    REAL        system_y,
-    REAL        system_z
+    const REAL    *_coord_pbc,            // ( 1:atom_domain, 1:3 )
+    const int8_t  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,                // ( 1:ncel_max )
+    const int     *_start_atom,           // ( 1:ncel_max )
+    const int     *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
+    uint8_t       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    uint8_t       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    int           *_univ_ix_natom,        // ( 1:univ_maxcell1? )
+    int           *_univ_iy_natom,        // ( 1:univ_maxcell1? )
+    int           atom_domain,
+    int           MaxAtom,
+    int           ncel_local,
+    int           ncel_bound,
+    int           ncel_max,
+    int           univ_maxcell,
+    int           univ_maxcell1,
+    REAL          pairdist2,
+    REAL          cutoffdist2,
+    REAL          system_x,
+    REAL          system_y,
+    REAL          system_z
     )
 {
     const int  w_id = threadIdx.y;
@@ -6769,25 +6780,25 @@ double cur_time()
  * JJ : energy calculation with linear lookup table
  */
 void gpu_launch_compute_energy_nonbond_table_linear_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:3 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:3 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -7027,25 +7038,25 @@ void gpu_launch_compute_energy_nonbond_table_linear_univ(
 
 
 void gpu_launch_compute_energy_nonbond_table_ljpme_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -7288,25 +7299,25 @@ void gpu_launch_compute_energy_nonbond_table_ljpme_univ(
  * JJ : energy calculation without lookup table of vdw
  */
 void gpu_launch_compute_energy_nonbond_notable_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -7347,6 +7358,7 @@ void gpu_launch_compute_energy_nonbond_notable_univ(
     printf( "univ_update = %d\n", univ_update );
     printf( "check_virial = %d\n", check_virial );
     printf( "cutoff2 = %lf\n", cutoff2 );
+
 #endif
 
     static int first = 1;
@@ -7541,28 +7553,29 @@ void gpu_launch_compute_energy_nonbond_notable_univ(
 	univ_maxcell,
 	univ_ncell_nonzero);
 
+
 }
 
 
 void gpu_launch_compute_force_nonbond_table_linear_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,              // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,              // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -7778,24 +7791,24 @@ void gpu_launch_compute_force_nonbond_table_linear_univ(
 }
 
 void gpu_launch_compute_force_nonbond_table_ljpme_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,              // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,              // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -8011,24 +8024,24 @@ void gpu_launch_compute_force_nonbond_table_ljpme_univ(
 }
 
 void gpu_launch_compute_force_nonbond_notable_univ(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,              // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,              // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -8246,25 +8259,25 @@ void gpu_launch_compute_force_nonbond_notable_univ(
  */
 extern "C"
 void gpu_launch_compute_energy_nonbond_table_linear_univ_(
-    REAL        *_coord_pbc,           // ( 1:MaxAtom, 1:4, 1:ncel_max )
-    REAL        *_force,               // ( 1:MaxAtom, 1:3, 1:ncell_all )
-    double      *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL           *_coord_pbc,           // ( 1:MaxAtom, 1:4, 1:ncel_max )
+    REAL           *_force,               // ( 1:MaxAtom, 1:3, 1:ncell_all )
+    double         *_ene_virial,
+    const int8_t   *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int      *_natom,               // ( 1:ncel_max )
+    const int      *_start_atom,          // ( 1:ncel_max )
+    const REAL     *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL     *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL     *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL     *_table_grad,          // ( 1:6*cutoff_int )
+    const int      *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t   *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int      *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int      *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t  *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int      *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t   *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8334,25 +8347,25 @@ void gpu_launch_compute_energy_nonbond_table_linear_univ_(
 
 extern "C"
 void gpu_launch_compute_energy_nonbond_table_ljpme_univ_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8423,25 +8436,25 @@ void gpu_launch_compute_energy_nonbond_table_ljpme_univ_(
 
 extern "C"
 void gpu_launch_compute_energy_nonbond_notable_univ_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8516,24 +8529,24 @@ void gpu_launch_compute_energy_nonbond_notable_univ_(
 extern "C"
 
 void gpu_launch_compute_force_nonbond_table_linear_univ_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,          // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,          // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8608,24 +8621,24 @@ void gpu_launch_compute_force_nonbond_table_linear_univ_(
 
 extern "C"
 void gpu_launch_compute_force_nonbond_table_ljpme_univ_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,          // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,          // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8703,24 +8716,24 @@ void gpu_launch_compute_force_nonbond_table_ljpme_univ_(
 
 extern "C"
 void gpu_launch_compute_force_nonbond_notable_univ_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,          // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,          // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -8881,28 +8894,28 @@ void gpu_wait_compute_force_nonbond_table_linear_univ_(
  *
  */
 void gpu_launch_build_pairlist(
-    REAL        *_coord_pbc,            // ( 1:atom_domain, 1:4 )
-    const int   *_atmcls_pbc,           // ( 1:atom_domain )
-    const char  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,                // ( 1:ncel_max )
-    const int   *_start_atom,           // ( 1:ncel_max )
-    const int   *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
-    uchar       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    uchar       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    int         *_univ_ix_natom,        // ( 1:univ_maxcell1? )
-    int         *_univ_iy_natom,        // ( 1:univ_maxcell1? )
-    int         atom_domain,
-    int         MaxAtom,
-    int         ncel_local,
-    int         ncel_bound,
-    int         ncel_max,
-    int         univ_maxcell,
-    int         univ_maxcell1,
-    REAL        pairdist2,
-    REAL        cutoffdist2,
-    REAL        system_x,
-    REAL        system_y,
-    REAL        system_z
+    REAL          *_coord_pbc,            // ( 1:atom_domain, 1:4 )
+    const int     *_atmcls_pbc,           // ( 1:atom_domain )
+    const int8_t  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,                // ( 1:ncel_max )
+    const int     *_start_atom,           // ( 1:ncel_max )
+    const int     *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
+    uint8_t       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    uint8_t       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    int           *_univ_ix_natom,        // ( 1:univ_maxcell1? )
+    int           *_univ_iy_natom,        // ( 1:univ_maxcell1? )
+    int           atom_domain,
+    int           MaxAtom,
+    int           ncel_local,
+    int           ncel_bound,
+    int           ncel_max,
+    int           univ_maxcell,
+    int           univ_maxcell1,
+    REAL          pairdist2,
+    REAL          cutoffdist2,
+    REAL          system_x,
+    REAL          system_y,
+    REAL          system_z
 )
 
 {
@@ -8920,7 +8933,6 @@ void gpu_launch_build_pairlist(
     printf( "pairdist2 = %f\n", pairdist2 );
     printf( "cutoffdist2 = %f\n", cutoffdist2 );
 #endif
-
     static int first = 1;
   
     if ( first ) {
@@ -9000,29 +9012,29 @@ void gpu_launch_build_pairlist(
 /* called from frotran */
 extern "C"
 void gpu_launch_build_pairlist_(
-    REAL        *_coord_pbc,            // ( 1:MaxAtom*ncel_max, 1:3 )
-    const int   *_atmcls_pbc,           // ( 1:MaxAtom*ncel_max )
-    const char  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,                // ( 1:ncel_max )
-    const int   *_start_atom,           // ( 1:ncel_max )
-    const int   *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
-    uchar       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    uchar       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
-    int         *_univ_ix_natom,        // ( 1:univ_maxcell1? )
-    int         *_univ_iy_natom,        // ( 1:univ_maxcell1? )
-    int         *_atom_domain,
-    int         *_MaxAtom,
-    int         *_ncel_local,
-    int         *_ncel_bound,
-    int         *_ncel_max,
-    int         *_univ_maxcell,
-    int         *_univ_maxcell1,
-    REAL        *_pairdist2,
-    REAL        *_cutoffdist2,
-    REAL        *_system_x,
-    REAL        *_system_y,
-    REAL        *_system_z,
-    void        *_dummy
+    REAL          *_coord_pbc,            // ( 1:MaxAtom*ncel_max, 1:3 )
+    const int     *_atmcls_pbc,           // ( 1:MaxAtom*ncel_max )
+    const int8_t  *_cell_move,            // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,                // ( 1:ncel_max )
+    const int     *_start_atom,           // ( 1:ncel_max )
+    const int     *_univ_cell_pairlist1,  // ( 1:2, 1:univ_maxcell )
+    uint8_t       *_univ_ix_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    uint8_t       *_univ_iy_list,         // ( 1:MaxAtom, 1:univ_maxcell1? )
+    int           *_univ_ix_natom,        // ( 1:univ_maxcell1? )
+    int           *_univ_iy_natom,        // ( 1:univ_maxcell1? )
+    int           *_atom_domain,
+    int           *_MaxAtom,
+    int           *_ncel_local,
+    int           *_ncel_bound,
+    int           *_ncel_max,
+    int           *_univ_maxcell,
+    int           *_univ_maxcell1,
+    REAL          *_pairdist2,
+    REAL          *_cutoffdist2,
+    REAL          *_system_x,
+    REAL          *_system_y,
+    REAL          *_system_z,
+    void          *_dummy
     )
 {
     gpu_launch_build_pairlist(
@@ -9049,13 +9061,13 @@ void gpu_launch_build_pairlist_(
 }
 
 void gpu_wait_build_pairlist(
-    uchar       *_univ_ix_list,
-    uchar       *_univ_iy_list,
-    int         *_univ_ix_natom,
-    int         *_univ_iy_natom,
-    uchar       *_univ_mask2,
-    int         univ_mask2_size,
-    int         univ_ncell_near
+    uint8_t       *_univ_ix_list,
+    uint8_t       *_univ_iy_list,
+    int           *_univ_ix_natom,
+    int           *_univ_iy_natom,
+    uint8_t       *_univ_mask2,
+    int           univ_mask2_size,
+    int           univ_ncell_near
     )
 {
 #if 1 /* for debug */
@@ -9065,7 +9077,7 @@ void gpu_wait_build_pairlist(
 
     /* transfer univ_mask2 to GPU */
     /*
-    size_univ_mask2 = sizeof(char) * univ_mask2_size * univ_ncell_near;
+    size_univ_mask2 = sizeof(int8_t) * univ_mask2_size * univ_ncell_near;
     if (max_size_univ_mask2 < size_univ_mask2){
 	max_size_univ_mask2 = size_univ_mask2;
 	if ( dev_univ_mask2 ) {
@@ -9096,13 +9108,13 @@ void gpu_wait_build_pairlist(
 /* called from frotran */
 extern "C"
 void gpu_wait_build_pairlist_(
-    uchar       *_univ_ix_list,
-    uchar       *_univ_iy_list,
-    int         *_univ_ix_natom,
-    int         *_univ_iy_natom,
-    uchar       *_univ_mask2,
-    int         *_univ_mask2_size,
-    int         *_univ_ncell_near
+    uint8_t       *_univ_ix_list,
+    uint8_t       *_univ_iy_list,
+    int           *_univ_ix_natom,
+    int           *_univ_iy_natom,
+    uint8_t       *_univ_mask2,
+    int           *_univ_mask2_size,
+    int           *_univ_ncell_near
     )
 {
     gpu_init();
@@ -9220,7 +9232,7 @@ int unset_pinned_memory_(
 }
 
 #define BLOCK_SIZE 256
-__global__ void gpu_unpack_data(unsigned int *do_data, char *di_data, size_t size) {
+__global__ void gpu_unpack_data(unsigned int *do_data, int8_t *di_data, size_t size) {
     static const unsigned int table[16] =
           {0x00000000, 0x00000001, 0x00000100, 0x00000101, 0x00010000, 0x00010001, 0x00010100, 0x00010101,
            0x01000000, 0x01000001, 0x01000100, 0x01000101, 0x01010000, 0x01010001, 0x01010100, 0x01010101};
@@ -9263,7 +9275,7 @@ __global__ void gpu_unpack_data(unsigned int *do_data, char *di_data, size_t siz
 }
 
 void gpu_copy_mask2(
-    uchar       *_pack_univ_mask2,
+    uint8_t       *_pack_univ_mask2,
     int         univ_mask2_size,
     int         univ_ncell_near,
     int         start_pack,
@@ -9279,7 +9291,7 @@ void gpu_copy_mask2(
         stream_no = in_stream_no%3;
     }
 
-    size_t copysize = (end_pack - start_pack + 1)*sizeof(char);
+    size_t copysize = (end_pack - start_pack + 1)*sizeof(int8_t);
     CUDA_CALL( cudaMemcpyAsync( dev_pack_univ_mask2+start_pack,
                                 _pack_univ_mask2+start_pack,
                                 copysize, cudaMemcpyHostToDevice, stream[in_stream_no] ) );
@@ -9287,7 +9299,7 @@ void gpu_copy_mask2(
     const int blockCount = (copysize+BLOCK_SIZE-1)/BLOCK_SIZE;
     gpu_unpack_data<<<blockCount, BLOCK_SIZE, 0, stream[in_stream_no]>>>
                                  ((unsigned int *)(dev_univ_mask2+start_pack*8),
-                                  dev_pack_univ_mask2+start_pack,
+                                  (int8_t *)(dev_pack_univ_mask2+start_pack),
                                   (size_t)(end_pack - start_pack + 1));
 
     cudaEventRecord( event[in_stream_no], stream[in_stream_no] ); /* dev_univ_mask2 */
@@ -9295,7 +9307,7 @@ void gpu_copy_mask2(
 
 extern "C"
 void gpu_copy_mask2_(
-    uchar       *_pack_univ_mask2,
+    uint8_t       *_pack_univ_mask2,
     int         *univ_mask2_size,
     int         *univ_ncell_near,
     int         *start_pack,
@@ -9314,14 +9326,14 @@ void gpu_copy_mask2_(
 
 
 void gpu_allocate_packdata(
-    uchar       *_pack_univ_mask2,
+    uint8_t       *_pack_univ_mask2,
     int         univ_mask2_size,
     int         univ_ncell_near
     )
 {
     size_t size_pack_univ_mask2;
-    size_pack_univ_mask2 = sizeof(char)*(univ_mask2_size * univ_ncell_near+7)/8;
-    size_univ_mask2      = sizeof(char)* univ_mask2_size * univ_ncell_near;
+    size_pack_univ_mask2 = sizeof(int8_t)*(univ_mask2_size * univ_ncell_near+7)/8;
+    size_univ_mask2      = sizeof(int8_t)* univ_mask2_size * univ_ncell_near;
 
     if (max_size_univ_mask2 < size_univ_mask2){
         max_size_univ_mask2 = size_univ_mask2;
@@ -9342,7 +9354,7 @@ void gpu_allocate_packdata(
 
 extern "C"
 void gpu_allocate_packdata_(
-    uchar       *_pack_univ_mask2,
+    uint8_t       *_pack_univ_mask2,
     int         *univ_mask2_size,
     int         *univ_ncell_near
     )
@@ -9361,7 +9373,7 @@ void gpu_allocate_packdata_(
 //    int         *_id
 //    )
 //{
-//    char rangid[128];
+//    int8_t rangid[128];
 //    sprintf(rangid,"id=%d",*_id);
 //    nvtxRangePushA(rangid);
 //}
@@ -9384,29 +9396,29 @@ void gpu_allocate_packdata_(
 
 // FEP
 void gpu_launch_compute_energy_nonbond_table_linear_univ_fep(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:3 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:3 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -9663,29 +9675,29 @@ void gpu_launch_compute_energy_nonbond_table_linear_univ_fep(
 // FEP
 extern "C"
 void gpu_launch_compute_energy_nonbond_table_linear_univ_fep_(
-    REAL        *_coord_pbc,           // ( 1:MaxAtom, 1:4, 1:ncel_max )
-    REAL        *_force,               // ( 1:MaxAtom, 1:3, 1:ncell_all )
-    double      *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,           // ( 1:MaxAtom, 1:4, 1:ncel_max )
+    REAL          *_force,               // ( 1:MaxAtom, 1:3, 1:ncell_all )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -9759,28 +9771,28 @@ void gpu_launch_compute_energy_nonbond_table_linear_univ_fep_(
 
 // FEP
 void gpu_launch_compute_force_nonbond_table_linear_univ_fep(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,              // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,              // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL    *_table_sclj, // ( 1:5, 1:5 )
+    const REAL    *_table_scel, // ( 1:5, 1:5 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -10010,28 +10022,28 @@ void gpu_launch_compute_force_nonbond_table_linear_univ_fep(
 // FEP
 extern "C"
 void gpu_launch_compute_force_nonbond_table_linear_univ_fep_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,          // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,          // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -10110,29 +10122,29 @@ void gpu_launch_compute_force_nonbond_table_linear_univ_fep_(
 
 // FEP
 void gpu_launch_compute_energy_nonbond_notable_univ_fep(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -10388,29 +10400,29 @@ void gpu_launch_compute_energy_nonbond_notable_univ_fep(
 // FEP
 extern "C"
 void gpu_launch_compute_energy_nonbond_notable_univ_fep_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_ene,           // ( 1:6*cutoff_int )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_ene,           // ( 1:6*cutoff_int )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:ncel_max, 1:ncel_max)
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -10485,28 +10497,28 @@ void gpu_launch_compute_energy_nonbond_notable_univ_fep_(
 
 // FEP
 void gpu_launch_compute_force_nonbond_notable_univ_fep(
-    REAL    *_coord_pbc,               // ( 1:atom_domain, 1:4 )
-    REAL    *_force,                   // ( 1:atom_domain, 1:3 )
-    double  *_ene_virial,              // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,               // ( 1:atom_domain, 1:4 )
+    REAL          *_force,                   // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,              // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near )
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int   atom_domain,
     int   MaxAtom,
     int   MaxAtomCls,
@@ -10734,28 +10746,28 @@ void gpu_launch_compute_force_nonbond_notable_univ_fep(
 // FEP
 extern "C"
 void gpu_launch_compute_force_nonbond_notable_univ_fep_(
-    REAL        *_coord_pbc,           // ( 1:atom_domain, 1:4 )
-    REAL        *_force,               // ( 1:atom_domain, 1:3 )
-    double      *_ene_virial,          // ( 5 )
-    const char  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
-    const int   *_natom,               // ( 1:ncel_max )
-    const int   *_start_atom,          // ( 1:ncel_max )
-    const REAL  *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
-    const REAL  *_nonb_lj6_factor,     // ( 1:num_atom_cls )
-    const REAL  *_table_grad,          // ( 1:6*cutoff_int )
-    const int   *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
-    const char  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
-    const int   *_univ_ix_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_iy_natom,       // ( 1:univ_maxcell1 )
-    const uchar *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
-    const int   *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
-    const char  *_virial_check,        // ( 1:univ_maxcell1 )
-	const char  *_fepgrp_pbc, // ( 1:atom_domain )
-	const char  *_fep_mask,   // ( 1:5, 1:5 )
-	const REAL  *_table_sclj, // ( 1:5, 1:5 )
-	const REAL  *_table_scel, // ( 1:5, 1:5 )
+    REAL          *_coord_pbc,           // ( 1:atom_domain, 1:4 )
+    REAL          *_force,               // ( 1:atom_domain, 1:3 )
+    double        *_ene_virial,          // ( 5 )
+    const int8_t  *_cell_move,           // ( 1:3, 1:ncel_max, 1:ncel_max )
+    const int     *_natom,               // ( 1:ncel_max )
+    const int     *_start_atom,          // ( 1:ncel_max )
+    const REAL    *_nonb_lj12,           // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6,            // ( 1:num_atom_cls, 1:num_atom_cls )
+    const REAL    *_nonb_lj6_factor,     // ( 1:num_atom_cls )
+    const REAL    *_table_grad,          // ( 1:6*cutoff_int )
+    const int     *_univ_cell_pairlist1, // ( 1:2, 1:univ_maxcell )
+    const int8_t  *_univ_mask2,          // ( 1:univ_mask2_size, 1:univ_ncell_near)
+    const int     *_univ_ix_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_ix_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_iy_natom,       // ( 1:univ_maxcell1 )
+    const uint8_t *_univ_iy_list,        // ( 1:MaxAtom, 1:univ_maxcell1 )
+    const int     *_univ_ij_sort_list,   // ( 1:univ_maxcell1 )
+    const int8_t  *_virial_check,        // ( 1:univ_maxcell1 )
+    const int8_t  *_fepgrp_pbc, // ( 1:atom_domain )
+    const int8_t  *_fep_mask,   // ( 1:5, 1:5 )
+    const REAL  *_table_sclj, // ( 1:5, 1:5 )
+    const REAL  *_table_scel, // ( 1:5, 1:5 )
     int  *_atom_domain,
     int  *_MaxAtom,
     int  *_MaxAtomCls,
@@ -10834,7 +10846,7 @@ void gpu_launch_compute_force_nonbond_notable_univ_fep_(
 
 
 // FEP
-void gpu_upload_table_fep( const char *_fep_mask, const REAL *_table_sclj, const REAL *_table_scel) {
+void gpu_upload_table_fep( const int8_t *_fep_mask, const REAL *_table_sclj, const REAL *_table_scel) {
 	if ( dev_fep_mask != NULL ) {
 		// upload only if the array is allocated
 		CUDA_CALL(cudaMemcpy( dev_fep_mask, _fep_mask, size_fep_mask, cudaMemcpyHostToDevice ));
@@ -10845,7 +10857,7 @@ void gpu_upload_table_fep( const char *_fep_mask, const REAL *_table_sclj, const
 
 // FEP
 extern "C"
-void gpu_upload_table_fep_( const char *_fep_mask, const REAL *_table_sclj, const REAL *_table_scel) {
+void gpu_upload_table_fep_( const int8_t *_fep_mask, const REAL *_table_sclj, const REAL *_table_scel) {
 	gpu_init();
 	gpu_upload_table_fep( _fep_mask, _table_sclj, _table_scel );
 }
