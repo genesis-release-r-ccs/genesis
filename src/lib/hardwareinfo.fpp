@@ -319,6 +319,7 @@ contains
     return
 #endif
     inquire(file=cpuinfo, EXIST=exists)
+    cpuname="Unknown"
     if (.not. exists) then
       cpuname="N/A"
       return
