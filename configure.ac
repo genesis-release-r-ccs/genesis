@@ -702,8 +702,8 @@ if test x"${with_cuda}" != x"no"; then
   AC_MSG_RESULT([$version])
 
   NVCC_VER=`echo ${version}\
-	   | sed -e 's/\V\(@<:@0-9@:>@*\).\(@<:@0-9@:>@*\).\(@<:@0-9@:>@*\)/\1 \2 \3/'\
-	   | xargs printf "%02d%02d%02d"`
+	   | sed -e 's/\V\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)/\1 \2 \3/'\
+	   | xargs printf "%02d%02d%03d"`
 
 
   AC_DEFINE(CUDAGPU, 1, [defined if cuda_gpu is used.])
@@ -729,16 +729,16 @@ if test x"${with_cuda}" != x"no"; then
   fi
 
 # CUDA VERSION and compile option
-  if test ${NVCC_VER} -lt 080000; then
+  if test ${NVCC_VER} -lt 0800000; then
     AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
   fi
-  if test ${NVCC_VER} -lt 120000; then
+  if test ${NVCC_VER} -lt 1200000; then
     GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
-    if test ${NVCC_VER} -gt 065000; then
+    if test ${NVCC_VER} -gt 0650000; then
       GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
     fi
   fi
-  if test ${NVCC_VER} -gt 080000; then
+  if test ${NVCC_VER} -gt 0800000; then
     GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
     GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"' #GTX1080
     GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
