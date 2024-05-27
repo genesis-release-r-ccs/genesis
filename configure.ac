@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.1], genesis@riken.jp)
+AC_INIT(genesis, [2.1.2], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
@@ -130,9 +130,9 @@ AC_ARG_WITH([msmpi],
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_fc="mpiifort mpifrtpx mpifrt mpif90"
+  genesis_default_fc="mpiifort mpiifx mpifrtpx mpifrt mpif90"
 else
-  genesis_default_fc="ifort frtpx frt ifort gfortran"
+  genesis_default_fc="ifort ifx frtpx frt ifort gfortran"
 fi
 
 # check usablility
@@ -158,6 +158,10 @@ for vtok in ${fc_ver_info} ; do
 
   if test x"${vtok}" = x"ifort"; then
     FC_ACT="ifort"
+    break
+
+  elif test x"${vtok}" = x"ifx"; then
+    FC_ACT="ifx"
     break
 
   elif test x"${vtok}" = x"GNU"; then
@@ -195,7 +199,7 @@ elif test x"${enable_mpi}"=x"yes" ; then
   mpi_ver_info=$(${FC} --showme:version)
   prev=""
   for vtok in ${mpi_ver_info} ; do
-    if echo ${vtok} | egrep -q "MPI"; then
+    if echo ${vtok} | grep -E -q "MPI"; then
       mpitype=${prev}
     fi
     prev=${vtok}
@@ -208,7 +212,7 @@ if test x"${FC_ACT}" = x"frtpx" ; then
   if test x"${enable_mpi}" != x"yes"; then
     AC_MSG_ERROR([disable_mpi is not available on Fugaku])
   fi
-elif test x"${FC_ACT}" = x"ifort" ; then
+elif test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx" ;then
 
   AC_MSG_CHECKING([for fortran version])
 
@@ -217,10 +221,10 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT})
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\.@<:@0-9@:>@+"; then
       version=${vtok}
     fi
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@{8}"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@{8}"; then
       build=${vtok}
     fi
   done
@@ -229,7 +233,7 @@ elif test x"${FC_ACT}" = x"ifort" ; then
     fc_ver_info=$(${FC} -E -v)
 	prev=""
     for vtok in ${fc_ver_info} ; do
-      if echo ${vtok} | egrep -q "MPI"; then
+      if echo ${vtok} | grep -E -q "MPI"; then
         mpitype=${prev}
       fi
 	  prev=${vtok}
@@ -247,6 +251,8 @@ elif test x"${FC_ACT}" = x"ifort" ; then
 
   elif test ${FC_GNU_VER} -eq 150001 -a ${build} -eq 20141023 ; then
     AC_MSG_ERROR([ifort version 15.0.1 (20141023) has a serious problem in GENESIS])
+  elif test ${FC_GNU_VER} -eq 20210701 ; then
+    AC_MSG_ERROR([ifort version 2021.7.1 has a serious problem in GENESIS])
   fi
 
 elif test x"${FC_ACT}" = x"gfortran"; then
@@ -254,8 +260,10 @@ elif test x"${FC_ACT}" = x"gfortran"; then
   FC_GNU_VER=`echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__"\
    | ${FC_ACT} -E -P - | xargs printf "%02d%02d%02d"`
 
-  if test ${FC_GNU_VER} -lt 040407; then
-    AC_MSG_ERROR([Gfortran version must be >= 4.4.7])
+  if test ${FC_GNU_VER} -lt 070000; then
+    AC_MSG_ERROR([Gfortran version must be >= 7.0.0])
+  elif test ${FC_GNU_VER} -lt 080500; then
+    AC_MSG_WARN([Gfortran version 8.5.0 or later is preferred])
   fi
 
 elif test x"${FC_ACT}" = x"pgf90"; then
@@ -264,7 +272,7 @@ elif test x"${FC_ACT}" = x"pgf90"; then
 
   fc_ver_info=$(${FC} -E ${VER_OPT} )
   for vtok in ${fc_ver_info} ; do
-    if echo ${vtok} | egrep -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
+    if echo ${vtok} | grep -E -q "^@<:@0-9@:>@+\.@<:@0-9@:>@+\-@<:@0-9@:>@+$"; then
       version=${vtok}
     fi
   done
@@ -284,9 +292,9 @@ AC_MSG_RESULT([${mpitype} MPI])
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_cc="mpiicc mpifccpx mpifcc mpicc"
+  genesis_default_cc="mpiicc mpiicx mpifccpx mpifcc mpicc"
 else
-  genesis_default_cc="icc fccpx fcc gcc"
+  genesis_default_cc="icc icx fccpx fcc gcc"
 fi
 
 # check usablility
@@ -296,10 +304,15 @@ AC_PROG_CC($genesis_default_cc)
 AC_MSG_CHECKING([for actual compiler])
 
 cc_ver_info=$(${CC} -E ${VER_OPT})
+
 for vtok in ${cc_ver_info} ; do
 
   if test x"${vtok}" = x"icc"; then
     CC_ACT="icc"
+    break
+
+  elif test x"${vtok}" = x"DPC++/C++"; then
+    CC_ACT="icx"
     break
 
   elif test x"${vtok}" = x"fccpx"; then
@@ -381,6 +394,13 @@ if test x"${enable_openmp}" = x"yes"; then
     if test ${FC_GNU_VER} -gt 160000; then
        OPT_OPENMP="-qopenmp"
     fi
+    if test ${FC_GNU_VER} -gt 190000; then
+       AC_DEFINE(IFORT19, 1, [defined if ifort version (>19) is used.])
+       DEFINED_VARIABLES+=" -DIFORT19"
+    fi
+
+  elif test x"${FC_ACT}" = x"ifx"; then
+    OPT_OPENMP="-qopenmp"
     if test ${FC_GNU_VER} -gt 190000; then
        AC_DEFINE(IFORT19, 1, [defined if ifort version (>19) is used.])
        DEFINED_VARIABLES+=" -DIFORT19"
@@ -498,6 +518,15 @@ if test x"${with_lapack}" == x"yes"; then
     OPT_LD_LAPACK+="${LAPACK_LIBS}"
 
   elif test x"${FC_ACT}" = x"ifort"; then
+    OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
+    lapacklib="mkl_lapack95_lp64"
+
+    LDFLAGS=${OPT_LD_LAPACK}
+    AC_CHECK_LIB([${lapacklib}], [dsyev],
+          [], [AC_MSG_ERROR([lapack is not correct])],[-lmkl_intel_lp64 -lmkl_sequential -lmkl_core])
+    LDFLAGS=""
+
+  elif test  x"${FC_ACT}" = x"ifx"; then
     OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
     lapacklib="mkl_lapack95_lp64"
 
@@ -629,7 +658,7 @@ if test x"${with_cuda}" != x"no"; then
   if test -z "${cuda_lib_path}"; then
     lib_dirs=$(echo ${LIBRARY_PATH} ${LD_LIBRARY_PATH} |tr ':' ' ')
     for dir in ${lib_dirs}; do
-    if echo ${dir} | egrep -q "cuda"; then
+    if echo ${dir} | grep -E -q "cuda"; then
       AC_CHECK_FILE([${dir}/libcudart.so], [cuda_lib_path=${dir}], [])
       if test x"${cuda_lib_path}" != x""; then
         break
@@ -665,7 +694,7 @@ if test x"${with_cuda}" != x"no"; then
   for vtok in ${nvcc_ver_info} ; do
     if test x"${vtok}" = x"(NVCC)"; then
       check_ver=yes
-    elif echo ${vtok} | egrep -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
+    elif echo ${vtok} | grep -E -q "V@<:@0-9@:>@*\.@<:@0-9@:>@*\.@<:@0-9@:>@*"; then
       version=${vtok}
     fi
   done
@@ -673,8 +702,8 @@ if test x"${with_cuda}" != x"no"; then
   AC_MSG_RESULT([$version])
 
   NVCC_VER=`echo ${version}\
-	   | sed -e 's/\V\(@<:@0-9@:>@*\).\(@<:@0-9@:>@*\).\(@<:@0-9@:>@*\)/\1 \2 \3/'\
-	   | xargs printf "%02d%02d%02d"`
+	   | sed -e 's/\V\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)/\1 \2 \3/'\
+	   | xargs printf "%02d%02d%03d"`
 
 
   AC_DEFINE(CUDAGPU, 1, [defined if cuda_gpu is used.])
@@ -689,6 +718,9 @@ if test x"${with_cuda}" != x"no"; then
   elif test x"${FC_ACT}" = x"ifort"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
 
+  elif test x"${FC_ACT}" = x"ifx"; then
+    OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
+
   elif test x"${FC_ACT}" = x"gfortran"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
 
@@ -697,16 +729,16 @@ if test x"${with_cuda}" != x"no"; then
   fi
 
 # CUDA VERSION and compile option
-  if test ${NVCC_VER} -lt 080000; then
+  if test ${NVCC_VER} -lt 0800000; then
     AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
   fi
-  if test ${NVCC_VER} -lt 120000; then
+  if test ${NVCC_VER} -lt 1200000; then
     GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
-    if test ${NVCC_VER} -gt 065000; then
+    if test ${NVCC_VER} -gt 0650000; then
       GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
     fi
   fi
-  if test ${NVCC_VER} -gt 080000; then
+  if test ${NVCC_VER} -gt 0800000; then
     GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
     GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"' #GTX1080
     GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
@@ -850,7 +882,8 @@ AC_ARG_WITH([simd],
 	[SIMD instruction (default: auto)])],
 	[], [with_simd=auto])
 
-if test x"${FC_ACT}" != x"ifort" -a x"${with_simd}" != x"auto" ; then
+if test  x"${FC_ACT}" != x"ifort" -a \
+	x"${FC_ACT}" != x"ifx" -a x"${with_simd}" != x"auto" ; then
   AC_MSG_ERROR([with-simd is only used in intel fortran])
 fi
 
@@ -882,10 +915,9 @@ else
   if test x"${enable_debug}" == x"0"; then
 
 # no-debug no report
-    if test x"${FC_ACT}" = x"ifort"; then
+    if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
       if test x"${have_fxsr_opt}"  = x"yes" -o \
-              x"${have_mmxext}" = x"yes" -o \
-              x"${have_3dnowprefetch}" = x"yes"; then
+	      x"${have_mmxext}" = x"yes"; then
 #AMD
         FARCFLAGS=""
         FARCFLAGS_NOOPT=""
@@ -893,7 +925,11 @@ else
       else
         FARCFLAGS=" -xHost "
         FARCFLAGS_NOOPT=" -axCORE-AVX2 -xHost "
-        FCFLAGS+=" -O3 -ip "
+        if test x"${FC_ACT}" = x"ifort"; then
+          FCFLAGS+=" -O3 -ip "
+	else
+          FCFLAGS+=" -O3 "
+	fi
       fi
       if test x"${with_simd}" != x"auto"; then
         FARCFLAGS+=" -ax${with_simd}"
@@ -964,13 +1000,15 @@ else
   elif test x"${enable_debug}" == x"1"; then
 
 # debug level 1 (without higher optmization ) (default)
-    if   test x"${FC_ACT}" = x"ifort"; then
+    if test x"${FC_ACT}" = x"ifort"; then
       FCFLAGS=" -axCORE-AVX2 -vec-report"
-	  if test ${FC_GNU_VER} -ge 20210000; then
+      if test ${FC_GNU_VER} -ge 20210000; then
         FCFLAGS+=" -qmkl=parallel "
       else
         FCFLAGS+=" -mkl=parallel "
       fi
+    elif test x"${FC_ACT}" = x"ifx"; then
+      FCFLAGS=" -axCORE-AVX2 -vec-report -qmkl=parallel"
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-Wall -ffree-line-length-none"
@@ -1005,13 +1043,16 @@ else
     AC_DEFINE(DEBUG, 1, [defined if Debug is used.])
     DEFINED_VARIABLES+=" -DDEBUG"
 
-    if   test x"${FC_ACT}" = x"ifort"; then
+    if test x"${FC_ACT}" = x"ifort"; then
       FCFLAGS="-g -axCORE-AVX2 -vec-report"
-	  if test ${FC_GNU_VER} -ge 20210000; then
+      if test ${FC_GNU_VER} -ge 20210000; then
         FCFLAGS+=" -qmkl=parallel "
       else
         FCFLAGS+=" -mkl=parallel "
       fi
+
+    elif test x"${FC_ACT}" = x"ifx"; then
+      FCFLAGS="-g -axCORE-AVX2 -vec-report -qmkl=parallel "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-g -Wall -ffree-line-length-none"
@@ -1046,7 +1087,10 @@ else
     AC_DEFINE(DEBUG, 1, [defined if Debug is used.])
     DEFINED_VARIABLES+=" -DDEBUG"
 
-    if   test x"${FC_ACT}" = x"ifort"; then
+    if test x"${FC_ACT}" = x"ifort"; then
+      FCFLAGS="-O0 -g -traceback -CB"
+
+    elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS="-O0 -g -traceback -CB"
 
     elif test x"${FC_ACT}" = x"gfortran"; then
@@ -1086,7 +1130,10 @@ else
     AC_DEFINE(DEBUG, 1, [defined if Debug is used.])
     DEFINED_VARIABLES+=" -DDEBUG"
 
-    if   test x"${FC_ACT}" = x"ifort"; then
+    if test x"${FC_ACT}" = x"ifort"; then
+      FCFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
+
+    elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
 
     elif   test x"${FC_ACT}" = x"gfortran"; then
@@ -1108,7 +1155,7 @@ else
 
 fi
 
-if test x"${FC_ACT}" = x"ifort"; then
+if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
   FCFLAGS+=" -assume byterecl"
 fi
 
@@ -1137,6 +1184,9 @@ else
 # no-debug no report
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-O3 -ip -axCORE-AVX2 "
+
+    elif   test x"${CC_ACT}" = x"icx"; then
+      CFLAGS="-O3 -axCORE-AVX2   "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O3 -ffast-math -march=native"
@@ -1170,6 +1220,9 @@ else
 # debug level 1 (without O3) (default)
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-ip -axCORE-AVX2 -vec-report"
+
+    elif   test x"${CC_ACT}" = x"icx"; then
+      CFLAGS="-ip -axCORE-AVX2 -vec-report   "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-Wall"
@@ -1207,6 +1260,9 @@ else
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-g -ip -axCORE-AVX2 -vec-report"
 
+    elif   test x"${CC_ACT}" = x"icx"; then
+      CFLAGS="-g -ip -axCORE-AVX2 -vec-report  "
+
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-g -Wall"
       if test ${FC_GNU_VER} -gt 100000; then
@@ -1243,6 +1299,9 @@ else
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-O0 -g -traceback -CB"
 
+    elif   test x"${CC_ACT}" = x"icx"; then
+      CFLAGS="-O0 -g -traceback -CB   "
+
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O0 -g -Wall -fbounds-check"
       if test ${FC_GNU_VER} -gt 100000; then
@@ -1278,6 +1337,9 @@ else
     if test x"${FC_ACT}" = x"ifort"; then
       CFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
 
+    elif   test x"${CC_ACT}" = x"icx"; then
+      CFLAGS="-O0 -g -traceback -check all,noarg_temp_created   "
+
     elif test x"${FC_ACT}" = x"gfortran"; then
       CFLAGS="-O0 -g -fbacktrace -fcheck=all,no-array-temps  -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow"
       if test ${FC_GNU_VER} -gt 100000; then
@@ -1302,7 +1364,7 @@ CFLAGS+=" ${OPT_GPROF}"
 
 # LDFLAGS
 if test -z "${LDFLAGS}"; then
-  if   test x"${FC_ACT}" = x"ifort"; then
+  if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
     LDFLAGS=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
@@ -1327,7 +1389,7 @@ if test -z "${LDFLAGS}"; then
   fi
 fi
 
-if test x"${FC_ACT}" = x"ifort"; then
+if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
   LDFLAGS+=" -assume byterecl -lgfortran"
 fi
 
@@ -1492,7 +1554,7 @@ fi
 #
 
 # INTEL preprocess macro
-if test x"${FC_ACT}" = x"ifort"; then
+if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
   AC_DEFINE(INTEL, 1, [defined if Intel compiler is used.])
   DEFINED_VARIABLES+=" -DINTEL"
 fi

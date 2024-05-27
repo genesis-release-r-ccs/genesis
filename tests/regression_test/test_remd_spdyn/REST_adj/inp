@@ -40,7 +40,7 @@ vdw_force_switch = NO
 
 [DYNAMICS]
 integrator       = VVER
-nsteps           =   100
+nsteps           =    80
 timestep         = 0.001
 eneout_period    =    10
 nbupdate_period  =     5

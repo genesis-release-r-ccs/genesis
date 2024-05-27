@@ -2885,11 +2885,20 @@ contains
 
 #ifndef KCOMP
     integer(8)               :: ftell
-    call fseek(unit_no, 0, 2)
+    integer                  :: ierr
+
+    ierr=0
+    call fseek(unit_no, 0, 2, ierr)
+    if (ierr /= 0) then
+      call error_msg_fileio
+    endif
     flen = ftell(unit_no)
 #else
     !!inquire(unit_no,flen=flen)
     call fd_flen_(unit_no, flen)
+    if (flen == -1) then
+            call error_msg('FD_FLEN> fd_flen does not work.')
+    endif
 #endif
 
     return
@@ -2911,6 +2920,9 @@ contains
     read(unit_no,pos=pos) b(1:blen)
 #else
     call fd_read_(unit_no, pos, b, blen)
+    if (blen == -1) then
+            call error_msg('FD_READ> fd_read does not work.')
+    endif
 #endif
 
     return

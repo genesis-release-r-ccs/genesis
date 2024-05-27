@@ -533,8 +533,7 @@ contains
                 done = .false.
                 do while (.not. done)
                   read (ene_unit_in(i),'(A)') line
-                  if (line(1:5) == 'INFO:') then
-                    read (ene_unit_in(i),'(A)') line
+                  if (line(1:1) .ne. '#' .and. line(1:1) .ne. '@') then
                     done = .true.
                   end if
                 end do
