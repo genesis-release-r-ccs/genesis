@@ -1419,12 +1419,12 @@ contains
       call energy_and_force_replica(dynvars, rpath)
 
       ! Store the old force by micro iteration
-      ! 
+      !
       do i = 1, minimize%num_optatoms_micro
           iatom = minimize%optatom_micro_id(i)
           rpath%micro_force(1:3, i, ireplica) = dynvars%force(1:3, iatom)
       end do
-
+ 
       if (ireplica == nrep_per_proc) then
         ! calc initial path length
         !
@@ -1435,7 +1435,6 @@ contains
     
         else
           call calc_pathlength_replica(rpath)
-    
         end if
 
         ! output collective variables
@@ -1524,7 +1523,7 @@ contains
     ! output variables and images
     !
     call output_rpath(output, molecule, enefunc, dynamics, dynvars, &
-                      boundary, rpath)    
+                      boundary, rpath)
     if (repid == nrep_per_proc) call print_images(rpath)
 
     ! path update
@@ -2682,14 +2681,19 @@ contains
     real(wp), pointer     :: mep_coord(:,:)
     real(wp), pointer     :: recv_buff(:,:)
     real(wp), pointer     :: mep_length(:)
-
+    logical               :: flag = .false.
 
     mep_coord  => rpath%mep_coord
     recv_buff  => rpath%recv_buff
     mep_length => rpath%mep_length
 
-    if (.not. present(gather_coord) .or. &
-        (present(gather_coord) .and. gather_coord)) then
+    if (.not. present(gather_coord)) then
+      flag = .true.
+    else if (gather_coord) then
+      flag = gather_coord
+    end if
+
+    if (flag) then
 #ifdef HAVE_MPI_GENESIS
       repid = my_replica_no
 

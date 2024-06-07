@@ -745,7 +745,8 @@ contains
                              out_info%rstfile)
     call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
                           mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
-    call setup_dynvars(molecule, rst, dynvars, dynamics)
+    !call setup_dynvars(molecule, rst, dynvars, dynamics)
+    call setup_dynvars(molecule, rst, dynvars)
     if (enefunc%qmmm%do_qmmm) then      
       call setup_qmmm_directory(qmmm_info, enefunc%qmmm)
     end if
