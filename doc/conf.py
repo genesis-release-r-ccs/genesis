@@ -156,8 +156,8 @@ latex_elements = {
   Jaewoon Jung (RIKEN), 
   Shingo Ito (RIKEN),
   Chigusa Kobayashi (RIKEN), 
-  Takaharu Mori (RIKEN), 
-  Hiraku Oshima (RIKEN), 
+  Takaharu Mori (RIKEN/Tokyo University of Science),
+  Hiraku Oshima (RIKEN/Univ. of Hyogo),
   Cheng Tan (RIKEN),
   Diego Ugarte (RIKEN),
   Kiyoshi Yagi (RIKEN)
