@@ -197,9 +197,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -310,9 +308,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -923,9 +919,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1023,9 +1017,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1248,9 +1240,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1360,9 +1350,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -1962,9 +1950,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15
@@ -2064,9 +2050,7 @@ contains
         ! FEP: flag for atom (ix,i)
         fg1 = fepgrp(ix,i)
 
-#if defined (FUGAKU)
-        !ocl simd
-#elif defined (INTEL)
+#if defined (INTEL)
         !$omp simd
 #endif
         do k = ini_nb15, fin_nb15

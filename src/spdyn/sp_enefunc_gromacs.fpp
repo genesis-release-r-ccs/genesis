@@ -1457,6 +1457,7 @@ contains
     real(wp),   allocatable  :: nb14_lj6(:,:), nb14_lj12(:,:)
     real(wp),   allocatable  :: nonb_lj6(:,:), nonb_lj12(:,:)
 
+    type(s_grotop_mol), pointer :: gromol
 
     enefunc%num_atom_cls = grotop%num_atomtypes
     enefunc%fudge_lj     = grotop%defaults%fudge_lj
@@ -1596,6 +1597,18 @@ contains
       end do
 
     end if
+    ! check for exclusion list from spdyn
+    if (main_rank) then
+      do i = 1, grotop%num_molss
+        gromol => grotop%molss(i)%moltype%mol
+        if (gromol%num_excls > 0)  then
+           write(MsgOut,'(a,$)') 'Setup_Enefunc_Nonb> WARNING: '
+           write(MsgOut,'(a,i5,a)') 'Molecule ',i, ' has [exclusions] list in grotop,'
+           write(MsgOut,'(a)') 'but it is not used in spdyn.'
+           write(MsgOut,'(a)')
+        endif
+      end do
+    endif
 
     ! check the usage of atom class
     !

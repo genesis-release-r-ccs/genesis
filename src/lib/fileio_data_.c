@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include "../config.h"
 
 #define MaxFile  10
 
@@ -37,17 +38,27 @@ void fd_close__(int* unit_no)
 
 void fd_flen__(int* unit_no, long long* flen)
 {
+#ifdef KCOMP
   FILE* fp = Files[*unit_no];
   fseeko64(fp, 0, SEEK_END);
   *flen = ftello64(fp);
   fseeko64(fp, 0, SEEK_SET);
+#else
+  fprintf(stderr, "fd_flen__ doesn't work on the machine\n");
+  *flen = -1;
+#endif
 }
 
 void fd_read__(int* unit_no, long long *pos, unsigned char* b, long long *blen)
 {
+#ifdef KCOMP
   FILE* fp = Files[*unit_no];
   fseeko64(fp, (*pos)-1, SEEK_SET);
   fread(b, *blen, 1, fp);
+#else
+  fprintf(stderr, "fd_read__ doesn't work on the machine\n");
+  *blen = -1;
+#endif
 }
 
 void fd_write__(int* unit_no, unsigned char* b, long long *blen)

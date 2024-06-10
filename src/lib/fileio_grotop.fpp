@@ -3655,17 +3655,6 @@ contains
              dt%c(1:6)
         dt%four_type = .false.
 
-      else if (match_format(line, 'SSN')) then
-
-        ! unknown (two atom type)
-        read(line,*) &
-             dt%atom_type1, &
-             dt%atom_type2, &
-             dt%func
-
-        write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
-             'not supported function type. [", i3, "]")') dt%func
-
       else if (match_format(line, 'SSSS1NNN') .or. &
                match_format(line, 'SSSS4NNN') .or. &
                match_format(line, 'SSSS9NNN')) then
@@ -3715,6 +3704,17 @@ contains
              dt%atom_type2, &
              dt%atom_type3, &
              dt%atom_type4, &
+             dt%func
+
+        write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &
+             'not supported function type. [", i3, "]")') dt%func
+
+      else if (match_format(line, 'SSN')) then
+
+        ! unknown (two atom type)
+        read(line,*) &
+             dt%atom_type1, &
+             dt%atom_type2, &
              dt%func
 
         write(MsgOut,'(" Read_Grotop> WARNING: [dihedraltypes] '// &

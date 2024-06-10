@@ -522,6 +522,7 @@ contains
     ! local variables
     integer                  :: i
     integer                  :: ierror, iseed
+    integer                  :: comm_size, dsfmt_size
 
 
     ! initialize variables in dynamics
@@ -583,10 +584,28 @@ contains
       dynamics%multiple_random_seed = .false.
       if (dyn_info%iseed == -1) then
         dynamics%iseed        = rst%iseed
+#ifdef HAVE_MPI_GENESIS
+        call MPI_Comm_size(mpi_comm_country, comm_size, ierror)
+        call get_size_of_dsfmt_t(dsfmt_size)
+        if ( dsfmt_size * comm_size /= size(rst%random)  ) then
+          dynamics%multiple_random_seed = .true. ! only used by CG
+          if ( dynamics%integrator == IntegratorVVER_CG ) then
+            if (main_rank) &
+                call random_seed_initial_time(iseed)
+            if (nproc_country /= nproc_world) then
+              call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_world, ierror)
+            else
+              call mpi_bcast(iseed, 1, mpi_integer, 0, mpi_comm_country, ierror)
+            endif
+            dynamics%iseed          = iseed + 1000 * my_country_no
+          end if
+        end if
+#endif
       else
         dynamics%iseed        = dyn_info%iseed + 1000 * my_country_no
         dynamics%random_restart  &
-                              = .false.
+            = .false.
+        dynamics%multiple_random_seed = .true.
       end if
     end if
 
@@ -738,6 +757,7 @@ contains
     else
       enefunc%gamd%gamd_stat = .false.
     end if
+
 
     ! Open output files
     !
