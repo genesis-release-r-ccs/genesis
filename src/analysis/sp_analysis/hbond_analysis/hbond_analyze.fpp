@@ -685,7 +685,7 @@ contains
     integer                  :: iatm, natom, atom_no, ibond
     integer                  :: bond_atom1, bond_atom2
     character(len=6)         :: atomcls1, atomcls2 
-    character(len=3)         :: atom_element
+    character(len=6)         :: atom_element
 
     integer, allocatable     :: atom_to_idx(:)
 
@@ -697,7 +697,7 @@ contains
 
     do iatm = 1, natom
       atom_no      = select_atom%idx(iatm)
-      atom_element = molecule%atom_cls_name(atom_no)(1:3)
+      atom_element = molecule%atom_cls_name(atom_no)(1:6)
 
       if (is_polar_atom(atom_element)) then
         npolar = npolar + 1
@@ -730,7 +730,7 @@ contains
     npolar = 0
     do iatm = 1, natom
       atom_no      = select_atom%idx(iatm)
-      atom_element = molecule%atom_cls_name(atom_no)(1:3)
+      atom_element = molecule%atom_cls_name(atom_no)(1:6)
 
       if (is_polar_atom(atom_element)) then
 
@@ -750,8 +750,8 @@ contains
       bond_atom2 = molecule%bond_list(2, ibond)
         atomcls2 = molecule%atom_cls_name(bond_atom2)
 
-      if (atomic_number_by_name(atomcls1(1:3)) /= 1 .and. &
-          atomic_number_by_name(atomcls2(1:3)) /= 1)      &
+      if (atomic_number_by_name(atomcls1(1:6)) /= 1 .and. &
+          atomic_number_by_name(atomcls2(1:6)) /= 1)      &
         cycle
 
       if (atom_to_idx(bond_atom1) > 0) then
@@ -812,7 +812,7 @@ contains
     integer                       :: pre_resno
     integer                       :: n_partner
     character(len=6)              :: residue_name
-    character(len=3)              :: atom_element
+    character(len=6)              :: atom_element
 
     integer,         allocatable  :: npolar(:)
     logical,         allocatable  :: detect_solvent(:)
@@ -871,7 +871,7 @@ contains
 
     do iatm = 1, natom
       atom_no      = polar_list%idx(iatm)
-      atom_element = molecule%atom_cls_name(atom_no)(1:3)
+      atom_element = molecule%atom_cls_name(atom_no)(1:6)
       residue_name = molecule%residue_name(atom_no)
 
       if (.not. is_polar_atom(atom_element))  &
