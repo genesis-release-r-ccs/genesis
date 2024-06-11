@@ -516,40 +516,35 @@ if test x"${with_lapack}" == x"yes"; then
 
   if test -n "${LAPACK_LIBS}"; then
     OPT_LD_LAPACK+="${LAPACK_LIBS}"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
   elif test x"${FC_ACT}" = x"ifort"; then
     OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
     lapacklib="mkl_lapack95_lp64"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
-    LDFLAGS=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [], [AC_MSG_ERROR([lapack is not correct])],[-lmkl_intel_lp64 -lmkl_sequential -lmkl_core])
-    LDFLAGS=""
 
   elif test  x"${FC_ACT}" = x"ifx"; then
     OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
     lapacklib="mkl_lapack95_lp64"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
-    LDFLAGS=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [], [AC_MSG_ERROR([lapack is not correct])],[-lmkl_intel_lp64 -lmkl_sequential -lmkl_core])
-    LDFLAGS=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
-#    OPT_LD_LAPACK+=" -llapack ${blaslink}"
     lapacklib="lapack"
-    LDFLAGS=${OPT_LD_LAPACK}
+    LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [OPT_LD_LAPACK+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
-    LDFLAGS=""
 
   elif test x"${FC_ACT}" = x"gfortran"; then
-#    OPT_LD_LAPACK+=" -llapack ${blaslink}"
     lapacklib="lapack"
-    LDFLAGS=${OPT_LD_LAPACK}
+    LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [OPT_LD_LAPACK+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink}"])
-    LDFLAGS=""
   fi
 
 
@@ -1365,26 +1360,26 @@ CFLAGS+=" ${OPT_GPROF}"
 # LDFLAGS
 if test -z "${LDFLAGS}"; then
   if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
-    LDFLAGS=""
+    LDFLAGS+=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
-    LDFLAGS="-Msmartalloc=huge"
+    LDFLAGS+="-Msmartalloc=huge"
 
   elif test x"${FC_ACT}" = x"gfortran"; then
-    LDFLAGS=""
+    LDFLAGS+=""
     #LDFLAGS="-march=native -fuse-linker-plugin"
 
   elif test x"${FC_ACT}" = x"frtpx"; then
-    LDFLAGS="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrtpx"; then
-    LDFLAGS="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"frt"; then
-    LDFLAGS="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrt"; then
-    LDFLAGS="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
 
   fi
 fi
@@ -1397,7 +1392,8 @@ LDFLAGS+=" ${OPT_OPENMP}"
 if test x"${with_msmpi}" = x"yes"; then
   LDFLAGS+=" -lmsmpi -static"
 fi
-LDFLAGS+=" ${OPT_LD_LAPACK}"
+# LAPACK is included above
+#LDFLAGS+=" ${OPT_LD_LAPACK}"
 LDFLAGS+=" ${OPT_LD_CUDA}"
 LDFLAGS+=" ${OPT_GPROF}"
 
