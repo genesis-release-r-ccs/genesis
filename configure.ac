@@ -903,7 +903,7 @@ FARCFLAGS_KERNELS_PAIRLIST=""
 FARCFLAGS_DIHEDRAL=""
 
 # FFLAGS
-if test x"${ac_test_FFLAGS}" = x"set"; then
+if test $ac_test_FFLAGS; then
   FCFLAGS=${ac_save_FFLAGS}
 
 else
@@ -1170,7 +1170,7 @@ AC_SUBST(FCFLAGS_DIHEDRAL)
 AC_SUBST(FCFLAGS_DISABLEFARC)
 
 # CFLAGS
-if test x"${ac_test_CFLAGS}" = x"set"; then
+if test $ac_test_CFLAGS; then
   CFLAGS=${ac_save_CFLAGS}
 
 else
@@ -1585,7 +1585,7 @@ fi
 if test x"${mainly_single}" = x"yes" -a \
         x"${FC_ACT}"        = x"pgf90"; then
 
-  if test x"${ac_test_FFLAGS}" = x"set"; then
+  if test $ac_test_FFLAGS; then
     FCFLAGS_FFTE_KERNEL_FPP__PGI__SP=${ac_save_FFLAGS}
 
   else
@@ -1615,7 +1615,7 @@ fi
 AC_SUBST(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP)
 
 if test x"${FC_ACT}"        = x"pgf90"; then
-  if test x"${ac_test_FFLAGS}" = x"set"; then
+  if test $ac_test_FFLAGS; then
     FCFLAGS_FPP__PGI_NOOPT=${ac_save_FFLAGS}
 
   else
