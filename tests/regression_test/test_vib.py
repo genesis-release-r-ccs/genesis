@@ -216,7 +216,7 @@ elif len(sys.argv) == 2:
     genesis_command = sys.argv[1]
 else:
     genesis_command = sys.argv[1]
-    is_number = re.compile('^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
+    is_number = re.compile(r'^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
     if is_number.match(sys.argv[2]):
         tolerance = float(sys.argv[2])
     elif sys.argv[2] == "parallel_io":
