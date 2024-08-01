@@ -299,7 +299,10 @@ if (is_atdyn or is_spdyn):
             continue
         os.chdir(dirname)
 
-        if ("VIB_ADDATOM2_g09" in dirname) and (is_fugaku) : 
+        if ("VIB_ADDATOM2_g09" in dirname) : 
+            continue
+
+        if ("VIB_ADDATOM1_g09" in dirname) : 
             continue
 
         itried = itried + 1
