@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.3], genesis@riken.jp)
+AC_INIT(genesis, [2.1.4], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
@@ -516,40 +516,36 @@ if test x"${with_lapack}" == x"yes"; then
 
   if test -n "${LAPACK_LIBS}"; then
     OPT_LD_LAPACK+="${LAPACK_LIBS}"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
   elif test x"${FC_ACT}" = x"ifort"; then
     OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
     lapacklib="mkl_lapack95_lp64"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
-    LDFLAGS=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [], [AC_MSG_ERROR([lapack is not correct])],[-lmkl_intel_lp64 -lmkl_sequential -lmkl_core])
-    LDFLAGS=""
 
   elif test  x"${FC_ACT}" = x"ifx"; then
     OPT_LD_LAPACK+=" -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_lapack95_lp64"
     lapacklib="mkl_lapack95_lp64"
+    LDFLAGS+=${OPT_LD_LAPACK}
 
-    LDFLAGS=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [], [AC_MSG_ERROR([lapack is not correct])],[-lmkl_intel_lp64 -lmkl_sequential -lmkl_core])
-    LDFLAGS=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
-#    OPT_LD_LAPACK+=" -llapack ${blaslink}"
     lapacklib="lapack"
-    LDFLAGS=${OPT_LD_LAPACK}
+    LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
-          [OPT_LD_LAPACK+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
-    LDFLAGS=""
+          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
+    LDFLAGS+=" -llapack ${blaslink}"
 
   elif test x"${FC_ACT}" = x"gfortran"; then
-#    OPT_LD_LAPACK+=" -llapack ${blaslink}"
     lapacklib="lapack"
-    LDFLAGS=${OPT_LD_LAPACK}
+    LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
-          [OPT_LD_LAPACK+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink}"])
-    LDFLAGS=""
+          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink}"])
   fi
 
 
@@ -907,7 +903,7 @@ FARCFLAGS_KERNELS_PAIRLIST=""
 FARCFLAGS_DIHEDRAL=""
 
 # FFLAGS
-if test x"${ac_test_FFLAGS}" = x"set"; then
+if test $ac_test_FFLAGS; then
   FCFLAGS=${ac_save_FFLAGS}
 
 else
@@ -1174,7 +1170,7 @@ AC_SUBST(FCFLAGS_DIHEDRAL)
 AC_SUBST(FCFLAGS_DISABLEFARC)
 
 # CFLAGS
-if test x"${ac_test_CFLAGS}" = x"set"; then
+if test $ac_test_CFLAGS; then
   CFLAGS=${ac_save_CFLAGS}
 
 else
@@ -1365,26 +1361,26 @@ CFLAGS+=" ${OPT_GPROF}"
 # LDFLAGS
 if test -z "${LDFLAGS}"; then
   if test x"${FC_ACT}" = x"ifort" -o x"${FC_ACT}" = x"ifx"; then
-    LDFLAGS=""
+    LDFLAGS+=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
-    LDFLAGS="-Msmartalloc=huge"
+    LDFLAGS+="-Msmartalloc=huge"
 
   elif test x"${FC_ACT}" = x"gfortran"; then
-    LDFLAGS=""
+    LDFLAGS+=""
     #LDFLAGS="-march=native -fuse-linker-plugin"
 
   elif test x"${FC_ACT}" = x"frtpx"; then
-    LDFLAGS="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrtpx"; then
-    LDFLAGS="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"frt"; then
-    LDFLAGS="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrt"; then
-    LDFLAGS="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
 
   fi
 fi
@@ -1397,7 +1393,8 @@ LDFLAGS+=" ${OPT_OPENMP}"
 if test x"${with_msmpi}" = x"yes"; then
   LDFLAGS+=" -lmsmpi -static"
 fi
-LDFLAGS+=" ${OPT_LD_LAPACK}"
+# LAPACK is included above
+#LDFLAGS+=" ${OPT_LD_LAPACK}"
 LDFLAGS+=" ${OPT_LD_CUDA}"
 LDFLAGS+=" ${OPT_GPROF}"
 
@@ -1588,7 +1585,7 @@ fi
 if test x"${mainly_single}" = x"yes" -a \
         x"${FC_ACT}"        = x"pgf90"; then
 
-  if test x"${ac_test_FFLAGS}" = x"set"; then
+  if test $ac_test_FFLAGS; then
     FCFLAGS_FFTE_KERNEL_FPP__PGI__SP=${ac_save_FFLAGS}
 
   else
@@ -1618,7 +1615,7 @@ fi
 AC_SUBST(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP)
 
 if test x"${FC_ACT}"        = x"pgf90"; then
-  if test x"${ac_test_FFLAGS}" = x"set"; then
+  if test $ac_test_FFLAGS; then
     FCFLAGS_FPP__PGI_NOOPT=${ac_save_FFLAGS}
 
   else

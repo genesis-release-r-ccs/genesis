@@ -58,8 +58,8 @@ class Genesis(object):
         patternSINGLE = re.compile('single')
         patternMIXED = re.compile('mixed')
         patternGPU = re.compile('GPU')
-        patternSTEP0 = re.compile('^\[STEP0')
-        patternSTEP1 = re.compile('^\[STEP1')
+        patternSTEP0 = re.compile(r'^\[STEP0')
+        patternSTEP1 = re.compile(r'^\[STEP1')
         is_header = False
         is_md = False
         for line in text_list:

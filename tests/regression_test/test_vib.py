@@ -216,7 +216,7 @@ elif len(sys.argv) == 2:
     genesis_command = sys.argv[1]
 else:
     genesis_command = sys.argv[1]
-    is_number = re.compile('^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
+    is_number = re.compile(r'^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
     if is_number.match(sys.argv[2]):
         tolerance = float(sys.argv[2])
     elif sys.argv[2] == "parallel_io":
@@ -299,7 +299,10 @@ if (is_atdyn or is_spdyn):
             continue
         os.chdir(dirname)
 
-        if ("VIB_ADDATOM2_g09" in dirname) and (is_fugaku) : 
+        if ("VIB_ADDATOM2_g09" in dirname) : 
+            continue
+
+        if ("VIB_ADDATOM1_g09" in dirname) : 
             continue
 
         itried = itried + 1
