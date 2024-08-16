@@ -47,7 +47,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'GENESIS'
-2024 RIKEN
+copyright = u'2014-2024'
 author = u'RIKEN'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -160,7 +160,7 @@ latex_elements = {
   Hiraku Oshima (RIKEN/Univ. of Hyogo),
   Cheng Tan (RIKEN),
   Diego Ugarte (RIKEN),
-  Kiyoshi Yagi (RIKEN)
+  Kiyoshi Yagi (RIKEN/Univ. of Tsukuba)
 
   Other developers/contributors for older versions:
   Motoshi Kamiya (RIKEN/IMS), 
