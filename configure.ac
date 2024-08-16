@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.3], genesis@riken.jp)
+AC_INIT(genesis, [2.1.4], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
