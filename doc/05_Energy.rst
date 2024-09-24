@@ -56,7 +56,7 @@ depend on the force field and molecular model.
   * **GROMARTINI**: MARTINI model :cite:`Marrink:2007` :cite:`Monticelli:2008`
   * **KBGO**: model by Karanicolas and Brooks :cite:`Karanicolas:2002hl` :cite:`karanicolas2003improved` (**ATDYN** only)
   * **CAGO**: C\ :math:`\alpha` Go-model :cite:`Clementi:2000` (**ATDYN** only)
-  * **AAGO**: All-atom Go-model :cite:`Whitford:2009`
+  * **AAGO**: All-atom Go-model :cite:`Whitford:2009` (**ATDYN** only)
   * **RESIDCG**: Residue-level coarse-grained models (**ATDYN** only)
 
 **Note:** Recently, ff19SB is provided in AMBER force field :cite:`Tian:2020`.
