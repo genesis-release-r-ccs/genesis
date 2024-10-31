@@ -515,7 +515,7 @@ if test x"${with_lapack}" == x"yes"; then
   fi
 
   if test -n "${LAPACK_LIBS}"; then
-    OPT_LD_LAPACK+="${LAPACK_LIBS}"
+    OPT_LD_LAPACK+=" ${LAPACK_LIBS}"
     LDFLAGS+=${OPT_LD_LAPACK}
 
   elif test x"${FC_ACT}" = x"ifort"; then
