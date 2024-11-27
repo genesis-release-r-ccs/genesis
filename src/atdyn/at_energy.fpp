@@ -1879,6 +1879,24 @@ contains
               coord_pbc, force_omp, virial, energy%cg_KH_inter_pro)
         end if
 
+        ! ~CG~ WCA interaction
+        if (enefunc%cg_WCA_calc) then
+          call compute_energy_CG_WCA_pbc(enefunc, boundary, pairlist, &
+              coord_pbc, force_omp, virial, energy%cg_WCA)
+        end if
+
+        ! ~CG~ ISOLF interaction
+        if (enefunc%cg_ISOLF_calc) then
+          call compute_energy_CG_ISOLF_pbc(enefunc, boundary, pairlist, &
+              coord_pbc, force_omp, virial, energy%cg_ISOLF)
+        end if
+
+        ! ~CG~ LJ interaction
+        if (enefunc%cg_LJ_calc) then
+          call compute_energy_CG_LJ_pbc(enefunc, boundary, pairlist, &
+              coord_pbc, force_omp, virial, energy%cg_LJ)
+        end if
+
       else
         call compute_energy_noncontact_pbc(enefunc, molecule, boundary, &
                          pairlist, coord, force_omp, virial, energy%noncontact,&
@@ -2129,6 +2147,9 @@ contains
                  + energy%cg_DNA_exv                                   &
                  + energy%cg_IDR_HPS + energy%cg_IDR_KH                &
                  + energy%cg_KH_inter_pro + energy%cg_exv              &
+                 + energy%cg_WCA                                       &
+                 + energy%cg_ISOLF                                     &
+                 + energy%cg_LJ                                        &
                  + energy%PWMcos + energy%PWMcosns
     energy%drms(1:2) = drms(1:2)
 
@@ -3740,6 +3761,24 @@ contains
         if (enefunc%cg_pwmcosns_calc) then
           write(category(ifm),frmt) 'PWMcosns'
           values(ifm) = energy%PWMcosns
+          ifm = ifm+1
+        end if
+
+        if (enefunc%cg_WCA_calc) then
+          write(category(ifm),frmt) 'WCA'
+          values(ifm) = energy%cg_WCA
+          ifm = ifm+1
+        end if
+
+        if (enefunc%cg_ISOLF_calc) then
+          write(category(ifm),frmt) 'ISOLF'
+          values(ifm) = energy%cg_ISOLF
+          ifm = ifm+1
+        end if
+
+        if (enefunc%cg_LJ_calc) then
+          write(category(ifm),frmt) 'LJ'
+          values(ifm) = energy%cg_LJ
           ifm = ifm+1
         end if
 

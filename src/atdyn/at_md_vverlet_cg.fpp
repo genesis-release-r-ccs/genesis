@@ -153,9 +153,9 @@ contains
     ! stop NPAT & NPgT
     ! 
     if (ensemble%ensemble == EnsembleNPAT .or.  &
-        ensemble%ensemble == EnsembleNPT  .or.  &
-        ensemble%ensemble == EnsembleNPgT)      & 
-      call error_msg('Vverlet_dynamics> Barostats are not allowed in ATDYN')
+        ensemble%ensemble == EnsembleNPgT .or.  & 
+        (ensemble%ensemble == EnsembleNPT .and. ensemble%isotropy /= IsotropyZ_Fixed_SEMI_ISO)) &
+      call error_msg('Vverlet_dynamics> In ATDYN CG simulation "ensemble=NPT" only works with "isotropy=Z-FIXED-SEMI-ISO"')
 
 
     ! Reset qm_count
@@ -311,6 +311,7 @@ contains
                   enefunc%cg_pairlistdist_DNAbp,                   &
                   enefunc%cg_pairlistdist_exv,                     &
                   boundary)
+              call alloc_pairlist(pairlist, PairListCellsPbcCG, boundary%num_cells)
             else
               call update_boundary(enefunc%table%table,               &
                   enefunc%pairlistdist,                               &
@@ -1028,6 +1029,13 @@ contains
         pforce(2) = 0.0_wp
         pforce(3) = sigma * random_get_gauss()
 
+      else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
+        pmass = real(i_ndegf+2,wp)*KBOLTZ*temp0/(3.0_wp*(2.0_wp*PI*gamma_p)**2)
+        sigma = sqrt(2.0_wp*gamma_p*pmass*KBOLTZ*temp0/dt)
+        pforce(1) = sigma * random_get_gauss()
+        pforce(2) = pforce(1)
+        pforce(3) = 0.0_wp
+
       end if
 
       ! random force
@@ -1277,6 +1285,12 @@ contains
       pforce(2) = 0.0_wp
       pforce(3) = sigma * random_get_gauss()
 
+    else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
+      sigma = sqrt(2.0_wp*gamma_p*pmass*KBOLTZ*temp0/dt)
+      pforce(1) = sigma * random_get_gauss()
+      pforce(2) = pforce(1)
+      pforce(3) = 0.0_wp
+
     end if
 
     ! random force
@@ -1498,6 +1512,16 @@ contains
                               + 2.0_wp*ekin/d_ndegf + pforce(3))/pmass
       bmoment(1:3)  = exp(-gamma_p*q_dt/2.0_wp)*bmoment(1:3)
 
+    else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
+
+      bmoment(1) = bmoment(1) + q_dt*(volume*(pressxy - press0)              &
+                              + 2.0_wp*ekin/d_ndegf + pforce(1))/pmass
+      bmoment(2) = bmoment(2) + q_dt*(volume*(pressxy - press0)              &
+                              + 2.0_wp*ekin/d_ndegf + pforce(2))/pmass
+      bmoment(3) = 0.0_wp
+
+      bmoment(1:3)  = exp(-gamma_p*q_dt/2.0_wp)*bmoment(1:3)
+
     end if
 
     ! velocities are scaled according to scaled eta(t+1/4dt)
@@ -1566,6 +1590,13 @@ contains
       bmoment(3) = bmoment(3) + q_dt*(volume*(pressz - press0)                 &
                               + 2.0_wp*ekin/d_ndegf + pforce(3))/pmass
       bmoment(1:3)  = exp(-gamma_p*q_dt/2.0_wp)*bmoment(1:3)
+
+    else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
+      bmoment(1) = bmoment(1) + q_dt*(volume*(pressxy - press0)              &
+                              + 2.0_wp*ekin/d_ndegf + pforce(1))/pmass
+      bmoment(2) = bmoment(2) + q_dt*(volume*(pressxy - press0)              &
+                              + 2.0_wp*ekin/d_ndegf + pforce(2))/pmass
+      bmoment(3) = 0.0_wp
 
     end if
 

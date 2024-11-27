@@ -1414,7 +1414,7 @@ else
       FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
-      FCFLAGS="-O0 -g -Wall -fbounds-check -ffree-line-length-none -fbacktrace"
+      FCFLAGS="-O0 -g -Wall -fbounds-check -ffree-line-length-none -fbacktrace -fcheck=all"
       if test ${FC_GNU_VER} -gt 100000; then
         if test x"${with_msmpi}" = x"no"; then
           FCFLAGS+=" -fallow-argument-mismatch"

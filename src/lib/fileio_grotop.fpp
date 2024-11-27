@@ -561,6 +561,34 @@ module fileio_grotop_mod
     real(wp)                       :: epsilon        = 0.0_wp
   end type s_cg_pair_MJ_eps
 
+  ! ~CG~ WCA params
+  !
+  type, public :: s_cg_WCA_parameters
+    character(6)                   :: type_name_1 = ''
+    character(6)                   :: type_name_2 = ''
+    real(wp)                       :: e           = 0.0_wp
+    real(wp)                       :: s           = 0.0_wp
+  end type s_cg_WCA_parameters
+
+  ! ~CG~ iSoLF params
+  !
+  type, public :: s_cg_ISOLF_parameters
+    character(6)                   :: type_name = ''
+    real(wp)                       :: e         = 0.0_wp
+    real(wp)                       :: s         = 0.0_wp
+    real(wp)                       :: w         = 0.0_wp
+  end type s_cg_ISOLF_parameters
+
+  ! ~CG~ LJ params
+  !
+  type, public :: s_cg_LJ_parameters
+    character(6)                   :: type_name_1 = ''
+    character(6)                   :: type_name_2 = ''
+    real(wp)                       :: e           = 0.0_wp
+    real(wp)                       :: s           = 0.0_wp
+    real(wp)                       :: c           = 0.0_wp
+  end type s_cg_LJ_parameters
+
   ! topology data
   type, public :: s_grotop
     integer                               :: num_atomtypes      = 0
@@ -586,6 +614,9 @@ module fileio_grotop_mod
     integer                               :: num_cg_IDR_HPS_atomtypes = 0
     integer                               :: num_cg_KH_atomtypes = 0
     integer                               :: num_cg_pair_MJ_eps = 0
+    integer                               :: num_cg_WCA_parameters = 0
+    integer                               :: num_cg_ISOLF_parameters = 0
+    integer                               :: num_cg_LJ_parameters = 0
     logical                               :: alias_atomtype     = .false.
     type(s_defaults)                      :: defaults
     type(s_atomtype),         allocatable :: atomtypes(:)
@@ -612,6 +643,9 @@ module fileio_grotop_mod
     type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
 
     type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
+    type(s_cg_WCA_parameters),   allocatable :: cg_WCA_parameters(:)
+    type(s_cg_ISOLF_parameters), allocatable :: cg_ISOLF_parameters(:)
+    type(s_cg_LJ_parameters),    allocatable :: cg_LJ_parameters(:)
     type(s_gomodel)                       :: gomodel
     type(s_itpread)                       :: itpread
   end type s_grotop
@@ -662,6 +696,9 @@ module fileio_grotop_mod
   integer,      public, parameter :: GroTopCGKHAtomType  = 21
   integer,      public, parameter :: GroTopCGPairMJEpsilon  = 22
   integer,      public, parameter :: GroTopCGKHMolPair   = 23
+  integer,      public, parameter :: GroTopCGWCAParameters = 26
+  integer,      public, parameter :: GroTopCGISOLFParameters = 27
+  integer,      public, parameter :: GroTopCGLJParameters = 28
 
   ! parameters for directive
   integer,     private, parameter :: DDefaults             = 1
@@ -718,6 +755,9 @@ module fileio_grotop_mod
   integer,     private, parameter :: DCGIDRKHRegion        = 47
   integer,     private, parameter :: DCGPairMJEpsilon      = 48
   integer,     private, parameter :: DCGKHMolPairs         = 49
+  integer,     private, parameter :: DCGWCAParameters      = 53
+  integer,     private, parameter :: DCGISOLFParameters    = 54
+  integer,     private, parameter :: DCGLJParameters       = 55
 
   ! parameters
   logical,     private, parameter :: VerboseOn        = .false.
@@ -761,6 +801,9 @@ module fileio_grotop_mod
   private :: read_cg_IDR_HPS_atom_types
   private :: read_cg_KH_atom_types
   private :: read_cg_pair_MJ_eps
+  private :: read_cg_WCA_parameters
+  private :: read_cg_ISOLF_parameters
+  private :: read_cg_LJ_parameters
   private :: read_nonbond_parms
   private :: read_molecule_type
   private :: read_atoms
@@ -807,6 +850,9 @@ module fileio_grotop_mod
   private :: write_base_exv_types
   private :: write_cg_IDR_HPS_atom_types
   private :: write_cg_KH_atom_types
+  private :: write_cg_WCA_parameters
+  private :: write_cg_ISOLF_parameters
+  private :: write_cg_LJ_parameters
   private :: write_nonbond_parms
   private :: write_molecule_type
   private :: write_molecule_type_aa
@@ -1031,6 +1077,9 @@ contains
     grotop%num_cg_IDR_HPS_atomtypes = 0
     grotop%num_cg_KH_atomtypes= 0
     grotop%num_cg_pair_MJ_eps = 0
+    grotop%num_cg_WCA_parameters = 0
+    grotop%num_cg_ISOLF_parameters = 0
+    grotop%num_cg_LJ_parameters = 0
     grotop%alias_atomtype     = .false.
 
     return
@@ -1122,6 +1171,9 @@ contains
     type(s_cg_IDR_HPS_atomtype), allocatable :: cg_IDR_HPS_atomtypes(:)
     type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
     type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
+    type(s_cg_WCA_parameters), allocatable :: cg_WCA_parameters(:)
+    type(s_cg_ISOLF_parameters), allocatable :: cg_ISOLF_parameters(:)
+    type(s_cg_LJ_parameters), allocatable :: cg_LJ_parameters(:)
 
 
     select case(variable)
@@ -1794,6 +1846,87 @@ contains
         allocate(grotop%cg_pair_MJ_eps(var_size), stat = alloc_stat)
         if (alloc_stat /= 0) call error_msg_alloc
 
+      end if
+
+    case(GroTopCGWCAParameters)
+      if (allocated(grotop%cg_WCA_parameters)) then
+
+        old_size = size(grotop%cg_WCA_parameters)
+        if (old_size == var_size) return
+
+        allocate(cg_WCA_parameters(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        cg_WCA_parameters(:) = grotop%cg_WCA_parameters(:)
+        deallocate(grotop%cg_WCA_parameters, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+
+        allocate(grotop%cg_WCA_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          grotop%cg_WCA_parameters(1:var_size) = cg_WCA_parameters(1:var_size)
+        else
+          grotop%cg_WCA_parameters(1:old_size) = cg_WCA_parameters(1:old_size)
+        end if
+        deallocate(cg_WCA_parameters, stat = alloc_stat)
+      else
+        allocate(grotop%cg_WCA_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+      end if
+
+    case(GroTopCGISOLFParameters)
+      if (allocated(grotop%cg_ISOLF_parameters)) then
+
+        old_size = size(grotop%cg_ISOLF_parameters)
+        if (old_size == var_size) return
+
+        allocate(cg_ISOLF_parameters(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        cg_ISOLF_parameters(:) = grotop%cg_ISOLF_parameters(:)
+        deallocate(grotop%cg_ISOLF_parameters, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+
+        allocate(grotop%cg_ISOLF_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          grotop%cg_ISOLF_parameters(1:var_size) = cg_ISOLF_parameters(1:var_size)
+        else
+          grotop%cg_ISOLF_parameters(1:old_size) = cg_ISOLF_parameters(1:old_size)
+        end if
+        deallocate(cg_ISOLF_parameters, stat = alloc_stat)
+      else
+        allocate(grotop%cg_ISOLF_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+      end if
+
+    case(GroTopCGLJParameters)
+      if (allocated(grotop%cg_LJ_parameters)) then
+
+        old_size = size(grotop%cg_LJ_parameters)
+        if (old_size == var_size) return
+
+        allocate(cg_LJ_parameters(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        cg_LJ_parameters(:) = grotop%cg_LJ_parameters(:)
+        deallocate(grotop%cg_LJ_parameters, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+
+        allocate(grotop%cg_LJ_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          grotop%cg_LJ_parameters(1:var_size) = cg_LJ_parameters(1:var_size)
+        else
+          grotop%cg_LJ_parameters(1:old_size) = cg_LJ_parameters(1:old_size)
+        end if
+        deallocate(cg_LJ_parameters, stat = alloc_stat)
+      else
+        allocate(grotop%cg_LJ_parameters(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
       end if
 
     case default
@@ -2608,6 +2741,24 @@ contains
           call error_msg_dealloc
     end if
 
+    if (allocated(grotop%cg_WCA_parameters)) then
+      deallocate(grotop%cg_WCA_parameters, stat=dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_ISOLF_parameters)) then
+      deallocate(grotop%cg_ISOLF_parameters, stat=dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_LJ_parameters)) then
+      deallocate(grotop%cg_LJ_parameters, stat=dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
     return
 
   end subroutine dealloc_grotop_all
@@ -2943,6 +3094,15 @@ contains
       case (DEzMembrane)
         call read_membrane_type(file, grotop)
 
+      case (DCGWCAParameters)
+        call read_cg_WCA_parameters(file, grotop)
+
+      case (DCGISOLFParameters)
+        call read_cg_ISOLF_parameters(file, grotop)
+
+      case (DCGLJParameters)
+        call read_cg_LJ_parameters(file, grotop)
+
       case (DUnknown)
         if (main_rank) &
           write(MsgOut,*) 'Read_Grotop> INFO. Unknown directive:'// &
@@ -2979,6 +3139,9 @@ contains
     grotop%num_cg_IDR_HPS_atomtypes = size_grotop(grotop, GroTopCGIDRHPSAtomType)
     grotop%num_cg_KH_atomtypes= size_grotop(grotop, GroTopCGKHAtomType)
     grotop%num_cg_pair_MJ_eps = size_grotop(grotop, GroTopCGPairMJEpsilon)
+    grotop%num_cg_WCA_parameters = size_grotop(grotop, GroTopCGWCAParameters)
+    grotop%num_cg_ISOLF_parameters = size_grotop(grotop, GroTopCGISOLFParameters)
+    grotop%num_cg_LJ_parameters = size_grotop(grotop, GroTopCGLJParameters)
 
     ! bind molecule and type
     !
@@ -3137,6 +3300,20 @@ contains
             '  num_cg_pair_MJ_eps   = ', grotop%num_cg_pair_MJ_eps
       endif
       write(MsgOut,'(A)') ''
+      if (grotop%num_cg_WCA_parameters > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '  num_cg_WCA_parameters     = ', grotop%num_cg_WCA_parameters
+      endif
+      if (grotop%num_cg_ISOLF_parameters > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '  num_cg_ISOLF_parameters   = ', grotop%num_cg_ISOLF_parameters
+      endif
+      if (grotop%num_cg_LJ_parameters > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '  num_cg_LJ_parameters      = ', grotop%num_cg_LJ_parameters
+      endif
+      write(MsgOut,'(A)') ''
+
 
     end if
 
@@ -4430,6 +4607,193 @@ contains
 900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_pair_energy_MJ_96 ]')
 
   end subroutine read_cg_pair_MJ_eps
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_WCA_parameters
+  !> @brief        read section [ cg_WCA_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_WCA_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in)            :: file
+    type(s_grotop), target, intent(inout) :: grotop
+
+    ! local variables
+    integer            :: i, cnt, old_cnt
+    character(MaxLine) :: line
+    character(100)     :: error
+
+    type(s_cg_WCA_parameters), pointer :: WCA
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGWCAParameters)
+
+    call realloc_grotop(grotop, GroTopCGWCAParameters, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_WCA_parameters ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      WCA => grotop%cg_WCA_parameters(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) goto 900
+
+      if (match_format(line, 'SSNN')) then
+        read(line,*)       &
+          WCA%type_name_1, &
+          WCA%type_name_2, &
+          WCA%e,           &
+          WCA%s
+      else
+        call error_msg_grotop(file, 'Read_Grotop> parse error. [ cg_WCA_parameters ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_WCA_parameters ]')
+
+  end subroutine read_cg_WCA_parameters
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_ISOLF_parameters
+  !> @brief        read section [ cg_ISOLF_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_ISOLF_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in)            :: file
+    type(s_grotop), target, intent(inout) :: grotop
+
+    ! local variables
+    integer            :: i, cnt, old_cnt
+    character(MaxLine) :: line
+    character(100)     :: error
+
+    type(s_cg_ISOLF_parameters), pointer :: ISOLF
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGISOLFParameters)
+
+    call realloc_grotop(grotop, GroTopCGISOLFParameters, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_ISOLF_parameters ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      ISOLF => grotop%cg_ISOLF_parameters(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) goto 900
+
+      if (match_format(line, 'SNNN')) then
+        read(line,*)       &
+          ISOLF%type_name, &
+          ISOLF%e,         &
+          ISOLF%s,         &
+          ISOLF%w
+      else
+        call error_msg_grotop(file, 'Read_Grotop> parse error. [ cg_ISOLF_parameters ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_ISOLF_parameters ]')
+
+  end subroutine read_cg_ISOLF_parameters
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_LJ_parameters
+  !> @brief        read section [ cg_LJ_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_LJ_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in)            :: file
+    type(s_grotop), target, intent(inout) :: grotop
+
+    ! local variables
+    integer            :: i, cnt, old_cnt
+    character(MaxLine) :: line
+    character(100)     :: error
+
+    type(s_cg_LJ_parameters), pointer :: tslj
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGLJParameters)
+
+    call realloc_grotop(grotop, GroTopCGLJParameters, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_LJ_parameters ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      tslj => grotop%cg_LJ_parameters(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) goto 900
+
+      if (match_format(line, 'SSNNN')) then
+        read(line,*)        &
+          tslj%type_name_1, &
+          tslj%type_name_2, &
+          tslj%e,           &
+          tslj%s,           &
+          tslj%c
+      else
+        call error_msg_grotop(file, 'Read_Grotop> parse error. [ cg_LJ_parameters ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_LJ_parameters ]')
+
+  end subroutine read_cg_LJ_parameters
 
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -7572,6 +7936,15 @@ contains
     ! molecules
     call write_molecules(file, grotop)
 
+    ! cg WCA parameters
+    call write_cg_WCA_parameters(file, grotop)
+
+    ! cg ISOLF parameters
+    call write_cg_ISOLF_parameters(file, grotop)
+
+    ! cg LJ parameters
+    call write_cg_LJ_parameters(file, grotop)
+
     return
 
   end subroutine write_grotop
@@ -8876,6 +9249,162 @@ contains
     return
 
   end subroutine write_cg_KH_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_WCA_parameters
+  !> @brief        write section [ cg_WCA_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_WCA_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in) :: file
+    type(s_grotop), intent(in) :: grotop
+
+    ! local variables
+    integer       :: i, cnt, func
+    character(20) :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGWCAParameters)
+    if (cnt == 0) return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_WCA_parameters ]'
+
+    do i = 1, cnt
+      if (func == -1) then
+        write(file,'(a)') '; name  name  epsilon    sigma'
+        write(file,'(a)') ';    -     -   kJ/mol       nm'
+        func = 1
+      end if
+
+      write(file,'(a6,a1,a6,2(a1,f8.3))')        &
+        grotop%cg_WCA_parameters(i)%type_name_1, &
+        " ",                                     &
+        grotop%cg_WCA_parameters(i)%type_name_2, &
+        " ",                                     &
+        grotop%cg_WCA_parameters(i)%e,           &
+        " ",                                     &
+        grotop%cg_WCA_parameters(i)%s
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_WCA_parameters
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_ISOLF_parameters
+  !> @brief        write section [ cg_ISOLF_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_ISOLF_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in) :: file
+    type(s_grotop), intent(in) :: grotop
+
+    ! local variables
+    integer       :: i, cnt, func
+    character(20) :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGISOLFParameters)
+    if (cnt == 0) return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_ISOLF_parameters ]'
+
+    do i = 1, cnt
+      if (func == -1) then
+        write(file,'(a)') '; name  epsilon    sigma    omega'
+        write(file,'(a)') ';    -   kJ/mol       nm       nm'
+        func = 1
+      end if
+
+      write(file,'(a6,3(a1,f8.3))')              &
+        grotop%cg_ISOLF_parameters(i)%type_name, &
+        " ",                                     &
+        grotop%cg_ISOLF_parameters(i)%e,         &
+        " ",                                     &
+        grotop%cg_ISOLF_parameters(i)%s,         &
+        " ",                                     &
+        grotop%cg_ISOLF_parameters(i)%w
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_ISOLF_parameters
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_LJ_parameters
+  !> @brief        write section [ cg_LJ_parameters ]
+  !! @authors      DU
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_LJ_parameters(file, grotop)
+
+    ! formal arguments
+    integer,        intent(in) :: file
+    type(s_grotop), intent(in) :: grotop
+
+    ! local variables
+    integer       :: i, cnt, func
+    character(20) :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGLJParameters)
+    if (cnt == 0) return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_LJ_parameters ]'
+
+    do i = 1, cnt
+      if (func == -1) then
+        write(file,'(a)') '; name   name        epsilon          sigma         cutoff'
+        write(file,'(a)') ';    -      -         kJ/mol             nm             nm'
+        func = 1
+      end if
+
+      write(file,'(a6,a1,a6,3(a1,f14.4))')      &
+        grotop%cg_LJ_parameters(i)%type_name_1, &
+        " ",                                    &
+        grotop%cg_LJ_parameters(i)%type_name_2, &
+        " ",                                    &
+        grotop%cg_LJ_parameters(i)%e,           &
+        " ",                                    &
+        grotop%cg_LJ_parameters(i)%s,           &
+        " ",                                    &
+        grotop%cg_LJ_parameters(i)%c
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_LJ_parameters
 
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -10648,6 +11177,12 @@ contains
       directive = DMorphSC
     case ('ez_membrane')
       directive = DEzMembrane
+    case ('cg_WCA_parameters')
+      directive = DCGWCAParameters
+    case ('cg_ISOLF_parameters')
+      directive = DCGISOLFParameters
+    case ('cg_LJ_parameters')
+      directive = DCGLJParameters
     case default
       directive = DUnknown
     end select
@@ -10773,6 +11308,18 @@ contains
     case(GroTopEzMembrane)
       if (allocated(grotop%ez_membrane)) &
         size_grotop = size(grotop%ez_membrane)
+
+    case(GroTopCGWCAParameters)
+      if (allocated(grotop%cg_WCA_parameters)) &
+          size_grotop = size(grotop%cg_WCA_parameters)
+
+    case(GroTopCGISOLFParameters)
+      if (allocated(grotop%cg_ISOLF_parameters)) &
+          size_grotop = size(grotop%cg_ISOLF_parameters)
+
+    case(GroTopCGLJParameters)
+      if (allocated(grotop%cg_LJ_parameters)) &
+          size_grotop = size(grotop%cg_LJ_parameters)
 
     case default
       call error_msg('Size_Grotop> bad variable')

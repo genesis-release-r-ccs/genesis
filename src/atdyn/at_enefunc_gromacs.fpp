@@ -56,6 +56,9 @@ module at_enefunc_gromacs_mod
   private :: setup_enefunc_cg_PWMcosns
   private :: setup_enefunc_cg_IDR_HPS
   private :: setup_enefunc_cg_IDR_KH
+  private :: setup_enefunc_cg_WCA
+  private :: setup_enefunc_cg_ISOLF
+  private :: setup_enefunc_cg_LJ
   private :: setup_enefunc_cg_contact
   private :: setup_enefunc_cg_exv
   private :: setup_enefunc_cg_nonlocal_exclusion
@@ -174,6 +177,18 @@ contains
       ! CG IDR: KH model
       !
       call setup_enefunc_cg_IDR_KH(ene_info, grotop, molecule, enefunc)
+
+      ! CG exv: WCA
+      !
+      call setup_enefunc_cg_WCA(ene_info, grotop, molecule, enefunc)
+
+      ! CG lipid: ISOLF
+      !
+      call setup_enefunc_cg_ISOLF(ene_info, grotop, molecule, enefunc)
+
+      ! CG LJ
+      !
+      call setup_enefunc_cg_LJ(ene_info, grotop, molecule, enefunc)
 
       ! CG : native contact
       !
@@ -1891,6 +1906,656 @@ contains
     return
 
   end subroutine setup_enefunc_cg_KH
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_cg_WCA
+  !> @brief        define and initialize WCA related parameters
+  !! @authors      DU
+  !! @param[in]    ene_info : ENERGY section control parameters information
+  !! @param[in]    grotop   : GROMACS parameter topology information
+  !! @param[in]    molecule : molecule information
+  !! @param[inout] enefunc  : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_cg_WCA(ene_info, grotop, molecule, enefunc)
+
+    ! Subroutine arguments
+    type(s_ene_info), intent(in)    :: ene_info
+    type(s_grotop),   intent(in)    :: grotop
+    type(s_molecule), intent(in)    :: molecule
+    type(s_enefunc),  intent(inout) :: enefunc
+
+    ! Variables
+    integer                                 :: i              ! Loop variable
+    integer                                 :: j              ! Loop variable
+    integer                                 :: k              ! Loop variable
+    integer                                 :: n_beads        ! Counter for beads
+    integer                                 :: n_paras        ! Counter for types
+    integer                                 :: n_names        ! Counter for names
+    character(len=6)                        :: buff1          ! Buffer for storing names
+    character(len=6)                        :: buff2          ! Buffer for storing names
+    character(len=6),          allocatable  :: names(:)       ! Temporary array
+    type(s_cg_WCA_parameters), allocatable  :: parameters(:)  ! Temporary array
+    type(s_cg_WCA_parameters), allocatable  :: tmp(:)         ! Temporary array
+    logical                                 :: is_present1    ! General purpose flag
+    logical                                 :: is_present2    ! General purpose flag
+    logical                                 :: save_value     ! General purpose flag
+    real(wp)                                :: eij            ! Epsilon
+    real(wp)                                :: sij            ! Sigma
+    real(wp)                                :: dij            ! Sigma * factor
+    real(wp)                                :: cutoff_max     ! Maximum cutoff distance
+
+    ! Allocate local arrays
+    allocate(parameters(grotop%num_cg_WCA_parameters))
+    allocate(names(2*grotop%num_cg_WCA_parameters))
+
+    ! Count number of atoms interacting with WCA
+    !
+    ! Initialize counter
+    n_beads = 0
+    n_paras = 0
+    n_names = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+      ! Get atom class name for the ith atom
+      buff1 = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the parameter definitions in the TOP file
+      do j = 1, grotop%num_cg_WCA_parameters
+        ! Match atom class names
+        if (buff1 == trim(adjustl(grotop%cg_WCA_parameters(j)%type_name_1)) .or. &
+            buff1 == trim(adjustl(grotop%cg_WCA_parameters(j)%type_name_2))) then
+          n_beads = n_beads + 1
+
+          ! Check if name is already saved
+          save_value = .true.
+          do k = 1, n_names
+            if (buff1 == trim(adjustl(names(k)))) then
+              save_value = .false.
+              exit
+            end if
+          end do
+
+          ! Save name if not already present
+          if (save_value) then
+            n_names = n_names + 1
+            names(n_names) = trim(adjustl(buff1))
+          end if
+
+          exit
+
+        end if
+      end do
+    end do
+
+    ! Iterate over all the parameter definitions in the TOP file
+    do i = 1, grotop%num_cg_WCA_parameters
+      ! Get type names
+      buff1 = trim(adjustl(grotop%cg_WCA_parameters(i)%type_name_1))
+      buff2 = trim(adjustl(grotop%cg_WCA_parameters(i)%type_name_2))
+
+      ! Check if both type names are saved
+      is_present1 = .false.
+      is_present2 = .false.
+      do j = 1, n_names
+        if (buff1 == names(j)) is_present1 = .true.
+        if (buff2 == names(j)) is_present2 = .true.
+        if (is_present1 .and.is_present2) exit
+      end do
+
+      ! Save parameter if both names are present
+      if (is_present1 .and. is_present2) then
+        n_paras = n_paras + 1
+        parameters(n_paras) = grotop%cg_WCA_parameters(i)
+      end if
+
+    end do
+
+    ! Reallocate arrays
+    allocate(tmp(n_paras))
+    tmp = parameters(1:n_paras)
+    deallocate(parameters)
+    allocate(parameters(n_paras))
+    parameters = tmp
+    deallocate(tmp)
+
+    ! Check WCA parameters have defined atom types
+    do i = 1, n_paras
+      ! Get atom class name 1 for the ith parameter definition
+      buff1 = trim(adjustl(parameters(i)%type_name_1))
+      buff2 = trim(adjustl(parameters(i)%type_name_2))
+
+      ! Check it the atom is defined
+      is_present1 = .false.
+      is_present2 = .false.
+      do j = 1, grotop%num_atomtypes
+        if (buff1 == trim(adjustl(grotop%atomtypes(j)%type_name))) is_present1 = .true.
+        if (buff2 == trim(adjustl(grotop%atomtypes(j)%type_name))) is_present2 = .true.
+        if (is_present1 .and. is_present2) exit
+      end do
+
+      ! No match with current atom names was found
+      if (.not. is_present1 .and. .not. is_present2) then
+        call error_msg("unknown atom types: '" // trim(buff1) // "' and '" // trim(buff2) // "'", __FILE__, __LINE__)
+      end if
+    end do
+
+    ! Allocate WCA enefunc arrays
+    call alloc_enefunc(enefunc, EneFuncCGWCA, n_beads, n_names, molecule%num_atoms)
+
+    ! Save number of beads
+    enefunc%num_cg_particle_WCA = n_beads
+
+    ! Activate calculation flag
+    if (n_paras > 0) then
+      enefunc%cg_WCA_calc = .true.
+    else
+      enefunc%cg_WCA_calc = .false.
+      return
+    end if
+
+    ! Set type-dependent arrays
+    !
+    ! Initialize varaiable
+    cutoff_max = 0.0_wp
+    ! Iterate over WCA parameter definitions
+    do i = 1, n_names
+      ! Get type name
+      buff1 = trim(adjustl(names(i)))
+
+      do j = 1, n_names
+        ! Get type name
+        buff2 = trim(adjustl(names(j)))
+
+        ! Iterate over all the parameters
+        do k = 1, n_paras
+          ! Save parameters only if both types are present
+          if ((buff1 == trim(adjustl(parameters(k)%type_name_1)) .and. &
+               buff2 == trim(adjustl(parameters(k)%type_name_2))) .or. &
+              (buff1 == trim(adjustl(parameters(k)%type_name_2)) .and. &
+               buff2 == trim(adjustl(parameters(k)%type_name_1)))) then
+            ! Initialize parameters
+            eij = parameters(k)%e * JOU2CAL ! kJ -> kcal
+            sij = parameters(k)%s * 10.0_wp ! nm -> A
+            dij = sij * TWO_ROOT6
+
+            ! Set parameters
+            enefunc%cg_WCA_e(i,j) = eij
+            enefunc%cg_WCA_d(i,j) = dij
+            ! Save cutoff distance
+            if (dij > cutoff_max) cutoff_max = dij
+
+#ifdef DEBUG
+if (main_rank) write(MsgOut, "(a4,2(a6,a1),3(a4,f11.6))") "WCA ", names(i), " ", names(j), " ", " e: ", eij, " s: ", sij, " d: ", dij
+#endif
+          end if
+        end do
+      end do
+    end do
+
+    ! Set cutoff distance for pairlist
+    enefunc%cg_pairlistdist_WCA = cutoff_max * 1.3_wp
+
+#ifdef DEBUG
+if (main_rank) write(MsgOut, "(a18,f11.6)") "WCA pairlistdist: ", enefunc%cg_pairlistdist_WCA
+#endif
+
+    ! Classify atoms
+    !
+    ! Initialize counter
+    k = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+      ! Get atom class name for the ith atom
+      buff1 = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the saved names
+      do j = 1, n_names
+        if (buff1 == trim(adjustl(names(j)))) then
+          k = k + 1
+          enefunc%cg_WCA_bead(k) = i
+          enefunc%cg_WCA_type(i) = j
+          exit
+        end if
+      end do
+
+    end do
+
+    ! Free memory
+    deallocate(parameters)
+    deallocate(names)
+
+    return
+
+  end subroutine setup_enefunc_cg_WCA
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_cg_ISOLF
+  !> @brief        define and initialize ISOLF related parameters
+  !! @authors      DU
+  !! @param[in]    ene_info : ENERGY section control parameters information
+  !! @param[in]    grotop   : GROMACS parameter topology information
+  !! @param[in]    molecule : molecule information
+  !! @param[inout] enefunc  : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_cg_ISOLF(ene_info, grotop, molecule, enefunc)
+
+    ! Subroutine arguments
+    type(s_ene_info), intent(in)    :: ene_info
+    type(s_grotop),   intent(in)    :: grotop
+    type(s_molecule), intent(in)    :: molecule
+    type(s_enefunc),  intent(inout) :: enefunc
+
+    ! Variables
+    integer                                  :: i              ! Loop variable
+    integer                                  :: j              ! Loop variable
+    integer                                  :: k              ! Loop variable
+    integer                                  :: n_beads        ! Counter for lipid beads
+    integer                                  :: n_paras        ! Counter for lipid types
+    character(len=6)                         :: buff           ! Buffer for storing names
+    type(s_cg_ISOLF_parameters), allocatable :: parameters(:)  ! Temporary array
+    type(s_cg_ISOLF_parameters), allocatable :: tmp(:)         ! Temporary array
+    logical                                  :: save_value     ! General purpose flag
+    real(wp)                                 :: ei             ! Epsilon
+    real(wp)                                 :: ej             ! Epsilon
+    real(wp)                                 :: eij            ! Epsilon
+    real(wp)                                 :: si             ! Sigma
+    real(wp)                                 :: sj             ! Sigma
+    real(wp)                                 :: sij            ! Sigma
+    real(wp)                                 :: dij            ! Sigma * factor
+    real(wp)                                 :: wi             ! Omega
+    real(wp)                                 :: wj             ! Omega
+    real(wp)                                 :: wij            ! Omega
+    real(wp)                                 :: cutoff         ! Cutoff distance
+    real(wp)                                 :: cutoff_max     ! Maximum cutoff distance
+
+    ! Allocate local arrays
+    allocate(parameters(grotop%num_cg_ISOLF_parameters))
+
+    ! Initialize counter
+    n_beads = 0
+    n_paras = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+      ! Get atom class name for the ith atom
+      buff = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the parameter definitions in the TOP file
+      do j = 1, grotop%num_cg_ISOLF_parameters
+        ! Match atom class names
+        if (buff == trim(adjustl(grotop%cg_ISOLF_parameters(j)%type_name))) then
+          n_beads = n_beads + 1
+
+          ! Check if the parameter is already saved
+          save_value = .true.
+          do k = 1, n_paras
+            if (buff == trim(adjustl(parameters(k)%type_name))) then
+              save_value = .false.
+              exit
+            end if
+          end do
+          ! Save the paramters if not already present
+          if (save_value) then
+            n_paras = n_paras + 1
+            parameters(n_paras) = grotop%cg_ISOLF_parameters(j)
+          end if
+
+          exit
+        end if
+
+      end do
+
+    end do
+
+    ! Reallocate arrays
+    allocate(tmp(n_paras))
+    tmp = parameters(1:n_paras)
+    deallocate(parameters)
+    allocate(parameters(n_paras))
+    parameters = tmp
+    deallocate(tmp)
+
+    ! Check ISOLF parameters have defined atom types
+    outer: do i = 1, n_paras
+      ! Get atom class name for the ith parameter definition
+      buff = trim(adjustl(parameters(i)%type_name))
+
+      ! Check it the atom is defined
+      do j = 1, grotop%num_atomtypes
+        if (buff == trim(adjustl(grotop%atomtypes(j)%type_name))) cycle outer
+      end do
+
+      ! No match with current atom names was found
+      call error_msg("unknown atom type '" // trim(buff) // "'", __FILE__, __LINE__)
+    end do outer
+
+    ! Allocate ISOLF enefunc arrays
+    call alloc_enefunc(enefunc, EneFuncCGISOLF, n_beads, n_paras, molecule%num_atoms)
+
+    ! Save number of beads
+    enefunc%num_cg_particle_ISOLF = n_beads
+
+    ! Activate calculation flag
+    if (n_paras > 0) then
+      enefunc%cg_ISOLF_calc = .true.
+    else
+      enefunc%cg_ISOLF_calc = .false.
+      return
+    end if
+
+    ! Initialize varaiable
+    cutoff_max = 0.0_wp
+    ! Iterate over ISOLF parameter definitions
+    do i = 1, n_paras
+
+      ! Initialize parameters for the ith atom class
+      ei = parameters(i)%e * JOU2CAL ! kJ -> kcal
+      si = parameters(i)%s * 10.0_wp ! nm -> A
+      wi = parameters(i)%w * 10.0_wp ! nm -> A
+
+      ! Iterate over ISOLF parameter definitions
+      do j = 1, n_paras
+
+        ! Initialize parameters for the jth atom class
+        ej = parameters(j)%e * JOU2CAL ! kJ -> kcal
+        sj = parameters(j)%s * 10.0_wp ! nm -> A
+        wj = parameters(j)%w * 10.0_wp ! nm -> A
+
+        ! Apply combination rules
+        eij = sqrt(ei * ej) 
+        sij = (si + sj) / 2.0_wp
+        dij = sij * TWO_ROOT6
+        wij = (wi + wj) / 2.0_wp
+
+        ! Set parameters
+        enefunc%cg_ISOLF_e(i,j) = eij
+        enefunc%cg_ISOLF_d(i,j) = dij
+        enefunc%cg_ISOLF_w(i,j) = wij
+        ! Set cutoff
+        cutoff = dij + wij
+        ! Save cutoff distance
+        if (cutoff > cutoff_max) cutoff_max = cutoff
+
+#ifdef DEBUG
+if (main_rank) then
+  write(MsgOut, "(a11,a6,3(a4,f11.6))")    "ISOLF iat: ", parameters(i)%type_name, " e: ", ei, " s: ", si, " w: ", wi
+  write(MsgOut, "(a11,a6,3(a4,f11.6))")    "ISOLF jat: ", parameters(j)%type_name, " e: ", ej, " s: ", sj, " w: ", wj
+  write(MsgOut, "(a11,f11.6,3(a4,f11.6))") "ISOLF   e: ", eij, " s: ", sij, " d: ", dij, " w: ", wij
+end if
+#endif
+      end do
+    end do
+
+    ! Set cutoff distance for pairlist
+    enefunc%cg_pairlistdist_ISOLF = cutoff_max * 1.3_wp
+
+#ifdef DEBUG
+if (main_rank) write(MsgOut, "(a20,f11.6)") "ISOLF pairlistdist: ", enefunc%cg_pairlistdist_ISOLF
+#endif
+
+    ! Initialize counter
+    k = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+
+      ! Get atom class name for the ith atom
+      buff = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the parameter definitions in the TOP file
+      do j = 1, n_paras
+
+        ! Save indexes when a match is found
+        if (buff == trim(adjustl(parameters(j)%type_name))) then
+          k = k + 1
+          enefunc%cg_ISOLF_bead(k) = i
+          enefunc%cg_ISOLF_type(i) = j
+          exit
+        end if
+
+      end do
+
+    end do
+
+    ! Free memory
+    deallocate(parameters)
+
+    return
+
+  end subroutine setup_enefunc_cg_ISOLF
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_cg_LJ
+  !> @brief        define and initialize LJ related parameters
+  !! @authors      DU
+  !! @param[in]    ene_info : ENERGY section control parameters information
+  !! @param[in]    grotop   : GROMACS parameter topology information
+  !! @param[in]    molecule : molecule information
+  !! @param[inout] enefunc  : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_cg_LJ(ene_info, grotop, molecule, enefunc)
+
+    ! Subroutine arguments
+    type(s_ene_info), intent(in)    :: ene_info
+    type(s_grotop),   intent(in)    :: grotop
+    type(s_molecule), intent(in)    :: molecule
+    type(s_enefunc),  intent(inout) :: enefunc
+
+    ! Variables
+    integer                                :: i             ! Loop variable
+    integer                                :: j             ! Loop variable
+    integer                                :: k             ! Loop variable
+    integer                                :: n_beads         ! Counter for beads
+    integer                                :: n_paras         ! Counter for types
+    integer                                :: n_names         ! Counter for names
+    integer                                :: stat          ! Allocation status
+    character(len=6)                       :: buff          ! Buffer for storing names
+    character(len=6)                       :: buff1         ! Buffer for storing names
+    character(len=6)                       :: buff2         ! Buffer for storing names
+    character(len=6)        , allocatable  :: names(:)      ! Temporary array
+    type(s_cg_LJ_parameters), allocatable  :: parameters(:) ! Temporary array
+    type(s_cg_LJ_parameters), allocatable  :: tmp(:)        ! Temporary array
+    logical                                :: is_present1   ! General purpose flag
+    logical                                :: is_present2   ! General purpose flag
+    logical                                :: save_value    ! General purpose flag
+    real(wp)                               :: eij          ! Epsilon
+    real(wp)                               :: sij          ! Sigma
+    real(wp)                               :: dij          ! Sigma * factor
+    real(wp)                               :: cij          ! Cutoff distance
+    real(wp)                               :: cutoff_max    ! Maximum cutoff distance
+
+    ! Allocate local arrays
+    allocate(parameters(grotop%num_cg_LJ_parameters))
+    allocate(names(2*grotop%num_cg_LJ_parameters))
+
+    ! Count number of atoms interacting with LJ
+    !
+    ! Initialize counter
+    n_beads = 0
+    n_paras = 0
+    n_names = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+      ! Get atom class name for the ith atom
+      buff1 = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the parameter definitions in the TOP file
+      do j = 1, grotop%num_cg_LJ_parameters
+        ! Match atom class names
+        if (buff1 == trim(adjustl(grotop%cg_LJ_parameters(j)%type_name_1)) .or. &
+            buff1 == trim(adjustl(grotop%cg_LJ_parameters(j)%type_name_2))) then
+          n_beads = n_beads + 1
+
+          ! Check if name is already saved
+          save_value = .true.
+          do k = 1, n_names
+            if (buff1 == trim(adjustl(names(k)))) then
+              save_value = .false.
+              exit
+            end if
+          end do
+
+          ! Save name if not already present
+          if (save_value) then
+            n_names = n_names + 1
+            names(n_names) = trim(adjustl(buff1))
+          end if
+
+          exit
+
+        end if
+      end do
+    end do
+
+    ! Iterate over all the parameter definitions in the TOP file
+    do i = 1, grotop%num_cg_LJ_parameters
+      ! Get type names
+      buff1 = trim(adjustl(grotop%cg_LJ_parameters(i)%type_name_1))
+      buff2 = trim(adjustl(grotop%cg_LJ_parameters(i)%type_name_2))
+
+      ! Check if both type names are saved
+      is_present1 = .false.
+      is_present2 = .false.
+      do j = 1, n_names
+        if (buff1 == names(j)) is_present1 = .true.
+        if (buff2 == names(j)) is_present2 = .true.
+        if (is_present1 .and.is_present2) exit
+      end do
+
+      ! Save parameter if both names are present
+      if (is_present1 .and. is_present2) then
+        n_paras = n_paras + 1
+        parameters(n_paras) = grotop%cg_LJ_parameters(i)
+      end if
+
+    end do
+
+    ! Reallocate arrays
+    allocate(tmp(n_paras))
+    tmp = parameters(1:n_paras)
+    deallocate(parameters)
+    allocate(parameters(n_paras))
+    parameters = tmp
+    deallocate(tmp)
+
+    ! Check LJ parameters have defined atom types
+    do i = 1, n_paras
+      ! Get atom class name 1 for the ith parameter definition
+      buff1 = trim(adjustl(parameters(i)%type_name_1))
+      buff2 = trim(adjustl(parameters(i)%type_name_2))
+
+      ! Check it the atom is defined
+      is_present1 = .false.
+      is_present2 = .false.
+      do j = 1, grotop%num_atomtypes
+        if (buff1 == trim(adjustl(grotop%atomtypes(j)%type_name))) is_present1 = .true.
+        if (buff2 == trim(adjustl(grotop%atomtypes(j)%type_name))) is_present2 = .true.
+        if (is_present1 .and. is_present2) exit
+      end do
+
+      ! No match with current atom names was found
+      if (.not. is_present1 .and. .not. is_present2) then
+        call error_msg("unknown atom types: '" // trim(buff1) // "' and '" // trim(buff2) // "'", __FILE__, __LINE__)
+      end if
+    end do
+
+    ! Allocate LJ enefunc arrays
+    call alloc_enefunc(enefunc, EneFuncCGLJ, n_beads, n_names)
+
+    ! Save number of beads
+    enefunc%num_cg_particle_LJ = n_beads
+
+    ! Activate calculation flag
+    if (n_paras > 0) then
+      enefunc%cg_LJ_calc = .true.
+    else
+      enefunc%cg_LJ_calc = .false.
+      return
+    end if
+
+    ! Set type-dependent arrays
+    !
+    ! Initialize varaiable
+    cutoff_max = 0.0_wp
+    ! Iterate over LJ parameter definitions
+    do i = 1, n_names
+      ! Get type name
+      buff1 = trim(adjustl(names(i)))
+
+      do j = 1, n_names
+        ! Get type name
+        buff2 = trim(adjustl(names(j)))
+
+        ! Iterate over all the parameters
+        do k = 1, n_paras
+          ! Save parameters only if both types are present
+          if ((buff1 == trim(adjustl(parameters(k)%type_name_1)) .and. &
+               buff2 == trim(adjustl(parameters(k)%type_name_2))) .or. &
+              (buff1 == trim(adjustl(parameters(k)%type_name_2)) .and. &
+               buff2 == trim(adjustl(parameters(k)%type_name_1)))) then
+            ! Initialize parameters
+            eij = parameters(k)%e * JOU2CAL ! kJ -> kcal
+            sij = parameters(k)%s * 10.0_wp ! nm -> A
+            cij = parameters(k)%c * 10.0_wp ! nm -> A
+            dij = sij * TWO_ROOT6
+
+            ! Set parameters
+            enefunc%cg_LJ_e(i,j)            = eij
+            enefunc%cg_LJ_d(i,j)            = dij
+            enefunc%cg_LJ_energy_shift(i,j) = 4.0_wp * eij * ((sij/cij)**12 - (sij/cij)**6)
+            enefunc%cg_LJ_cutoff_sqr(i,j)   = cij ** 2
+            ! Save cutoff distance
+            if (cij > cutoff_max) cutoff_max = cij
+
+#ifdef DEBUG
+if (main_rank) write(MsgOut, "(a3,2(a6,a1),4(a4,f11.6))") "LJ ", names(i), " ", names(j), " ", " e: ", eij, " s: ", sij, " d: ", dij, " c: ", cij
+#endif
+          end if
+        end do
+      end do
+    end do
+
+    ! Set cutoff distance for pairlist
+    enefunc%cg_pairlistdist_LJ = cutoff_max * 1.3_wp
+
+#ifdef DEBUG
+if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pairlistdist_LJ
+#endif
+
+    ! Classify atoms
+    !
+    ! Initialize counter
+    k = 0
+    ! Iterate over all the atoms in the system
+    do i = 1, molecule%num_atoms
+      ! Get atom class name for the ith atom
+      buff1 = trim(adjustl(molecule%atom_cls_name(i)))
+
+      ! Iterate over all the saved names
+      do j = 1, n_names
+        if (buff1 == trim(adjustl(names(j)))) then
+          k = k + 1
+          enefunc%cg_LJ_bead(k) = i
+          enefunc%cg_LJ_type(i) = j
+          exit
+        end if
+      end do
+    end do
+
+    ! Free memory
+    deallocate(parameters)
+    deallocate(names)
+
+    return
+
+  end subroutine setup_enefunc_cg_LJ
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

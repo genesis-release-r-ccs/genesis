@@ -93,7 +93,7 @@ contains
         write(MsgOut,'(A)') '# compressibility = 4.63e-5 # compressibility (atm-1) in [BERENDSEN]'
         write(MsgOut,'(A)') '# gamma_t       = 1.0       # thermostat friction (ps-1) in [LANGEVIN]'
         write(MsgOut,'(A)') '# gamma_p       = 0.1       # barostat friction (ps-1)   in [LANGEVIN]'
-        write(MsgOut,'(A)') '# isotropy      = ISO       # [ISO,SEMI-ISO,ANISO,XY-FIXED]'
+        write(MsgOut,'(A)') '# isotropy      = ISO       # [ISO,SEMI-ISO,ANISO,XY-FIXED,Z-FIXED-SEMI-ISO]'
         write(MsgOut,'(A)') ' '
 
       case ('bd')
@@ -183,30 +183,29 @@ contains
 
     ! error check
     !
-    if (ens_info%ensemble == EnsembleNVE .and.  &
-        ens_info%tpcontrol /= TpcontrolNo) &
-      call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+    if (ens_info%ensemble == EnsembleNVE .and. ens_info%tpcontrol /= TpcontrolNo) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NVE" only works with "tpcontrol=NO"')
 
-    if (ens_info%ensemble == EnsembleNPAT .and.   &
-        ens_info%isotropy /= IsotropyXY_Fixed)    &
-      call error_msg('Read_Ctrl_Ensemble> NPAT should be XY-FIXED')
+    if (ens_info%ensemble == EnsembleNPT .and. ens_info%isotropy == IsotropyXY_Fixed) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NPT" does not work with "isotropy=XY-FIXED"')
 
-    if (ens_info%ensemble == EnsembleNPT .and.   &
-        ens_info%isotropy == IsotropyXY_Fixed) &
-          call error_msg('Read_Ctrl_Ensemble> Cannot specify XY-FIXED with NPT')
+    if (ens_info%ensemble == EnsembleNPAT .and. ens_info%isotropy /= IsotropyXY_Fixed) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NPAT" only works with "isotropy=XY-FIXED"')
 
-    if (ens_info%ensemble == EnsembleNPgT .and. &
-        ens_info%isotropy /= IsotropySEMI_ISO) &
-      call error_msg('Read_Ctrl_Ensemble> NPgT is available with SEMI-ISO')
+    if (ens_info%ensemble == EnsembleNPgT .and. ens_info%isotropy /= IsotropySEMI_ISO) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NPgT" only works with "isotropy=SEMI-ISO"')
 
-    if (ens_info%ensemble == EnsembleNPAT .and. &
-        ens_info%tpcontrol /= TpcontrolLangevin) &
-      call error_msg('Read_Ctrl_Ensemble> NPAT is available with Langevin')
+    if (ens_info%ensemble == EnsembleNPAT .and. ens_info%tpcontrol /= TpcontrolLangevin) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NPAT" only works with "tpcontrol=LANGEVIN"')
 
-    if (ens_info%ensemble == EnsembleNPgT .and. &
-        ens_info%tpcontrol /= TpcontrolLangevin) &
-      call error_msg('Read_Ctrl_Ensemble> NPgT is available with Langevin')
+    if (ens_info%ensemble == EnsembleNPgT .and. ens_info%tpcontrol /= TpcontrolLangevin) &
+      call error_msg('Read_Ctrl_Ensemble> "ensemble=NPgT" only works with "tpcontrol=LANGEVIN"')
 
+    if (ens_info%ensemble /= EnsembleNPT .and. ens_info%isotropy == IsotropyZ_Fixed_SEMI_ISO) &
+      call error_msg('Read_Ctrl_Ensemble> "isotropy=Z-FIXED-SEMI-ISO" only works with "ensemble=NPT"')
+
+    if (ens_info%tpcontrol /= TpcontrolLangevin .and. ens_info%isotropy == IsotropyZ_Fixed_SEMI_ISO) &
+      call error_msg('Read_Ctrl_Ensemble> "isotropy=Z-FIXED-SEMI-ISO" only works with "tpcontrol=LANGEVIN"')
 
     ! write parameters to MsgOut
     !

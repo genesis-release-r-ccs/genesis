@@ -326,6 +326,9 @@ module at_enefunc_str_mod
     logical                       :: cg_KH_calc
     logical                       :: cg_IDR_HPS_calc
     logical                       :: cg_IDR_KH_calc
+    logical                       :: cg_WCA_calc
+    logical                       :: cg_ISOLF_calc
+    logical                       :: cg_LJ_calc
     integer                       :: num_cg_particle_DNA_base
     integer                       :: num_cg_particle_DNA_phos
     integer                       :: num_cg_particle_DNA_all
@@ -334,6 +337,9 @@ module at_enefunc_str_mod
     integer                       :: num_cg_particle_KH
     integer                       :: num_cg_particle_charged
     integer                       :: num_cg_particle_pro_charged
+    integer                       :: num_cg_particle_WCA
+    integer                       :: num_cg_particle_ISOLF
+    integer                       :: num_cg_particle_LJ
     integer                       :: num_pwmcos_terms
     integer                       :: num_pwmcos_resid
     integer                       :: num_pwmcosns_terms
@@ -522,6 +528,18 @@ module at_enefunc_str_mod
     real(wp),         allocatable :: cg_IDR_KH_sigma_half(:)
     real(wp),         allocatable :: cg_IDR_KH_epsilon_D(:, :)
 
+    ! ~CG~ : iSoLF model
+    logical,          allocatable :: cg_uses_WCA(:)
+    logical,          allocatable :: cg_uses_ISOLF(:)
+    logical,          allocatable :: cg_uses_LJ(:)
+
+    ! ~CG~ : Wang-Frenkel potential
+    real(wp),         allocatable :: cg_WangFrenkel_epsilon(:, :)
+    real(wp),         allocatable :: cg_WangFrenkel_sigma(:, :)
+    integer,          allocatable :: cg_WangFrenkel_mu(:, :)
+    integer,          allocatable :: cg_WangFrenkel_nu(:, :)
+    real(wp)                      :: cg_WangFrenkel_cutoff_scale
+
     ! ~CG~ : KH-MJ model
     real(wp)                      :: cg_KH_mod_A_lambda = 0.159
     real(wp)                      :: cg_KH_mod_B_lambda = 0.186
@@ -535,6 +553,27 @@ module at_enefunc_str_mod
     real(wp)                      :: cg_KH_mod_D_eps_0  = -1.67
     real(wp)                      :: cg_KH_mod_E_eps_0  = -2.00
     real(wp)                      :: cg_KH_mod_F_eps_0  = -1.96
+
+    ! ~CG~ : WCA
+    integer,          allocatable :: cg_WCA_type(:)
+    integer,          allocatable :: cg_WCA_bead(:)
+    real(wp),         allocatable :: cg_WCA_e(:,:)
+    real(wp),         allocatable :: cg_WCA_d(:,:)
+
+    ! ~CG~ : ISOLF
+    integer,          allocatable :: cg_ISOLF_type(:)
+    integer,          allocatable :: cg_ISOLF_bead(:)
+    real(wp),         allocatable :: cg_ISOLF_e(:,:)
+    real(wp),         allocatable :: cg_ISOLF_d(:,:)
+    real(wp),         allocatable :: cg_ISOLF_w(:,:)
+
+    ! ~CG~ : LJ
+    integer,          allocatable :: cg_LJ_type(:)
+    integer,          allocatable :: cg_LJ_bead(:)
+    real(wp),         allocatable :: cg_LJ_e(:,:)
+    real(wp),         allocatable :: cg_LJ_d(:,:)
+    real(wp),         allocatable :: cg_LJ_energy_shift(:,:)
+    real(wp),         allocatable :: cg_LJ_cutoff_sqr(:,:)
     
     ! ~CG~ PWMcos: CG protein-DNA seq-specific
     real(wp)                      :: pwmcos_sigma
@@ -677,6 +716,9 @@ module at_enefunc_str_mod
     real(wp)                      :: cg_pairlistdist_PWMcos
     real(wp)                      :: cg_pairlistdist_DNAbp
     real(wp)                      :: cg_pairlistdist_exv
+    real(wp)                      :: cg_pairlistdist_WCA
+    real(wp)                      :: cg_pairlistdist_ISOLF
+    real(wp)                      :: cg_pairlistdist_LJ
     real(wp)                      :: cg_ele_coef
     real(wp)                      :: cg_ele_sol_T
     real(wp)                      :: cg_ele_sol_IC
@@ -919,6 +961,10 @@ module at_enefunc_str_mod
   integer,      public, parameter :: EneFuncCGIDRKH       = 53
   integer,      public, parameter :: EneFuncCGKH          = 54
   integer,      public, parameter :: EneFuncCGKHmol       = 55
+
+  integer,      public, parameter :: EneFuncCGWCA         = 57
+  integer,      public, parameter :: EneFuncCGISOLF       = 58
+  integer,      public, parameter :: EneFuncCGLJ          = 59
 
   ! parameters
   integer,      public, parameter :: ForcefieldCHARMM     = 1
@@ -1207,6 +1253,9 @@ contains
     enefunc%cg_IDR_HPS_calc         = .false.
     enefunc%cg_IDR_KH_calc          = .false.
     enefunc%cg_KH_calc              = .false.
+    enefunc%cg_WCA_calc             = .false.
+    enefunc%cg_ISOLF_calc           = .false.
+    enefunc%cg_LJ_calc              = .false.
 
     enefunc%gamd_use                = .false.
 
@@ -1230,6 +1279,9 @@ contains
     enefunc%num_cg_particle_IDR_HPS     = 0
     enefunc%num_cg_particle_IDR_KH      = 0
     enefunc%num_cg_particle_KH          = 0
+    enefunc%num_cg_particle_WCA         = 0
+    enefunc%num_cg_particle_ISOLF       = 0
+    enefunc%num_cg_particle_LJ          = 0
     enefunc%num_cg_particle_charged     = 0
     enefunc%num_cg_particle_pro_charged = 0
 
@@ -1249,16 +1301,18 @@ contains
   !! @param[in]    variable  : selected variable
   !! @param[in]    var_size  : size of the selected variable
   !! @param[in]    var_size2 : 2nd size of the selected variable (optional)
+  !! @param[in]    var_size5 : 3nd size of the selected variable (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine alloc_enefunc(enefunc, variable, var_size, var_size2)
+  subroutine alloc_enefunc(enefunc, variable, var_size, var_size2, var_size5)
 
     ! formal arguments
     type(s_enefunc),         intent(inout) :: enefunc
     integer,                 intent(in)    :: variable
     integer,                 intent(in)    :: var_size
     integer,       optional, intent(in)    :: var_size2
+    integer,       optional, intent(in)    :: var_size5
 
     ! local variables
     integer                  :: alloc_stat
@@ -1857,6 +1911,125 @@ contains
       enefunc%cg_IDR_KH_is_IDR    (1:var_size)               = .false.
       enefunc%cg_IDR_KH_sigma_half(1:var_size)               = 0.0
       enefunc%cg_IDR_KH_epsilon_D (1:var_size2, 1:var_size2) = 0.0
+
+    case(EneFuncCGWCA)
+      ! ~CG~ WCA exa
+      if (allocated(enefunc%cg_WCA_type)) then
+        if (size(enefunc%cg_WCA_type, 1) /= var_size5) deallocate(enefunc%cg_WCA_type)
+      end if
+      if (.not. allocated(enefunc%cg_WCA_type)) allocate(enefunc%cg_WCA_type(var_size5))
+
+      if (allocated(enefunc%cg_WCA_bead)) then
+        if (size(enefunc%cg_WCA_bead, 1) /= var_size) deallocate(enefunc%cg_WCA_bead)
+      end if
+      if (.not. allocated(enefunc%cg_WCA_bead)) allocate(enefunc%cg_WCA_bead(var_size))
+
+      if (allocated(enefunc%cg_WCA_e)) then
+        if (size(enefunc%cg_WCA_e, 1) /= var_size2) deallocate(enefunc%cg_WCA_e)
+      end if
+      if (.not. allocated(enefunc%cg_WCA_e)) allocate(enefunc%cg_WCA_e(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_WCA_d)) then
+        if (size(enefunc%cg_WCA_d, 1) /= var_size2) deallocate(enefunc%cg_WCA_d)
+      end if
+      if (.not. allocated(enefunc%cg_WCA_d)) allocate(enefunc%cg_WCA_d(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_uses_WCA)) then
+        if (size(enefunc%cg_uses_WCA, 1) /= var_size) deallocate(enefunc%cg_uses_WCA)
+      end if
+      if (.not. allocated(enefunc%cg_uses_WCA)) allocate(enefunc%cg_uses_WCA(var_size))
+
+      enefunc%cg_WCA_type = 0
+      enefunc%cg_WCA_bead = 0
+      enefunc%cg_WCA_e = 0.0_wp
+      enefunc%cg_WCA_d = 0.0_wp
+      enefunc%cg_uses_WCA = .false.
+
+    case(EneFuncCGISOLF)
+      ! ~CG~ lipid ISOLF
+      if (allocated(enefunc%cg_ISOLF_type)) then
+        if (size(enefunc%cg_ISOLF_type, 1) /= var_size5) deallocate(enefunc%cg_ISOLF_type)
+      end if
+      if (.not. allocated(enefunc%cg_ISOLF_type)) allocate(enefunc%cg_ISOLF_type(var_size5))
+
+      if (allocated(enefunc%cg_ISOLF_bead)) then
+        if (size(enefunc%cg_ISOLF_bead, 1) /= var_size) deallocate(enefunc%cg_ISOLF_bead)
+      end if
+      if (.not. allocated(enefunc%cg_ISOLF_bead)) allocate(enefunc%cg_ISOLF_bead(var_size))
+
+      if (allocated(enefunc%cg_ISOLF_e)) then
+        if (size(enefunc%cg_ISOLF_e, 1) /= var_size2) deallocate(enefunc%cg_ISOLF_e)
+      end if
+      if (.not. allocated(enefunc%cg_ISOLF_e)) allocate(enefunc%cg_ISOLF_e(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_ISOLF_d)) then
+        if (size(enefunc%cg_ISOLF_d, 1) /= var_size2) deallocate(enefunc%cg_ISOLF_d)
+      end if
+      if (.not. allocated(enefunc%cg_ISOLF_d)) allocate(enefunc%cg_ISOLF_d(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_ISOLF_w)) then
+        if (size(enefunc%cg_ISOLF_w, 1) /= var_size2) deallocate(enefunc%cg_ISOLF_w)
+      end if
+      if (.not. allocated(enefunc%cg_ISOLF_w)) allocate(enefunc%cg_ISOLF_w(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_uses_ISOLF)) then
+        if (size(enefunc%cg_uses_ISOLF, 1) /= var_size) deallocate(enefunc%cg_uses_ISOLF)
+      end if
+      if (.not. allocated(enefunc%cg_uses_ISOLF)) allocate(enefunc%cg_uses_ISOLF(var_size))
+
+      enefunc%cg_ISOLF_type = 0
+      enefunc%cg_ISOLF_bead = 0
+      enefunc%cg_ISOLF_e = 0.0_wp
+      enefunc%cg_ISOLF_d = 0.0_wp
+      enefunc%cg_ISOLF_w = 0.0_wp
+      enefunc%cg_uses_ISOLF = .false.
+
+     case(EneFuncCGLJ)
+      ! ~CG~ lipid LJ
+      if (.not. present(var_size2)) call error_msg("Alloc_Enefunc> Missing argument var_size2")
+
+      if (allocated(enefunc%cg_LJ_type)) then
+        if (size(enefunc%cg_LJ_type, 1) /= var_size) deallocate(enefunc%cg_LJ_type)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_type)) allocate(enefunc%cg_LJ_type(var_size))
+
+      if (allocated(enefunc%cg_LJ_bead)) then
+        if (size(enefunc%cg_LJ_bead, 1) /= var_size) deallocate(enefunc%cg_LJ_bead)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_bead)) allocate(enefunc%cg_LJ_bead(var_size))
+
+      if (allocated(enefunc%cg_LJ_e)) then
+        if (size(enefunc%cg_LJ_e, 1) /= var_size2) deallocate(enefunc%cg_LJ_e)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_e)) allocate(enefunc%cg_LJ_e(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_LJ_d)) then
+        if (size(enefunc%cg_LJ_d, 1) /= var_size2) deallocate(enefunc%cg_LJ_d)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_d)) allocate(enefunc%cg_LJ_d(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_LJ_energy_shift)) then
+        if (size(enefunc%cg_LJ_energy_shift, 1) /= var_size2) deallocate(enefunc%cg_LJ_energy_shift)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_energy_shift)) allocate(enefunc%cg_LJ_energy_shift(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_LJ_cutoff_sqr)) then
+        if (size(enefunc%cg_LJ_cutoff_sqr, 1) /= var_size2) deallocate(enefunc%cg_LJ_cutoff_sqr)
+      end if
+      if (.not. allocated(enefunc%cg_LJ_cutoff_sqr)) allocate(enefunc%cg_LJ_cutoff_sqr(var_size2, var_size2))
+
+      if (allocated(enefunc%cg_uses_LJ)) then
+        if (size(enefunc%cg_uses_LJ, 1) /= var_size) deallocate(enefunc%cg_uses_LJ)
+      end if
+      if (.not. allocated(enefunc%cg_uses_LJ)) allocate(enefunc%cg_uses_LJ(var_size))
+
+      enefunc%cg_LJ_type         = 0
+      enefunc%cg_LJ_bead         = 0
+      enefunc%cg_LJ_e            = 0.0_wp
+      enefunc%cg_LJ_d            = 0.0_wp
+      enefunc%cg_LJ_energy_shift = 0.0_wp
+      enefunc%cg_LJ_cutoff_sqr   = 0.0_wp
+      enefunc%cg_uses_LJ         = .false.
 
     case(EneFuncNbon)
 
@@ -2948,6 +3121,30 @@ contains
             stat = dealloc_stat)
       end if
 
+    case(EneFuncCGWCA)
+
+      if (allocated(enefunc%cg_WCA_type)) deallocate(enefunc%cg_WCA_type)
+      if (allocated(enefunc%cg_WCA_bead)) deallocate(enefunc%cg_WCA_bead)
+      if (allocated(enefunc%cg_WCA_e))    deallocate(enefunc%cg_WCA_e)
+      if (allocated(enefunc%cg_WCA_d))    deallocate(enefunc%cg_WCA_d)
+
+    case(EneFuncCGISOLF)
+
+      if (allocated(enefunc%cg_ISOLF_type)) deallocate(enefunc%cg_ISOLF_type)
+      if (allocated(enefunc%cg_ISOLF_bead)) deallocate(enefunc%cg_ISOLF_bead)
+      if (allocated(enefunc%cg_ISOLF_e))    deallocate(enefunc%cg_ISOLF_e)
+      if (allocated(enefunc%cg_ISOLF_d))    deallocate(enefunc%cg_ISOLF_d)
+      if (allocated(enefunc%cg_ISOLF_w))    deallocate(enefunc%cg_ISOLF_w)
+
+    case(EneFuncCGLJ)
+
+      if (allocated(enefunc%cg_LJ_type))         deallocate(enefunc%cg_LJ_type)
+      if (allocated(enefunc%cg_LJ_bead))         deallocate(enefunc%cg_LJ_bead)
+      if (allocated(enefunc%cg_LJ_e))            deallocate(enefunc%cg_LJ_e)
+      if (allocated(enefunc%cg_LJ_d))            deallocate(enefunc%cg_LJ_d)
+      if (allocated(enefunc%cg_LJ_energy_shift)) deallocate(enefunc%cg_LJ_energy_shift)
+      if (allocated(enefunc%cg_LJ_cutoff_sqr))   deallocate(enefunc%cg_LJ_cutoff_sqr)
+
     case(EneFuncNbon)
 
       if (allocated(enefunc%nonb_atom_cls)) then
@@ -3411,6 +3608,9 @@ contains
     call dealloc_enefunc(enefunc, EneFuncCGDNAExv)
     call dealloc_enefunc(enefunc, EneFuncCGele)
     call dealloc_enefunc(enefunc, EneFuncCGKH)
+    call dealloc_enefunc(enefunc, EneFuncCGWCA)
+    call dealloc_enefunc(enefunc, EneFuncCGISOLF)
+    call dealloc_enefunc(enefunc, EneFuncCGLJ)
     call dealloc_enefunc(enefunc, EneFuncPWMcos)
     call dealloc_enefunc(enefunc, EneFuncPWMcosns)
     call dealloc_enefunc(enefunc, EneFuncGamdDih)

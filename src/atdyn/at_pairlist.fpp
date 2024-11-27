@@ -54,6 +54,9 @@ module at_pairlist_mod
   private :: update_pairlist_pbc_cg_IDR_HPS
   private :: update_pairlist_pbc_cg_IDR_KH
   private :: update_pairlist_pbc_cg_KH
+  private :: update_pairlist_pbc_cg_WCA
+  private :: update_pairlist_pbc_cg_ISOLF
+  private :: update_pairlist_pbc_cg_LJ
   private :: update_ecqm15_nonb
 !  private :: update_pairlist_pbc
 !  private :: update_pairlist_pbc_cell
@@ -97,6 +100,12 @@ contains
     integer                  :: n_cg_PWMcos
     integer                  :: n_cg_PWMcosns
     integer                  :: n_cg_cells
+    integer                  :: n_cg_WCA
+    integer                  :: n_cg_ISOLF
+    integer                  :: n_cg_LJ
+#ifdef OMP
+    integer                  :: omp_get_max_threads
+#endif
 
 
     ! do not make pairlist, if my_node does not compute 
@@ -116,6 +125,9 @@ contains
     pairlist%cg_pairlistdist_PWMcos = enefunc%cg_pairlistdist_PWMcos
     pairlist%cg_pairlistdist_DNAbp  = enefunc%cg_pairlistdist_DNAbp
     pairlist%cg_pairlistdist_exv    = enefunc%cg_pairlistdist_exv
+    pairlist%cg_pairlistdist_WCA    = enefunc%cg_pairlistdist_WCA
+    pairlist%cg_pairlistdist_ISOLF  = enefunc%cg_pairlistdist_ISOLF
+    pairlist%cg_pairlistdist_LJ     = enefunc%cg_pairlistdist_LJ
 
     ! allocate pairlist
     !
@@ -166,6 +178,9 @@ contains
         n_cg_PWMcos      = enefunc%num_pwmcos_terms
         n_cg_PWMcosns    = enefunc%num_pwmcosns_terms
         n_cg_cells       = boundary%num_cells
+        n_cg_WCA         = enefunc%num_cg_particle_WCA
+        n_cg_ISOLF       = enefunc%num_cg_particle_ISOLF
+        n_cg_LJ          = enefunc%num_cg_particle_LJ
         call alloc_pairlist(pairlist, PairListNthreadsPbcCG, nthread)
         call alloc_pairlist(pairlist, PairListAtomPbcCGexv, natom)
         call alloc_pairlist(pairlist, PairListAtomPbcCGele, n_cg_charged, n_cg_DNA_phos)
@@ -177,6 +192,9 @@ contains
         call alloc_pairlist(pairlist, PairListAtomPbcCGIDRKH, n_cg_IDR_KH)
         call alloc_pairlist(pairlist, PairListAtomPbcCGKH, n_cg_KH)
         call alloc_pairlist(pairlist, PairListCellsPbcCG, n_cg_cells)
+        call alloc_pairlist(pairlist, PairListAtomPbcCGWCA, n_cg_WCA)
+        call alloc_pairlist(pairlist, PairListAtomPbcCGISOLF, n_cg_ISOLF)
+        call alloc_pairlist(pairlist, PairListAtomPbcCGLJ, n_cg_LJ)
       else
         call alloc_pairlist(pairlist, PairListPbcSolute, enefunc%table%num_solute)
         call alloc_pairlist(pairlist, PairListPbcWater,  enefunc%table%num_water)
@@ -240,6 +258,9 @@ contains
       pairlist%allocate_pbc_cg_IDR_HPS  = .true.
       pairlist%allocate_pbc_cg_IDR_KH   = .true.
       pairlist%allocate_pbc_cg_KH       = .true.
+      pairlist%allocate_pbc_cg_WCA      = .true.
+      pairlist%allocate_pbc_cg_ISOLF    = .true.
+      pairlist%allocate_pbc_cg_LJ       = .true.
     end if
 
     select case (boundary%type)
@@ -310,6 +331,15 @@ contains
         end if
         if (enefunc%cg_KH_calc) then
           call update_pairlist_pbc_cg_KH       (enefunc, boundary, coord_pbc, pairlist)
+        end if
+        if (enefunc%cg_WCA_calc) then
+          call update_pairlist_pbc_cg_WCA(enefunc, boundary, coord_pbc, pairlist)
+        end if
+        if (enefunc%cg_ISOLF_calc) then
+          call update_pairlist_pbc_cg_ISOLF(enefunc, boundary, coord_pbc, pairlist)
+        end if
+        if (enefunc%cg_LJ_calc) then
+          call update_pairlist_pbc_cg_LJ(enefunc, boundary, coord_pbc, pairlist)
         end if
       else
         call update_pairlist_solute_solute(enefunc, boundary, coord, pairlist)
@@ -2619,6 +2649,9 @@ contains
     integer          :: num_pro_idr_kh
     integer          :: num_pro_kh
     integer          :: num_charged
+    integer          :: num_WCA
+    integer          :: num_ISOLF
+    integer          :: num_LJ
     ! 
     integer          :: i_atom
     integer          :: i_dna, i_base, i_phos
@@ -2626,6 +2659,9 @@ contains
     integer          :: i_pro_idr_kh
     integer          :: i_pro_kh
     integer          :: i_charged
+    integer          :: i_WCA
+    integer          :: i_ISOLF
+    integer          :: i_LJ
     integer          :: i, j, k
     ! 
     real(wp)         :: r_shift(1:3)
@@ -2646,6 +2682,9 @@ contains
     integer, pointer :: cell_list_IDR_KH(:), cell_head_IDR_KH(:)
     integer, pointer :: cell_list_KH(:), cell_head_KH(:)
     integer, pointer :: cell_list_charged(:), cell_head_charged(:)
+    integer, pointer :: cell_list_WCA(:), cell_head_WCA(:)
+    integer, pointer :: cell_list_ISOLF(:), cell_head_ISOLF(:)
+    integer, pointer :: cell_list_LJ(:), cell_head_LJ(:)
     ! 
     integer          :: nthread
 
@@ -2658,6 +2697,9 @@ contains
     num_pro_idr_kh     = enefunc%num_cg_particle_IDR_KH 
     num_pro_kh         = enefunc%num_cg_particle_KH 
     num_charged        = enefunc%num_cg_particle_charged
+    num_WCA            = enefunc%num_cg_particle_WCA
+    num_ISOLF          = enefunc%num_cg_particle_ISOLF
+    num_LJ             = enefunc%num_cg_particle_LJ
 
     num_cell_all       = boundary%num_cells
     num_cell(1)        = boundary%num_cells_x
@@ -2691,6 +2733,12 @@ contains
     cell_head_KH       => pairlist%cell_head_index_cg_KH
     cell_list_charged  => pairlist%cell_linked_list_cg_charged
     cell_head_charged  => pairlist%cell_head_index_cg_charged
+    cell_list_WCA      => pairlist%cell_linked_list_cg_WCA
+    cell_head_WCA      => pairlist%cell_head_index_cg_WCA
+    cell_list_ISOLF    => pairlist%cell_linked_list_cg_ISOLF
+    cell_head_ISOLF    => pairlist%cell_head_index_cg_ISOLF
+    cell_list_LJ       => pairlist%cell_linked_list_cg_LJ
+    cell_head_LJ       => pairlist%cell_head_index_cg_LJ
 
 #ifdef OMP
     nthread = omp_get_max_threads()
@@ -2821,6 +2869,47 @@ contains
       cell_head_charged(icell_index) = i_charged
     end do
 
+    ! =============================
+    ! Make cell linked list for WCA
+    ! =============================
+    ! 
+    if (enefunc%cg_WCA_calc) then
+      cell_head_WCA(1:num_cell_all) = 0
+      do i_WCA = 1, num_WCA
+        i_atom = enefunc%cg_WCA_bead(i_WCA)
+        icell_index = icell_atom(i_atom)
+        cell_list_WCA(i_WCA) = cell_head_WCA(icell_index)
+        cell_head_WCA(icell_index) = i_WCA
+      end do
+    end if
+
+    ! =============================
+    ! Make cell linked list for ISOLF
+    ! =============================
+    ! 
+    if (enefunc%cg_ISOLF_calc) then
+      cell_head_ISOLF(1:num_cell_all) = 0
+      do i_ISOLF = 1, num_ISOLF
+        i_atom = enefunc%cg_ISOLF_bead(i_ISOLF)
+        icell_index = icell_atom(i_atom)
+        cell_list_ISOLF(i_ISOLF) = cell_head_ISOLF(icell_index)
+        cell_head_ISOLF(icell_index) = i_ISOLF
+      end do
+    end if
+
+    ! =============================
+    ! Make cell linked list for LJ
+    ! =============================
+    ! 
+    if (enefunc%cg_LJ_calc) then
+      cell_head_LJ(1:num_cell_all) = 0
+      do i_LJ = 1, num_LJ
+        i_atom = enefunc%cg_LJ_bead(i_LJ)
+        icell_index = icell_atom(i_atom)
+        cell_list_LJ(i_LJ) = cell_head_LJ(icell_index)
+        cell_head_LJ(icell_index) = i_LJ
+      end do
+    end if
 
     return
 
@@ -2859,6 +2948,10 @@ contains
     ! 
     integer          :: ini_excl, fin_excl
     integer          :: num_exv_max
+    !
+    integer          :: i_WCA_type, j_WCA_type
+    integer          :: i_ISOLF_type, j_ISOLF_type
+    integer          :: i_LJ_type, j_LJ_type
     ! 
     real(wp)         :: dij(1:3)
     real(wp)         :: dij_pbc(1:3)
@@ -2921,18 +3014,21 @@ contains
 
       if (.not. do_allocate) num_exv_pre(1:nthread) = 0
 
-      !$omp parallel                          &
-      !$omp private(id, my_id, i, j, k,       &
-      !$omp         i_atom, j_atom,           &
-      !$omp         i_cell, j_cell,           &
-      !$omp         is_dna_i, is_dna_j,       &
-      !$omp         is_idr_i, is_idr_j,       &
-      !$omp         i_nbcell, do_calc,        &
-      !$omp         ini_excl, fin_excl,       &
-      !$omp         dij, dij_pbc, rij_sqr,    &
-      !$omp         i_base_type, j_base_type, &
-      !$omp         i_chain_id, j_chain_id,   &
-      !$omp         pbc_int)                  &
+      !$omp parallel                            &
+      !$omp private(id, my_id, i, j, k,         &
+      !$omp         i_atom, j_atom,             &
+      !$omp         i_cell, j_cell,             &
+      !$omp         is_dna_i, is_dna_j,         &
+      !$omp         is_idr_i, is_idr_j,         &
+      !$omp         i_WCA_type, j_WCA_type,     &
+      !$omp         i_ISOLF_type, j_ISOLF_type, &
+      !$omp         i_LJ_type, j_LJ_type,       &
+      !$omp         i_nbcell, do_calc,          &
+      !$omp         ini_excl, fin_excl,         &
+      !$omp         dij, dij_pbc, rij_sqr,      &
+      !$omp         i_base_type, j_base_type,   &
+      !$omp         i_chain_id, j_chain_id,     &
+      !$omp         pbc_int)                    &
       !$omp firstprivate(do_allocate)
       !
 #ifdef OMP
@@ -2944,6 +3040,10 @@ contains
       id    = id + 1
       
       do i_atom = 1, num_atom-1
+        
+        if (enefunc%cg_WCA_calc)   i_WCA_type   = enefunc%cg_WCA_type(i_atom)
+        if (enefunc%cg_ISOLF_calc) i_ISOLF_type = enefunc%cg_ISOLF_type(i_atom)
+        if (enefunc%cg_LJ_calc)    i_LJ_type    = enefunc%cg_LJ_type(i_atom)
 
         if (mod(i_atom - 1, nproc_city * nthread) == my_id) then
 
@@ -2970,7 +3070,6 @@ contains
             j_atom = cell_head_all(j_cell)
 
             do while (j_atom > i_atom)
-
               ! 
               ! exclude DNA-DNA interactions
               ! 
@@ -3017,6 +3116,45 @@ contains
                 else if (is_idr_i .or. is_idr_j) then
                   j_atom = cell_list_all(j_atom)
                   cycle
+                end if
+              end if
+
+              ! exclude WCA interaction
+              if (enefunc%cg_WCA_calc) then
+                if (enefunc%cg_WCA_type(i_atom) > 0) then
+                  j_WCA_type   = enefunc%cg_WCA_type(j_atom)
+                  if (enefunc%cg_WCA_type(j_atom) > 0) then
+                    if (enefunc%cg_WCA_d(i_WCA_type, j_WCA_type) > 0.0_wp) then
+                      j_atom = cell_list_all(j_atom)
+                      cycle
+                    end if
+                  end if
+                end if
+              end if
+
+              ! exclude ISOLF interaction
+              if (enefunc%cg_ISOLF_calc) then
+                if (enefunc%cg_ISOLF_type(i_atom) > 0) then
+                  j_ISOLF_type = enefunc%cg_ISOLF_type(j_atom)
+                  if (enefunc%cg_ISOLF_type(j_atom) > 0) then
+                    if (enefunc%cg_ISOLF_d(i_ISOLF_type, j_ISOLF_type) > 0.0_wp) then
+                      j_atom = cell_list_all(j_atom)
+                      cycle
+                    end if
+                  end if
+                end if
+              end if
+
+              ! exclude LJ interaction
+              if (enefunc%cg_LJ_calc) then
+                if (enefunc%cg_LJ_type(i_atom) > 0) then
+                  j_LJ_type    = enefunc%cg_LJ_type(j_atom)
+                  if (enefunc%cg_LJ_type(j_atom) > 0) then
+                    if (enefunc%cg_LJ_d(i_LJ_type, j_LJ_type) > 0.0_wp) then
+                      j_atom = cell_list_all(j_atom)
+                      cycle
+                    end if
+                  end if
                 end if
               end if
 
@@ -4482,6 +4620,629 @@ contains
     return
 
   end subroutine update_pairlist_pbc_cg_kh
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_pairlist_pbc_cg_WCA
+  !> @brief        update pairlist for CG WCA interaction
+  !! @authors      DU
+  !! @param[in]    enefunc   : potential energy functions information
+  !! @param[in]    boundary  : boundary conditions information
+  !! @param[in]    coord_pbc : PBC coordinates
+  !! @param[inout] pairlist  : pairlist information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_pairlist_pbc_cg_WCA(enefunc, boundary, coord_pbc, pairlist)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    real(wp),                 intent(in)    :: coord_pbc(:,:)
+    type(s_pairlist), target, intent(inout) :: pairlist
+
+    ! local variables
+    integer          :: num_cg_particle_WCA
+    integer          :: nloops
+    integer          :: n
+    integer          :: k
+    integer          :: id
+    integer          :: my_id
+    integer          :: nthread
+    integer          :: i_WCA
+    integer          :: j_WCA
+    integer          :: i_atom
+    integer          :: j_atom
+    integer          :: i_cell
+    integer          :: j_cell
+    integer          :: i_ISOLF_type
+    integer          :: j_ISOLF_type
+    integer          :: i_LJ_type
+    integer          :: j_LJ_type
+    integer          :: i_nbcell
+    integer          :: ini_excl
+    integer          :: fin_excl
+    integer          :: pbc_int
+    integer          :: num_WCA_max
+    integer, pointer :: num_cg_WCA_pre(:)
+    integer, pointer :: num_cg_WCA(:)
+    integer, pointer :: cg_WCA_bead(:)
+    integer, pointer :: icell_atom(:)
+    integer, pointer :: cell_list_WCA(:)
+    integer, pointer :: cell_head_WCA(:)
+    logical          :: do_allocate
+    logical          :: do_calc
+    real(wp)         :: box_size(1:3)
+    real(wp)         :: pairdist_WCA
+    real(wp)         :: pairdist_WCA2
+    real(wp)         :: rij(1:3)
+    real(wp)         :: dij2
+#ifdef OMP
+    integer          :: omp_get_max_threads
+    integer          :: omp_get_thread_num
+#endif
+
+    num_cg_particle_WCA = enefunc%num_cg_particle_WCA
+    box_size(1)         = boundary%box_size_x
+    box_size(2)         = boundary%box_size_y
+    box_size(3)         = boundary%box_size_z
+    pairdist_WCA        = pairlist%cg_pairlistdist_WCA
+    pairdist_WCA2       = pairdist_WCA ** 2
+    icell_atom          => pairlist%cell_index_cg_all
+    cell_list_WCA       => pairlist%cell_linked_list_cg_WCA
+    cell_head_WCA       => pairlist%cell_head_index_cg_WCA
+    num_cg_WCA_pre      => pairlist%num_cg_WCA_pre
+    num_cg_WCA          => pairlist%num_cg_WCA
+    cg_WCA_bead         => enefunc%cg_WCA_bead
+
+#ifdef OMP
+    nthread = omp_get_max_threads()
+#else
+    nthread = 1
+#endif
+
+    pairlist%num_cg_WCA_calc(1:num_cg_particle_WCA,1:nthread) = 0
+
+    if (pairlist%allocate_pbc_cg_WCA) then
+      nloops      = 2
+      do_allocate = .true.
+    else
+      nloops      = 1
+      do_allocate = .false.
+    end if
+
+    do n = 1, nloops
+      num_cg_WCA(1:nthread) = 0
+      if (.not. do_allocate) num_cg_WCA_pre(1:nthread) = 0
+
+      !$omp parallel         &
+      !$omp private(         &
+      !$omp   id,            &
+      !$omp   my_id,         &
+      !$omp   k,             &
+      !$omp   i_WCA,         &
+      !$omp   j_WCA,         &
+      !$omp   i_atom,        &
+      !$omp   j_atom,        &
+      !$omp   i_cell,        &
+      !$omp   j_cell,        &
+      !$omp   i_ISOLF_type,  &
+      !$omp   j_ISOLF_type,  &
+      !$omp   i_LJ_type,     &
+      !$omp   j_LJ_type,     &
+      !$omp   i_nbcell,      &
+      !$omp   pbc_int,       &
+      !$omp   rij,           &
+      !$omp   dij2,          &
+      !$omp   do_calc,       &
+      !$omp   ini_excl,      &
+      !$omp   fin_excl       &
+      !$omp )                &
+      !$omp firstprivate(do_allocate)
+
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      my_id = my_city_rank * nthread + id
+      id    = id + 1
+
+      do i_WCA = 1, num_cg_particle_WCA - 1
+
+        if (mod(i_WCA - 1, nproc_city * nthread) == my_id) then
+          i_atom       = cg_WCA_bead(i_WCA)
+          i_cell       = icell_atom(i_atom)
+          if (enefunc%cg_ISOLF_calc) i_ISOLF_type = enefunc%cg_ISOLF_type(i_atom)
+          if (enefunc%cg_LJ_calc)    i_LJ_type    = enefunc%cg_LJ_type(i_atom)
+
+          do i_nbcell = 1, boundary%num_neighbor_cells_CG_126
+            j_cell = boundary%neighbor_cells_CG_126(i_nbcell, i_cell)
+            j_WCA  = cell_head_WCA(j_cell)
+
+            do while (j_WCA > i_WCA)
+              j_atom       = cg_WCA_bead(j_WCA)
+              if (enefunc%cg_ISOLF_calc) j_ISOLF_type = enefunc%cg_ISOLF_type(j_atom)
+              if (enefunc%cg_LJ_calc)    j_LJ_type    = enefunc%cg_LJ_type(j_atom)
+
+              ! exclude interactions in exclusion list
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do_calc  = .true.
+              do k = ini_excl, fin_excl 
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+              if (.not. do_calc) then
+                j_WCA  = cell_list_WCA(j_WCA)
+                cycle
+              end if
+
+              ! exclude interactions in ISOLF
+              if (enefunc%cg_ISOLF_calc) then
+                if (enefunc%cg_ISOLF_type(i_atom) > 0) then
+                  j_ISOLF_type = enefunc%cg_ISOLF_type(j_atom)
+                  if (enefunc%cg_ISOLF_type(j_atom) > 0) then
+                    if (enefunc%cg_ISOLF_d(i_ISOLF_type, j_ISOLF_type) > 0.0_wp) then
+                      j_WCA  = cell_list_WCA(j_WCA)
+                      cycle
+                    end if
+                  end if
+                end if
+              end if
+
+              ! exclude interactions in LJ
+              if (enefunc%cg_LJ_calc) then
+                if (enefunc%cg_LJ_type(i_atom) > 0) then
+                  j_LJ_type    = enefunc%cg_LJ_type(j_atom)
+                  if (enefunc%cg_LJ_type(j_atom) > 0) then
+                    if (enefunc%cg_LJ_d(i_LJ_type, j_LJ_type) > 0.0_wp) then
+                      j_WCA  = cell_list_WCA(j_WCA)
+                      cycle
+                    end if
+                  end if
+                end if
+              end if
+
+              rij(1:3) = coord_pbc(1:3,j_atom) - coord_pbc(1:3,i_atom)
+              call check_pbc(box_size, rij, pbc_int)
+              dij2 = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+              if (dij2 < pairdist_WCA2) then
+                num_cg_WCA(id) = num_cg_WCA(id) + 1
+                if (.not. do_allocate) then
+                  pairlist%cg_WCA_list(num_cg_WCA(id), id) = j_atom * 27 + pbc_int
+                end if
+              end if
+
+              j_WCA = cell_list_WCA(j_WCA)
+            end do
+          end do
+        end if
+
+        if (.not. do_allocate) then
+          pairlist%num_cg_WCA_calc(i_WCA, id) = num_cg_WCA(id) - num_cg_WCA_pre(id)
+          num_cg_WCA_pre(id) = num_cg_WCA(id)
+        end if
+
+      end do
+      !$omp end parallel
+
+      ! allocate memory of pairlist
+      if (do_allocate) then
+        num_WCA_max = max(1, maxval(num_cg_WCA(1:nthread)))
+        num_WCA_max = int(real(num_WCA_max,wp) * FactNumNb15)
+
+        call alloc_pairlist(pairlist, PairListPbcCGWCA, num_WCA_max)
+        pairlist%num_cg_WCA_max = num_WCA_max
+
+        do_allocate = .false.
+      end if
+    end do
+
+    ! check memory size
+    call check_pairlist_memory_size( &
+      num_cg_WCA,                    &
+      pairlist%num_cg_WCA_max,       &
+      pairlist%allocate_pbc_cg_WCA   &
+    )
+
+    return
+
+  end subroutine update_pairlist_pbc_cg_WCA
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_pairlist_pbc_cg_ISOLF
+  !> @brief        update pairlist for CG ISOLF interaction
+  !! @authors      DU
+  !! @param[in]    enefunc   : potential energy functions information
+  !! @param[in]    boundary  : boundary conditions information
+  !! @param[in]    coord_pbc : PBC coordinates
+  !! @param[inout] pairlist  : pairlist information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_pairlist_pbc_cg_ISOLF(enefunc, boundary, coord_pbc, pairlist)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    real(wp),                 intent(in)    :: coord_pbc(:,:)
+    type(s_pairlist), target, intent(inout) :: pairlist
+
+    ! local variables
+    integer          :: num_cg_particle_ISOLF
+    integer          :: nloops
+    integer          :: n
+    integer          :: k
+    integer          :: id
+    integer          :: my_id
+    integer          :: nthread
+    integer          :: i_ISOLF
+    integer          :: j_ISOLF
+    integer          :: i_atom
+    integer          :: j_atom
+    integer          :: i_cell
+    integer          :: j_cell
+    integer          :: i_nbcell
+    integer          :: ini_excl
+    integer          :: fin_excl
+    integer          :: pbc_int
+    integer          :: num_ISOLF_max
+    integer, pointer :: num_cg_ISOLF_pre(:)
+    integer, pointer :: num_cg_ISOLF(:)
+    integer, pointer :: cg_ISOLF_bead(:)
+    integer, pointer :: icell_atom(:)
+    integer, pointer :: cell_list_ISOLF(:)
+    integer, pointer :: cell_head_ISOLF(:)
+    logical          :: do_allocate
+    logical          :: do_calc
+    real(wp)         :: box_size(1:3)
+    real(wp)         :: pairdist_ISOLF
+    real(wp)         :: pairdist_ISOLF2
+    real(wp)         :: rij(1:3)
+    real(wp)         :: dij2
+#ifdef OMP
+    integer          :: omp_get_max_threads
+    integer          :: omp_get_thread_num
+#endif
+
+    num_cg_particle_ISOLF = enefunc%num_cg_particle_ISOLF
+    box_size(1)           = boundary%box_size_x
+    box_size(2)           = boundary%box_size_y
+    box_size(3)           = boundary%box_size_z
+    pairdist_ISOLF        = pairlist%cg_pairlistdist_ISOLF
+    pairdist_ISOLF2       = pairdist_ISOLF ** 2
+    icell_atom            => pairlist%cell_index_cg_all
+    cell_list_ISOLF       => pairlist%cell_linked_list_cg_ISOLF
+    cell_head_ISOLF       => pairlist%cell_head_index_cg_ISOLF
+    num_cg_ISOLF_pre      => pairlist%num_cg_ISOLF_pre
+    num_cg_ISOLF          => pairlist%num_cg_ISOLF
+    cg_ISOLF_bead         => enefunc%cg_ISOLF_bead
+
+#ifdef OMP
+    nthread = omp_get_max_threads()
+#else
+    nthread = 1
+#endif
+
+    pairlist%num_cg_ISOLF_calc(1:num_cg_particle_ISOLF,1:nthread) = 0
+
+    if (pairlist%allocate_pbc_cg_ISOLF) then
+      nloops      = 2
+      do_allocate = .true.
+    else
+      nloops      = 1
+      do_allocate = .false.
+    end if
+
+    do n = 1, nloops
+      num_cg_ISOLF(1:nthread) = 0
+      if (.not. do_allocate) num_cg_ISOLF_pre(1:nthread) = 0
+
+      !$omp parallel    &
+      !$omp private(    &
+      !$omp   id,       &
+      !$omp   my_id,    &
+      !$omp   k,        &
+      !$omp   i_ISOLF,  &
+      !$omp   j_ISOLF,  &
+      !$omp   i_atom,   &
+      !$omp   j_atom,   &
+      !$omp   i_cell,   &
+      !$omp   j_cell,   &
+      !$omp   i_nbcell, &
+      !$omp   pbc_int,  &
+      !$omp   rij,      &
+      !$omp   dij2,     &
+      !$omp   do_calc,  &
+      !$omp   ini_excl, &
+      !$omp   fin_excl  &
+      !$omp )           &
+      !$omp firstprivate(do_allocate)
+
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      my_id = my_city_rank * nthread + id
+      id    = id + 1
+
+      do i_ISOLF = 1, num_cg_particle_ISOLF - 1
+
+        if (mod(i_ISOLF - 1, nproc_city * nthread) == my_id) then
+          i_atom = cg_ISOLF_bead(i_ISOLF)
+          i_cell = icell_atom(i_atom)
+
+          do i_nbcell = 1, boundary%num_neighbor_cells_CG_126
+            j_cell  = boundary%neighbor_cells_CG_126(i_nbcell, i_cell)
+            j_ISOLF = cell_head_ISOLF(j_cell)
+
+            do while (j_ISOLF > i_ISOLF)
+              j_atom = cg_ISOLF_bead(j_ISOLF)
+
+              ! exclude interactions in exclusion list
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do_calc  = .true.
+              do k = ini_excl, fin_excl 
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+              if (.not. do_calc) then
+                j_ISOLF  = cell_list_ISOLF(j_ISOLF)
+                cycle
+              end if
+
+              rij(1:3) = coord_pbc(1:3,j_atom) - coord_pbc(1:3,i_atom)
+              call check_pbc(box_size, rij, pbc_int)
+              dij2 = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+              if (dij2 < pairdist_ISOLF2) then
+                num_cg_ISOLF(id) = num_cg_ISOLF(id) + 1
+                if (.not. do_allocate) then
+                  pairlist%cg_ISOLF_list(num_cg_ISOLF(id), id) = j_atom * 27 + pbc_int
+                end if
+              end if
+
+              j_ISOLF = cell_list_ISOLF(j_ISOLF)
+            end do
+          end do
+        end if
+
+        if (.not. do_allocate) then
+          pairlist%num_cg_ISOLF_calc(i_ISOLF, id) = num_cg_ISOLF(id) - num_cg_ISOLF_pre(id)
+          num_cg_ISOLF_pre(id) = num_cg_ISOLF(id)
+        end if
+
+      end do
+      !$omp end parallel
+
+      ! allocate memory of pairlist
+      if (do_allocate) then
+        num_ISOLF_max = max(1, maxval(num_cg_ISOLF(1:nthread)))
+        num_ISOLF_max = int(real(num_ISOLF_max,wp) * FactNumNb15)
+
+        call alloc_pairlist(pairlist, PairListPbcCGISOLF, num_ISOLF_max)
+        pairlist%num_cg_ISOLF_max = num_ISOLF_max
+
+        do_allocate = .false.
+      end if
+    end do
+
+    ! check memory size
+    call check_pairlist_memory_size( &
+      num_cg_ISOLF,                    &
+      pairlist%num_cg_ISOLF_max,       &
+      pairlist%allocate_pbc_cg_ISOLF   &
+    )
+
+    return
+
+  end subroutine update_pairlist_pbc_cg_ISOLF
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_pairlist_pbc_cg_LJ
+  !> @brief        update pairlist for CG LJ interaction
+  !! @authors      DU
+  !! @param[in]    enefunc   : potential energy functions information
+  !! @param[in]    boundary  : boundary conditions information
+  !! @param[in]    coord_pbc : PBC coordinates
+  !! @param[inout] pairlist  : pairlist information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_pairlist_pbc_cg_LJ(enefunc, boundary, coord_pbc, pairlist)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    real(wp),                 intent(in)    :: coord_pbc(:,:)
+    type(s_pairlist), target, intent(inout) :: pairlist
+
+    ! local variables
+    integer          :: num_cg_particle_LJ
+    integer          :: nloops
+    integer          :: n
+    integer          :: k
+    integer          :: id
+    integer          :: my_id
+    integer          :: nthread
+    integer          :: i_LJ
+    integer          :: j_LJ
+    integer          :: i_atom
+    integer          :: j_atom
+    integer          :: i_cell
+    integer          :: j_cell
+    integer          :: i_nbcell
+    integer          :: ini_excl
+    integer          :: fin_excl
+    integer          :: pbc_int
+    integer          :: num_LJ_max
+    integer, pointer :: num_cg_LJ_pre(:)
+    integer, pointer :: num_cg_LJ(:)
+    integer, pointer :: cg_LJ_bead(:)
+    integer, pointer :: icell_atom(:)
+    integer, pointer :: cell_list_LJ(:)
+    integer, pointer :: cell_head_LJ(:)
+    logical          :: do_allocate
+    logical          :: do_calc
+    real(wp)         :: box_size(1:3)
+    real(wp)         :: pairdist_LJ
+    real(wp)         :: pairdist_LJ2
+    real(wp)         :: rij(1:3)
+    real(wp)         :: dij2
+#ifdef OMP
+    integer          :: omp_get_max_threads
+    integer          :: omp_get_thread_num
+#endif
+
+    num_cg_particle_LJ = enefunc%num_cg_particle_LJ
+    box_size(1)        = boundary%box_size_x
+    box_size(2)        = boundary%box_size_y
+    box_size(3)        = boundary%box_size_z
+    pairdist_LJ        = pairlist%cg_pairlistdist_LJ
+    pairdist_LJ2       = pairdist_LJ ** 2
+    icell_atom         => pairlist%cell_index_cg_all
+    cell_list_LJ       => pairlist%cell_linked_list_cg_LJ
+    cell_head_LJ       => pairlist%cell_head_index_cg_LJ
+    num_cg_LJ_pre      => pairlist%num_cg_LJ_pre
+    num_cg_LJ          => pairlist%num_cg_LJ
+    cg_LJ_bead         => enefunc%cg_LJ_bead
+
+#ifdef OMP
+    nthread = omp_get_max_threads()
+#else
+    nthread = 1
+#endif
+
+    pairlist%num_cg_LJ_calc(1:num_cg_particle_LJ,1:nthread) = 0
+
+    if (pairlist%allocate_pbc_cg_LJ) then
+      nloops      = 2
+      do_allocate = .true.
+    else
+      nloops      = 1
+      do_allocate = .false.
+    end if
+
+    do n = 1, nloops
+      num_cg_LJ(1:nthread) = 0
+      if (.not. do_allocate) num_cg_LJ_pre(1:nthread) = 0
+
+      !$omp parallel    &
+      !$omp private(    &
+      !$omp   id,       &
+      !$omp   my_id,    &
+      !$omp   k,        &
+      !$omp   i_LJ,     &
+      !$omp   j_LJ,     &
+      !$omp   i_atom,   &
+      !$omp   j_atom,   &
+      !$omp   i_cell,   &
+      !$omp   j_cell,   &
+      !$omp   i_nbcell, &
+      !$omp   pbc_int,  &
+      !$omp   rij,      &
+      !$omp   dij2,     &
+      !$omp   do_calc,  &
+      !$omp   ini_excl, &
+      !$omp   fin_excl  &
+      !$omp )           &
+      !$omp firstprivate(do_allocate)
+
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      my_id = my_city_rank * nthread + id
+      id    = id + 1
+
+      do i_LJ = 1, num_cg_particle_LJ - 1
+
+        if (mod(i_LJ - 1, nproc_city * nthread) == my_id) then
+          i_atom = cg_LJ_bead(i_LJ)
+          i_cell = icell_atom(i_atom)
+
+          do i_nbcell = 1, boundary%num_neighbor_cells_CG_126
+            j_cell = boundary%neighbor_cells_CG_126(i_nbcell, i_cell)
+            j_LJ   = cell_head_LJ(j_cell)
+
+            do while (j_LJ > i_LJ)
+              j_atom = cg_LJ_bead(j_LJ)
+
+              ! exclude interactions in exclusion list
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do_calc  = .true.
+              do k = ini_excl, fin_excl 
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+              if (.not. do_calc) then
+                j_LJ  = cell_list_LJ(j_LJ)
+                cycle
+              end if
+
+              rij(1:3) = coord_pbc(1:3,j_atom) - coord_pbc(1:3,i_atom)
+              call check_pbc(box_size, rij, pbc_int)
+              dij2 = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+              if (dij2 < pairdist_LJ2) then
+                num_cg_LJ(id) = num_cg_LJ(id) + 1
+                if (.not. do_allocate) then
+                  pairlist%cg_LJ_list(num_cg_LJ(id), id) = j_atom * 27 + pbc_int
+                end if
+              end if
+
+              j_LJ = cell_list_LJ(j_LJ)
+            end do
+          end do
+        end if
+
+        if (.not. do_allocate) then
+          pairlist%num_cg_LJ_calc(i_LJ, id) = num_cg_LJ(id) - num_cg_LJ_pre(id)
+          num_cg_LJ_pre(id) = num_cg_LJ(id)
+        end if
+
+      end do
+      !$omp end parallel
+
+      ! allocate memory of pairlist
+      if (do_allocate) then
+        num_LJ_max = max(1, maxval(num_cg_LJ(1:nthread)))
+        num_LJ_max = int(real(num_LJ_max,wp) * FactNumNb15)
+
+        call alloc_pairlist(pairlist, PairListPbcCGLJ, num_LJ_max)
+        pairlist%num_cg_LJ_max = num_LJ_max
+
+        do_allocate = .false.
+      end if
+    end do
+
+    ! check memory size
+    call check_pairlist_memory_size( &
+      num_cg_LJ,                    &
+      pairlist%num_cg_LJ_max,       &
+      pairlist%allocate_pbc_cg_LJ   &
+    )
+
+    return
+
+  end subroutine update_pairlist_pbc_cg_LJ
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

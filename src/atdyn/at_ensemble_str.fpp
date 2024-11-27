@@ -69,6 +69,7 @@ module at_ensemble_str_mod
   integer,      public, parameter :: IsotropySEMI_ISO    = 2
   integer,      public, parameter :: IsotropyANISO       = 3
   integer,      public, parameter :: IsotropyXY_Fixed    = 4
+  integer,      public, parameter :: IsotropyZ_Fixed_SEMI_ISO = 5
 
   character(*), public, parameter :: EnsembleTypes(5)  = (/'NVE        ', &
                                                            'NVT        ', &
@@ -85,10 +86,11 @@ module at_ensemble_str_mod
                                                            'GAUSS      ', &
                                                            'BUSSI      '/)
 
-  character(*), public, parameter :: IsotropyTypes(4)  = (/'ISO        ', &
-                                                           'SEMI-ISO   ', &
-                                                           'ANISO      ', &
-                                                           'XY-FIXED   '/)
+  character(*), public, parameter :: IsotropyTypes(5)  = (/'ISO             ', &
+                                                           'SEMI-ISO        ', &
+                                                           'ANISO           ', &
+                                                           'XY-FIXED        ', &
+                                                           'Z-FIXED-SEMI-ISO'/)
 
   ! subroutines
   public  :: init_ensemble

@@ -363,6 +363,9 @@ contains
                dynvars%energy%cg_exv             + &
                dynvars%energy%PWMcos             + &
                dynvars%energy%PWMcosns           + &
+               dynvars%energy%cg_WCA             + &
+               dynvars%energy%cg_ISOLF           + &
+               dynvars%energy%cg_LJ              + &
                totresene
 
     if (enefunc%dispersion_corr .ne. Disp_Corr_NONE) then
@@ -687,6 +690,21 @@ contains
       if (enefunc%cg_pwmcosns_calc) then
         write(category(ifm),frmt) 'PWMcosns'
         values(ifm) = dynvars%energy%PWMcosns
+        ifm = ifm+1
+      end if
+      if (enefunc%cg_WCA_calc) then
+        write(category(ifm),frmt) 'WCA'
+        values(ifm) = dynvars%energy%cg_WCA
+        ifm = ifm+1
+      end if
+      if (enefunc%cg_ISOLF_calc) then
+        write(category(ifm),frmt) 'ISOLF'
+        values(ifm) = dynvars%energy%cg_ISOLF
+        ifm = ifm+1
+      end if
+      if (enefunc%cg_LJ_calc) then
+        write(category(ifm),frmt) 'LJ'
+        values(ifm) = dynvars%energy%cg_LJ
         ifm = ifm+1
       end if
     end if

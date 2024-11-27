@@ -102,6 +102,7 @@ module constants_mod
 #else
   real(wp), public, parameter :: EPS              = 1.0e-10_wp
 #endif
+  real(wp), public, parameter :: TWO_ROOT6        = 2.0_wp ** (1.0_wp / 6.0_wp)
   real(wp), public, parameter :: HALF             = 0.5_wp
   real(wp), public, parameter :: ONE_THIRD        = 1.0_wp/3.0_wp
   real(wp), public, parameter :: AKMA_PS          = 4.88882129e-02_wp

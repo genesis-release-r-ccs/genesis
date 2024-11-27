@@ -46,6 +46,9 @@ module at_energy_cg_nonlocal_mod
   public  :: compute_energy_CG_IDR_KH_pbc
   public  :: compute_energy_CG_KH
   public  :: compute_energy_CG_KH_pbc
+  public  :: compute_energy_CG_WCA_pbc
+  public  :: compute_energy_CG_ISOLF_pbc
+  public  :: compute_energy_CG_LJ_pbc
 
   private :: calculate_repulsive
   private :: calculate_attractive
@@ -3975,6 +3978,731 @@ contains
     return
 
   end subroutine compute_energy_CG_IDR_KH_pbc
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_CG_WCA_pbc
+  !> @brief        calculate WCA interaction (PBC)
+  !! @authors      DU
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    boundary : information of boundary condition
+  !! @param[in]    pairlist : pairlist information
+  !! @param[in]    coord    : coordinates of target systems
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial of target systems
+  !! @param[inout] eWCA     : energy of WCA interactions
+  !! @note         WCA interaction
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_CG_WCA_pbc(enefunc, boundary, pairlist, &
+      coord, force, virial, eWCA)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    type(s_pairlist), target, intent(in)    :: pairlist
+    real(wp),                 intent(in)    :: coord(:,:)
+    real(wp),                 intent(inout) :: force(:,:,:)
+    real(wp),                 intent(inout) :: virial(3,3)
+    real(wp),                 intent(inout) :: eWCA
+
+    ! local variables
+    integer           :: id
+    integer           :: num_cg_particle_WCA
+    integer           :: i_WCA
+    integer           :: num_WCA
+    integer           :: ini_WCA
+    integer           :: fin_WCA
+    integer           :: i
+    integer           :: j
+    integer           :: k
+    integer           :: k_pbc
+    integer           :: i1
+    integer           :: i2
+    integer           :: i3
+    integer           :: ti
+    integer           :: tj
+    integer,  pointer :: num_WCA_calc(:,:)
+    integer,  pointer :: cg_WCA_bead(:)
+    integer,  pointer :: cg_WCA_type(:)
+    integer,  pointer :: cg_WCA_list(:,:)
+    real(wp)          :: ri(3)
+    real(wp)          :: rij(3)
+    real(wp)          :: dij2
+    real(wp)          :: dij2_inv
+    real(wp)          :: force_tmp(3)
+    real(wp)          :: virial_tmp(3,3)
+    real(wp)          :: virial_omp(3,3, nthread)
+    real(wp)          :: eWCA_omp(nthread)
+    real(wp)          :: eWCA_omp_tmp
+    real(wp)          :: bsize(3)
+    real(wp)          :: grad_coef_WCA
+    real(wp)          :: grad(3)
+    real(wp)          :: cutoff2
+    real(wp)          :: c1
+    real(wp)          :: c2
+    real(wp)          :: c3
+    real(wp)          :: cg_e
+    real(wp)          :: cg_d
+    real(wp), pointer :: cg_WCA_e(:,:)
+    real(wp), pointer :: cg_WCA_d(:,:)
+#ifdef OMP
+    integer           :: omp_get_thread_num
+#endif
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerCGWCA,   TimerOn)
+
+    num_WCA             =  0
+    num_cg_particle_WCA =  enefunc%num_cg_particle_WCA
+    bsize(1)            =  boundary%box_size_x
+    bsize(2)            =  boundary%box_size_y
+    bsize(3)            =  boundary%box_size_z
+    cg_WCA_bead         => enefunc%cg_WCA_bead
+    cg_WCA_type         => enefunc%cg_WCA_type
+    cg_WCA_e            => enefunc%cg_WCA_e
+    cg_WCA_d            => enefunc%cg_WCA_d
+    cg_WCA_list         => pairlist%cg_WCA_list
+    num_WCA_calc        => pairlist%num_cg_WCA_calc
+
+    eWCA_omp(1:nthread) = 0.0_wp
+    virial_omp(1:3,1:3,1:nthread) = 0.0_wp
+
+    !$omp parallel default(none) &
+    !$omp firstprivate(num_WCA)  &
+    !$omp private(               &
+    !$omp   id,                  &
+    !$omp   i_WCA,               &
+    !$omp   ini_WCA,             &
+    !$omp   fin_WCA,             &
+    !$omp   i,                   &
+    !$omp   j,                   &
+    !$omp   k,                   &
+    !$omp   k_pbc,               &
+    !$omp   i1,                  &
+    !$omp   i2,                  &
+    !$omp   i3,                  &
+    !$omp   ri,                  &
+    !$omp   ti,                  &
+    !$omp   tj,                  &
+    !$omp   rij,                 &
+    !$omp   dij2,                &
+    !$omp   dij2_inv,            &
+    !$omp   cg_e,                &
+    !$omp   cg_d,                &
+    !$omp   c1,                  &
+    !$omp   c2,                  &
+    !$omp   c3,                  &
+    !$omp   cutoff2,             &
+    !$omp   grad,                &
+    !$omp   grad_coef_WCA,       &
+    !$omp   force_tmp,           &
+    !$omp   virial_tmp,          &
+    !$omp   eWCA_omp_tmp         &
+    !$omp )                      &
+    !$omp shared(                &
+    !$omp   coord,               &
+    !$omp   my_city_rank,        &
+    !$omp   nthread,             &
+    !$omp   cg_WCA_bead,         &
+    !$omp   cg_WCA_type,         &
+    !$omp   cg_WCA_e,            &
+    !$omp   cg_WCA_d,            &
+    !$omp   cg_WCA_list,         &
+    !$omp   num_cg_particle_WCA, &
+    !$omp   num_WCA_calc,        &
+    !$omp   bsize,               &
+    !$omp   eWCA_omp,            &
+    !$omp   virial_omp,          &
+    !$omp   force                &
+    !$omp )                      &
+    !$omp reduction(+:virial)    &
+    !$omp reduction(+:eWCA)
+#ifdef OMP
+    id = 1 + omp_get_thread_num()
+#else
+    id = 1
+#endif
+
+    do i_WCA = 1, num_cg_particle_WCA - 1
+      ini_WCA = num_WCA + 1
+      fin_WCA = num_WCA + num_WCA_calc(i_WCA, id)
+      num_WCA = fin_WCA
+
+      if (fin_WCA >= ini_WCA) then
+        i = cg_WCA_bead(i_WCA)
+        ri(1:3) = coord(1:3, i)
+        ti = cg_WCA_type(i)
+        force_tmp(1:3) = 0.0_wp
+        virial_tmp(1:3,1:3) = 0.0_wp
+        eWCA_omp_tmp = 0.0_wp
+
+        do k = ini_WCA, fin_WCA
+          k_pbc = cg_WCA_list(k,id)
+          j = k_pbc / 27
+          k_pbc = k_pbc - j*27
+          i3 = k_pbc / 9
+          k_pbc = k_pbc - i3*9
+          i2 = k_pbc / 3
+          i1 = k_pbc - i2*3
+          i1 = i1 - 1
+          i2 = i2 - 1
+          i3 = i3 - 1
+          tj = cg_WCA_type(j)
+
+          rij(1) = coord(1,j) - ri(1) + bsize(1) * real(i1, wp)
+          rij(2) = coord(2,j) - ri(2) + bsize(2) * real(i2, wp)
+          rij(3) = coord(3,j) - ri(3) + bsize(3) * real(i3, wp)
+          dij2   = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+          cg_d  = cg_WCA_d(ti, tj)
+          cutoff2 = cg_d ** 2
+          if (dij2 > cutoff2) cycle
+          cg_e  = cg_WCA_e(ti, tj)
+
+          ! calculate factors
+          dij2_inv = 1.0_wp / dij2
+          c1 = dij2_inv * cg_d ** 2
+          c2 = c1 ** 3
+          c3 = c2 ** 2
+          ! calculate energy
+          eWCA_omp_tmp = eWCA_omp_tmp + cg_e * (c3 - 2.0_wp * c2 + 1.0_wp)
+          ! calculate gradient
+          grad_coef_WCA = 12.0_wp * cg_e * (c3 - c2) * dij2_inv
+          ! calculate vector gradient
+          grad(1) = grad_coef_WCA * rij(1)
+          grad(2) = grad_coef_WCA * rij(2)
+          grad(3) = grad_coef_WCA * rij(3)
+          ! store force
+          force_tmp(1) = force_tmp(1) - grad(1)
+          force_tmp(2) = force_tmp(2) - grad(2)
+          force_tmp(3) = force_tmp(3) - grad(3)
+          force(1,j,id) = force(1,j,id) + grad(1)
+          force(2,j,id) = force(2,j,id) + grad(2)
+          force(3,j,id) = force(3,j,id) + grad(3)
+          ! virial
+          virial_tmp(1,1) = virial_tmp(1,1) + rij(1)*grad(1)
+          virial_tmp(2,1) = virial_tmp(2,1) + rij(2)*grad(1)
+          virial_tmp(3,1) = virial_tmp(3,1) + rij(3)*grad(1)
+          virial_tmp(1,2) = virial_tmp(1,2) + rij(1)*grad(2)
+          virial_tmp(2,2) = virial_tmp(2,2) + rij(2)*grad(2)
+          virial_tmp(3,2) = virial_tmp(3,2) + rij(3)*grad(2)
+          virial_tmp(1,3) = virial_tmp(1,3) + rij(1)*grad(3)
+          virial_tmp(2,3) = virial_tmp(2,3) + rij(2)*grad(3)
+          virial_tmp(3,3) = virial_tmp(3,3) + rij(3)*grad(3)
+        end do
+
+        force(1:3,i,id) = force(1:3,i,id) + force_tmp(1:3)
+        eWCA_omp(id) = eWCA_omp(id) + eWCA_omp_tmp
+        virial_omp(1:3,1:3,id) = virial_omp(1:3,1:3,id) + virial_tmp(1:3,1:3)
+
+      end if
+    end do
+    !$omp end parallel
+
+    do i = 1, nthread
+      eWCA = eWCA + eWCA_omp(i)
+      virial(1:3,1:3) = virial(1:3,1:3) + virial_omp(1:3,1:3,i)
+    end do
+
+    call timer(TimerCGWCA,   TimerOff)
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_CG_WCA_pbc
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_CG_ISOLF_pbc
+  !> @brief        calculate ISOLF interaction (PBC)
+  !! @authors      DU
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    boundary : information of boundary condition
+  !! @param[in]    pairlist : pairlist information
+  !! @param[in]    coord    : coordinates of target systems
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial of target systems
+  !! @param[inout] eISOLF     : energy of ISOLF interactions
+  !! @note         ISOLF interaction
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_CG_ISOLF_pbc(enefunc, boundary, pairlist, &
+      coord, force, virial, eISOLF)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    type(s_pairlist), target, intent(in)    :: pairlist
+    real(wp),                 intent(in)    :: coord(:,:)
+    real(wp),                 intent(inout) :: force(:,:,:)
+    real(wp),                 intent(inout) :: virial(3,3)
+    real(wp),                 intent(inout) :: eISOLF
+
+    ! local variables
+    integer           :: id
+    integer           :: num_cg_particle_ISOLF
+    integer           :: i_ISOLF
+    integer           :: num_ISOLF
+    integer           :: ini_ISOLF
+    integer           :: fin_ISOLF
+    integer           :: i
+    integer           :: j
+    integer           :: k
+    integer           :: k_pbc
+    integer           :: i1
+    integer           :: i2
+    integer           :: i3
+    integer           :: ti
+    integer           :: tj
+    integer,  pointer :: num_ISOLF_calc(:,:)
+    integer,  pointer :: cg_ISOLF_bead(:)
+    integer,  pointer :: cg_ISOLF_type(:)
+    integer,  pointer :: cg_ISOLF_list(:,:)
+    real(wp)          :: ri(3)
+    real(wp)          :: rij(3)
+    real(wp)          :: dij
+    real(wp)          :: dij2
+    real(wp)          :: dij2_inv
+    real(wp)          :: force_tmp(3)
+    real(wp)          :: virial_tmp(3,3)
+    real(wp)          :: virial_omp(3,3, nthread)
+    real(wp)          :: eISOLF_omp(nthread)
+    real(wp)          :: eISOLF_omp_tmp
+    real(wp)          :: bsize(3)
+    real(wp)          :: grad_coef_ISOLF
+    real(wp)          :: grad(3)
+    real(wp)          :: cutoff2
+    real(wp)          :: c1
+    real(wp)          :: c2
+    real(wp)          :: c3
+    real(wp)          :: c4
+    real(wp)          :: cg_e
+    real(wp)          :: cg_d
+    real(wp)          :: cg_d2
+    real(wp)          :: cg_w
+    real(wp), pointer :: cg_ISOLF_e(:,:)
+    real(wp), pointer :: cg_ISOLF_d(:,:)
+    real(wp), pointer :: cg_ISOLF_w(:,:)
+#ifdef OMP
+    integer           :: omp_get_thread_num
+#endif
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerCGISOLF,   TimerOn)
+
+    num_ISOLF             =  0
+    num_cg_particle_ISOLF =  enefunc%num_cg_particle_ISOLF
+    bsize(1)              =  boundary%box_size_x
+    bsize(2)              =  boundary%box_size_y
+    bsize(3)              =  boundary%box_size_z
+    cg_ISOLF_bead         => enefunc%cg_ISOLF_bead
+    cg_ISOLF_type         => enefunc%cg_ISOLF_type
+    cg_ISOLF_e            => enefunc%cg_ISOLF_e
+    cg_ISOLF_d            => enefunc%cg_ISOLF_d
+    cg_ISOLF_w            => enefunc%cg_ISOLF_w
+    cg_ISOLF_list         => pairlist%cg_ISOLF_list
+    num_ISOLF_calc        => pairlist%num_cg_ISOLF_calc
+
+    eISOLF_omp(1:nthread) = 0.0_wp
+    virial_omp(1:3,1:3,1:nthread) = 0.0_wp
+
+    !$omp parallel default(none)   &
+    !$omp firstprivate(num_ISOLF)  &
+    !$omp private(                 &
+    !$omp   id,                    &
+    !$omp   i_ISOLF,               &
+    !$omp   ini_ISOLF,             &
+    !$omp   fin_ISOLF,             &
+    !$omp   i,                     &
+    !$omp   j,                     &
+    !$omp   k,                     &
+    !$omp   k_pbc,                 &
+    !$omp   i1,                    &
+    !$omp   i2,                    &
+    !$omp   i3,                    &
+    !$omp   ri,                    &
+    !$omp   ti,                    &
+    !$omp   tj,                    &
+    !$omp   rij,                   &
+    !$omp   dij,                   &
+    !$omp   dij2,                  &
+    !$omp   dij2_inv,              &
+    !$omp   cg_e,                  &
+    !$omp   cg_d,                  &
+    !$omp   cg_d2,                 &
+    !$omp   cg_w,                  &
+    !$omp   c1,                    &
+    !$omp   c2,                    &
+    !$omp   c3,                    &
+    !$omp   c4,                    &
+    !$omp   cutoff2,               &
+    !$omp   grad,                  &
+    !$omp   grad_coef_ISOLF,       &
+    !$omp   force_tmp,             &
+    !$omp   virial_tmp,            &
+    !$omp   eISOLF_omp_tmp         &
+    !$omp )                        &
+    !$omp shared(                  &
+    !$omp   coord,                 &
+    !$omp   my_city_rank,          &
+    !$omp   nthread,               &
+    !$omp   cg_ISOLF_bead,         &
+    !$omp   cg_ISOLF_type,         &
+    !$omp   cg_ISOLF_e,            &
+    !$omp   cg_ISOLF_d,            &
+    !$omp   cg_ISOLF_w,            &
+    !$omp   cg_ISOLF_list,         &
+    !$omp   num_cg_particle_ISOLF, &
+    !$omp   num_ISOLF_calc,        &
+    !$omp   bsize,                 &
+    !$omp   eISOLF_omp,            &
+    !$omp   virial_omp,            &
+    !$omp   force                  &
+    !$omp )                        &
+    !$omp reduction(+:virial)      &
+    !$omp reduction(+:eISOLF)
+#ifdef OMP
+    id = 1 + omp_get_thread_num()
+#else
+    id = 1
+#endif
+
+    do i_ISOLF = 1, num_cg_particle_ISOLF - 1
+      ini_ISOLF = num_ISOLF + 1
+      fin_ISOLF = num_ISOLF + num_ISOLF_calc(i_ISOLF, id)
+      num_ISOLF = fin_ISOLF
+
+      if (fin_ISOLF >= ini_ISOLF) then
+        i = cg_ISOLF_bead(i_ISOLF)
+        ri(1:3) = coord(1:3, i)
+        ti = cg_ISOLF_type(i)
+        force_tmp(1:3) = 0.0_wp
+        virial_tmp(1:3,1:3) = 0.0_wp
+        eISOLF_omp_tmp = 0.0_wp
+
+        do k = ini_ISOLF, fin_ISOLF
+          k_pbc = cg_ISOLF_list(k,id)
+          j = k_pbc / 27
+          k_pbc = k_pbc - j*27
+          i3 = k_pbc / 9
+          k_pbc = k_pbc - i3*9
+          i2 = k_pbc / 3
+          i1 = k_pbc - i2*3
+          i1 = i1 - 1
+          i2 = i2 - 1
+          i3 = i3 - 1
+          tj = cg_ISOLF_type(j)
+
+          rij(1) = coord(1,j) - ri(1) + bsize(1) * real(i1, wp)
+          rij(2) = coord(2,j) - ri(2) + bsize(2) * real(i2, wp)
+          rij(3) = coord(3,j) - ri(3) + bsize(3) * real(i3, wp)
+          dij2   = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+          cg_d  = cg_ISOLF_d(ti, tj)
+          cg_w  = cg_ISOLF_w(ti, tj)
+          cutoff2 = (cg_d + cg_w) ** 2
+          if (dij2 > cutoff2) cycle
+          cg_e  = cg_ISOLF_e(ti, tj)
+
+          ! calculate switch value
+          cg_d2 = cg_d ** 2
+
+          if (dij2 < cg_d2) then
+            ! calculate factors
+            dij2_inv = 1.0_wp / dij2
+            c1 = cg_d2 * dij2_inv
+            c2 = c1 ** 3
+            c3 = c2 ** 2
+            ! calculate energy
+            eISOLF_omp_tmp = eISOLF_omp_tmp + cg_e * (c3 - 2.0_wp * c2)
+            ! calculate gradient
+            grad_coef_ISOLF = 12.0_wp * cg_e * (c3 - c2) * dij2_inv
+          else
+            dij = sqrt(dij2)
+            c1 = 6.0_wp * cg_e / (cg_w * dij)
+            c2 = (dij - cg_d) / cg_w
+            c3 = c2 ** 2
+            c4 = c3 * c2
+            ! calculate energy
+            eISOLF_omp_tmp = eISOLF_omp_tmp + cg_e * (3.0_wp * c3 - 2.0_wp * c4 - 1.0_wp)
+            ! calculate gradient
+            grad_coef_ISOLF = c1 * (c3 - c2)
+          end if
+          ! calculate vector gradient
+          grad(1) = grad_coef_ISOLF * rij(1)
+          grad(2) = grad_coef_ISOLF * rij(2)
+          grad(3) = grad_coef_ISOLF * rij(3)
+          ! store force
+          force_tmp(1) = force_tmp(1) - grad(1)
+          force_tmp(2) = force_tmp(2) - grad(2)
+          force_tmp(3) = force_tmp(3) - grad(3)
+          force(1,j,id) = force(1,j,id) + grad(1)
+          force(2,j,id) = force(2,j,id) + grad(2)
+          force(3,j,id) = force(3,j,id) + grad(3)
+          ! virial
+          virial_tmp(1,1) = virial_tmp(1,1) + rij(1)*grad(1)
+          virial_tmp(2,1) = virial_tmp(2,1) + rij(2)*grad(1)
+          virial_tmp(3,1) = virial_tmp(3,1) + rij(3)*grad(1)
+          virial_tmp(1,2) = virial_tmp(1,2) + rij(1)*grad(2)
+          virial_tmp(2,2) = virial_tmp(2,2) + rij(2)*grad(2)
+          virial_tmp(3,2) = virial_tmp(3,2) + rij(3)*grad(2)
+          virial_tmp(1,3) = virial_tmp(1,3) + rij(1)*grad(3)
+          virial_tmp(2,3) = virial_tmp(2,3) + rij(2)*grad(3)
+          virial_tmp(3,3) = virial_tmp(3,3) + rij(3)*grad(3)
+        end do
+
+        force(1:3,i,id) = force(1:3,i,id) + force_tmp(1:3)
+        eISOLF_omp(id) = eISOLF_omp(id) + eISOLF_omp_tmp
+        virial_omp(1:3,1:3,id) = virial_omp(1:3,1:3,id) + virial_tmp(1:3,1:3)
+
+      end if
+    end do
+    !$omp end parallel
+
+    do i = 1, nthread
+      eISOLF = eISOLF + eISOLF_omp(i)
+      virial(1:3,1:3) = virial(1:3,1:3) + virial_omp(1:3,1:3,i)
+    end do
+
+    call timer(TimerCGISOLF,   TimerOff)
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_CG_ISOLF_pbc
+
+  
+  subroutine compute_energy_CG_LJ_pbc(enefunc, boundary, pairlist, &
+      coord, force, virial, eLJ)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    type(s_pairlist), target, intent(in)    :: pairlist
+    real(wp),                 intent(in)    :: coord(:,:)
+    real(wp),                 intent(inout) :: force(:,:,:)
+    real(wp),                 intent(inout) :: virial(3,3)
+    real(wp),                 intent(inout) :: eLJ
+
+    ! local variables
+    integer           :: id
+    integer           :: num_cg_particle_LJ
+    integer           :: i_LJ
+    integer           :: num_LJ
+    integer           :: ini_LJ
+    integer           :: fin_LJ
+    integer           :: i
+    integer           :: j
+    integer           :: k
+    integer           :: k_pbc
+    integer           :: i1
+    integer           :: i2
+    integer           :: i3
+    integer           :: ti
+    integer           :: tj
+    integer,  pointer :: num_LJ_calc(:,:)
+    integer,  pointer :: cg_LJ_bead(:)
+    integer,  pointer :: cg_LJ_type(:)
+    integer,  pointer :: cg_LJ_list(:,:)
+    real(wp)          :: ri(3)
+    real(wp)          :: rij(3)
+    real(wp)          :: dij2
+    real(wp)          :: dij2_inv
+    real(wp)          :: force_tmp(3)
+    real(wp)          :: virial_tmp(3,3)
+    real(wp)          :: virial_omp(3,3, nthread)
+    real(wp)          :: eLJ_omp(nthread)
+    real(wp)          :: eLJ_omp_tmp
+    real(wp)          :: bsize(3)
+    real(wp)          :: grad_coef_LJ
+    real(wp)          :: grad(3)
+    real(wp)          :: cutoff2
+    real(wp)          :: c1
+    real(wp)          :: c2
+    real(wp)          :: c3
+    real(wp)          :: cg_e
+    real(wp)          :: cg_d
+    real(wp)          :: cg_energy_shift
+    real(wp), pointer :: cg_LJ_e(:,:)
+    real(wp), pointer :: cg_LJ_d(:,:)
+    real(wp), pointer :: cg_LJ_cutoff2(:,:)
+    real(wp), pointer :: cg_LJ_energy_shift(:,:)
+#ifdef OMP
+    integer           :: omp_get_thread_num
+#endif
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerCGLJ,   TimerOn)
+
+    num_LJ             =  0
+    num_cg_particle_LJ =  enefunc%num_cg_particle_LJ
+    bsize(1)            =  boundary%box_size_x
+    bsize(2)            =  boundary%box_size_y
+    bsize(3)            =  boundary%box_size_z
+    cg_LJ_bead         => enefunc%cg_LJ_bead
+    cg_LJ_type         => enefunc%cg_LJ_type
+    cg_LJ_e            => enefunc%cg_LJ_e
+    cg_LJ_d            => enefunc%cg_LJ_d
+    cg_LJ_cutoff2      => enefunc%cg_LJ_cutoff_sqr
+    cg_LJ_energy_shift => enefunc%cg_LJ_energy_shift
+    cg_LJ_list         => pairlist%cg_LJ_list
+    num_LJ_calc        => pairlist%num_cg_LJ_calc
+
+    eLJ_omp(1:nthread) = 0.0_wp
+    virial_omp(1:3,1:3,1:nthread) = 0.0_wp
+
+    !$omp parallel default(none) &
+    !$omp firstprivate(num_LJ)   &
+    !$omp private(               &
+    !$omp   id,                  &
+    !$omp   i_LJ,                &
+    !$omp   ini_LJ,              &
+    !$omp   fin_LJ,              &
+    !$omp   i,                   &
+    !$omp   j,                   &
+    !$omp   k,                   &
+    !$omp   k_pbc,               &
+    !$omp   i1,                  &
+    !$omp   i2,                  &
+    !$omp   i3,                  &
+    !$omp   ri,                  &
+    !$omp   ti,                  &
+    !$omp   tj,                  &
+    !$omp   rij,                 &
+    !$omp   dij2,                &
+    !$omp   dij2_inv,            &
+    !$omp   cg_e,                &
+    !$omp   cg_d,                &
+    !$omp   cg_energy_shift,     &
+    !$omp   c1,                  &
+    !$omp   c2,                  &
+    !$omp   c3,                  &
+    !$omp   cutoff2,             &
+    !$omp   grad,                &
+    !$omp   grad_coef_LJ,        &
+    !$omp   force_tmp,           &
+    !$omp   virial_tmp,          &
+    !$omp   eLJ_omp_tmp          &
+    !$omp )                      &
+    !$omp shared(                &
+    !$omp   coord,               &
+    !$omp   my_city_rank,        &
+    !$omp   nthread,             &
+    !$omp   cg_LJ_bead,          &
+    !$omp   cg_LJ_type,          &
+    !$omp   cg_LJ_e,             &
+    !$omp   cg_LJ_d,             &
+    !$omp   cg_LJ_cutoff2,       &
+    !$omp   cg_LJ_energy_shift,  &
+    !$omp   cg_LJ_list,          &
+    !$omp   num_cg_particle_LJ,  &
+    !$omp   num_LJ_calc,         &
+    !$omp   bsize,               &
+    !$omp   eLJ_omp,             &
+    !$omp   virial_omp,          &
+    !$omp   force                &
+    !$omp )                      &
+    !$omp reduction(+:virial)    &
+    !$omp reduction(+:eLJ)
+#ifdef OMP
+    id = 1 + omp_get_thread_num()
+#else
+    id = 1
+#endif
+
+    do i_LJ = 1, num_cg_particle_LJ - 1
+      ini_LJ = num_LJ + 1
+      fin_LJ = num_LJ + num_LJ_calc(i_LJ, id)
+      num_LJ = fin_LJ
+
+      if (fin_LJ >= ini_LJ) then
+        i = cg_LJ_bead(i_LJ)
+        ri(1:3) = coord(1:3, i)
+        ti = cg_LJ_type(i)
+        force_tmp(1:3) = 0.0_wp
+        virial_tmp(1:3,1:3) = 0.0_wp
+        eLJ_omp_tmp = 0.0_wp
+
+        do k = ini_LJ, fin_LJ
+          k_pbc = cg_LJ_list(k,id)
+          j = k_pbc / 27
+          k_pbc = k_pbc - j*27
+          i3 = k_pbc / 9
+          k_pbc = k_pbc - i3*9
+          i2 = k_pbc / 3
+          i1 = k_pbc - i2*3
+          i1 = i1 - 1
+          i2 = i2 - 1
+          i3 = i3 - 1
+          tj = cg_LJ_type(j)
+
+          rij(1) = coord(1,j) - ri(1) + bsize(1) * real(i1, wp)
+          rij(2) = coord(2,j) - ri(2) + bsize(2) * real(i2, wp)
+          rij(3) = coord(3,j) - ri(3) + bsize(3) * real(i3, wp)
+          dij2   = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+
+          cg_d  = cg_LJ_d(ti, tj)
+          cutoff2 = cg_LJ_cutoff2(ti, tj)
+          if (dij2 > cutoff2) cycle
+          cg_e  = cg_LJ_e(ti, tj)
+          cg_energy_shift = cg_LJ_energy_shift(ti, tj)
+
+          ! calculate factors
+          dij2_inv = 1.0_wp / dij2
+          c1 = dij2_inv * cg_d ** 2
+          c2 = c1 ** 3
+          c3 = c2 ** 2
+          ! calculate energy
+          eLJ_omp_tmp = eLJ_omp_tmp + cg_e * (c3 - 2.0_wp * c2) + cg_energy_shift
+          ! calculate gradient
+          grad_coef_LJ = 12.0_wp * cg_e * (c3 - c2) * dij2_inv
+          ! calculate vector gradient
+          grad(1) = grad_coef_LJ * rij(1)
+          grad(2) = grad_coef_LJ * rij(2)
+          grad(3) = grad_coef_LJ * rij(3)
+          ! store force
+          force_tmp(1) = force_tmp(1) - grad(1)
+          force_tmp(2) = force_tmp(2) - grad(2)
+          force_tmp(3) = force_tmp(3) - grad(3)
+          force(1,j,id) = force(1,j,id) + grad(1)
+          force(2,j,id) = force(2,j,id) + grad(2)
+          force(3,j,id) = force(3,j,id) + grad(3)
+          ! virial
+          virial_tmp(1,1) = virial_tmp(1,1) + rij(1)*grad(1)
+          virial_tmp(2,1) = virial_tmp(2,1) + rij(2)*grad(1)
+          virial_tmp(3,1) = virial_tmp(3,1) + rij(3)*grad(1)
+          virial_tmp(1,2) = virial_tmp(1,2) + rij(1)*grad(2)
+          virial_tmp(2,2) = virial_tmp(2,2) + rij(2)*grad(2)
+          virial_tmp(3,2) = virial_tmp(3,2) + rij(3)*grad(2)
+          virial_tmp(1,3) = virial_tmp(1,3) + rij(1)*grad(3)
+          virial_tmp(2,3) = virial_tmp(2,3) + rij(2)*grad(3)
+          virial_tmp(3,3) = virial_tmp(3,3) + rij(3)*grad(3)
+        end do
+
+        force(1:3,i,id) = force(1:3,i,id) + force_tmp(1:3)
+        eLJ_omp(id) = eLJ_omp(id) + eLJ_omp_tmp
+        virial_omp(1:3,1:3,id) = virial_omp(1:3,1:3,id) + virial_tmp(1:3,1:3)
+
+      end if
+    end do
+    !$omp end parallel
+
+    do i = 1, nthread
+      eLJ = eLJ + eLJ_omp(i)
+      virial(1:3,1:3) = virial(1:3,1:3) + virial_omp(1:3,1:3,i)
+    end do
+
+    call timer(TimerCGLJ,   TimerOff)
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_CG_LJ_pbc
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

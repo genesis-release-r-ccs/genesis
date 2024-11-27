@@ -36,12 +36,14 @@ contains
   !
   !  Subroutine    error_msg
   !> @brief        write error message and stop execution
-  !! @param[in]    message : Error message (optional)
-  !! @authors      YS
+  !! @param[in]    message     : Error message (optional)
+  !! @param[in]    file_name   : File name calling subroutine (optional)
+  !! @param[in]    line_number : Line number where calling happens (optional)
+  !! @authors      YS,DU
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine error_msg(message)
+  subroutine error_msg(message, file_name, line_number)
 
 #if defined(INTEL)
     use ifcore, only:tracebackqq
@@ -52,16 +54,31 @@ contains
 #endif
 
     ! formal arguments
-    character(*), optional,  intent(in)    :: message
+    character(*), optional, intent(in) :: message
+    character(*), optional, intent(in) :: file_name
+    integer,      optional, intent(in) :: line_number
 
     ! local variables
-    character(1000)          :: msg
+    character(1024) :: msg
+    character(1024) :: loc
+    character(1024) :: buf
 
-
+    ! Check optional variables
+    msg = ""
     if (present(message)) then
-      write(msg,'(A,A12,I5)') trim(message), '  rank_no = ', my_world_rank
+      write(msg, "(A)") message
+    end if
+
+    loc = ""
+    if (present(file_name) .and. present(line_number)) then
+      write(loc, "(A,A1,I05)") trim(file_name), ":", line_number
+    end if
+
+    ! Write buffer
+    if (len(trim(loc)) == 0) then
+      write(buf, "(A,A13,I5)") trim(msg), " at rank_no: ", my_world_rank
     else
-      write(msg,'(A25,I5)') '               rank_no = ', my_world_rank
+      write(buf, "(A1,A,A2,A,A13,I5)") "(", trim(loc), ") ", trim(msg), " at rank_no: ", my_world_rank
     end if
 
 #if defined(INTEL)

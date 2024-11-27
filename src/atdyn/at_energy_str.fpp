@@ -58,6 +58,12 @@ module at_energy_str_mod
     real(wp)              :: PWMcosns
     ! ~CG~ general excluded volume
     real(wp)              :: cg_exv
+    ! ~CG~ WCA
+    real(wp)              :: cg_WCA
+    ! ~CG~ ISOLF
+    real(wp)              :: cg_ISOLF
+    ! ~CG~ LJ
+    real(wp)              :: cg_LJ
 
     ! restraint
     real(wp), allocatable :: restraint(:)
@@ -156,11 +162,16 @@ contains
     energy%PWMcos             = 0.0_wp
     energy%PWMcosns           = 0.0_wp
     energy%cg_exv             = 0.0_wp
+    energy%cg_WCA             = 0.0_wp
+    energy%cg_ISOLF           = 0.0_wp
+    energy%cg_LJ              = 0.0_wp
 
-    if (allocated(energy%restraint) .and. size(energy%restraint) > 0) then
-      energy%restraint(1:size(energy%restraint)) = 0.0_wp
-      energy%restraint_cv(1:size(energy%restraint)) = 0.0_wp
-    endif
+    if (allocated(energy%restraint)) then
+      if (size(energy%restraint) > 0) then
+        energy%restraint(1:size(energy%restraint)) = 0.0_wp
+        energy%restraint_cv(1:size(energy%restraint)) = 0.0_wp
+      end if
+    end if
 
     energy%disp_corr_energy   = 0.0_wp
     energy%disp_corr_virial   = 0.0_wp
