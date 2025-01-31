@@ -4205,12 +4205,24 @@ contains
               ! get j properties
               ! 
               j_chain_id  = enefunc%mol_chain_id(j_atom)
-              
+
               do_calc = .true.
               ! 
-              if (i_chain_id == j_chain_id .and. i_atom == j_atom - 1) then
-                do_calc = .false.
-              end if
+              ! if (i_chain_id == j_chain_id .and. i_atom == j_atom - 1) then
+              !   do_calc = .false.
+              ! end if
+              !
+              ! exclude interactions in exclusion list
+              !
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do k = ini_excl, fin_excl
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+
               ! 
               if (.not. do_calc) then
                 j_idr = cell_list_idr(j_idr)
@@ -4224,7 +4236,7 @@ contains
               call check_pbc(box_size, dij, pbc_int)
 
               rij_sqr      = dij(1) * dij(1) + dij(2) * dij(2) + dij(3) * dij(3)
-              
+
               ! --------------------
               ! core: count and fill
               ! --------------------
