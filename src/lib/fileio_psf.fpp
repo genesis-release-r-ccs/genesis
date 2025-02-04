@@ -16,6 +16,7 @@
 module fileio_psf_mod
 
   use fileio_mod
+  use string_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
@@ -853,6 +854,7 @@ contains
     ! local variables
     integer                  :: i, j
     character(8)             :: cstr, cseg_nm, cres_nm, catm_nm, cres_nb
+    character(6)             :: catm_nm2
     character(20)            :: ctmp
     logical                  :: insertion
 
@@ -915,11 +917,13 @@ contains
                       cres_nb,              &
                       psf%residue_name(i),  &
                       psf%atom_name(i),     &
-                      psf%atom_cls_name(i), &
+                      catm_nm2,             &
                       psf%charge(i),        &
                       psf%mass(i),          &
                       psf%imove(i)
 
+        call toupper(catm_nm2)
+        psf%atom_cls_name(i) = catm_nm2
         insertion = .false.
         do j = 1, len_trim(cres_nb)
           if (cres_nb(j:j) >= 'A' .and. cres_nb(j:j) <= 'Z' .or.  &
