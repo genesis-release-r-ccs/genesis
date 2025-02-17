@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.4], genesis@riken.jp)
+AC_INIT(genesis, [2.1.5], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
@@ -515,7 +515,7 @@ if test x"${with_lapack}" == x"yes"; then
   fi
 
   if test -n "${LAPACK_LIBS}"; then
-    OPT_LD_LAPACK+="${LAPACK_LIBS}"
+    OPT_LD_LAPACK+=" ${LAPACK_LIBS}"
     LDFLAGS+=${OPT_LD_LAPACK}
 
   elif test x"${FC_ACT}" = x"ifort"; then
