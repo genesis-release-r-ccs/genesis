@@ -129,16 +129,16 @@ contains
     inv_dt     =  1.0_wp/dt
     simtim     =  dynamics%initial_time
 
-    if (abs(dynamics%initial_value) < 0.001_wp)  then
+    if (abs(dynamics%initial_rmsd) < 0.001_wp)  then
       if (dynamics%target_md) &
-        dynamics%initial_value =  &
+        dynamics%initial_rmsd =  &
           dynvars%energy%restraint_cv(enefunc%target_function)
       if (dynamics%steered_md) &
-        dynamics%initial_value =  &
+        dynamics%initial_rmsd =  &
           dynvars%energy%restraint_cv(enefunc%steered_function)
     end if
     if (dynamics%target_md) enefunc%rmsd_force = 1 / (dt*dt)
-    enefunc%target_value = dynamics%initial_value 
+    enefunc%target_rmsd = dynamics%initial_rmsd 
 
     ! first-step MD
     !
@@ -172,8 +172,8 @@ contains
       dynvars%step = i
 
       if (dynamics%target_md .or. dynamics%steered_md) &
-        enefunc%target_value = dynamics%initial_value &
-                            + (dynamics%final_value-dynamics%initial_value) &
+        enefunc%target_rmsd = dynamics%initial_rmsd &
+                            + (dynamics%final_rmsd-dynamics%initial_rmsd) &
                              *real(dynvars%step,wp)/real(nsteps,wp)
 
       enefunc%rpath_sum_mf_flag = enefunc%rpath_flag

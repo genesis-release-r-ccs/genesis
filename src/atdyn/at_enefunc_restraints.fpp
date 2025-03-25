@@ -503,6 +503,18 @@ contains
       end if
     end do
 
+    ! for RMSD restraint check
+    !
+    do i = 1, num_funcs
+      if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .or. &
+          enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM ) then
+        if (enefunc%restraint_rmsd_function /= 0) then
+          call error_msg('Setup_Enefunc_Rest_Func> duplicate of RMSD resraint is not allowed')
+        endif
+        enefunc%restraint_rmsd_function=i
+      endif
+    end do
+
     ! for steered & targeted MD
     !
     itmd = restraints%target_function
@@ -529,7 +541,7 @@ contains
       end if
       enefunc%target_function  = restraints%target_function
       enefunc%steered_function = restraints%target_function
-      enefunc%target_value     = enefunc%restraint_ref(1,itmd)
+      enefunc%target_rmsd     = enefunc%restraint_ref(1,itmd)
     end if
 
     ! deallocate local array

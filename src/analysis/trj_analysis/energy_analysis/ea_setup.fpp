@@ -187,8 +187,8 @@ contains
     dynamics%verbose          = ctrl_data%dyn_info%verbose
     dynamics%target_md        = ctrl_data%dyn_info%target_md
     dynamics%steered_md       = ctrl_data%dyn_info%steered_md
-    dynamics%initial_value    = ctrl_data%dyn_info%initial_value
-    dynamics%final_value      = ctrl_data%dyn_info%final_value
+    dynamics%initial_rmsd     = ctrl_data%dyn_info%initial_rmsd
+    dynamics%final_rmsd       = ctrl_data%dyn_info%final_rmsd
     dynamics%restart          = .false.
     !! dynamics
     dynamics%crdout_period    = dynamics%nsteps

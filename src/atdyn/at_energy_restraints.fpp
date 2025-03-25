@@ -514,7 +514,7 @@ contains
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
-      ref(1:2)  = enefunc%target_value
+      ref(1:2)  = enefunc%target_rmsd
     end if
 
     ! calculation of com
@@ -738,7 +738,7 @@ contains
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
-      ref(1:2)   = enefunc%target_value
+      ref(1:2)   = enefunc%target_rmsd
     end if
 
     coefgrp = 0.0_wp
@@ -944,7 +944,7 @@ contains
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
-      ref(1:2)  = enefunc%target_value
+      ref(1:2)  = enefunc%target_rmsd
     end if
 
     coefgrp = 0.0_wp
@@ -1230,7 +1230,7 @@ contains
     !
     if (inum == enefunc%target_function .or.  &
         inum == enefunc%steered_function) then
-      ref(1:2)   = enefunc%target_value
+      ref(1:2)   = enefunc%target_rmsd
     end if
     cv   = rmsd
 
@@ -1751,7 +1751,7 @@ contains
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
-      ref(1:2)   = enefunc%target_value
+      ref(1:2)   = enefunc%target_rmsd
     end if
 
     ! calculation of com
@@ -1965,7 +1965,7 @@ contains
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
-      ref(1:2)   = enefunc%target_value
+      ref(1:2)   = enefunc%target_rmsd
     end if
 
     ! calculation of com
