@@ -616,6 +616,11 @@ AC_ARG_WITH([cuda],
 	[use cuda (default: no)])],
 	[], [with_cuda=no])
 
+AC_ARG_WITH([gpuarch],
+	[AS_HELP_STRING([--with-gpuarch@<:@=ARCH@:>@],
+	[use gpuarch (default: no)])],
+	[], [with_gpuarch=no])
+
 #AC_ARG_VAR([CUDA_LIB_PATH],
 #    [CUDA library path (linker flags, e.g. -L<cuda lib>)])
 
@@ -724,20 +729,34 @@ if test x"${with_cuda}" != x"no"; then
     AC_MSG_ERROR([CUDA is not allowed])
   fi
 
-# CUDA VERSION and compile option
+# CUDA Architecture option
   if test ${NVCC_VER} -lt 0800000; then
     AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
   fi
-  if test ${NVCC_VER} -lt 1200000; then
-    GENCODEFLAG='--generate-code=arch=compute_35,code=\"sm_35,compute_35\"'
-    if test ${NVCC_VER} -gt 0650000; then
-      GENCODEFLAG+=' --generate-code=arch=compute_37,code=\"sm_37,compute_37\"' #K80
+  if test x"${with_gpuarch}" != x"no"; then
+    GENCODEFLAG="-arch=${with_gpuarch}"
+  else
+    if test ${NVCC_VER} -ge 0800000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"'
+      GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"'
+      GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
     fi
-  fi
-  if test ${NVCC_VER} -gt 0800000; then
-    GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"' #P100
-    GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"' #GTX1080
-    GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
+    if test ${NVCC_VER} -ge 0900000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_70,code=\"sm_70,compute_70\"'
+    fi
+    if test ${NVCC_VER} -ge 1000000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_75,code=\"sm_75,compute_75\"'
+    fi
+    if test ${NVCC_VER} -ge 1101000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_80,code=\"sm_80,compute_80\"'
+      GENCODEFLAG+=' --generate-code=arch=compute_86,code=\"sm_86,compute_86\"'
+    fi
+    if test ${NVCC_VER} -ge 1108000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_89,code=\"sm_89,compute_89\"'
+    fi
+    if test ${NVCC_VER} -ge 1200000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_90,code=\"sm_90,compute_90\"'
+    fi
   fi
 
 # NVCCFLAG
