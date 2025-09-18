@@ -1161,13 +1161,6 @@ contains
        end do
     end if
 
-    !write(MsgOut,'(''debug> force'')')
-    !do i = 1, molecule%num_atoms
-    !  write(MsgOut,'(''debug> '',i8,3f20.6,f8.4)') &
-    !                           i, force(1:3,i), molecule%charge(i)
-    !end do
-    !write(MsgOut,*)
-
     call timer(TimerEnergy, TimerOff)
 
     return
@@ -2978,7 +2971,7 @@ contains
             if (enefunc%gbsa_use) then
                 bagel_born_radii(i) = enefunc%gbsa%born_radius(qmmm%qmatom_id(i))
             end if
-          enddo
+          end do
           do i = 1, qmmm%num_qmmmbonds
             iatom = qmmm%qm_natoms + i
             bagel_atoms(iatom) = -1
@@ -2988,7 +2981,7 @@ contains
             if (enefunc%gbsa_use) then
                 bagel_born_radii(iatom) = enefunc%gbsa%born_radius(qmmm%qmmmbond_list(2,i))
             end if
-          enddo
+          end do
           !dbg if (main_rank) then
           !dbg   write(MsgOut,'(2i4)') qmmm%qm_natoms, qmmm%num_qmmmbonds
           !dbg   write(MsgOut,'(3f12.6)') bagel_coord(:,1:qmmm%qm_natoms+qmmm%num_qmmmbonds)
@@ -3002,7 +2995,7 @@ contains
             if (enefunc%gbsa_use) then
                 bagel_born_radii(iatom) = enefunc%gbsa%born_radius(qmmm%mmatom_id(i))
             end if
-          enddo
+          end do
 
           ! Setting any other possible keywords in the input. e.g. for QMMM/GBSA
           nullify(pt, qs_input_clone)
@@ -3105,22 +3098,22 @@ contains
 
             do i = 1, qmmm%qm_natoms
               qmmm%qm_charge(i) = bagel_qmcharges(i)
-            enddo
+            end do
             qmmm%is_qm_charge = .true.
 
             if (.not. qmmm%ene_only) then
               do i = 1, qmmm%mm_natoms
                 iatom = qmmm%qm_natoms + qmmm%num_qmmmbonds + i
                 qmmm%mm_force(:, i) = -bagel_force(:, iatom)
-              enddo
+              end do
               do i = 1, qmmm%num_qmmmbonds
                 iatom = qmmm%qm_natoms + i
                 qmmm%linkatom_force(:, i) = -bagel_force(:, iatom)
                 qmmm%linkatom_charge(i) = bagel_qmcharges(iatom)
-              enddo
+              end do
               do i = 1, qmmm%qm_natoms
                 qmmm%qm_force(:, i) = -bagel_force(:, i)
-              enddo
+              end do
             end if
 
             if (replica_main_rank) then

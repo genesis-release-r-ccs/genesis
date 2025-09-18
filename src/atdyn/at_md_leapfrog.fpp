@@ -1864,6 +1864,7 @@ contains
     qmmm%qm_count     = step
     qmmm%qm_classical = .false.
     call compute_energy_qmmm(enefunc, molecule, pairlist, dynvars%coord, qmmm, energy, dummy)
+    qmmm%qm_classical = .true.
 
     if (dynamics%avg_qm_charge) then
       qmmm%qm_charge = (qmmm%qm_charge_save*real(ncount) + qmmm%qm_charge) &
