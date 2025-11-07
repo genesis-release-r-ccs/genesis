@@ -270,7 +270,7 @@ Examples
 Basically, REMD simulations in **GENESIS** can be carried out by 
 just adding the **[REMD]** section 
 in the control file of a normal MD simulation.
-For details, see the online Tutorial (https://www.r-ccs.riken.jp/labs/cbrt/).
+For details, see the online Tutorial (https://mdgenesis.org/docs/tutorial_2022/).
 
 T-REMD
 ------

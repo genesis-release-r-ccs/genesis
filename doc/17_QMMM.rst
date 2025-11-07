@@ -174,7 +174,7 @@ in the control file. Avaliable options are listed in the following.
   The QM/MM calculation must be carried out in non-PBC. A non-PBC system 
   can be created from MD trajectory (pdb, dcd) using **qmmm_generator** in 
   the analysis tool. 
-  See `the tutorial of QM/MM <https://www.r-ccs.riken.jp/labs/cbrt/tutorials2022/tutorial-15-3>`_
+  See `the tutorial of QM/MM <https://mdgenesis.org/tutorials/genesis_tutorial_15.3_2022/>`_
   for more details.
 
 

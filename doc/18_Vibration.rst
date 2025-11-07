@@ -180,7 +180,7 @@ The following example illustrates the generation of Grid PES,
   gridfile            = makeGrid.xyz
   datafile            = makeGrid.dat
 
-For more details, see `tutorial-15-4 <https://www.r-ccs.riken.jp/labs/cbrt/tutorials2022/tutorial-15-4/>`_.
+For more details, see `tutorial-15-4 <https://mdgenesis.org/tutorials/genesis_tutorial_15.4_2022/>`_.
 
 .. |Schrodinger| unicode:: Schr 0xf6 dinger .. umlaut o
 .. |A| unicode:: 0xc5 .. Angstrom

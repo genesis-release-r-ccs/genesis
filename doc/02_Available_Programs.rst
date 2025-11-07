@@ -244,7 +244,7 @@ For example, to run a "restrained" MD simulation, the users
 add **[SELECTION]** and **[RESTRAINTS]** sections in the control file of the "normal" MD simulation.
 The following table summarizes the available sections in each function.
 Detailed usage of each section is described in this user guide,
-and also in the online tutorials (https://www.r-ccs.riken.jp/labs/cbrt/).
+and also in the online tutorials (https://mdgenesis.org/docs/tutorial_2022/).
 
 .. list-table::
       Available sections in each algorithm and method
