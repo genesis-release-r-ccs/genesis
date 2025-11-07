@@ -212,6 +212,15 @@ General keywords
   restraint. For example, the 1st PC mode can be restrained by specifying
   ``mode1=1``. 
 
+**target_function**:math:`\textbf{\textit{N}}` *Integer* (**ATDYN** only)
+
+  **Default : 0**
+
+  Specifies function number which is used for the target/steered MD simulation. 
+  In SPDYN, the RMSD restraint is automatically selected as the target for TMD/SMD, 
+  but in ATDYN, it is possible to select a different restraint. (If you do not select a restraint, 
+  RMSD will be selected.)
+
 Restraints of a linear combination of distances
 -----------------------------------------------
 

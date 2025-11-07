@@ -44,8 +44,8 @@ module at_dynamics_str_mod
     real(wp)            :: dtemperature
     logical             :: target_md
     logical             :: steered_md
-    real(wp)            :: initial_value
-    real(wp)            :: final_value
+    real(wp)            :: initial_rmsd
+    real(wp)            :: final_rmsd
     logical             :: verbose
     logical             :: random_restart
     logical             :: shrink_box
@@ -113,8 +113,8 @@ contains
     dynamics%verbose              = .false.
     dynamics%target_md            = .false.
     dynamics%steered_md           = .false.
-    dynamics%initial_value        = 0.0_wp
-    dynamics%final_value          = 0.0_wp
+    dynamics%initial_rmsd         = 0.0_wp
+    dynamics%final_rmsd           = 0.0_wp
     dynamics%random_restart       = .true.
 
     return

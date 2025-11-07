@@ -72,8 +72,8 @@ module at_dynamics_mod
 
     logical          :: target_md        =  .false.
     logical          :: steered_md       =  .false.
-    real(wp)         :: initial_value    =  0.0_wp
-    real(wp)         :: final_value      =  0.0_wp
+    real(wp)         :: initial_rmsd    =  0.0_wp
+    real(wp)         :: final_rmsd      =  0.0_wp
 
     ! box expansion & shrink MD
     logical          :: shrink_box       = .false.
@@ -139,8 +139,8 @@ contains
         write(MsgOut,'(A)') '# verbose       = NO        # output verbosly'
         write(MsgOut,'(A)') '# target_md     = no        # targeted MD simulation'
         write(MsgOut,'(A)') '# steered_md    = no        # targeted MD simulation'
-        write(MsgOut,'(A)') '# initial_value  = 0.0      # initial TMD target RMSD'
-        write(MsgOut,'(A)') '# final_value    = 0.0      # final TMD target RMSD'
+        write(MsgOut,'(A)') '# initial_rmsd  = 0.0      # initial TMD target RMSD'
+        write(MsgOut,'(A)') '# final_rmsd    = 0.0      # final TMD target RMSD'
 
         write(MsgOut,'(A)') '# esp_mm         = NO       # ESP/MM MD'
         write(MsgOut,'(A)') '# calc_qm_period = 0        # QM calculation period'
@@ -278,10 +278,10 @@ contains
                                dyn_info%target_md)
     call read_ctrlfile_logical(handle, Section, 'steered_md',    &
                                dyn_info%steered_md)
-    call read_ctrlfile_real   (handle, Section, 'initial_value',  &
-                               dyn_info%initial_value)
-    call read_ctrlfile_real   (handle, Section, 'final_value',    &
-                               dyn_info%final_value)
+    call read_ctrlfile_real   (handle, Section, 'initial_rmsd',  &
+                               dyn_info%initial_rmsd)
+    call read_ctrlfile_real   (handle, Section, 'final_rmsd',    &
+                               dyn_info%final_rmsd)
     call read_ctrlfile_logical(handle, Section, 'esp_mm',         &
                                dyn_info%esp_mm)
     call read_ctrlfile_integer(handle, Section, 'calc_qm_period', &
@@ -349,16 +349,16 @@ contains
       if (dyn_info%target_md) then
         write(MsgOut,'(A)') '  target_md       =        yes'
         write(MsgOut,'(A20,F10.3,A20,F10.3)')                      &
-              '  initial value   = ', dyn_info%initial_value,       &
-              '  final value     = ', dyn_info%final_value
+              '  initial rmsd    = ', dyn_info%initial_rmsd,       &
+              '  final rmsd      = ', dyn_info%final_rmsd
       else
         write(MsgOut,'(A)') '  target_md       =         no'
       end if
       if (dyn_info%steered_md) then
         write(MsgOut,'(A)') '  steered_md      =        yes'
         write(MsgOut,'(A20,F10.3,A20,F10.3)')                      &
-              '  initial value   = ', dyn_info%initial_value,       &
-              '  final value     = ', dyn_info%final_value
+              '  initial rmsd    = ', dyn_info%initial_rmsd,       &
+              '  final rmsd      = ', dyn_info%final_rmsd
       else
         write(MsgOut,'(A)') '  steered_md      =         no'
       end if
@@ -550,8 +550,8 @@ contains
     dynamics%verbose          = dyn_info%verbose
     dynamics%target_md        = dyn_info%target_md
     dynamics%steered_md       = dyn_info%steered_md
-    dynamics%initial_value    = dyn_info%initial_value
-    dynamics%final_value      = dyn_info%final_value
+    dynamics%initial_rmsd     = dyn_info%initial_rmsd
+    dynamics%final_rmsd       = dyn_info%final_rmsd
     dynamics%shrink_box       = dyn_info%shrink_box
     dynamics%shrink_period    = dyn_info%shrink_period
     dynamics%dbox_x           = dyn_info%dbox_x

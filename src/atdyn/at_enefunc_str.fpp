@@ -685,11 +685,13 @@ module at_enefunc_str_mod
 
     ! flag for position restraint 
     logical                       :: restraint_posi
+    ! function num for rmsd restraint 
+    integer                       :: restraint_rmsd_function 
     ! flag for restraint calculation
     logical                       :: restraint_flag
     integer                       :: target_function
     integer                       :: steered_function
-    real(wp)                      :: target_value
+    real(wp)                      :: target_rmsd
     real(wp)                      :: rmsd_force
     ! restraint group (size = num_restraintgroups)
     integer,          allocatable :: restraint_numatoms(:)
@@ -1142,9 +1144,10 @@ contains
     enefunc%target_function         = 0
     enefunc%steered_function        = 0
     enefunc%rmsd_force              = 0.0_wp
-    enefunc%target_value            = 0.0_wp
+    enefunc%target_rmsd             = 0.0_wp
     enefunc%restraint_posi          = .false.
     enefunc%restraint_flag          = .false.
+    enefunc%restraint_rmsd_function = 0
     
     enefunc%table%table             = .false.
     enefunc%table%density           = 0.0_wp

@@ -24,8 +24,8 @@ timestep         = 0.002
 eneout_period    = 2
 nbupdate_period  = 4
 target_md        = yes
-initial_value     = 7.3006
-final_value       = 7.3
+initial_rmsd     = 7.3006
+final_rmsd       = 7.3
 iseed            = 314529
  
 [CONSTRAINTS]

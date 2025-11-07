@@ -81,13 +81,14 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
 
   * Linux
   * macOS
-  * Windows 10/11
+  * Windows 10/11 (spdyn, ver 1.7.1)
 
 * Fortran and C compilers
 
-  * GCC compiler ``gfortran``, ``gcc`` (version 4.4.7 or higher is required)
-  * Intel compiler ``ifort``, ``icc``
+  * GCC compiler ``gfortran``, ``gcc`` (version 7.0.0 or higher is required)
+  * Intel compiler ``ifort``, ``icc`` (ifx, icx are available from ver 2.1.3.)
   * Fujitsu compiler ``frtpx``, ``fccpx``
+  * Cygwin/mingw (spdyn, ver 1.7.1)
 
 * Preprocessors
 
@@ -98,22 +99,26 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
 * MPI libraries for parallel computing
 
   * OpenMPI ``mpirun``, ``mpif90``, ``mpicc``
-  * Intel MPI
+  * Intel MPI ``mpiexec``, ``mpiifort``, ``mpiicc``(``mpiifx``, ``mpiicx`` are available from ver 2.1.3)
   * Fujitsu MPI
+  * Microsoft MPI (spdyn, ver 1.7.1)
 
 * Numerical libraries for mathematical algorithms
 
   * LAPACK/BLAS
   * Intel Math Kernel Library (MKL)
   * Fujitsu Scientific Subroutine Library (SSL II)
+  * OpenBlas
 
 * GPU **(Optional)**
 
-  * NVIDIA GPU cards which support Compute Capability (CC) 3.5 or higher
+  * NVIDIA GPU cards which support Compute Capability (CC) 3.5 or higher (except for 5.X)
+
   * The following GPU cards and CUDA versions have been tested by the GENESIS developers
 
-    * NVIDIA K20, K40, P100, TITAN V, GTX 1080, GTX 1080Ti, RTX 2080, RTX 2080Ti, RTX 3090
-    * CUDA ver. 8.0, 9.0, 9.1, 9.2, 10.0, 11.4, 11.5
+    * NVIDIA K20, K40, P100, TITAN V, GTX 1080, GTX 1080Ti, RTX 2080, RTX 2080Ti, RTX 3090, RTX A6000, RTX 4500 ada (from ver 2.1.6), A30, A100, H100 (from ver 2.1.6) , GH200 (from ver 2.1.6)
+    * CUDA ver. 8.0, 9.0, 9.1, 9.2, 10.0, 11.4, 11.5, 12.1-12.6
+    * For GPUs of the Hopper generation or later, we recommend using version 2.1.6 or later.
 
 .. note::
    If you are using a supercomputer at a university or research institute,
@@ -137,40 +142,40 @@ General scheme for installation
 Step1. Download the source code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The source code of **GENESIS** is available in the GENESIS website (https://www.r-ccs.riken.jp/labs/cbrt/download/).
+The source code of **GENESIS** is available in GitHub (https://github.com/genesis-release-r-ccs/genesis/).
 The users have to first uncompress the download file in an appropriate directory.
 Here, we assume that the users install **GENESIS** in "$HOME/genesis".
+Assume that the source code is placed under the directory specified by $GENESIS_DIR.
 The "src" directory contains the source code, and "COPYING" is the software license.
 :: 
-  $ mkdir $HOME/genesis
-  $ cd $HOME/genesis
-  $ mv ~/Downloads/genesis-2.0.0.tar.bz2 ./
-  $ tar xvfj genesis-2.0.0.tar.bz2
-  $ cd genesis-2.0.0
+  $ cd $HOME
+  $ git clone https://github.com/genesis-release-r-ccs/genesis.git
+  $ export GENESIS_DIR=$HOME/genesis
+  $ cd $GENESIS_DIR
   $ ls
-  AUTHORS         Makefile        bootstrap      depcomp
-  COPYING         Makefile.am     cleanup        fortdep.py
-  COPYING.LESSER  Makefile.in     compile        install-sh
-  ChangeLog       NEWS            config.log     missing
-  HOW_TO          README          config.status  src
-  INSTALL         aclocal.m4      configure      version_scripts
-  LICENSE         autom4te.cache  configure.ac
-
+  AUTHORS         LICENSE      README.md   configure.ac  missing
+  COPYING         Makefile.am  aclocal.m4  depcomp       src
+  COPYING.LESSER  Makefile.in  bootstrap   doc           tests
+  ChangeLog       NEWS         cleanup     fortdep.py    version_scripts
+  INSTALL         README       compile     install-sh
 
 Step2. Configure
 ^^^^^^^^^^^^^^^^
+Before compiling the source code, users need to generate the configuration 
+scripts by running "autoreconf -i" in the directory. 
+This command prepares the "configure" script and related files.
+Then, users execute the "configure" script to automatically detect appropriate compilers,
+preprocessors, and libraries on their system, and to create the "Makefile".
 
-In order to compile the source code, the users execute the "configure" script in the directory.
-This script automatically detects appropriate compilers, preprocessors, and libraries
-in the users' computer, and create "``Makefile``".
 :: 
 
+   $ autoreconf
    $ ./configure
 
 If you encountered a failure in the configure command, please check the error message carefully.
 You may have to add appropriate options in this command according to your computer environment (see :ref:`Advanced installation`).
 The followings are possible suggestions to solve frequent problems.
-Other solutions might be found in the online page (https://www.r-ccs.riken.jp/labs/cbrt/installation/).
+Other solutions might be found in the online page (https://mdgenesis.org/docs/installation/).
 
   * First of all, please check whether the Fortran and C compilers are installed in your computer.
     If you are going to run GENESIS with multiple CPUs, you should additionally install
@@ -218,8 +223,6 @@ All programs in **GENESIS** are compiled and installed into the "./bin" director
 If you encountered a failure, please check the error message carefully.
 In many cases, errors are caused by invalid path of compilers and libraries.
 The followings are possible suggestions to solve frequent problems. 
-Other solutions might be found in the online page
-(https://www.r-ccs.riken.jp/labs/cbrt/installation/).
 
   * If the error message is like "/usr/bin/ld: cannot find -lblas" or "/usr/bin/ld: cannot find -llapack",
     make sure that the BLAS or LAPACK libraries are installed in the computer (see also :ref:`Appendix`).
@@ -387,7 +390,7 @@ Configuration for supercomputer systems
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The configuration for supercomputer systems may require non-standard setups. 
 In the online usage page, we describe recommended configure options for some supercomputers
-(https://www.r-ccs.riken.jp/labs/cbrt/usage/).
+(https://mdgenesis.org/docs/installation/).
 
 For example, the following commands are used to compile **GENESIS** on Fugaku in RIKEN.
 Note that the parallel I/O tool (**prst_setup**) is not compiled in this configuration,
@@ -452,18 +455,12 @@ without the "``-j``" option.
 Verify the installation
 -----------------------
 
-The users can verify the installation of **GENESIS** by using test sets 
-which are available in the **GENESIS** website
-(https://www.r-ccs.riken.jp/labs/cbrt/download/).
-Please uncompress the downloaded file in an appropriate directory,
-and move to the "regression_test" directory.
-Note that the file name of the tar.bz2 file contains the date (year, month, and day),
-so please change the following execution commands accordingly.
+Users can verify the installation of **GENESIS** by running test sets 
+included in the source package.
+The test scripts and input files are provided in the `test/regression_test` directory 
+of the package tree.
 :: 
-  $ cd $HOME/genesis
-  $ mv ~/Downloads/tests-2.0.0_YYMMDD.tar.bz2 ./
-  $ tar xvfj tests-2.0.0_YYMMDD.tar.bz2
-  $ cd tests-2.0.0_YYMMDD/regression_test
+  $ cd $GENESIS_DIR/test/regression_test
   $ ls
   build       test_analysis    test_gamd_spdyn    test_rpath_atdyn
   charmm.py   test_atdyn       test_nonstrict.py  test_rpath_spdyn
@@ -492,8 +489,8 @@ Other MPI launchers such as "mpiexec" are also available in the command.
 There are about 50 test sets, and each test should finish in a few seconds.
 :: 
   $ export OMP_NUM_THREADS=1
-  $ ./test.py "mpirun -np 1 ~/genesis/genesis-2.0.0/bin/atdyn"
-  $ ./test.py "mpirun -np 1 ~/genesis/genesis-2.0.0/bin/spdyn"
+  $ ./test.py "mpirun -np 1 $GENESIS_DIR/bin/atdyn"
+  $ ./test.py "mpirun -np 1 $GENESIS_DIR/bin/spdyn"
 
 If any tests cannot run, please check the following points:
 
@@ -542,7 +539,7 @@ The followings are suggestions to solve typical problems:
 * Make sure that the MPI environment is properly set.
 
 * Detailed solutions in specific supercomputer systems might be found in the GENESIS website
-  (https://www.r-ccs.riken.jp/labs/cbrt/usage/).
+  (https://mdgenesis.org/docs/installation/).
 
 Run the additional tests
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -559,26 +556,26 @@ In a similar way, the users can test the SPANA (spatial decomposition analysis) 
 SPANA tool sets are tested with 1, 2, 4, and 8 MPI processes.
 :: 
   $ export OMP_NUM_THREADS=1
-  $ ./test_gamd.py "mpirun -np 1 ~/genesis/genesis-2.0.0/bin/atdyn"
-  $ ./test_gamd.py "mpirun -np 1 ~/genesis/genesis-2.0.0/bin/spdyn"
-  $ ./test_remd.py "mpirun -np 4 ~/genesis/genesis-2.0.0/bin/atdyn"
-  $ ./test_remd.py "mpirun -np 4 ~/genesis/genesis-2.0.0/bin/spdyn"
-  $ ./test_fep.py "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn"
-  $ ./test_rpath.py "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/atdyn"
-  $ ./test_rpath.py "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn"
-  $ ./test_vib.py   "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/atdyn"
-  $ ./test.py "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn" parallel_io
-  $ ./test.py "mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn" gpu
+  $ ./test_gamd.py "mpirun -np 1 $GENEIS_DIR/bin/atdyn"
+  $ ./test_gamd.py "mpirun -np 1 $GENEIS_DIR/bin/spdyn"
+  $ ./test_remd.py "mpirun -np 4 $GENEIS_DIR/bin/atdyn"
+  $ ./test_remd.py "mpirun -np 4 $GENEIS_DIR/bin/spdyn"
+  $ ./test_fep.py "mpirun -np 8 $GENEIS_DIR/bin/spdyn"
+  $ ./test_rpath.py "mpirun -np 8 $GENEIS_DIR/bin/atdyn"
+  $ ./test_rpath.py "mpirun -np 8 $GENEIS_DIR/bin/spdyn"
+  $ ./test_vib.py   "mpirun -np 8 $GENEIS_DIR/bin/atdyn"
+  $ ./test.py "mpirun -np 8 $GENEIS_DIR/bin/spdyn" parallel_io
+  $ ./test.py "mpirun -np 8 $GENEIS_DIR/bin/spdyn" gpu
   
   $ cd test_analysis
   $ ./cleanup.sh
   $ export OMP_NUM_THREADS=1
-  $ ./test_analysis.py ~/genesis/genesis-2.0.0/bin/
+  $ ./test_analysis.py $GENEIS_DIR/bin/
 
   $ cd test_spana
   $ ./cleanup.sh
   $ export OMP_NUM_THREADS=1
-  $ ./test_spana.py ~/genesis/genesis-2.0.0/bin/
+  $ ./test_spana.py $GENEIS_DIR/bin/
 
 .. note::
    Some tests might be using "abnormal" parameters or conditions in the input files
@@ -611,7 +608,7 @@ The user can uninstall **GENESIS** by just removing the program directory.
 If the user changed the install directory by specifying "``--prefix=PREFIX``" in the configure command,
 please remove the programs (**atdyn**, **spdyn**, and so on) in the "``PREFIX``" directory.
 :: 
-  $ rm -rf $HOME/genesis/genesis-2.0.0
+  $ rm -rI $GENESIS_DIR
 
 
 .. raw:: latex
@@ -639,7 +636,7 @@ In the case of parallel execution with "mpirun",
 
 For example, **SPDYN** is executed in the following way using 8 MPI processors:
 :: 
-  $ mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn INP
+  $ mpirun -np 8 $GENESIS_DIR/bin/spdyn INP
 
 The users should specify an OpenMP thread number explicitly before running the program.
 Appropriate number of CPU cores must be used according to the user's computer environment (see also :ref:`available_programs`).
@@ -647,18 +644,18 @@ For example, if the users want to use 32 CPU cores in the calculation,
 the following command might be executed.
 :: 
   $ export OMP_NUM_THREADS=4
-  $ mpirun -np 8 ~/genesis/genesis-2.0.0/bin/spdyn INP
+  $ mpirun -np 8 $GENESIS_DIR/bin/spdyn INP
 
 As for the analysis tools, the usage is almost same, but mpirun is not used.
 Note that some analysis tools (e.g., mbar_analysis, wham_analysis, msd_analysis, and drms_analysis) are 
 parallelized with OpenMP.
 :: 
   # RMSD analysis tool 
-  $ ~/genesis/genesis-2.0.0/bin/rmsd_analysis INP
+  $ $GENESIS_DIR/bin/rmsd_analysis INP
 
   # MBAR analysis
   $ export OMP_NUM_THREADS=4
-  $ ~/genesis/genesis-2.0.0/bin/mbar_analysis INP
+  $ $GENESIS_DIR/bin/mbar_analysis INP
 
 
 Automatic generation of a template control file
@@ -707,7 +704,7 @@ If the users want to show all available options, please specify ``ctrl_all`` ins
 The users can edit this template control file to perform the simulation that the users want to do. 
 :: 
 
-  $ ~/genesis/genesis-2.0.0/bin/spdyn -h ctrl min > INP
+  $ $GENESIS_DIR/bin/spdyn -h ctrl min > INP
 
   $ less INP
 

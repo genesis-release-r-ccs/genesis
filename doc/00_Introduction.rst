@@ -78,7 +78,7 @@ Other features in **GENESIS** are listed below:
 This user manual mainly provides detailed description of 
 keywords used in the control file. Tutorials for standard MD
 simulations, REMD simulations, and some analyses are
-`available online <https://www.r-ccs.riken.jp/labs/cbrt/>`_.
+`available online <https://mdgenesis.org/>`_.
 We recommend new users of **GENESIS** to start from 
 the next chapter to learn a basic idea, installation, and work flow of the program.
 

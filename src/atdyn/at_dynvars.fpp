@@ -802,12 +802,12 @@ contains
 
     if (enefunc%steered_function > 0) then
       write(category(ifm),frmt) 'SMD_CV'
-      values(ifm) = enefunc%target_value
+      values(ifm) = enefunc%target_rmsd
       ifm = ifm+1
     end if
     if (enefunc%target_function > 0) then
       write(category(ifm),frmt) 'TMD_CV'
-      values(ifm) = enefunc%target_value
+      values(ifm) = enefunc%target_rmsd
       ifm = ifm+1
     end if
 

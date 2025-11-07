@@ -234,6 +234,15 @@ contains
     call dealloc_grotop_all(grotop)
     call dealloc_eef1(eef1)
 
+    if (main_rank .and. ((enefunc%target_function == 0 .and. dynamics%target_md) .or. &
+       (enefunc%steered_function == 0 .and. dynamics%steered_md))) then
+      write(MsgOut,'(A,i5)') &
+        'Setup_Atdyn_Md> targeted_function is not defined, then target_function is automatically defined', &
+          enefunc%restraint_rmsd_function
+      enefunc%target_function  = enefunc%restraint_rmsd_function
+      enefunc%steered_function = enefunc%restraint_rmsd_function
+      enefunc%target_rmsd     = enefunc%restraint_ref(1,enefunc%restraint_rmsd_function)
+    endif
     if (.not. dynamics%target_md) enefunc%target_function = 0
     if (.not. dynamics%steered_md) enefunc%steered_function = 0
 
