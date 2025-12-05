@@ -708,7 +708,13 @@ contains
     molecule%atom_cls_no  (1:natom) = prmtop%atom_cls_no  (1:natom)
     molecule%charge       (1:natom) = prmtop%charge       (1:natom)/18.2223_wp
     molecule%mass         (1:natom) = prmtop%mass         (1:natom)
-    molecule%inv_mass     (1:natom) = 1.0_wp/prmtop%mass  (1:natom)
+    do i = 1, natom
+      if (prmtop%mass(i) > EPS) then
+        molecule%inv_mass(i) = 1.0_wp/prmtop%mass(i)
+      else
+        molecule%inv_mass(i) = 0.0_wp
+      end if
+    end do
 
     ! residue_no, residue_name
     if (prmtop%lresidue_label .and. prmtop%lresidue_pointer) then
