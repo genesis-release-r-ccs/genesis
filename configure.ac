@@ -688,6 +688,58 @@ if test x"${with_cuda}" != x"no"; then
   if test -z ${cuda_lib_path}; then
     AC_MSG_ERROR([CUDA is not found, set --with-cuda or CUDA_LIB_PATH])
   fi
+  cppflags_save="$CPPFLAGS"
+  cuda_inc_path=""
+# 1) if user gave --with-cuda=/path, prefer it
+  if test x"${with_cuda}" != x"yes" -a x"${with_cuda}" != x"no"; then
+    if test -f "${with_cuda}/include/cuda.h"; then
+      cuda_inc_path="${with_cuda}/include"
+    elif test -f "${with_cuda}/targets/x86_64-linux/include/cuda.h"; then
+      dnl some distros / layouts
+      cuda_inc_path="${with_cuda}/targets/x86_64-linux/include"
+    fi
+  fi
+# 2) otherwise, infer root from cuda_lib_path (…/lib64 or …/lib)
+  if test -z "${cuda_inc_path}"; then
+    case "${cuda_lib_path}" in
+      */lib64|*/lib)
+        cuda_root_guess=`echo "${cuda_lib_path}" | sed -e 's#/lib64$##' -e 's#/lib$##'`
+        if test -f "${cuda_root_guess}/include/cuda.h"; then
+          cuda_inc_path="${cuda_root_guess}/include"
+        elif test -f "${cuda_root_guess}/targets/x86_64-linux/include/cuda.h"; then
+          cuda_inc_path="${cuda_root_guess}/targets/x86_64-linux/include"
+        fi
+        ;;
+    esac
+  fi
+# 3) fallback: try /usr/local/cuda (common)
+  if test -z "${cuda_inc_path}"; then
+    if test -f "/usr/local/cuda/include/cuda.h"; then
+      cuda_inc_path="/usr/local/cuda/include"
+    fi
+  fi
+  
+  AS_IF([test -n "${cuda_inc_path}"], [
+    CPPFLAGS="$CPPFLAGS -I${cuda_inc_path}"
+    AC_MSG_NOTICE([Using CUDA include path: ${cuda_inc_path}])
+  ], [
+    AC_MSG_NOTICE([CUDA include path not found; header checks may fail])
+  ])
+
+# CUDA header check
+  AC_CHECK_HEADERS([nvtx3/nvToolsExt.h nvToolsExt.h], [], [], [#include <stdio.h>])
+
+  AS_IF([test "x$ac_cv_header_nvtx3_nvToolsExt_h" = xyes], [
+    AC_DEFINE([HAVE_NVTX3], [1], [Have NVTX v3 header])
+  ], [test "x$ac_cv_header_nvToolsExt_h" = xyes], [
+    AC_DEFINE([HAVE_NVTX2], [1], [Have legacy NVTX v2 header])
+  ], [
+    AC_MSG_ERROR([NVTX header not found: tried nvtx3/nvToolsExt.h and nvToolsExt.h])
+  ])
+
+# restore 
+   CPPFLAGS="$cppflags_save"
+
 
 #    AC_CHECK_PROG(NVCC, nvcc)
   version=""
@@ -705,7 +757,6 @@ if test x"${with_cuda}" != x"no"; then
   NVCC_VER=`echo ${version}\
 	   | sed -e 's/\V\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)\.\(@<:@0-9@:>@*\)/\1 \2 \3/'\
 	   | xargs printf "%02d%02d%03d"`
-
 
   AC_DEFINE(CUDAGPU, 1, [defined if cuda_gpu is used.])
   DEFINED_VARIABLES+=" -DCUDAGPU"
@@ -729,6 +780,7 @@ if test x"${with_cuda}" != x"no"; then
     AC_MSG_ERROR([CUDA is not allowed])
   fi
 
+
 # CUDA Architecture option
   if test ${NVCC_VER} -lt 0800000; then
     AC_MSG_ERROR([CUDA version must be >= 8.0.0 for GENESIS])
@@ -736,12 +788,12 @@ if test x"${with_cuda}" != x"no"; then
   if test x"${with_gpuarch}" != x"no"; then
     GENCODEFLAG="-arch=${with_gpuarch}"
   else
-    if test ${NVCC_VER} -ge 0800000; then
+    if test ${NVCC_VER} -ge 0800000 -a ${NVCC_VER} -lt 1300000; then
       GENCODEFLAG+=' --generate-code=arch=compute_60,code=\"sm_60,compute_60\"'
       GENCODEFLAG+=' --generate-code=arch=compute_61,code=\"sm_61,compute_61\"'
       GENCODEFLAG+=' --generate-code=arch=compute_62,code=\"sm_62,compute_62\"'
     fi
-    if test ${NVCC_VER} -ge 0900000; then
+    if test ${NVCC_VER} -ge 0900000 -a ${NVCC_VER} -lt 1300000; then
       GENCODEFLAG+=' --generate-code=arch=compute_70,code=\"sm_70,compute_70\"'
     fi
     if test ${NVCC_VER} -ge 1000000; then

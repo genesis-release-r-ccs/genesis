@@ -7,7 +7,13 @@
 #include "../config.h"
 #include "cuda.h"
 
+#if defined(HAVE_NVTX3)
+#include "nvtx3/nvToolsExt.h"
+#elif defined(HAVE_HVTX2)
 #include "nvToolsExt.h"
+#else
+#error "No NVTX header"
+#endif
 
 // #define DEBUG
 // #define DO_VERIFY
