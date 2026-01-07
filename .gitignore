@@ -27,12 +27,16 @@ bin.*/
 config.log
 config.status
 Makefile
-Makefile.in
+*/Makefile.in
+*/*/Makefile.in
+*/*/*/Makefile.in
+.deps/
 src/config.h
 src/stamp-h1
 src/lib/.deps/
 src/lib/*/.deps/
 src/lib/*/.dirstamp
+src/lib/dSFMT/.deps/
 !src/lib/lapack-3.10.0/INSTALL/Makefile
 !src/lib/lapack-3.10.0/CBLAS/Makefile
 !src/lib/lapack-3.10.0/CBLAS/src/Makefile
