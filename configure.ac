@@ -130,9 +130,9 @@ AC_ARG_WITH([msmpi],
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_fc="mpiifort mpiifx mpiflang mpifrtpx mpifrt mpif90"
+  genesis_default_fc="mpifort mpiifx mpiflang mpifrtpx mpifrt mpif90 mpiifort"
 else
-  genesis_default_fc="ifort ifx flang frtpx frt ifort gfortran"
+  genesis_default_fc="gfortran ifx flang frtpx frt ifort"
 fi
 
 # check usablility
@@ -1221,7 +1221,7 @@ else
       FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"ifx"; then
-      FCFLAGS="-O0 -g -traceback -CB"
+      FCFLAGS="-O0 -g -traceback -check bounds"
       FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
