@@ -54,7 +54,7 @@ endif
 rst_convert$(EXEEXT) : $(rst_convert_ADDLIBANA) $(rst_convert_ADDLIB) \
 						$(rst_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(rst_convert_OBJECTS) \
-		$(rst_convert_ADDLIBANA) $(rst_convert_ADDLIB) $(LDFLAGS)
+		$(rst_convert_ADDLIBANA) $(rst_convert_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

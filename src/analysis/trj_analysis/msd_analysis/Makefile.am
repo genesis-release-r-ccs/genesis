@@ -55,7 +55,8 @@ endif
 msd_analysis$(EXEEXT) : $(msd_analysis_OBJECTS) \
 		$(msd_analysis_ADDLIBANA) $(msd_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(msd_analysis_OBJECTS) \
-		$(msd_analysis_ADDLIBANA) $(msd_analysis_ADDLIB) $(LDFLAGS)
+		$(msd_analysis_ADDLIBANA) $(msd_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

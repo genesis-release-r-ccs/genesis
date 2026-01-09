@@ -27,6 +27,9 @@ module at_setup_mpi_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -56,7 +59,6 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads
     integer                  :: color, key, nthread
     integer                  :: node_recip, node_real, expon
     logical                  :: prime_flag
@@ -238,7 +240,8 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads, nthread
+    !integer                  :: omp_get_num_threads, nthread
+    integer                  :: thread
     integer                  :: nreplicas, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon
@@ -456,7 +459,8 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads, nthread
+    !integer                  :: omp_get_num_threads, nthread
+    integer                  :: nthread
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon
@@ -734,7 +738,8 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads, nthread
+    !integer                  :: omp_get_num_threads, nthread
+    integer                  :: nthread
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon

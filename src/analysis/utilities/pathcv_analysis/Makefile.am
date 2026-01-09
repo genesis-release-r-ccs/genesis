@@ -52,7 +52,8 @@ endif
 pathcv_analysis$(EXEEXT) : $(pathcv_analysis_OBJECTS) \
 		$(pathcv_analysis_ADDLIBANA) $(pathcv_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(pathcv_analysis_OBJECTS) \
-		$(pathcv_analysis_ADDLIBANA) $(pathcv_analysis_ADDLIB) $(LDFLAGS)
+		$(pathcv_analysis_ADDLIBANA) $(pathcv_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

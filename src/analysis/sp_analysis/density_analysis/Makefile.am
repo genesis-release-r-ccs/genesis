@@ -48,7 +48,8 @@ endif
 
 density_analysis$(EXEEXT) : makelib $(density_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(density_analysis_OBJECTS) \
-		 $(density_analysis_ADDLIBSPANA) $(density_analysis_ADDLIBANA) $(density_analysis_ADDLIB) $(LDFLAGS)
+		 $(density_analysis_ADDLIBSPANA) $(density_analysis_ADDLIBANA) \
+		 $(density_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(density_analysis_OBJECTS) *.f90 *~ *.mod

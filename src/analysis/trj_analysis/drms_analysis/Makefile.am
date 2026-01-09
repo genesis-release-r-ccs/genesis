@@ -52,7 +52,8 @@ endif
 drms_analysis$(EXEEXT) : $(drms_analysis_OBJECTS) \
 						   $(drms_analysis_ADDLIBANA) $(drms_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(drms_analysis_OBJECTS) \
-		$(drms_analysis_ADDLIBANA) $(drms_analysis_ADDLIB) $(LDFLAGS)
+		$(drms_analysis_ADDLIBANA) $(drms_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

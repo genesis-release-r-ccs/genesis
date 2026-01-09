@@ -77,7 +77,8 @@ energy_analysis$(EXEEXT) : $(energy_analysis_OBJECTS) \
 		$(energy_analysis_ADDLIBANA) $(energy_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(energy_analysis_OBJECTS) \
 		$(optional_objs) \
-		$(energy_analysis_ADDLIBANA) $(energy_analysis_ADDLIB) $(LDFLAGS)
+		$(energy_analysis_ADDLIBANA) $(energy_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(energy_analysis_OBJECTS) *.f90 *~ *.mod

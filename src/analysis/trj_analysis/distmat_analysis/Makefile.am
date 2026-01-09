@@ -52,7 +52,8 @@ endif
 distmat_analysis$(EXEEXT) : $(distmat_analysis_OBJECTS) \
 		$(distmat_analysis_ADDLIBANA) $(distmat_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(distmat_analysis_OBJECTS) \
-		$(distmat_analysis_ADDLIBANA) $(distmat_analysis_ADDLIB) $(LDFLAGS)
+		$(distmat_analysis_ADDLIBANA) $(distmat_analysis_ADDLIB) \
+		$(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

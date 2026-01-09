@@ -52,7 +52,8 @@ endif
 qval_residcg_analysis$(EXEEXT) : $(qval_residcg_analysis_OBJECTS) \
 		$(qval_residcg_analysis_ADDLIBANA) $(qval_residcg_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(qval_residcg_analysis_OBJECTS) \
-		$(qval_residcg_analysis_ADDLIBANA) $(qval_residcg_analysis_ADDLIB) $(LDFLAGS)
+		$(qval_residcg_analysis_ADDLIBANA) $(qval_residcg_analysis_ADDLIB) \
+		$(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

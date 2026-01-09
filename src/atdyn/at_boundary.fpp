@@ -29,6 +29,9 @@ module at_boundary_mod
   use select_mod
   use select_atoms_mod
   use select_atoms_str_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num, omp_get_max_threads, omp_get_num_threads
+#endif
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -1703,9 +1706,6 @@ contains
     integer  :: i, j, n
     integer  :: id, my_id
     real(wp) :: rn, rmin, din(3), rin
-#ifdef OMP
-    integer  :: omp_get_thread_num, omp_get_max_threads
-#endif
 
 
 #ifdef OMP

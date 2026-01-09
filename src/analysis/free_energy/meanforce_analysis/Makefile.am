@@ -53,7 +53,8 @@ meanforce_analysis$(EXEEXT) : $(meanforce_analysis_ADDLIBANA) \
 								$(meanforce_analysis_ADDLIB) \
 								$(meanforce_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(meanforce_analysis_OBJECTS) \
-		$(meanforce_analysis_ADDLIBANA) $(meanforce_analysis_ADDLIB) $(LDFLAGS)
+		$(meanforce_analysis_ADDLIBANA) $(meanforce_analysis_ADDLIB) \
+		$(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

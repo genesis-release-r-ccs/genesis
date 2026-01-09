@@ -25,6 +25,10 @@ module at_energy_gbsa_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
+
 
   implicit none
   private
@@ -234,10 +238,6 @@ contains
     real(wp),         pointer :: rho_k(:), scale_k(:)
     real(wp),         pointer :: cutoff
     real(wp),         pointer :: born_radius(:), dadrfac(:)
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     natom    =  molecule%num_atoms
     cutoff   => enefunc%gbsa%cutoffdist
@@ -407,9 +407,6 @@ contains
     real(wp),         pointer :: charge(:), rho_k(:), scale_k(:)
     real(wp),         pointer :: cutoff
     real(wp),         pointer :: born_radius(:), dadrfac(:)
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     natom    =  molecule%num_atoms
     charge   => molecule%charge
@@ -726,10 +723,6 @@ contains
     logical                   :: zero_cell
     integer,  pointer         :: atom_type(:), atom_list(:)
     real(wp), pointer         :: radius(:), param(:,:)
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     natom      =  molecule%num_atoms
     natom_sasa =  enefunc%gbsa%num_sasa_atoms

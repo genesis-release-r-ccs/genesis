@@ -18,6 +18,9 @@ module at_pairlist_str_mod
 
   use messages_mod
   use constants_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -296,7 +299,8 @@ contains
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
-    integer                  :: nthread, omp_get_max_threads
+    !integer                  :: nthread, omp_get_max_threads
+    integer                  :: nthread
 
 
     alloc_stat   = 0
@@ -956,7 +960,8 @@ contains
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
-    integer                  :: nthread, omp_get_max_threads
+    !integer                  :: nthread, omp_get_max_threads
+    integer                  :: nthread
 
 
     alloc_stat   = 0

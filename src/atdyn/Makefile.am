@@ -129,7 +129,7 @@ else
 endif
 
 atdyn$(EXEEXT) : $(atdyn_ADDLIB) $(atdyn_OBJECTS)
-	$(FC) -o $(bin_PROGRAMS) $(atdyn_OBJECTS) $(atdyn_ADDLIB) $(atdyn_LDADD) $(LDFLAGS)
+	$(FC) -o $(bin_PROGRAMS) $(atdyn_OBJECTS) $(atdyn_ADDLIB) $(atdyn_LDADD) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(atdyn_OBJECTS) *.f90 *~ *.mod

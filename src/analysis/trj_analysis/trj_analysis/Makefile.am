@@ -52,7 +52,8 @@ endif
 trj_analysis$(EXEEXT) : $(trj_analysis_OBJECTS) \
 		$(trj_analysis_ADDLIBANA) $(trj_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(trj_analysis_OBJECTS) \
-		$(trj_analysis_ADDLIBANA) $(trj_analysis_ADDLIB) $(LDFLAGS)
+		$(trj_analysis_ADDLIBANA) $(trj_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

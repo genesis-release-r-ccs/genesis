@@ -52,7 +52,8 @@ endif
 avecrd_analysis$(EXEEXT) : $(avecrd_analysis_ADDLIBANA) $(avecrd_analysis_ADDLIB) \
 							$(avecrd_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(avecrd_analysis_OBJECTS) \
-		$(avecrd_analysis_ADDLIBANA) $(avecrd_analysis_ADDLIB) $(LDFLAGS)
+		$(avecrd_analysis_ADDLIBANA) $(avecrd_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

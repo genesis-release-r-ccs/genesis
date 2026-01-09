@@ -52,7 +52,8 @@ endif
 pcavec_drawer$(EXEEXT) : $(pcavec_drawer_ADDLIBANA) $(pcavec_drawer_ADDLIB) \
 							$(pcavec_drawer_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(pcavec_drawer_OBJECTS) \
-		$(pcavec_drawer_ADDLIBANA) $(pcavec_drawer_ADDLIB) $(LDFLAGS)
+		$(pcavec_drawer_ADDLIBANA) $(pcavec_drawer_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

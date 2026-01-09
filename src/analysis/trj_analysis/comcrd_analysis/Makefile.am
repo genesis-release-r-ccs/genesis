@@ -52,7 +52,8 @@ endif
 comcrd_analysis$(EXEEXT) : $(comcrd_analysis_OBJECTS) \
 				$(comcrd_analysis_ADDLIBANA) $(comcrd_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(comcrd_analysis_OBJECTS) \
-		$(comcrd_analysis_ADDLIBANA) $(comcrd_analysis_ADDLIB) $(LDFLAGS)
+		$(comcrd_analysis_ADDLIBANA) $(comcrd_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

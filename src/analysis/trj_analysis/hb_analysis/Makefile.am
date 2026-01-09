@@ -52,7 +52,7 @@ endif
 hb_analysis$(EXEEXT) : $(hb_analysis_OBJECTS) \
 	$(hb_analysis_ADDLIBANA) $(hb_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(hb_analysis_OBJECTS) \
-		$(hb_analysis_ADDLIBANA) $(hb_analysis_ADDLIB) $(LDFLAGS)
+		$(hb_analysis_ADDLIBANA) $(hb_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

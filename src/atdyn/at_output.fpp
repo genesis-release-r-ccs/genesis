@@ -722,14 +722,19 @@ contains
 
     ! local variables
     integer                  :: file
-    integer                  :: access
-
+    logical                  :: ex
 
     ! open logfile 
     !
     if (output%logout) then
       if (replica_main_rank) then
-        if (access(output%logfile, 'rw' ) == 0) then
+        if (len_trim(output%logfile) == 0) then
+           call error_msg('open_output> log filename is blank')
+        end if
+      
+        inquire(file=trim(output%logfile), exist=ex)
+
+        if (ex) then
           call open_file(file, output%logfile, IOFileOutputAppend)
         else
           call open_file(file, output%logfile, IOFileOutputNew)
@@ -743,7 +748,13 @@ contains
     !
     if (output%dcdout) then
       if (main_rank .or. replica_main_rank) then
-        if(access(output%dcdfile, 'rw' ) == 0) then
+        if (len_trim(output%dcdfile) == 0) then
+           call error_msg('open_output> dcd filename is blank')
+        end if
+      
+        inquire(file=trim(output%dcdfile), exist=ex)
+
+        if (ex) then
           call open_binary_file(file, output%dcdfile, IOFileOutputAppend)
         else
           call open_binary_file(file, output%dcdfile, IOFileOutputNew)
@@ -756,7 +767,13 @@ contains
     !
     if (output%dcdvelout) then
       if (main_rank .or. replica_main_rank) then            
-        if(access(output%dcdvelfile, 'rw' ) == 0) then      
+        if (len_trim(output%dcdvelfile) == 0) then
+           call error_msg('open_output> dcdvel filename is blank')
+        end if
+
+        inquire(file=trim(output%dcdvelfile), exist=ex)
+
+        if (ex) then
           call open_binary_file(file, output%dcdvelfile, IOFileOutputAppend)
         else
           call open_binary_file(file, output%dcdvelfile, IOFileOutputNew)
@@ -800,7 +817,13 @@ contains
     !
     if (output%rpathout) then
       if (main_rank .or. replica_main_rank) then
-        if(access(output%rpathfile, 'rw' ) == 0) then    
+        if (len_trim(output%rpathfile) == 0) then
+           call error_msg('open_output> rpath filename is blank')
+        end if
+
+        inquire(file=trim(output%rpathfile), exist=ex)
+
+        if (ex) then
           call open_file(file, output%rpathfile, IOFileOutputAppend)
         else
           call open_file(file, output%rpathfile, IOFileOutputNew)

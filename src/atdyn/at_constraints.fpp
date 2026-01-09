@@ -31,6 +31,9 @@ module at_constraints_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num, omp_get_max_threads, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -941,7 +944,8 @@ contains
     ! local variables
     integer                  :: i, i1, i2, i3, natom, nwater, nbond, nangl
     integer                  :: istart, iend
-    integer                  :: nthread, omp_get_num_threads, alloc_stat
+    !integer                  :: nthread, omp_get_num_threads, alloc_stat
+    integer                  :: nthread, alloc_stat
     character(10)            :: water_model
     character(4)             :: an1, an2, an3
 
@@ -2488,7 +2492,7 @@ contains
     integer           :: num_water
     integer           :: iw, i, j, k, iatom(3)
     integer           :: id, nthread
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: quotient, remainder
     integer           :: istart, iend
 
@@ -2996,7 +3000,7 @@ contains
     integer                   :: num_water
     integer                   :: i, k, iatom_O, iatom_H1, iatom_H2
     integer                   :: id, nthread
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: quotient, remainder
     integer                   :: istart, iend
 

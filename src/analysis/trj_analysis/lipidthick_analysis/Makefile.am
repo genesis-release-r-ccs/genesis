@@ -52,7 +52,8 @@ endif
 lipidthick_analysis$(EXEEXT) : $(lipidthick_analysis_OBJECTS) \
 		$(lipidthick_analysis_ADDLIBANA) $(lipidthick_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(lipidthick_analysis_OBJECTS) \
-		$(lipidthick_analysis_ADDLIBANA) $(lipidthick_analysis_ADDLIB) $(LDFLAGS)
+		$(lipidthick_analysis_ADDLIBANA) $(lipidthick_analysis_ADDLIB) \
+		$(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

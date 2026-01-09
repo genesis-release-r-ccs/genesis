@@ -2876,26 +2876,50 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine fd_flen(unit_no, flen)
+  subroutine fd_flen(unit_no, flen8)
+#ifndef KCOMP
+    use iso_fortran_env, only: int64
+#endif
 
     ! formal arguments
     integer,                 intent(inout) :: unit_no
-    integer(8),              intent(inout) :: flen
-
+    integer(8),              intent(inout) :: flen8
 
 #ifndef KCOMP
-    integer(8)               :: ftell
-    integer                  :: ierr
+    integer(int64) :: flen_size
+    integer :: ios, recl_u, nextrec
+    character(len=16) :: acc
 
-    ierr=0
-    call fseek(unit_no, 0, 2, ierr)
-    if (ierr /= 0) then
-      call error_msg_fileio
+    flen_size = -1_int64
+
+    inquire(unit=unit_no, size=flen_size, iostat=ios)
+    if (ios /= 0) then
+      call error_msg('FD_FLEN> inquire(access=) failed.')
+      return
+    end if
+    if (ios /= 0 .or. flen_size < 0_int64) then
+      inquire(unit=unit_no, access=acc, iostat=ios)
+      if (ios == 0 .and. (acc == 'DIRECT' .or. acc == 'direct')) then
+        inquire(unit=unit_no, recl=recl_u, nextrec=nextrec, iostat=ios)
+        if (ios == 0 .and. recl_u > 0 .and. nextrec >= 1) then
+          if (nextrec == 1) then
+            flen_size = 0_int64
+          else
+            flen_size = int(recl_u, int64) * int(nextrec - 1, int64)
+          end if
+        end if
+      end if
+    end if
+
+    if  (flen_size < 0_int64) then
+      call error_msg('FD_FLEN> fd_flen could not determine file size.')
     endif
-    flen = ftell(unit_no)
+    
+    flen8=int(flen_size, kind=8)
+
 #else
     !!inquire(unit_no,flen=flen)
-    call fd_flen_(unit_no, flen)
+    call fd_flen_(unit_no, flen8)
     if (flen == -1) then
             call error_msg('FD_FLEN> fd_flen does not work.')
     endif

@@ -1629,6 +1629,7 @@ contains
     integer                  :: sym_size, x_size, v_size, f_size, natom, step
     integer                  :: nre, real_size, i, j
     character(256)           :: version
+    integer                  :: ios
 
     
     ! read header
@@ -1704,10 +1705,15 @@ contains
     end if
 
     ! seek
-    if (vir_size /= 0) &
-      call fseek(file%unit_no, vir_size, 1)
+    if (vir_size  /= 0) &
+      call skip_bytes(file%unit_no, int(vir_size ,kind=8), ios)
+    if (ios /= 0) &
+       call error_msg('Read_Gromacs_Trj> skip virial size failed')
+
     if (pres_size /= 0) &
-      call fseek(file%unit_no, pres_size, 1)
+      call skip_bytes(file%unit_no, int(pres_size,kind=8), ios)
+    if (ios /= 0) &
+       call error_msg('Read_Gromacs_Trj> skip pressure size failed')
 
     ! coordinate
     if (x_size /= 0) then
@@ -1735,10 +1741,15 @@ contains
     end if
 
     ! seek
-    if (v_size /= 0) &
-      call fseek(file%unit_no, v_size, 1)
+    if (v_size  /= 0) &
+      call skip_bytes(file%unit_no, int(v_size ,kind=8), ios)
+    if (ios /= 0) &
+       call error_msg('Read_Gromacs_Trj> skip velocity size failed')
+
     if (f_size /= 0) &
-      call fseek(file%unit_no, f_size, 1)
+      call skip_bytes(file%unit_no, int(f_size,kind=8), ios)
+    if (ios /= 0) &
+       call error_msg('Read_Gromacs_Trj> skip force size failed')
 
     return
 
@@ -2021,5 +2032,22 @@ contains
     return
 
   end function get_num_steps_trj
+
+  subroutine skip_bytes(unit_no, nbytes, ios)
+    use iso_fortran_env, only: int64, int8
+    integer,          intent(in)  :: unit_no
+    integer(int64),   intent(in)  :: nbytes
+    integer,          intent(out) :: ios
+    integer(int64) :: cur
+    integer(int8)  :: dummy
+
+    ios = 0
+    if (nbytes <= 0_int64) return
+
+    inquire(unit=unit_no, pos=cur, iostat=ios)
+    if (ios /= 0) return
+
+    read(unit_no, pos=cur + nbytes - 1_int64, iostat=ios) dummy
+  end subroutine skip_bytes
 
 end module fileio_trj_mod

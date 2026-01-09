@@ -53,6 +53,9 @@ program atdyn
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
 
@@ -82,7 +85,6 @@ program atdyn
   type(s_rpath)               :: rpath
   type(s_vibration)           :: vibration
   type(s_morph)               :: morph
-  integer                     :: omp_get_max_threads
 
 
 #ifdef HAVE_MPI_GENESIS

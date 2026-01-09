@@ -52,7 +52,7 @@ endif
 crd_convert$(EXEEXT) : $(crd_convert_ADDLIBANA) $(crd_convert_ADDLIB) \
 						$(crd_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(crd_convert_OBJECTS) \
-		$(crd_convert_ADDLIBANA) $(crd_convert_ADDLIB) $(LDFLAGS)
+		$(crd_convert_ADDLIBANA) $(crd_convert_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

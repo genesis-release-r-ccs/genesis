@@ -52,7 +52,8 @@ endif
 qval_analysis$(EXEEXT) : $(qval_analysis_OBJECTS) \
 		$(qval_analysis_ADDLIBANA) $(qval_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(qval_analysis_OBJECTS) \
-		$(qval_analysis_ADDLIBANA) $(qval_analysis_ADDLIB) $(LDFLAGS)
+		$(qval_analysis_ADDLIBANA) $(qval_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

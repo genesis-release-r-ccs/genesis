@@ -52,7 +52,8 @@ endif
 dssp_interface$(EXEEXT) : $(dssp_interface_ADDLIBANA) $(dssp_interface_ADDLIB) \
 							$(dssp_interface_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(dssp_interface_OBJECTS) \
-		$(dssp_interface_ADDLIBANA) $(dssp_interface_ADDLIB) $(LDFLAGS)
+		$(dssp_interface_ADDLIBANA) $(dssp_interface_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

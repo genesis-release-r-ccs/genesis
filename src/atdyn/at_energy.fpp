@@ -50,6 +50,9 @@ module at_energy_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -3474,9 +3477,6 @@ contains
     integer  :: i, j, k, n, nsave
     integer  :: id, my_id
     integer  :: expo
-#ifdef OMP
-    integer  :: omp_get_thread_num, omp_get_max_threads
-#endif
 
 
 #ifdef OMP

@@ -340,7 +340,7 @@ endif
 
 spdyn$(EXEEXT) : $(spdyn_ADDLIB) $(spdyn_OBJECTS)
 	$(FC) -o spdyn $(spdyn_OBJECTS) \
-		$(spdyn_ADDLIB) $(LDFLAGS)
+		$(spdyn_ADDLIB) $(LDFLAGS) $(LIBS)
 
 prst_setup$(EXEEXT) : $(spdyn_ADDLIB) $(prst_setup_OBJECTS)
 	$(FC) -o prst_setup $(prst_setup_OBJECTS) \

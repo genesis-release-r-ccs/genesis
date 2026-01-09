@@ -52,7 +52,7 @@ endif
 pmf_analysis$(EXEEXT) : $(pmf_analysis_ADDLIBANA) $(pmf_analysis_ADDLIB) \
 						$(pmf_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(pmf_analysis_OBJECTS) \
-		$(pmf_analysis_ADDLIBANA) $(pmf_analysis_ADDLIB) $(LDFLAGS)
+		$(pmf_analysis_ADDLIBANA) $(pmf_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

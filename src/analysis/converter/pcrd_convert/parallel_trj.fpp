@@ -283,6 +283,8 @@ contains
   
   subroutine read_parallel_trj_(file, buf, coord, box)
   
+    use iso_fortran_env, only: int64
+
     ! formal argments
     type(s_pt_file),         intent(inout) :: file
     type(s_pt_buf),          intent(inout) :: buf
@@ -295,34 +297,33 @@ contains
 
     ! function
     integer                  :: ftell
+    integer                  :: ios
+    integer(int64)           :: cur
 
 
     !$omp critical
     !
-    call open_binary_file(un, file%name, IOFileInput,file%endian)
+    call open_binary_file(un, file%name, IOFileInput,file%endian, 3)
     !
     !$omp end critical
-
-    call fseek(un, file%pos, 0)
-
 
     ! read header
     !
     if (file%pos == 0) then
 
-      read(un) mark
-      read(un) rank
-      read(un) natom_all
-      read(un) nsnap
-
-    end if
-
+      read(un, iostat=ios) mark
+      read(un, iostat=ios) rank
+      read(un, iostat=ios) natom_all
+      read(un, iostat=ios) nsnap
 
     ! read body
-    !
-    read(un) buf%box
+      read(un, iostat=ios) buf%box
+    else
+      read(un, pos=int(file%pos, int64) + 1_int64, iostat=ios) buf%box
+    end if
 
-    read(un) natom
+    read(un, iostat=ios) natom
+    if (ios /= 0) call error_msg('Read_Parallel_Trj_> read natom failed.')
     
     if (buf%natom == 0) then
 
@@ -337,10 +338,19 @@ contains
 
     end if
 
-    read(un) buf%idx(1:natom)
-    read(un) buf%crd(1:3,1:natom)
+    read(un, iostat=ios) buf%idx(1:natom)
+    if (ios /= 0) call error_msg('Read_Parallel_Trj_> read idx failed.')
+    read(un, iostat=ios) buf%crd(1:3,1:natom)
+    if (ios /= 0) call error_msg('Read_Parallel_Trj_> read crd failed.')
 
-    file%pos = ftell(un)
+    
+    inquire(unit=un, pos=cur, iostat=ios)
+    if (ios /= 0) then
+      call error_msg('Read_Parallel_Trj_> inquire(pos=) failed.')
+    else
+      file%pos = int(cur - 1_int64, kind=kind(file%pos))  ! 0起点で保存
+    end if
+    !file%pos = ftell(un)
 
     !$omp critical
     !
@@ -445,7 +455,7 @@ contains
     open(file, &
          file    = filename,        &
          status  = 'old',           &
-         form    = 'binary',        &
+         form    = 'unformatted',   &
          access  = 'direct',        &
          convert = 'little_endian', &
          recl    = 4)
@@ -458,7 +468,7 @@ contains
       open(file, &
            file    = filename,      &
            status  = 'old',         &
-           form    = 'binary',      &
+           form    = 'unformatted', &
            access  = 'direct',      &
            convert = 'big_endian',  &
            recl    = 4)

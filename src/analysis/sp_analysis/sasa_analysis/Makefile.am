@@ -48,7 +48,8 @@ endif
 
 sasa_analysis$(EXEEXT) : makelib $(sasa_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(sasa_analysis_OBJECTS) \
-		 $(sasa_analysis_ADDLIBSPANA) $(sasa_analysis_ADDLIBANA) $(sasa_analysis_ADDLIB) $(LDFLAGS)
+		 $(sasa_analysis_ADDLIBSPANA) $(sasa_analysis_ADDLIBANA) \
+		 $(sasa_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(sasa_analysis_OBJECTS) *.f90 *~ *.mod

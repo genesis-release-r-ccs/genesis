@@ -23,6 +23,9 @@ module at_energy_table_cubic_mod
   use mpi_parallel_mod
   use messages_mod
   use constants_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -337,10 +340,6 @@ contains
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     natom          => enefunc%table%num_solute
     charge         => molecule%charge
@@ -521,10 +520,6 @@ contains
     integer                   :: qm_natoms, ec_natoms
     integer,          pointer :: qmatom_id(:), ecatom_id(:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     qm_natoms =  enefunc%qmmm%qm_natoms
     qmatom_id => enefunc%qmmm%qmatom_id
@@ -655,10 +650,6 @@ contains
     integer,          pointer :: natom
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     natom          => enefunc%table%num_solute
@@ -852,10 +843,6 @@ contains
     integer,          pointer :: nsolute, atmcls(:), solute_list(:)
     integer,          pointer :: num_nb15_calc(:), nb15_calc_list(:,:)
     integer,          pointer :: num_nb15_calcw(:), nb15_calc_listw(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     nsolute         => enefunc%table%num_solute
@@ -1111,10 +1098,6 @@ contains
     integer,          pointer :: nwater
     integer,          pointer :: num_nb15_calc(:), nb15_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     nwater         => enefunc%table%num_water
     cutoff         => enefunc%cutoffdist
@@ -1310,10 +1293,6 @@ contains
     integer,          pointer :: nsolute, atmcls(:), solute_list(:)
     integer,          pointer :: num_nb15_calc(:), nb15_calc_list(:,:)
     integer,          pointer :: num_nb15_calcw(:), nb15_calc_listw(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     nsolute         => enefunc%table%num_solute
@@ -1543,10 +1522,6 @@ contains
     integer,          pointer :: nwater
     integer,          pointer :: num_nb15_calc(:), nb15_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     nwater         => enefunc%table%num_water
     cutoff         => enefunc%cutoffdist
@@ -1728,9 +1703,6 @@ contains
     integer,          pointer :: natom, atmcls(:)
     integer,          pointer :: num_nb15_calc(:,:), nb15_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     natom           => molecule%num_atoms
     charge          => molecule%charge
@@ -1894,10 +1866,6 @@ contains
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer,          pointer :: qmatom_id(:), ecatom_id(:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
-
 
     qm_natoms =  enefunc%qmmm%qm_natoms
     qmatom_id => enefunc%qmmm%qmatom_id
@@ -2030,10 +1998,6 @@ contains
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer,          pointer :: natom, atmcls(:)
     integer,          pointer :: num_nb15_calc(:,:), nb15_calc_list(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     natom           => molecule%num_atoms
@@ -2183,10 +2147,6 @@ contains
     real(wp),         pointer :: cutoff, charge(:)
     real(wp),         pointer :: table_ene(:), table_grad(:)
     integer,          pointer :: qmatom_id(:), ecatom_id(:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     qm_natoms =  enefunc%qmmm%qm_natoms

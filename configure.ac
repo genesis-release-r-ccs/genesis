@@ -130,9 +130,9 @@ AC_ARG_WITH([msmpi],
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_fc="mpiifort mpiifx mpifrtpx mpifrt mpif90"
+  genesis_default_fc="mpiifort mpiifx mpiflang mpifrtpx mpifrt mpif90"
 else
-  genesis_default_fc="ifort ifx frtpx frt ifort gfortran"
+  genesis_default_fc="ifort ifx flang frtpx frt ifort gfortran"
 fi
 
 # check usablility
@@ -162,6 +162,14 @@ for vtok in ${fc_ver_info} ; do
 
   elif test x"${vtok}" = x"ifx"; then
     FC_ACT="ifx"
+    break
+
+  elif test x"${vtok}" = x"flang"; then
+    FC_ACT="flang"
+    break
+
+  elif test x"${vtok}" = x"flang-new"; then
+    FC_ACT="flang"
     break
 
   elif test x"${vtok}" = x"GNU"; then
@@ -292,9 +300,9 @@ AC_MSG_RESULT([${mpitype} MPI])
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_cc="mpiicc mpiicx mpifccpx mpifcc mpicc"
+  genesis_default_cc="mpiicc mpiicx mpiclang mpifccpx mpifcc mpicc"
 else
-  genesis_default_cc="icc icx fccpx fcc gcc"
+  genesis_default_cc="icc icx clang fccpx fcc gcc "
 fi
 
 # check usablility
@@ -320,6 +328,10 @@ for vtok in ${cc_ver_info} ; do
     if test x"${enable_mpi}" = x"yes"; then
       CC_ACT="mpifccpx"
     fi
+    break
+
+  elif test x"${vtok}" = x"clang"; then
+    CC_ACT="clang"
     break
 
   elif test x"${vtok}" = x"gcc"; then
@@ -389,6 +401,7 @@ if test x"${enable_openmp}" = x"yes"; then
   AC_DEFINE(OMP, 1, [defined if OpenMP is used.])
   DEFINED_VARIABLES+=" -DOMP"
 
+
   if   test x"${FC_ACT}" = x"ifort"; then
     OPT_OPENMP="-openmp"
     if test ${FC_GNU_VER} -gt 160000; then
@@ -406,7 +419,7 @@ if test x"${enable_openmp}" = x"yes"; then
        DEFINED_VARIABLES+=" -DIFORT19"
     fi
 
-  elif test x"${FC_ACT}" = x"gfortran"; then
+  elif test x"${FC_ACT}" = x"gfortran" -o x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"; then
     OPT_OPENMP="-fopenmp"
 
   elif test x"${FC_ACT}" = x"pgf90"; then
@@ -425,6 +438,24 @@ if test x"${enable_openmp}" = x"yes"; then
     OPT_OPENMP="-Kopenmp"
 
   fi
+
+  save_FCFLAGS="$FCFLAGS"
+  FCFLAGS="$FCFLAGS ${OPT_OPENMP}"
+  AC_LANG_PUSH([Fortran])
+  AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM([],[
+    integer :: n
+    n = 1
+!$omp parallel
+    n = n + 0
+!$omp end parallel
+    end program
+  ])],
+  [OPENMP_FCFLAGS="${OPT_OPENMP}"],
+  [OPENMP_FCFLAGS=""])
+  AC_LANG_POP([Fortran])
+  FCFLAGS="$save_FCFLAGS"
+
   if test x"${with_msmpi}" = x"yes"; then
      AC_MSG_ERROR([OpenMP is not available with MSMPI])
   fi
@@ -466,7 +497,8 @@ if test x"${with_lapack}" == x"yes"; then
     lapack_path_string=${LAPACK_PATH}
 
     if test x"${FC_ACT}" = x"gfortran" -o \
-  	      x"${FC_ACT}" = x"pgf90" ; then
+            x"${FC_ACT}" = x"flang" -o \
+  	    x"${FC_ACT}" = x"pgf90" ; then
       lapack_lib_path=""
       blas_lib_path=""
       for vtok in ${lapack_path_string} ; do
@@ -541,7 +573,8 @@ if test x"${with_lapack}" == x"yes"; then
           [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
     LDFLAGS+=" -llapack ${blaslink}"
 
-  elif test x"${FC_ACT}" = x"gfortran"; then
+  elif test x"${FC_ACT}" = x"gfortran" -o \
+            x"${FC_ACT}" = x"flang"; then
     lapacklib="lapack"
     LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
@@ -776,6 +809,9 @@ if test x"${with_cuda}" != x"no"; then
   elif test x"${FC_ACT}" = x"gfortran"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
 
+  elif test x"${FC_ACT}" = x"flang"; then
+    OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
+
   else
     AC_MSG_ERROR([CUDA is not allowed])
   fi
@@ -812,7 +848,7 @@ if test x"${with_cuda}" != x"no"; then
   fi
 
 # NVCCFLAG
-  NVCCFLAG="-c -g -O3 ${GENCODEFLAG} --ftz=false --prec-div=true --prec-sqrt=true --fmad=true"
+  NVCCFLAG="-c -g -O3 ${GENCODEFLAG} --ftz=false --prec-div=true --prec-sqrt=true --fmad=true -Xcompiler -fPIC "
   AC_SUBST(NVCCFLAG)
 fi
 
@@ -967,6 +1003,11 @@ if test x"${FC_ACT}" = x"ifort" ; then
   fi
 fi
 
+AC_ARG_WITH([march],
+	[AS_HELP_STRING([--with-march=ARCH]),
+	[set -march flag (default: native)])],
+	[march=$withval], [march=native])
+
 FARCFLAGS=""
 FARCFLAGS_NOOPT=""
 FARCFLAGS_KERNELS=""
@@ -1030,9 +1071,10 @@ else
       else
         FCFLAGS+=" -mkl=parallel "
       fi
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
-      FCFLAGS="-O3 -ffast-math -march=native -ffree-line-length-none"
+      FCFLAGS="-O3 -ffast-math -march=$march -ffree-line-length-none"
       echo ${FC_GNU_VER}
       if test ${FC_GNU_VER} -gt 100000; then
         if test x"${with_msmpi}" = x"no"; then
@@ -1041,6 +1083,11 @@ else
           FCFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      FCFLAGS+=" -fPIC "
+
+    elif test x"${FC_ACT}" = x"flang"; then
+      FCFLAGS="-O3 -ffast-math -march=$march "
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O2 -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -1074,8 +1121,11 @@ else
       else
         FCFLAGS+=" -mkl=parallel "
       fi
+      FCFLAGS+=" -fPIC "
+
     elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS=" -axCORE-AVX2 -vec-report -qmkl=parallel"
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-Wall -ffree-line-length-none"
@@ -1083,9 +1133,14 @@ else
         if test x"${with_msmpi}" = x"no"; then
           FCFLAGS+=" -fallow-argument-mismatch"
         else
-          FCFLAGS+=" -O2 -march=x86-64 -Wno-argument-mismatch"
+          FCFLAGS+=" -O2 -march=$march -Wno-argument-mismatch"
         fi
       fi
+      FCFLAGS+=" -fPIC "
+
+    elif test x"${FC_ACT}" = x"flang"; then
+      FCFLAGS="-Wall "
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge -Mbackslash"
@@ -1117,9 +1172,11 @@ else
       else
         FCFLAGS+=" -mkl=parallel "
       fi
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS="-g -axCORE-AVX2 -vec-report -qmkl=parallel "
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-g -Wall -ffree-line-length-none"
@@ -1130,6 +1187,11 @@ else
           FCFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      FCFLAGS+=" -fPIC "
+
+    elif test x"${FC_ACT}" = x"flang"; then
+      FCFLAGS="-g -Wall "
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-g  -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge -Mbackslash"
@@ -1156,9 +1218,11 @@ else
 
     if test x"${FC_ACT}" = x"ifort"; then
       FCFLAGS="-O0 -g -traceback -CB"
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS="-O0 -g -traceback -CB"
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O0 -g -Wall -fbounds-check -ffree-line-length-none -fbacktrace"
@@ -1169,6 +1233,11 @@ else
           FCFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      FCFLAGS+=" -fPIC "
+
+    elif test x"${FC_ACT}" = x"flang"; then
+      FCFLAGS="-O0 -g -Wall "
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O0 -g -m64 -Msmartalloc=huge"
@@ -1199,9 +1268,11 @@ else
 
     if test x"${FC_ACT}" = x"ifort"; then
       FCFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
+      FCFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"ifx"; then
       FCFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
+      FCFLAGS+=" -fPIC "
 
     elif   test x"${FC_ACT}" = x"gfortran"; then
       FCFLAGS="-O0 -g -fbacktrace -fcheck=all,no-array-temps  -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow"
@@ -1212,6 +1283,13 @@ else
           FCFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      FCFLAGS+=" -fPIC "
+    elif   test x"${FC_ACT}" = x"flang"; then
+      FCFLAGS="-O0 -g -fno-omit-frame-pointer \
+     -fhonor-nans -fhonor-infinities -fno-fast-math -fno-pie"
+#     -Xflang -fsanitize=address,undefined,float-divide-by-zero \
+#     -Xflang -fno-sanitize-recover=all"
+      FCFLAGS+=" -fPIC "
 
     else
       AC_MSG_ERROR([DEBUG=4 is only allowed in IFORT/GFORTRAN])
@@ -1251,12 +1329,14 @@ else
 # no-debug no report
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-O3 -ip -axCORE-AVX2 "
+      CFLAGS+=" -fPIC "
 
     elif   test x"${CC_ACT}" = x"icx"; then
       CFLAGS="-O3 -axCORE-AVX2   "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"gcc"; then
-      CFLAGS="-O3 -ffast-math -march=native"
+      CFLAGS="-O3 -ffast-math -march=$march"
       if test ${FC_GNU_VER} -gt 100000; then
         if test x"${with_msmpi}" = x"no"; then
           CFLAGS+=" -fallow-argument-mismatch"
@@ -1264,6 +1344,11 @@ else
           CFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      CFLAGS+=" -fPIC "
+
+    elif test x"${CC_ACT}" = x"clang"; then
+      CFLAGS="-O3 -ffast-math -march=$march"
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O3 -fastsse -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -1287,9 +1372,11 @@ else
 # debug level 1 (without O3) (default)
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-ip -axCORE-AVX2 -vec-report"
+      CFLAGS+=" -fPIC "
 
     elif   test x"${CC_ACT}" = x"icx"; then
       CFLAGS="-ip -axCORE-AVX2 -vec-report   "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-Wall"
@@ -1300,6 +1387,11 @@ else
           CFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      CFLAGS+=" -fPIC "
+
+    elif test x"${CC_ACT}" = x"clang"; then
+      CFLAGS="-Wall "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-fastsse -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -1326,9 +1418,11 @@ else
 
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-g -ip -axCORE-AVX2 -vec-report"
+      CFLAGS+=" -fPIC "
 
     elif   test x"${CC_ACT}" = x"icx"; then
       CFLAGS="-g -ip -axCORE-AVX2 -vec-report  "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-g -Wall"
@@ -1339,6 +1433,11 @@ else
           CFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      CFLAGS+=" -fPIC "
+
+    elif test x"${CC_ACT}" = x"clang"; then
+      CFLAGS="-g -Wall "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-g -fastsse -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
@@ -1365,9 +1464,11 @@ else
 
     if   test x"${CC_ACT}" = x"icc"; then
       CFLAGS="-O0 -g -traceback -CB"
+      CFLAGS+=" -fPIC "
 
     elif   test x"${CC_ACT}" = x"icx"; then
       CFLAGS="-O0 -g -traceback -CB   "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"gcc"; then
       CFLAGS="-O0 -g -Wall -fbounds-check"
@@ -1378,6 +1479,11 @@ else
           CFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      CFLAGS+=" -fPIC "
+
+    elif test x"${CC_ACT}" = x"clang"; then
+      CFLAGS="-O0 -g -Wall "
+      CFLAGS+=" -fPIC "
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O0 -g -m64 -Msmartalloc=huge"
@@ -1403,9 +1509,11 @@ else
 
     if test x"${FC_ACT}" = x"ifort"; then
       CFLAGS="-O0 -g -traceback -check all,noarg_temp_created"
+      CFLAGS+=" -fPIC "
 
     elif   test x"${CC_ACT}" = x"icx"; then
       CFLAGS="-O0 -g -traceback -check all,noarg_temp_created   "
+      CFLAGS+=" -fPIC "
 
     elif test x"${FC_ACT}" = x"gfortran"; then
       CFLAGS="-O0 -g -fbacktrace -fcheck=all,no-array-temps  -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow"
@@ -1416,6 +1524,14 @@ else
           CFLAGS+=" -Wno-argument-mismatch"
         fi
       fi
+      CFLAGS+=" -fPIC "
+
+    elif test x"${CC_ACT}" = x"clang"; then
+      CFLAGS="-O0 -g -fno-omit-frame-pointer \
+     -fhonor-nans -fhonor-infinities -fno-fast-math"
+#     -fsanitize=address,undefined,float-divide-by-zero \
+#     -fno-sanitize-recover=all"
+      CFLAGS+=" -fPIC "
 
     else
       AC_MSG_ERROR([DEBUG=4 is only allowed in IFORT/GFORTRAN])
@@ -1435,23 +1551,26 @@ if test -z "${LDFLAGS}"; then
     LDFLAGS+=""
 
   elif test x"${FC_ACT}" = x"pgf90"; then
-    LDFLAGS+="-Msmartalloc=huge"
+    LDFLAGS+=" -Msmartalloc=huge"
+
+  elif test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"; then
+    LDFLAGS+=" -lomp -fno-pie"
 
   elif test x"${FC_ACT}" = x"gfortran"; then
     LDFLAGS+=""
-    #LDFLAGS="-march=native -fuse-linker-plugin"
+    #LDFLAGS="-march=$march -fuse-linker-plugin"
 
   elif test x"${FC_ACT}" = x"frtpx"; then
-    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+=" -SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrtpx"; then
-    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+=" -SSL2BLAMP -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"frt"; then
-    LDFLAGS+="-SSL2 -Kparallel -Nfjomplib"
+    LDFLAGS+=" -SSL2 -Kparallel -Nfjomplib"
 
   elif test x"${FC_ACT}" = x"mpifrt"; then
-    LDFLAGS+="-SSL2BLAMP -Kparallel -Nfjomplib"
+    LDFLAGS+=" -SSL2BLAMP -Kparallel -Nfjomplib"
 
   fi
 fi
@@ -1480,6 +1599,12 @@ if test -z "${PPFLAGS}"; then
 
   elif test x"${FPP}" = x"cpp"; then
     PPFLAGS="-traditional-cpp -traditional"
+
+  elif test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"; then
+    PPFLAGS="-fpp"
+
+  else
+    PPFLAGS="-cpp"
 
   fi
 fi
@@ -1633,6 +1758,16 @@ if test x"${FC_ACT}" = x"gfortran"; then
   DEFINED_VARIABLES+=" -D__GFORTRAN__"
 fi
 
+# MPI setting for LLVM
+
+#AC_MSG_NOTICE([DEBUG: FC_ACT=$FC_ACT])
+#AC_MSG_NOTICE([DEBUG: enable_mpi=$enable_mpi])
+
+if test x"${FC_ACT}" = x"flang" -a x"${enable_mpi}" = x"yes"; then
+  AC_DEFINE(USE_MPI_F08, 1, [defined if llvm is used for MPI.])
+  DEFINED_VARIABLES+=" -DUSE_MPI_F08"
+fi
+
 ARFLAGS=""
 AC_SUBST(ARFLAGS)
 
@@ -1643,12 +1778,6 @@ if test x"${FC_ACT}" = x"pgf90"; then
 fi
 AM_CONDITIONAL(PGICOMP, test x"${FC_ACT}" = x"pgf90")
 
-# MS-MPI setting
-
-if test x"${with_msmpi}" = x"yes"; then
-  AC_DEFINE(MSMPI, 1, [defined if MS-MPI compiler is used.])
-  DEFINED_VARIABLES+=" -DMSMPI"
-fi
 
 ## PGI compiler settings
 #

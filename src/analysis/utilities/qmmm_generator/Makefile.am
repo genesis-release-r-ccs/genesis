@@ -52,7 +52,8 @@ endif
 qmmm_generator$(EXEEXT) : $(qmmm_generator_OBJECTS) \
 				$(qmmm_generator_ADDLIBANA) $(qmmm_generator_ADDLIB) 
 	$(FC) -o $(bin_PROGRAMS) $(qmmm_generator_OBJECTS) \
-		$(qmmm_generator_ADDLIBANA) $(qmmm_generator_ADDLIB) $(LDFLAGS)
+		$(qmmm_generator_ADDLIBANA) $(qmmm_generator_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

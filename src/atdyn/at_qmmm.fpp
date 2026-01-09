@@ -12,6 +12,30 @@
 #include "../config.h"
 #endif
 
+module posix_unlink
+  use, intrinsic :: iso_c_binding, only: c_int, c_char, c_null_char
+  implicit none
+  private
+  public :: unlink_f
+
+  interface
+     function c_unlink(path) bind(C, name="unlink") result(ret)
+       import :: c_int, c_char
+       character(kind=c_char), intent(in) :: path(*)
+       integer(c_int) :: ret
+     end function
+  end interface
+
+contains
+  integer function unlink_f(fname) result(rc)
+    character(len=*), intent(in) :: fname
+    character(kind=c_char), allocatable :: cpath(:)
+    rc = 0
+    cpath = trim(fname)//c_null_char
+    rc = c_unlink(cpath)
+  end function unlink_f
+end module posix_unlink
+
 module at_qmmm_mod
 
   use at_pairlist_str_mod
@@ -33,6 +57,9 @@ module at_qmmm_mod
   use constants_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
+#endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #endif
 
   implicit none
@@ -169,6 +196,7 @@ module at_qmmm_mod
   private :: rearrange_impr_list
   private :: merge_qm_and_linkh
   private :: separate_qm_and_linkh
+  private :: safe_path
 
 contains
 
@@ -479,6 +507,7 @@ contains
 
     type(s_selatoms), allocatable :: selatoms(:)
     integer,          allocatable :: group_list(:), atom_no(:)
+    integer                  :: p
 
 
     ! flag of QM/MM
@@ -559,6 +588,7 @@ contains
     qmmm%qmbase0    = qmmm_info%basename
 
     ! qmexe with an absolute path
+    path=''
     if (qmmm_info%qmexe(1:1) .eq. "/") then 
       qmmm%qmexe = trim(qmmm_info%qmexe)
 
@@ -568,7 +598,7 @@ contains
 
     else
       call getcwd(path)
-      qmmm%qmexe = trim(path)//'/'//trim(qmmm_info%qmexe)
+      qmmm%qmexe = trim(safe_path(path))//'/'//trim(qmmm_info%qmexe)
     end if
     
     ! initialize
@@ -905,6 +935,7 @@ contains
     character                :: num*5
     character(MaxFilename)   :: path
 
+      write(6, *) 'uni---'
 
     ! directory and file names of QM jobs
     write(num,'(i0)') my_replica_no
@@ -932,7 +963,7 @@ contains
 
     else
       call getcwd(path)
-      qmmm%qmexe = trim(path)//'/'//trim(qmmm_info%qmexe)
+      qmmm%qmexe = trim(safe_path(path))//'/'//trim(qmmm_info%qmexe)
     end if
 
     return
@@ -1872,6 +1903,8 @@ contains
   
   subroutine qm_read_output(molecule, qmmm, energy, qm_error)
 
+    use posix_unlink, only: unlink => unlink_f
+
     ! formal arguments
     type(s_molecule),        intent(inout) :: molecule
     type(s_qmmm), target,    intent(inout) :: qmmm
@@ -1884,7 +1917,7 @@ contains
     real(wp)            :: rab, vab(3), rab1, rab3, ff, lafn(3), la_chg
     integer             :: i, j, n, address, qm_atom, mm_atom
     integer             :: errorcode
-    integer(4)          :: istat, unlink
+    integer(4)          :: istat
     character(len_exec) :: exec
 
     real(wp),   pointer :: qm_force(:,:), mm_force(:,:), la_force(:,:)
@@ -2324,9 +2357,6 @@ contains
     real(wp)       :: cutoffdist2, dij(3), rij2
     integer        :: n, i, j, imm, jqm, ii
     integer        :: id, my_id, nthread, nsize
-#ifdef OMP
-    integer        :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical        :: add_res
     logical        :: byresidue
 
@@ -3408,6 +3438,8 @@ contains
   
   subroutine qm_read_output_qchem(molecule, qmmm, qm_energy, qm_error)
 
+    use posix_unlink, only: unlink => unlink_f
+
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
     type(s_qmmm), target,    intent(inout) :: qmmm
@@ -3421,7 +3453,7 @@ contains
     integer                  :: i
     integer                  :: nsta, nend
     integer                  :: address, atomic_no, charge, spin
-    integer(4)               :: istat, unlink
+    integer(4)               :: istat
     character(len_exec)      :: exec
     character(MaxLine)       :: line
     character(MaxFilename)   :: efield, fname, fchkfile
@@ -3744,6 +3776,8 @@ contains
   
   subroutine qm_read_output_gaussian(molecule, qmmm, qm_energy, qm_error)
 
+    use posix_unlink, only: unlink => unlink_f
+
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
     type(s_qmmm), target,    intent(inout) :: qmmm
@@ -3762,7 +3796,7 @@ contains
     integer                  :: address
     integer                  :: ndata, nlines
     integer                  :: idum
-    integer(4)               :: istat, unlink
+    integer(4)               :: istat
     character(len_exec)      :: exec
     character(MaxLine)       :: line
     character(MaxFilename)   :: fchk
@@ -4336,6 +4370,8 @@ contains
   
   subroutine qm_read_output_dftbplus(molecule, qmmm, qm_energy, qm_error)
 
+    use posix_unlink, only: unlink => unlink_f
+
     ! formal arguments
     type(s_molecule),        intent(in)    :: molecule
     type(s_qmmm), target,    intent(inout) :: qmmm
@@ -4348,7 +4384,7 @@ contains
     real(wp)               :: charge_tmp(qmmm%qm_natoms+qmmm%num_qmmmbonds)
     integer                :: file1
     integer                :: i, j
-    integer(4)             :: istat, unlink
+    integer(4)             :: istat
     character(len_exec)    :: exec
     character(MaxLine)     :: line
     character(MaxFilename) :: fname
@@ -4383,7 +4419,7 @@ contains
     if (.not. exist_log) then
       qm_error = .true.
       write(MsgOut,'(a,i0)') &
-       'Fatal error in DFTB+. '//trim(qmmm%qmout)// &
+       'Fatal error in DFTB+. '//trim(qmmm%workdir)//'/'//trim(qmmm%qmout)// &
        ' not found! Rank = ',my_country_no
       return
     end if
@@ -6276,5 +6312,19 @@ contains
     return
 
   end subroutine separate_qm_and_linkh
+
+  pure function safe_path(raw) result(clean)
+    character(len=*), intent(in) :: raw
+    character(len=len(raw))      :: clean
+    integer                      :: p
+
+    p = index(raw, char(0))
+    if (p > 0) then
+      clean = raw(:p-1)
+    else
+      clean = trim(raw)
+    endif
+
+  end function
 
 end module at_qmmm_mod

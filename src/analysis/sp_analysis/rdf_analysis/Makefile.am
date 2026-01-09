@@ -47,7 +47,8 @@ endif
 
 rdf_analysis$(EXEEXT) : makelib $(rdf_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(rdf_analysis_OBJECTS) \
-		 $(rdf_analysis_ADDLIBSPANA) $(rdf_analysis_ADDLIBANA) $(rdf_analysis_ADDLIB) $(LDFLAGS)
+		 $(rdf_analysis_ADDLIBSPANA) $(rdf_analysis_ADDLIBANA) \
+		 $(rdf_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(rdf_analysis_OBJECTS) *.f90 *~ *.mod

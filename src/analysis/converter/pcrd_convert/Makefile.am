@@ -53,7 +53,7 @@ endif
 pcrd_convert$(EXEEXT) :	$(pcrd_convert_ADDLIBANA) $(pcrd_convert_ADDLIB) \
 						$(pcrd_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(pcrd_convert_OBJECTS) \
-		$(pcrd_convert_ADDLIBANA) $(pcrd_convert_ADDLIB) $(LDFLAGS)
+		$(pcrd_convert_ADDLIBANA) $(pcrd_convert_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

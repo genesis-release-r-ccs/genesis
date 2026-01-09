@@ -52,7 +52,8 @@ endif
 emmap_generator$(EXEEXT) : $(emmap_generator_OBJECTS) \
 		$(emmap_generator_ADDLIBANA) $(emmap_generator_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(emmap_generator_OBJECTS) \
-		$(emmap_generator_ADDLIBANA) $(emmap_generator_ADDLIB) $(LDFLAGS)
+		$(emmap_generator_ADDLIBANA) $(emmap_generator_ADDLIB) $(LDFLAGS)  \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

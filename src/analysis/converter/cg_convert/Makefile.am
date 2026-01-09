@@ -52,7 +52,7 @@ endif
 cg_convert$(EXEEXT) : $(cg_convert_ADDLIBANA) $(cg_convert_ADDLIB) \
 						$(cg_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(cg_convert_OBJECTS) \
-		$(cg_convert_ADDLIBANA) $(cg_convert_ADDLIB) $(LDFLAGS)
+		$(cg_convert_ADDLIBANA) $(cg_convert_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

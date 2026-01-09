@@ -30,6 +30,9 @@ module at_energy_pme_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -279,7 +282,8 @@ contains
     integer                   :: istart_atom, iend_atom
     integer                   :: ngrid(3), n_bs
     integer                   :: niy, iyss
-    integer                   :: id, omp_get_thread_num
+    !integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
 #ifdef FFTW
     complex(wp), allocatable  :: work1(:), work2(:)

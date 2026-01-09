@@ -27,6 +27,9 @@ module at_energy_table_linear_bondcorr_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -299,10 +302,6 @@ contains
     integer,          pointer :: natom
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     natom          => enefunc%table%num_solute
@@ -632,10 +631,6 @@ contains
     integer,          pointer :: natom
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
 
     natom          => enefunc%table%num_solute

@@ -53,7 +53,8 @@ endif
 morph_generator$(EXEEXT) : $(morph_generator_OBJECTS) \
 		$(morph_generator_ADDLIBANA) $(morph_generator_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(morph_generator_OBJECTS) \
-		$(morph_generator_ADDLIBANA) $(morph_generator_ADDLIB) $(LDFLAGS)
+		$(morph_generator_ADDLIBANA) $(morph_generator_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

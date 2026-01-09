@@ -47,7 +47,8 @@ endif
 
 contact_analysis$(EXEEXT) : makelib $(contact_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(contact_analysis_OBJECTS) \
-		 $(contact_analysis_ADDLIBSPANA) $(contact_analysis_ADDLIBANA) $(contact_analysis_ADDLIB) $(LDFLAGS)
+		 $(contact_analysis_ADDLIBSPANA) $(contact_analysis_ADDLIBANA) \
+		 $(contact_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(contact_analysis_OBJECTS) *.f90 *~ *.mod

@@ -52,7 +52,8 @@ endif
 fret_analysis$(EXEEXT) : $(fret_analysis_OBJECTS) \
 		$(fret_analysis_ADDLIBANA) $(fret_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(fret_analysis_OBJECTS) \
-		$(fret_analysis_ADDLIBANA) $(fret_analysis_ADDLIB) $(LDFLAGS)
+		$(fret_analysis_ADDLIBANA) $(fret_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

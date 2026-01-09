@@ -52,7 +52,8 @@ endif
 kmeans_clustering$(EXEEXT) : $(kmeans_clustering_ADDLIBANA) $(kmeans_clustering_ADDLIB) \
 							$(kmeans_clustering_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(kmeans_clustering_OBJECTS) \
-		$(kmeans_clustering_ADDLIBANA) $(kmeans_clustering_ADDLIB) $(LDFLAGS)
+		$(kmeans_clustering_ADDLIBANA) $(kmeans_clustering_ADDLIB) $(LDFLAGS) 
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

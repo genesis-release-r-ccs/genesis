@@ -52,7 +52,8 @@ endif
 prjcrd_analysis$(EXEEXT) : $(prjcrd_analysis_OBJECTS) \
 			$(prjcrd_analysis_ADDLIBANA) $(prjcrd_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(prjcrd_analysis_OBJECTS) \
-		$(prjcrd_analysis_ADDLIBANA) $(prjcrd_analysis_ADDLIB) $(LDFLAGS)
+		$(prjcrd_analysis_ADDLIBANA) $(prjcrd_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

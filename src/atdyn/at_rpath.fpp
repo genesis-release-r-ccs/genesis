@@ -913,7 +913,6 @@ contains
     integer                    :: replicaid
     integer                    :: ifunc, igroup
 
-
     mass          => molecule%mass
     grouplist     => enefunc%restraint_grouplist
     numatoms      => enefunc%restraint_numatoms
@@ -1234,24 +1233,43 @@ contains
     ! local variables
     integer                                :: i, j, ifunc
     integer                                :: replicaid
+    integer :: n, nr
+    real(wp),  allocatable                 :: sendbuf(:), recvbuf(:)
+    real(wp),  allocatable                 :: bcastbuf(:)
 
 
     replicaid = my_country_no + 1
 
 #ifdef HAVE_MPI_GENESIS
+    n = rpath%dimension
+    nr = rpath%nreplica
+
     if (replica_main_rank) then
-      call mpi_allgather(rst%rest_reference(1, :, replicaid), &
-                         rpath%dimension,                     &
+      allocate(sendbuf(n))
+      allocate(recvbuf(n*nr))
+      sendbuf(:) = rst%rest_reference(1,1:n, replicaid)
+
+      call mpi_allgather(sendbuf,                             &
+                         n,                                   &
                          mpi_wp_real,                         &
-                         rpath%rest_reference(1, :, :),       &
-                         rpath%dimension,                     &
+                         recvbuf,                             &
+                         n,                                   &
                          mpi_wp_real,                         &
                          mpi_comm_airplane, ierror)
+     rpath%rest_reference(1, 1:n, 1:nr) = reshape(recvbuf, [n, nr])
+     deallocate(sendbuf, recvbuf)
     end if
 
-    call mpi_bcast(rpath%rest_reference(1, :, :),  &
-                   rpath%dimension*rpath%nreplica, &
+
+    allocate(bcastbuf(n*nr))
+    if (my_country_rank == 0) then
+      bcastbuf(:) = reshape(rpath%rest_reference(1, 1:n, 1:nr), [n*nr])
+    endif
+    call mpi_bcast(bcastbuf, n*nr, &
                    mpi_wp_real, 0, mpi_comm_country, ierror)
+    rpath%rest_reference(1,1:n,1:nr) = reshape(bcastbuf, [n, nr])
+    deallocate(bcastbuf)
+  
 #endif
 
     !write(MsgOut,*) my_country_no + 1

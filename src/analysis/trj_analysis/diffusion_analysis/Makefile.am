@@ -52,7 +52,8 @@ endif
 diffusion_analysis$(EXEEXT) : $(diffusion_analysis_OBJECTS) \
 		$(diffusion_analysis_ADDLIBANA) $(diffusion_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(diffusion_analysis_OBJECTS) \
-		$(diffusion_analysis_ADDLIBANA) $(diffusion_analysis_ADDLIB) $(LDFLAGS)
+		$(diffusion_analysis_ADDLIBANA) $(diffusion_analysis_ADDLIB) \
+		$(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

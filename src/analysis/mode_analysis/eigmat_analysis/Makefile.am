@@ -50,7 +50,8 @@ endif
 eigmat_analysis$(EXEEXT) : $(eigmat_analysis_ADDLIBANA) $(eigmat_analysis_ADDLIB) \
 							$(eigmat_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(eigmat_analysis_OBJECTS) \
-		$(eigmat_analysis_ADDLIBANA) $(eigmat_analysis_ADDLIB) $(LDFLAGS)
+		$(eigmat_analysis_ADDLIBANA) $(eigmat_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

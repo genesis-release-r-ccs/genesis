@@ -23,6 +23,9 @@ module at_pairlist_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -94,9 +97,6 @@ contains
     integer                  :: n_cg_PWMcos
     integer                  :: n_cg_PWMcosns
     integer                  :: n_cg_cells
-#ifdef OMP
-    integer                  :: omp_get_max_threads
-#endif
 
 
     ! do not make pairlist, if my_node does not compute 
@@ -349,9 +349,6 @@ contains
     integer                  :: num_nb14, ini_nb14, fin_nb14
     integer                  :: num_nb15_max
     integer                  :: id, my_id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: nb15_calc
     logical                  :: proceed, do_allocate
 
@@ -517,9 +514,6 @@ contains
     integer                  :: num_nb15_max
     integer                  :: num_all_max
     integer                  :: id, my_id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: nb15_calc
     logical                  :: proceed, do_allocate
 
@@ -723,9 +717,6 @@ contains
     integer                  :: i_base_type, j_base_type
     integer                  :: i_chain_id, j_chain_id
     integer                  :: id, my_id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: nb15_calc
     logical                  :: proceed, do_allocate
     logical                  :: is_nonlocal, is_WC_bp
@@ -1095,9 +1086,6 @@ contains
     integer                  :: i_base_type, j_base_type
     integer                  :: id, my_id, nthread
     integer                  :: alloc_stat
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: proceed, do_allocate
 
     integer,     pointer     :: num_pwmcos(:)
@@ -1281,9 +1269,6 @@ contains
     integer                  :: i_base_type, j_base_type
     integer                  :: id, my_id, nthread
     integer                  :: alloc_stat
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: proceed, do_allocate
 
     integer,     pointer     :: num_pwmcosns(:)
@@ -1444,9 +1429,6 @@ contains
     integer                  :: i_chain_id, j_chain_id
     integer                  :: num_IDR_HPS_max
     integer                  :: id, my_id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: proceed, do_allocate
 
     integer,     pointer     :: num_IDR_HPS_pre(:), num_IDR_HPS(:)
@@ -1596,9 +1578,6 @@ contains
     integer                  :: i_chain_id, j_chain_id
     integer                  :: num_IDR_KH_max
     integer                  :: id, my_id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
     logical                  :: proceed, do_allocate
 
     integer,     pointer     :: num_IDR_KH_pre(:), num_IDR_KH(:)
@@ -1754,9 +1733,6 @@ contains
     integer                  :: n_init, n_final
 
     integer                  :: id, nthread
-#ifdef OMP
-    integer                  :: omp_get_thread_num, omp_get_max_threads
-#endif
 
 
     !dbg write(MsgOut,'("QM-EC_15 pair")')
@@ -1915,9 +1891,6 @@ contains
     integer                   :: num_nb15_max
     integer                   :: id, my_id, nthread
     integer                   :: ncell(1:3)
-#ifdef OMP
-    integer                   :: omp_get_max_threads, omp_get_thread_num
-#endif
     logical                   :: nb15_calc
     logical                   :: do_allocate
 
@@ -2158,9 +2131,6 @@ contains
     integer                   :: num_nb15_max
     integer                   :: id, my_id, nthread
     integer                   :: ncell(1:3)
-#ifdef OMP
-    integer                   :: omp_get_max_threads, omp_get_thread_num
-#endif
     logical                   :: nb15_calc, do_allocate
 
     integer,          pointer :: num_nb15_pre(:), num_nb15_calcw(:)
@@ -2386,9 +2356,6 @@ contains
     integer                   :: ic(1:3), ncell(1:3), icel, inbc
     integer                   :: num_nb15_max
     integer                   :: id, my_id, nthread
-#ifdef OMP
-    integer                   :: omp_get_max_threads, omp_get_thread_num
-#endif
     logical                   :: do_allocate
 
     integer,          pointer :: num_nb15_calc_water(:)
@@ -2681,9 +2648,6 @@ contains
     integer, pointer :: cell_list_charged(:), cell_head_charged(:)
     ! 
     integer          :: nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_atom           = size(coord_pbc(1,:))
@@ -2916,9 +2880,6 @@ contains
     logical          :: is_idr_j
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_atom           = size(coord_pbc(1,:))
@@ -3189,9 +3150,6 @@ contains
     logical          :: is_pro_j
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_charge         = enefunc%num_cg_particle_charged
@@ -3441,9 +3399,6 @@ contains
     logical          :: is_WC_bp
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
     num_base           = enefunc%num_cg_particle_DNA_base
 
@@ -3672,9 +3627,6 @@ contains
     logical          :: is_WC_bp
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
     num_dna            = enefunc%num_cg_particle_DNA_all
 
@@ -3913,9 +3865,6 @@ contains
     logical          :: do_calc
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
     num_pro_idr        = enefunc%num_cg_particle_IDR_HPS
 
@@ -4121,9 +4070,6 @@ contains
     logical          :: do_calc
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
     num_pro_idr        = enefunc%num_cg_particle_IDR_KH
 
@@ -4340,9 +4286,6 @@ contains
     logical          :: is_idr_j
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_pro_kh         = enefunc%num_cg_particle_KH
@@ -4593,9 +4536,6 @@ contains
     logical          :: do_calc
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_pwmcos              = enefunc%num_pwmcos_terms
@@ -4799,9 +4739,6 @@ contains
     logical          :: do_calc
     ! 
     integer          :: id, my_id, nthread
-#ifdef OMP
-    integer          :: omp_get_max_threads, omp_get_thread_num
-#endif
 
 
     num_pwmcosns              = enefunc%num_pwmcosns_terms

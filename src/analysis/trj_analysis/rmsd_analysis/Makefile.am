@@ -52,7 +52,8 @@ endif
 rmsd_analysis$(EXEEXT) : $(rmsd_analysis_OBJECTS) \
 		$(rmsd_analysis_ADDLIBANA) $(rmsd_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(rmsd_analysis_OBJECTS) \
-		$(rmsd_analysis_ADDLIBANA) $(rmsd_analysis_ADDLIB) $(LDFLAGS)
+		$(rmsd_analysis_ADDLIBANA) $(rmsd_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

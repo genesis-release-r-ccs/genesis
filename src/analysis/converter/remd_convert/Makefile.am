@@ -52,7 +52,7 @@ endif
 remd_convert$(EXEEXT) : $(remd_convert_ADDLIBANA) $(remd_convert_ADDLIB) \
 						$(remd_convert_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(remd_convert_OBJECTS) \
-		$(remd_convert_ADDLIBANA) $(remd_convert_ADDLIB) $(LDFLAGS)
+		$(remd_convert_ADDLIBANA) $(remd_convert_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

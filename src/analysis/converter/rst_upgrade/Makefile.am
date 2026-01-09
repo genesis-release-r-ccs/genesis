@@ -99,7 +99,8 @@ endif
 rst_upgrade$(EXEEXT) : $(rst_upgrade_ADDLIBANA) $(rst_upgrade_ADDLIB) \
 						$(rst_upgrade_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(rst_upgrade_OBJECTS) \
-		$(rst_upgrade_ADDLIBANA) $(rst_upgrade_ADDLIB) $(LDFLAGS)
+		$(rst_upgrade_ADDLIBANA) $(rst_upgrade_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(rst_upgrade_OBJECTS) *.f90 *~ *.mod \

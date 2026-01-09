@@ -52,7 +52,8 @@ endif
 tilt_analysis$(EXEEXT) : $(tilt_analysis_OBJECTS) \
 		$(tilt_analysis_ADDLIBANA) $(tilt_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(tilt_analysis_OBJECTS) \
-		$(tilt_analysis_ADDLIBANA) $(tilt_analysis_ADDLIB) $(LDFLAGS)
+		$(tilt_analysis_ADDLIBANA) $(tilt_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

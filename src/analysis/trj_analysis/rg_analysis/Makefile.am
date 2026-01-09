@@ -52,7 +52,7 @@ endif
 rg_analysis$(EXEEXT) : $(rg_analysis_OBJECTS) \
 		$(rg_analysis_ADDLIBANA) $(rg_analysis_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(rg_analysis_OBJECTS) \
-		$(rg_analysis_ADDLIBANA) $(rg_analysis_ADDLIB) $(LDFLAGS)
+		$(rg_analysis_ADDLIBANA) $(rg_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

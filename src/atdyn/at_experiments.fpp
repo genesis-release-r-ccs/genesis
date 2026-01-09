@@ -30,6 +30,9 @@ module at_experiments_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -518,7 +521,8 @@ contains
     integer           :: sum_ig, ave_ig
     integer           :: idomain, axis_length(3), iaxis
     integer           :: itmp1, itmp2, icount1
-    integer           :: id, omp_get_thread_num
+    !integer           :: id, omp_get_thread_num
+    integer           :: id
     integer           :: max_natom_local
     logical           :: do_allocate
 

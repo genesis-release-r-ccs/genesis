@@ -52,7 +52,8 @@ endif
 ring_analysis$(EXEEXT) : $(ring_analysis_OBJECTS) \
 			$(ring_analysis_ADDLIBANA) $(ring_analysis_ADDANA)
 	$(FC) -o $(bin_PROGRAMS) $(ring_analysis_OBJECTS) \
-		$(ring_analysis_ADDLIBANA) $(ring_analysis_ADDLIB) $(LDFLAGS)
+		$(ring_analysis_ADDLIBANA) $(ring_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

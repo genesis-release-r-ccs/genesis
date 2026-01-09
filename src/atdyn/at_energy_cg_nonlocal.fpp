@@ -20,6 +20,9 @@ module at_energy_cg_nonlocal_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -582,7 +585,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_bp, ini_bp, fin_bp
     integer                   :: i, j, k, l, m
@@ -1445,7 +1448,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: natom, nbase
     integer           :: num_bp, ini_bp, fin_bp
     integer           :: ibase
@@ -2415,7 +2418,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_exv, ini_exv, fin_exv
     integer                   :: i, j, k, l, m
@@ -2565,7 +2568,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: n_dna, i_dna
     integer           :: num_exv, ini_exv, fin_exv
     integer           :: i, j, k, l, m
@@ -2781,7 +2784,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_ele, ini_ele, fin_ele
     integer                   :: i, j, k, l, m
@@ -2963,7 +2966,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: n_charge
     integer           :: num_ele, ini_ele, fin_ele
     integer           :: i, j, l, i1, i2, i3, k
@@ -3212,7 +3215,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_hps, ini_hps, fin_hps
     integer                   :: i, j, k, l, m
@@ -3373,7 +3376,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: n_idr, i_idr
     integer           :: num_hps, ini_hps, fin_hps
     integer           :: i, j, k, l, m
@@ -3603,7 +3606,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_kh, ini_kh, fin_kh
     integer                   :: i, j, k, l, m
@@ -3771,7 +3774,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: n_idr, i_idr
     integer           :: num_kh, ini_kh, fin_kh
     integer           :: i, j, k, l, m
@@ -4010,7 +4013,7 @@ contains
 
     ! local variables
     integer                   :: my_id, id
-    integer                   :: omp_get_num_threads, omp_get_thread_num
+    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: natom
     integer                   :: num_kh, ini_kh, fin_kh
     integer                   :: i, j, k, l, m
@@ -4230,7 +4233,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: n_idr, i_idr
     integer           :: num_kh, ini_kh, fin_kh
     integer           :: i, j, k, l, m
@@ -4570,7 +4573,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: natom, npwmcos
     integer           :: ini_pwmcos, fin_pwmcos
     integer           :: k, l, m
@@ -5101,7 +5104,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: npwmcos
     integer           :: num_pwmcos, ini_pwmcos, fin_pwmcos
     integer           :: i, j, k, l, m
@@ -5703,7 +5706,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: natom, npwmcosns
     integer           :: ini_pwmcosns, fin_pwmcosns
     integer           :: k, l, m
@@ -6134,7 +6137,7 @@ contains
 
     ! local variables
     integer           :: my_id, id
-    integer           :: omp_get_num_threads, omp_get_thread_num
+    !integer           :: omp_get_num_threads, omp_get_thread_num
     integer           :: npwmcosns
     integer           :: num_pwmcosns, ini_pwmcosns, fin_pwmcosns
     integer           :: i, j, k, l, m

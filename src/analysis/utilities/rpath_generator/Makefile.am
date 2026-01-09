@@ -52,7 +52,8 @@ endif
 rpath_generator$(EXEEXT) : $(rpath_generator_OBJECTS) \
 		$(rpath_generator_ADDLIBANA) $(rpath_generator_ADDLIB)
 	$(FC) -o $(bin_PROGRAMS) $(rpath_generator_OBJECTS) \
-		$(rpath_generator_ADDLIBANA) $(rpath_generator_ADDLIB) $(LDFLAGS)
+		$(rpath_generator_ADDLIBANA) $(rpath_generator_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

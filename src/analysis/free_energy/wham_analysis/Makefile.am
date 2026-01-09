@@ -52,7 +52,8 @@ endif
 wham_analysis$(EXEEXT) : $(wham_analysis_ADDLIBANA) $(wham_analysis_ADDLIB) \
 							$(wham_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(wham_analysis_OBJECTS) \
-		$(wham_analysis_ADDLIBANA) $(wham_analysis_ADDLIB) $(LDFLAGS)
+		$(wham_analysis_ADDLIBANA) $(wham_analysis_ADDLIB) $(LDFLAGS) \
+		$(LIBS)
 
 depend: clean_depend
 	python ../../../../fortdep.py *.fpp > $(DEPENDS)

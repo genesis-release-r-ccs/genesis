@@ -25,6 +25,9 @@ module at_energy_eef1_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -151,7 +154,8 @@ contains
 
     ! local variables
     integer                   :: i, natom, n
-    integer                   :: istart, iend, isd, id, omp_get_thread_num
+    !integer                   :: istart, iend, isd, id, omp_get_thread_num
+    integer                   :: istart, iend, isd, id
     real(wp)                  :: ihalf_thick, zt, fz, hr
     real(wp)                  :: force_i, ddg, tmp, x2y2, pore_rad
     real(wp)                  :: rt, fr, x2y2z2, x1, y1, z1, x, y, z
@@ -380,9 +384,6 @@ contains
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     charge         => molecule%charge
     atmcls         => molecule%atom_cls_no
@@ -581,10 +582,6 @@ contains
     real(wp),         pointer :: rvdw(:), vol(:,:), inv_lambda(:,:)
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb15_calc(:,:), nb15_calc_list(:,:)
-
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     charge         => molecule%charge
     atmcls         => molecule%atom_cls_no
@@ -800,9 +797,6 @@ contains
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb14_calc(:), nb14_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     charge         => molecule%charge
     atmcls         => molecule%atom_cls_no
@@ -1043,9 +1037,6 @@ contains
     integer,          pointer :: atmcls(:)
     integer,          pointer :: num_nb15_calc(:,:), nb15_calc_list(:,:)
 
-#ifdef OMP
-    integer                   :: omp_get_thread_num
-#endif
 
     charge         => molecule%charge
     atmcls         => molecule%atom_cls_no

@@ -47,7 +47,8 @@ endif
 
 hbond_analysis$(EXEEXT) : makelib $(hbond_analysis_OBJECTS)
 	$(FC) -o $(bin_PROGRAMS) $(hbond_analysis_OBJECTS) \
-		 $(hbond_analysis_ADDLIBSPANA) $(hbond_analysis_ADDLIBANA) $(hbond_analysis_ADDLIB) $(LDFLAGS)
+		 $(hbond_analysis_ADDLIBSPANA) $(hbond_analysis_ADDLIBANA) \
+		 $(hbond_analysis_ADDLIB) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f $(bin_PROGRAMS) $(hbond_analysis_OBJECTS) *.f90 *~ *.mod

@@ -23,6 +23,9 @@ module at_energy_morph_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -113,7 +116,8 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    integer                  :: i, j, k, id, omp_get_thread_num
+    !integer                  :: i, j, k, id, omp_get_thread_num
+    integer                  :: i, j, k, id
     integer                  :: istart_bb, iend_bb
     integer                  :: istart_sc, iend_sc
     integer                  :: i1, i2
@@ -316,7 +320,8 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    integer                  :: i, j, k, id, omp_get_thread_num
+    !integer                  :: i, j, k, id, omp_get_thread_num
+    integer                  :: i, j, k, id
     integer                  :: istart_bb, iend_bb
     integer                  :: i1, i2
     integer                  :: num_morph_bb
@@ -327,7 +332,6 @@ contains
     integer,         pointer :: list_bb(:,:)
     real(wp),        pointer :: rmin_bb(:)
     real(wp),        pointer :: rmin_bb_other(:)
-
 
     call timer(TimerMorph, TimerOn)
 
@@ -449,7 +453,8 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    integer                  :: i, j, k, id, omp_get_thread_num
+    !integer                  :: i, j, k, id, omp_get_thread_num
+    integer                  :: i, j, k, id
     integer                  :: istart_sc, iend_sc
     integer                  :: i1, i2
     integer                  :: num_morph_sc
