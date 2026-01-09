@@ -139,6 +139,24 @@ fi
 AC_PROG_FC($genesis_default_fc)
 AC_PROG_F77($genesis_default_fc)
 
+# If MPI is enabled, try to find an MPI Fortran wrapper explicitly.
+# Do NOT assume ${FC} is an MPI wrapper (it might be plain flang/gfortran).
+AS_IF([test x"${enable_mpi}" = x"yes"], [
+  AC_PATH_PROGS([MPIFC_CAND], [mpifort mpif90 mpiifx mpiflang mpiifort mpifrtpx mpifrt], [])
+  AS_IF([test -n "${MPIFC_CAND}"], [MPIFC="${MPIFC_CAND}"], [MPIFC=""])
+], [
+  MPIFC=""
+])
+AC_SUBST([MPIFC])
+AS_IF([test x"${enable_mpi}" = x"yes"], [
+  AS_IF([test -z "${MPIFC}"], [
+    AC_MSG_ERROR([MPI is enabled but no MPI Fortran wrapper (mpifort/mpif90/...) found in PATH. Please set FC=mpifort (or disable MPI).])
+  ], [
+    dnl *** THIS is the missing piece ***
+    FC="${MPIFC}"
+  ])
+])
+
 ## C++ compiler
 qsimulate_default_cxx="mpicxx mpic++"
 AC_PROG_CXX($qsimulate_default_cxx)
@@ -201,18 +219,60 @@ AC_MSG_RESULT([$FC_ACT])
 
 AC_MSG_CHECKING([for MPI type])
 mpitype="no"
+
 if test x"${with_msmpi}" = x"yes"; then
   mpitype="MS"
-elif test x"${enable_mpi}"=x"yes" ; then
-  mpi_ver_info=$(${FC} --showme:version)
-  prev=""
-  for vtok in ${mpi_ver_info} ; do
-    if echo ${vtok} | grep -E -q "MPI"; then
-      mpitype=${prev}
-    fi
-    prev=${vtok}
-  done
+
+elif test x"${enable_mpi}" = x"yes" ; then
+  mpi_ver_info=""
+
+  dnl Prefer explicit MPI wrapper (MPIFC). Fallback to FC only if it behaves like a wrapper.
+  mpi_probe_fc=""
+  AS_IF([test -n "${MPIFC}"], [mpi_probe_fc="${MPIFC}"], [mpi_probe_fc="${FC}"])
+
+  dnl ---- 1) OpenMPI-style showme (ONLY if supported) ----
+  AS_IF([${mpi_probe_fc} --showme:version >/dev/null 2>&1], [
+    mpi_ver_info="$(${mpi_probe_fc} --showme:version 2>/dev/null)"
+  ])
+
+  dnl ---- 2) MPICH/Intel-style -show (ONLY if supported) ----
+  AS_IF([test -z "${mpi_ver_info}" && ${mpi_probe_fc} -show >/dev/null 2>&1], [
+    mpi_ver_info="$(${mpi_probe_fc} -show 2>/dev/null)"
+  ])
+
+  dnl ---- 3) Fallback: wrapper/compiler version strings ----
+  AS_IF([test -z "${mpi_ver_info}" && ${mpi_probe_fc} --version >/dev/null 2>&1], [
+    mpi_ver_info="$(${mpi_probe_fc} --version 2>/dev/null | head -n 3)"
+  ])
+  AS_IF([test -z "${mpi_ver_info}" && command -v mpiexec >/dev/null 2>&1], [
+    mpi_ver_info="$(mpiexec --version 2>/dev/null | head -n 3)"
+  ])
+
+  dnl ---- classify implementation ----
+  if echo "${mpi_ver_info}" | grep -qi "Open MPI"; then
+    mpitype="Open"
+  elif echo "${mpi_ver_info}" | grep -qi "MPICH"; then
+    mpitype="MPICH"
+  elif echo "${mpi_ver_info}" | grep -qi "Intel(R) MPI\|Intel MPI"; then
+    mpitype="Intel"
+  elif echo "${mpi_ver_info}" | grep -qi "MVAPICH"; then
+    mpitype="MVAPICH"
+  elif test -n "${mpi_ver_info}"; then
+    dnl last-resort heuristic (kept from your original logic)
+    prev=""
+    for vtok in ${mpi_ver_info} ; do
+      if echo "${vtok}" | grep -E -q "MPI"; then
+        mpitype="${prev}"
+        break
+      fi
+      prev="${vtok}"
+    done
+    AS_IF([test -z "${mpitype}" || test x"${mpitype}" = x"no"], [mpitype="unknown"])
+  else
+    mpitype="unknown"
+  fi
 fi
+AC_MSG_RESULT([${mpitype}])
 
 version_warning=yes
 # check gfortran & intel version
