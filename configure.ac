@@ -139,37 +139,34 @@ fi
 AC_PROG_FC($genesis_default_fc)
 AC_PROG_F77($genesis_default_fc)
 
-# If MPI is enabled, try to find an MPI Fortran wrapper explicitly.
-# Do NOT assume ${FC} is an MPI wrapper (it might be plain flang/gfortran).
+dnl If MPI is enabled, FC must be an MPI Fortran wrapper.
+dnl Rationale: the build system uses $(FC) everywhere.
 AS_IF([test x"${enable_mpi}" = x"yes"], [
-  AC_PATH_PROGS([MPIFC_CAND], [mpifort mpif90 mpiifx mpiflang mpiifort mpifrtpx mpifrt], [])
-  AS_IF([test -n "${MPIFC_CAND}"], [MPIFC="${MPIFC_CAND}"], [MPIFC=""])
+  case "x$FC" in
+    xmpifort|xmpif90|xmpiifx|xmpiflang|xmpiifort|xmpifrtpx|xmpifrt) : ;;
+    *)
+      AC_MSG_ERROR([MPI is enabled but FC='$FC' is not an MPI Fortran wrapper.
+Please configure with an MPI wrapper, e.g.:
+  ./configure --enable-mpi FC=mpifort CC=mpicc
+or
+  ./configure --enable-mpi FC=mpiifx  CC=mpiicx])
+      ;;
+  esac
+
+  dnl Export MPIFC as informational (and for your mpitype probe below)
+  MPIFC="$FC"
 ], [
   MPIFC=""
 ])
 AC_SUBST([MPIFC])
-AS_IF([test x"${enable_mpi}" = x"yes"], [
-  AS_IF([test -z "${MPIFC}"], [
-    AC_MSG_ERROR([MPI is enabled but no MPI Fortran wrapper (mpifort/mpif90/...) found in PATH. Please set FC=mpifort (or disable MPI).])
-  ], [
-    dnl *** THIS is the missing piece ***
-    FC="${MPIFC}"
-  ])
-])
-
-## C++ compiler
-qsimulate_default_cxx="mpicxx mpic++"
-AC_PROG_CXX($qsimulate_default_cxx)
-
-# check actual compiler
-AC_MSG_CHECKING([for actual compiler])
 
 if test x"${FC}" = x"mpifrtpx"; then
   VER_OPT="-V"
 else
   VER_OPT="--version"
 fi
-
+# check actual compiler
+AC_MSG_CHECKING([for actual compiler])
 
 fc_ver_info=$(${FC} -E ${VER_OPT})
 for vtok in ${fc_ver_info} ; do
@@ -213,7 +210,7 @@ done
 if test -z "${FC_ACT}"; then
   FC_ACT=${FC}
 fi
-F77_ACT=FC_ACT
+F77_ACT=${FC_ACT}
 
 AC_MSG_RESULT([$FC_ACT])
 
@@ -240,39 +237,43 @@ elif test x"${enable_mpi}" = x"yes" ; then
     mpi_ver_info="$(${mpi_probe_fc} -show 2>/dev/null)"
   ])
 
-  dnl ---- 3) Fallback: wrapper/compiler version strings ----
-  AS_IF([test -z "${mpi_ver_info}" && ${mpi_probe_fc} --version >/dev/null 2>&1], [
-    mpi_ver_info="$(${mpi_probe_fc} --version 2>/dev/null | head -n 3)"
-  ])
+  dnl ---- 3) Fallback: implementation commands first (more reliable than mpifort --version) ----
   AS_IF([test -z "${mpi_ver_info}" && command -v mpiexec >/dev/null 2>&1], [
-    mpi_ver_info="$(mpiexec --version 2>/dev/null | head -n 3)"
+    mpi_ver_info="$(mpiexec --version 2>/dev/null | head -n 5)"
+  ])
+  AS_IF([test -z "${mpi_ver_info}" && command -v mpirun >/dev/null 2>&1], [
+    mpi_ver_info="$(mpirun --version 2>/dev/null | head -n 5)"
+  ])
+  AS_IF([test -z "${mpi_ver_info}" && command -v ompi_info >/dev/null 2>&1], [
+    mpi_ver_info="$(ompi_info --version 2>/dev/null | head -n 5)"
+  ])
+  AS_IF([test -z "${mpi_ver_info}" && command -v mpichversion >/dev/null 2>&1], [
+    mpi_ver_info="$(mpichversion 2>/dev/null | head -n 20)"
+  ])
+
+  dnl ---- 4) Last fallback: wrapper/compiler version strings ----
+  AS_IF([test -z "${mpi_ver_info}" && ${mpi_probe_fc} --version >/dev/null 2>&1], [
+    mpi_ver_info="$(${mpi_probe_fc} --version 2>/dev/null | head -n 5)"
   ])
 
   dnl ---- classify implementation ----
-  if echo "${mpi_ver_info}" | grep -qi "Open MPI"; then
+  if echo "${mpi_ver_info}" | grep -qi "Open MPI\|OpenRTE\|OMPI"; then
     mpitype="Open"
   elif echo "${mpi_ver_info}" | grep -qi "MPICH"; then
     mpitype="MPICH"
-  elif echo "${mpi_ver_info}" | grep -qi "Intel(R) MPI\|Intel MPI"; then
+  elif echo "${mpi_ver_info}" | grep -qi "Intel(R) MPI\|Intel MPI\|Intel.*MPI\|Hydra"; then
     mpitype="Intel"
   elif echo "${mpi_ver_info}" | grep -qi "MVAPICH"; then
     mpitype="MVAPICH"
   elif test -n "${mpi_ver_info}"; then
-    dnl last-resort heuristic (kept from your original logic)
-    prev=""
-    for vtok in ${mpi_ver_info} ; do
-      if echo "${vtok}" | grep -E -q "MPI"; then
-        mpitype="${prev}"
-        break
-      fi
-      prev="${vtok}"
-    done
-    AS_IF([test -z "${mpitype}" || test x"${mpitype}" = x"no"], [mpitype="unknown"])
+    mpitype="unknown"
   else
     mpitype="unknown"
   fi
+
 fi
 AC_MSG_RESULT([${mpitype}])
+AC_MSG_RESULT([${mpitype} MPI])
 
 version_warning=yes
 # check gfortran & intel version
@@ -353,16 +354,14 @@ elif test x"${FC_ACT}" = x"pgf90"; then
   fi
 
 fi
-AC_MSG_RESULT([${mpitype} MPI])
-
 
 ## C compiler
 #
 
 if test x"${enable_mpi}" = x"yes"; then
-  genesis_default_cc="mpiicc mpiicx mpiclang mpifccpx mpifcc mpicc"
+  genesis_default_cc="mpiicx mpiclang mpifccpx mpifcc mpicc mpiicc "
 else
-  genesis_default_cc="icc icx clang fccpx fcc gcc "
+  genesis_default_cc="icx clang fccpx fcc gcc icc "
 fi
 
 # check usablility
@@ -411,6 +410,63 @@ if test -z "${CC_ACT}"; then
 fi
 
 AC_MSG_RESULT([$CC_ACT])
+
+dnl MPI enabled: prevent mixing MPI implementations between FC and CC.
+AS_IF([test x"${enable_mpi}" = x"yes"], [
+  dnl Optionally require CC to be an MPI wrapper too (recommended if any MPI C code exists)
+  cc_base=`AS_BASENAME(["$CC"])`
+  case "x$cc_base" in
+    xmpicc|xmpiicc|xmpiicx|xmpiclang|xmpifcc|xmpifccpx|xmpifrtpx) : ;;
+    *)
+      AC_MSG_WARN([MPI is enabled but CC='$CC' is not an MPI C wrapper.
+If the build links any MPI C objects, configure with CC=mpicc/mpiicx/... to be safe.])
+      ;;
+  esac
+
+  fcdir=`AS_DIRNAME(["$FC"])`
+  ccdir=`AS_DIRNAME(["$CC"])`
+  AS_IF([test "x$fcdir" != "x$ccdir"], [
+    AC_MSG_ERROR([MPI wrapper mismatch detected (likely mixing MPI implementations):
+  FC=$FC
+  CC=$CC
+They are from different directories:
+  $fcdir
+  $ccdir
+Please use matching wrappers from the same MPI installation.])
+  ])
+])
+
+dnl ## C++ compiler
+qsimulate_default_cxx="mpicxx mpic++ mpiicpx"
+AC_PROG_CXX([$qsimulate_default_cxx])
+
+dnl MPI enabled: if CXX is an MPI wrapper, prevent mixing implementations with FC.
+AS_IF([test x"${enable_mpi}" = x"yes"], [
+
+  dnl Is CXX an MPI C++ wrapper?
+  is_mpi_cxx=no
+  cxx_base=`AS_BASENAME(["$CXX"])`
+  case "x$cxx_base" in
+    xmpicxx|xmpic++|xmpiicpx|xmpiclang++) is_mpi_cxx=yes ;;
+  esac
+
+  AS_IF([test "x$is_mpi_cxx" = xyes], [
+    fcdir=`AS_DIRNAME(["$FC"])`
+    cxxdir=`AS_DIRNAME(["$CXX"])`
+    AS_IF([test "x$fcdir" != "x$cxxdir"], [
+      AC_MSG_ERROR([MPI wrapper mismatch detected (likely mixing MPI implementations):
+  FC=$FC
+  CXX=$CXX
+They are from different directories:
+  $fcdir
+  $cxxdir
+Please use matching wrappers from the same MPI installation.])
+    ])
+  ], [
+    AC_MSG_WARN([MPI is enabled but CXX='$CXX' is not an MPI CXX wrapper.
+If the build links any MPI C++ objects, configure with CXX=mpicxx/mpiicpx/... to be safe.])
+  ])
+])
 
 
 ## preprocessor
@@ -1649,26 +1705,33 @@ LDFLAGS+=" ${OPT_LD_CUDA}"
 LDFLAGS+=" ${OPT_GPROF}"
 
 # PPFLAGS
-if test -z "${PPFLAGS}"; then
+dnl # PPFLAGS
+AS_IF([test -z "${PPFLAGS}"], [
 
-  if   test x"${FPP}" = x"frtpx"; then
+  AS_IF([test x"${FPP}" = x"frtpx"], [
     PPFLAGS="-P -Cpp -Cfpp"
 
-  elif test x"${FPP}" = x"frt"; then
+  ], [test x"${FPP}" = x"frt"], [
     PPFLAGS="-P -Cpp -Cfpp"
 
-  elif test x"${FPP}" = x"cpp"; then
+  ], [test x"${FPP}" = x"cpp"], [
     PPFLAGS="-traditional-cpp -traditional"
 
-  elif test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"; then
+  ], [test x"${FPP}" = x"fpp"], [
+    dnl External fpp does not understand gfortran's -cpp option.
+    dnl Keep PPFLAGS minimal; -D/-I are passed via $(DEFS)/includes.
+    PPFLAGS="-P"
+
+  ], [test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"], [
+    dnl If you run flang as the preprocessor driver
     PPFLAGS="-fpp"
 
-  else
+  ], [
+    dnl Default: only enable preprocessing when FC is gfortran-style driver.
     PPFLAGS="-cpp"
-
-  fi
-fi
-AC_SUBST(PPFLAGS)
+  ])
+])
+AC_SUBST([PPFLAGS])
 
 
 ## K computer settings
