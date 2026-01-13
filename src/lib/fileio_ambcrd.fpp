@@ -308,6 +308,8 @@ contains
 
     ! local variables
     integer                  :: i
+    integer                  :: ios, k, nvel, t, idx, a, c
+    real(wp)                 :: buf6(6)
     character(MaxLine)       :: line
 
 
@@ -343,11 +345,28 @@ contains
       ambcrd%atom_velocity(1:3,i) = CrdEmpty
     end do
 
-    read(file,'(6F12.7)',end=20,err=900) &
-         (ambcrd%atom_velocity(1:3,i), i = 1, ambcrd%num_atoms)
+    nvel=3*ambcrd%num_atoms
+    
+    k = 1
+    do while (k <= nvel)
+      read(file,'(6F12.7)',iostat=ios) buf6
+      if (ios < 0) exit
+      ! error
+      if (ios < 0) go to 900
 
-20  if (ambcrd%atom_velocity(1,ambcrd%num_atoms) /= CrdEmpty) &
-      ambcrd%velocity_rec = .true.
+      do t = 1, 6
+        idx = (k + (t-1))
+        if (idx > nvel) exit
+        a = (idx-1)/3 + 1          ! atom index (1..num_atoms)
+        c = mod(idx-1,3) + 1       ! component (1..3)
+        ambcrd%atom_velocity(c,a) = buf6(t)
+      end do
+
+      k = k + 6
+
+    end do
+
+    if (k > nvel) ambcrd%velocity_rec = .true.
 
 
     ! read (BOX(1),BOX(2),BOX(3)
