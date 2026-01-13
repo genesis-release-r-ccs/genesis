@@ -876,7 +876,9 @@ if test x"${with_cuda}" != x"no"; then
   ])
 
 # CUDA header check
+  AC_LANG_PUSH([C])
   AC_CHECK_HEADERS([nvtx3/nvToolsExt.h nvToolsExt.h], [], [], [#include <stdio.h>])
+  AC_LANG_POP([C])
 
   AS_IF([test "x$ac_cv_header_nvtx3_nvToolsExt_h" = xyes], [
     AC_DEFINE([HAVE_NVTX3], [1], [Have NVTX v3 header])
