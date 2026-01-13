@@ -941,7 +941,6 @@ contains
 
     const(1:2) = enefunc%restraint_const(1:2,inum)
     ref(1:2)   = enefunc%restraint_ref(1:2,inum)
-    write(6,*) inum, const(1:2), ref(1:2)
     !
     ! for steered MD
     if (inum == enefunc%steered_function) then
