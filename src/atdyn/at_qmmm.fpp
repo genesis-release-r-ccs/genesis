@@ -953,11 +953,11 @@ contains
 
     ! qmexe with an absolute path
     if (qmmm_info%qmexe(1:1) .eq. "/") then 
-      qmmm%qmexe = trim(qmmm_info%qmexe)
+      qmmm%qmexe = trim(safe_path(qmmm_info%qmexe))
 
     else if (qmmm_info%qmexe(1:2) .eq. "~/") then
       call getenv('HOME', path)
-      qmmm%qmexe = trim(path)//trim(qmmm_info%qmexe(2:))
+      qmmm%qmexe = trim(safe_path(path))//trim(qmmm_info%qmexe(2:))
 
     else
       call getcwd(path)
