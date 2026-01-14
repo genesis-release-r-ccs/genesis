@@ -935,8 +935,6 @@ contains
     character                :: num*5
     character(MaxFilename)   :: path
 
-      write(6, *) 'uni---'
-
     ! directory and file names of QM jobs
     write(num,'(i0)') my_replica_no
     qmmm%workdir = trim(qmmm_info%workdir)//'.'//num
