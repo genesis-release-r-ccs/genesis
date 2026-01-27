@@ -907,23 +907,33 @@ contains
       isiz1 = icalc
       isiz2 = icalc - 1
 
+      !dbg if (replicaid == 1) write(MsgOut,'("debug: ",2i8)') isiz2, isiz1
+
       ist1 = 0
       ist2 = istart0
+
       do n = 1, j
-        energy_all(ist2:ist2+isiz2-1) = recv_energy(ist1:ist1+isiz1-1)
-        grad_all(:,ist2:ist2+isiz2-1) = recv_grad(:,ist1:ist1+isiz1-1)
-        dipole_all(:,ist2:ist2+isiz2-1) = recv_dipole(:,ist1:ist1+isiz1-1)
+        !dbg if (replicaid == 1) then
+        !dbg   write(MsgOut,'("debug: ",5i8)') n, ist2, ist2+isiz2-1, ist1, ist1+isiz1-1
+        !dbg end if
+        energy_all(ist2:ist2+isiz2-1) = recv_energy(ist1:ist1+isiz2-1)
+        grad_all(:,ist2:ist2+isiz2-1) = recv_grad(:,ist1:ist1+isiz2-1)
+        dipole_all(:,ist2:ist2+isiz2-1) = recv_dipole(:,ist1:ist1+isiz2-1)
         ist1 = ist1 + isiz1
         ist2 = ist2 + isiz2
       end do 
 
-      isiz2 = icalc
+      !dbg if (replicaid == 1) write(MsgOut,'("debug: ",2i8)') isiz1, isiz1
+
       do n = j + 1, nreplica
-        energy_all(ist2:ist2+isiz2-1) = recv_energy(ist1:ist1+isiz1-1)
-        grad_all(:,ist2:ist2+isiz2-1) = recv_grad(:,ist1:ist1+isiz1-1)
-        dipole_all(:,ist2:ist2+isiz2-1) = recv_dipole(:,ist1:ist1+isiz1-1)
+        !dbg if (replicaid == 1) then
+        !dbg   write(MsgOut,'("debug: ",5i8)') n, ist2, ist2+isiz1-1, ist1, ist1+isiz1-1
+        !dbg end if
+        energy_all(ist2:ist2+isiz1-1) = recv_energy(ist1:ist1+isiz1-1)
+        grad_all(:,ist2:ist2+isiz1-1) = recv_grad(:,ist1:ist1+isiz1-1)
+        dipole_all(:,ist2:ist2+isiz1-1) = recv_dipole(:,ist1:ist1+isiz1-1)
         ist1 = ist1 + isiz1
-        ist2 = ist2 + isiz2
+        ist2 = ist2 + isiz1
       end do 
     end if
 
