@@ -110,7 +110,7 @@ program atdyn
   nthread = 1
 #endif
 
-#ifdef __PGI
+#if defined(__PGI) && !defined(__NVCOMPILER)
    call error_msg('Atdyn> atdyn with PGI is not allowed at this moment')
 #endif
  
