@@ -19,6 +19,9 @@ module sp_energy_angles_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
   private
@@ -80,6 +83,9 @@ contains
 
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -337,6 +343,9 @@ contains
 
     !$omp end parallel 
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return
@@ -387,6 +396,9 @@ contains
 
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -511,6 +523,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return
@@ -569,6 +584,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -836,6 +854,9 @@ contains
 
     !$omp end parallel 
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return

@@ -32,6 +32,9 @@ module sp_energy_nonbonds_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
   private
@@ -79,6 +82,9 @@ contains
 
 
     call timer(TimerNonBond, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("nonbond",4)
+#endif
 
     if (enefunc%vacuum) then
       ! For vacuum without lookup table
@@ -123,6 +129,9 @@ contains
 
     end if
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerNonBond, TimerOff)
  
     return
@@ -188,6 +197,9 @@ contains
     if (real_calc) then
 
       call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("real",5)
+#endif
 
       if (nonb_limiter) then
 
@@ -255,6 +267,9 @@ contains
         end if
       end if
 
+#ifdef NVTX
+      call nvtxEndRange
+#endif
       if (domain%nonbond_kernel /= NBK_GPU) &
         call timer(TimerPmeReal, TimerOff)
 
@@ -268,15 +283,24 @@ contains
       call timer(TimerPmeRecip, TimerOn)
 
       if (npt) then
+#ifdef NVTX
+        call nvtxStartRange("recip-pre",6)
+#endif
         if (enefunc%vdw == VDWPME) then
           call pme_pre_lj(domain, boundary)
         else
           call pme_pre(domain, boundary)
         end if
+#ifdef NVTX
+        call nvtxEndRange
+#endif
       end if
 
 #ifdef HAVE_MPI_GENESIS
       call mpi_barrier(mpi_comm_city, ierror)
+#endif
+#ifdef NVTX
+      call nvtxStartRange("recip",7)
 #endif
 
       if (enefunc%vdw == VDWPME) then
@@ -284,6 +308,10 @@ contains
       else
         call pme_recip(domain, force_long, virial, eelec)
       end if
+
+#ifdef NVTX
+      call nvtxEndRange
+#endif
 
       call timer(TimerPmeRecip, TimerOff)
 
@@ -347,6 +375,9 @@ contains
     if (real_calc) then
 
       call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+      call nvtxStartRange("real",5)
+#endif
 
       if (enefunc%nonb_limiter) then
 
@@ -385,6 +416,9 @@ contains
                               force, force_pbc, virial_cell, virial, &
                               ene_virial)
         end if
+#ifdef NVTX
+        call nvtxEndRange
+#endif
 
         if (domain%nonbond_kernel /= NBK_GPU) &
           call timer(TimerPmeReal, TimerOff)
@@ -440,12 +474,22 @@ contains
       call timer(TimerPmeRecip, TimerOn)
 
       if (npt) then
+#ifdef NVTX
+        call nvtxStartRange("recip-pre",6)
+#endif
         if (enefunc%vdw == VDWPME) then
           call pme_pre_lj(domain, boundary)
         else
           call pme_pre(domain, boundary)
         end if
+#ifdef NVTX
+        call nvtxEndRange
+#endif
       end if
+
+#ifdef NVTX
+      call nvtxStartRange("recip",7)
+#endif
 
       if (enefunc%vdw == VDWPME) then
         call pme_recip_lj(domain, enefunc, force, virial, eelec, evdw)
@@ -453,6 +497,9 @@ contains
         call pme_recip(domain, force, virial, eelec)
       end if
 
+#ifdef NVTX
+      call nvtxEndRange
+#endif
       call timer(TimerPmeRecip, TimerOff)
 
     end if
@@ -498,6 +545,9 @@ contains
 
 
     call timer(TimerNonBond, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("nonbond",4)
+#endif
 
     if (enefunc%vacuum) then
       ! For vacuum without lookup table
@@ -558,6 +608,9 @@ contains
 
     end if
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerNonBond, TimerOff)
  
     return
@@ -628,6 +681,9 @@ contains
     if (real_calc) then
 
       call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+      call nvtxStartRange("real",5)
+#endif
 
       if (nonb_limiter) then
 
@@ -678,6 +734,9 @@ contains
         end if
       end if
 
+#ifdef NVTX
+      call nvtxEndRange
+#endif
       if (domain%nonbond_kernel /= NBK_GPU) &
         call timer(TimerPmeReal, TimerOff)
 
@@ -691,12 +750,25 @@ contains
       call timer(TimerPmeRecip, TimerOn)
 
       if (npt) then
+#ifdef NVTX
+        call nvtxStartRange("recip-pre",6)
+#endif
         call pme_pre(domain, boundary)
+#ifdef NVTX
+        call nvtxEndRange
+#endif
       end if
 
       call mpi_barrier(mpi_comm_city, ierror)
+#ifdef NVTX
+      call nvtxStartRange("recip",7)
+#endif
 
       call pme_recip(domain, force_long, virial, eelec)
+
+#ifdef NVTX
+       call nvtxEndRange
+#endif
 
       call timer(TimerPmeRecip, TimerOff)
 
@@ -760,6 +832,9 @@ contains
     if (real_calc) then
 
       call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+      call nvtxStartRange("real",5)
+#endif
 
       if (enefunc%nonb_limiter) then
 
@@ -788,6 +863,10 @@ contains
                               force, force_pbc, virial_cell, virial, &
                               ene_virial)
         end if
+
+#ifdef NVTX
+        call nvtxEndRange
+#endif
 
         if (domain%nonbond_kernel /= NBK_GPU) &
           call timer(TimerPmeReal, TimerOff)

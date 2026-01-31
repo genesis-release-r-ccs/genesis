@@ -19,6 +19,9 @@ module sp_energy_bonds_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
   private
@@ -71,6 +74,9 @@ contains
 
 
     call timer(TimerBond, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("bond",1)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -296,6 +302,9 @@ contains
 
     !$omp end parallel 
     
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerBond, TimerOff)
 
     return
@@ -466,6 +475,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerBond, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("bond",1)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -700,6 +712,9 @@ contains
 
     !$omp end parallel 
     
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerBond, TimerOff)
 
     return

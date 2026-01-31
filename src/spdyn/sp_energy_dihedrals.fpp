@@ -21,6 +21,9 @@ module sp_energy_dihedrals_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
   private
@@ -90,6 +93,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -223,6 +229,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -278,6 +287,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -412,6 +424,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -463,6 +478,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -569,6 +587,9 @@ contains
     end do
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -621,6 +642,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -737,6 +761,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -789,6 +816,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -913,6 +943,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -969,6 +1002,9 @@ contains
 
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1151,6 +1187,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -1327,6 +1366,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1471,6 +1513,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -1529,6 +1574,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1676,6 +1724,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -1730,6 +1781,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -1847,6 +1901,9 @@ contains
     end do
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -1902,6 +1959,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -2029,6 +2089,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -2084,6 +2147,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -2219,6 +2285,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return
@@ -2279,6 +2348,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerDihedral, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dihedral",3)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -2489,6 +2561,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDihedral, TimerOff)
 
     return

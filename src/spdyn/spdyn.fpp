@@ -52,6 +52,9 @@ program spdyn
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
 
@@ -349,6 +352,9 @@ contains
     call mpi_barrier(mpi_comm_world, ierror)
 #endif
     call timer(TimerDynamics, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dynamics")
+#endif
 
     select case (genesis_run_mode)
 
@@ -424,6 +430,9 @@ contains
 
     end select
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDynamics, TimerOff)
 
 

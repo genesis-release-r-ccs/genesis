@@ -92,6 +92,9 @@ at_energy_linear_object = \
 	at_energy_table_linear.o \
 	at_energy_table_linear_bondcorr.o 
 
+at_energy_restraints_object = \
+	at_energy_restraints.o 
+
 if QSIMULATE
   atdyn_ADDLIB = ../lib/lib.a ../lib/qsimulate/libqs.a ../lib/json-fortran/libjsonfortran.a $(INT_LAPACK_LIB)
   INCLUDE_DIR = -I../lib -I../lib/json-fortran
@@ -115,6 +118,12 @@ if USEKCOMP
 else
 	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
 	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) $(INCLUDE_DIR) $(FCFLAGS_FPP__PGI_NOOPT) -c $*.f90
+endif
+
+if NVFORTRAN
+$(at_energy_restraints_object) : %.o : %.fpp
+	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
+	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_NOSIMD) -c $*.f90
 endif
 
 .fpp.o:

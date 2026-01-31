@@ -44,6 +44,9 @@ module sp_md_vverlet_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -237,6 +240,9 @@ contains
 
     do i = istart, iend
 
+#ifdef NVTX
+      call nvtxStartRange("step",1)
+#endif
       dynvars%time = dynamics%timestep * real(i-1,dp)
       dynvars%step = i-1
       enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
@@ -283,11 +289,17 @@ contains
       end if
 
       call timer(TimerIntegrator, TimerOn)
+#ifdef NVTX
+      call nvtxStartRange("integrate_vv1",3)
+#endif
 
       ! VV1
       !
       call integrate_vv1(dynamics, i, ensemble, domain, constraints, &
                          boundary, dynvars)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
 
       call timer(TimerIntegrator, TimerOff)
 
@@ -330,9 +342,15 @@ contains
                                          enefunc, pairlist, boundary,           &
                                          constraints, comm)
         else
+#ifdef NVTX
+          call nvtxStartRange("domain_update",5)
+#endif
           call domain_interaction_update(i-1, dynamics%nbupdate_period, domain, &
                                          enefunc, pairlist, boundary,           &
                                          constraints, comm)
+#ifdef NVTX
+          call nvtxEndRange
+#endif
         end if
 
       end if
@@ -342,8 +360,13 @@ contains
       call timer(TimerIntegrator, TimerOn)
 
       call timer(TimerComm1, TimerOn)
-
+#ifdef NVTX
+      call nvtxStartRange("communicate_coor",9)
+#endif
       call communicate_coor(domain, comm)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
 
       call timer(TimerComm1, TimerOff)
 
@@ -370,16 +393,32 @@ contains
 
       call timer(TimerComm2, TimerOn)
 
+#ifdef NVTX
+      call nvtxStartRange("communicate_force",10)
+#endif
       call communicate_force(domain, comm, force)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
       if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
       call timer(TimerComm2, TimerOff)
 
       call random_push_stock
+#ifdef NVTX
+      call nvtxStartRange("integrate_vv2",4)
+#endif
 
       call integrate_vv2(dynamics, i, ensemble, domain, constraints, &
                          boundary, dynvars)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
+
+#ifdef NVTX
+      call nvtxEndRange ! 'step'
+#endif
 
       call timer(TimerIntegrator, TimerOff)
 
@@ -410,8 +449,14 @@ contains
       end if
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("integrate_vv1",3)
+#endif
     call integrate_vv1(dynamics, iend+1, ensemble, domain, constraints, &
                        boundary, dynvars)
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call coord_vel_ref(domain, dynvars)
     call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, &
                          dynvars)

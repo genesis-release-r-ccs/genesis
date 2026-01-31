@@ -1,8 +1,5 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Defined if BD is used. */
-#undef BLACS
-
 /* c compiler version */
 #undef COMPILE_CC_VER
 
@@ -66,9 +63,6 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `mpi' library (-lmpi). */
-#undef HAVE_LIBMPI
-
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -77,6 +71,18 @@
 
 /* defined if MPI is used. */
 #undef HAVE_MPI_H
+
+/* Define to 1 if you have the <nvToolsExt.h> header file. */
+#undef HAVE_NVTOOLSEXT_H
+
+/* Have legacy NVTX v2 header */
+#undef HAVE_NVTX2
+
+/* Have NVTX v3 header */
+#undef HAVE_NVTX3
+
+/* Define to 1 if you have the <nvtx3/nvToolsExt.h> header file. */
+#undef HAVE_NVTX3_NVTOOLSEXT_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -108,12 +114,6 @@
 /* defined if Intel compiler is used. */
 #undef INTEL
 
-/* defined if INTERNAL LAPACK is used. */
-#undef INTERNAL_LAPACK
-
-/* defined if INTERNAL SCALAPACK is used. */
-#undef INTERNAL_SCALAPACK
-
 /* defined if K-computer compiler is used. */
 #undef KCOMP
 
@@ -125,6 +125,9 @@
 
 /* defined if MS-MPI compiler is used. */
 #undef MSMPI
+
+/* defined if cuda are used. */
+#undef NVTX
 
 /* defined if OpenMP is used. */
 #undef OMP
@@ -165,6 +168,9 @@
 /* defined if gpu is used. */
 #undef USE_GPU
 
+/* defined if llvm is used for MPI. */
+#undef USE_MPI_F08
+
 /* Version number of package */
 #undef VERSION
 
@@ -179,6 +185,9 @@
 
 /* defined if GCC gfortran compiler is used. */
 #undef __GFORTRAN__
+
+/* defined if nvfortran is used. */
+#undef __NVFORTRAN
 
 /* defined if pgi compiler is used. */
 #undef __PGI
