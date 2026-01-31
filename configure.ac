@@ -503,6 +503,9 @@ else
   elif test x"${FC_ACT}" = x"frt" -o x"${FC_ACT}" = x"mpifrt"; then
     AC_CHECK_PROGS(FPP, frt fpp cpp)
 
+  elif test x"${FC_ACT}" = x"nvfortran"; then
+    AC_CHECK_PROGS(FPP, nvfortran)
+
   else
     AC_CHECK_PROGS(FPP, fpp cpp)
 
@@ -1812,6 +1815,9 @@ AS_IF([test -z "${PPFLAGS}"], [
     dnl If you run flang as the preprocessor driver
     PPFLAGS="-fpp"
 
+  ], [test x"${FPP}" = x"nvfortran"], [
+    PPFLAGS="" #not used
+
   ], [
     dnl Default: only enable preprocessing when FC is gfortran-style driver.
     PPFLAGS="-cpp"
@@ -1992,7 +1998,7 @@ if test x"${FC_ACT}" = x"nvfortran"; then
   AC_DEFINE(__NVFORTRAN, 1, [defined if nvfortran is used.])
   DEFINED_VARIABLES+=" -D__NVFORTRAN"
 fi
-AM_CONDITIONAL(NVFORTRAN, test x"${FC_ACT}" = x"nvfortran")
+AM_CONDITIONAL(USE_NVHPC, [test "x$FC_ACT" = "xnvfortran"])
 
 # MS-MPI setting
 

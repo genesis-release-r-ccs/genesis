@@ -12,6 +12,7 @@ if INTERNAL_LAPACK
 else
   INT_LAPACK_LIB=
 endif
+include $(top_srcdir)/src/mk/common-spana.am
 
 bin_PROGRAMS = rdf_analysis
 
@@ -25,24 +26,27 @@ rdf_analysis_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-rdf_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-rdf_analysis_ADDLIBANA = ../../libana/libana.a
-rdf_analysis_ADDLIBSPANA = ../libspana/libspana.a
+rdf_analysis_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
+rdf_analysis_ADDLIBANA = $(top_builddir)/src/analysis/libana/libana.a
+rdf_analysis_ADDLIBSPANA = $(top_builddir)/src/analysis/sp_analysis/libspana/libspana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 
 .fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana -I../libspana $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana -I../libspana $(FCFLAGS) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
 rdf_analysis$(EXEEXT) : makelib $(rdf_analysis_OBJECTS)
@@ -54,12 +58,12 @@ clean:
 	rm -f $(bin_PROGRAMS) $(rdf_analysis_OBJECTS) *.f90 *~ *.mod
 
 makelib:
-	cd ../../../lib; make
-	cd ../../libana; make
-	cd ../libspana; make
+	$(MAKE) -C $(top_srcdir)/src/lib
+	$(MAKE) -C $(top_srcdir)/src/analysis/libana
+	$(MAKE) -C $(top_srcdir)/src/analysis/sp_analysis/libspana
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

@@ -12,9 +12,10 @@ else
   INT_LAPACK_LIB=
 endif
 
-SUBDIRS := ../../libana ../../../atdyn .
+SUBDIRS = .
 
 bin_PROGRAMS = energy_analysis
+include $(top_srcdir)/src/mk/common-analysis.am
 
 energy_analysis_SOURCES = \
 			ea_option_str.fpp \
@@ -28,12 +29,12 @@ EXTRA_DIST =\
 			Makefile.depends
 
 if QSIMULATE
-energy_analysis_ADDLIB = ../../../lib/lib.a ../../../lib/qsimulate/libqs.a ../../../lib/json-fortran/libjsonfortran.a
+energy_analysis_ADDLIB = $(top_builddir)/src/lib/lib.a $(top_builddir)/src/lib/qsimulate/libqs.a $(top_builddir)/src/lib/json-fortran/libjsonfortran.a
 else
-energy_analysis_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
+energy_analysis_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
 endif
 
-energy_analysis_ADDLIBANA = ../../libana/libana.a
+energy_analysis_ADDLIBANA = $(top_builddir)/src/analysis/libana/libana.a
 optional_base = at_input.o at_boundary.o at_boundary_str.o \
 	at_dynvars.o at_dynvars_str.o at_restraints.o \
 	at_restraints_str.o at_remd.o at_remd_str.o \
@@ -55,22 +56,28 @@ optional_base = at_input.o at_boundary.o at_boundary_str.o \
 	at_ensemble.o at_ensemble_str.o \
 	at_dynamics.o at_dynamics_str.o \
 	at_morph.o at_morph_str.o
-optional_objs = $(foreach file, $(optional_base), ../../../atdyn/$(file))
+optional_objs = $(foreach file, $(optional_base), $(top_srcdir)/src/atdyn/$(file))
+FPP2F90_NVHPC += -I$(top_srcdir)/src/atdyn -I$(top_builddir)/src/atdyn
+F90COMPILE += -I$(top_srcdir)/src/atdyn -I$(top_builddir)/src/atdyn
+FPP2F90 += -I$(top_srcdir)/src/atdyn -I$(top_builddir)/src/atdyn
 
 SUFFIXES = .fpp
 DEPENDS	= Makefile.depends
 
 .fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana -I ../../../atdyn $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana -I ../../../atdyn $(FCFLAGS) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
 energy_analysis$(EXEEXT) : $(energy_analysis_OBJECTS) \
@@ -84,7 +91,7 @@ clean:
 	rm -f $(bin_PROGRAMS) $(energy_analysis_OBJECTS) *.f90 *~ *.mod
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

@@ -15,7 +15,9 @@ else
   JSON_FORTRAN_DIR=
 endif
 
-SUBDIRS = $(LAPACK_DIR) $(SCALAPACK_DIR) $(QSIMULATE_DIR) $(JSON_FORTRAN_DIR)
+SUBDIRS = . $(QSIMULATE_DIR) $(JSON_FORTRAN_DIR)
+
+include $(top_srcdir)/src/mk/common-libonly.am
 
 noinst_LIBRARIES = lib.a
 
@@ -109,27 +111,23 @@ DEPENDS	= Makefile.depends
 
 CLEANFILES = $(noinst_LIBRARIES) $(lib_a_OBJECTS) *.f90 *~ *.mod
 
-ffte_kernel.o : ffte_kernel.fpp
+.fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
-.fpp.o:
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c $*.f90
-endif
+ffte_kernel.o : FCFLAGS=$(FCFLAGS_FFTE_KERNEL_FPP__PGI__SP)
 
 .f.o:
 	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I. $(FCFLAGS) -c -o $@ $*.f 

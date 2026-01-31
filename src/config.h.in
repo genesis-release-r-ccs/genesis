@@ -30,6 +30,9 @@
 /* username */
 #undef COMPILE_USER
 
+/* defined if CRAY FORTRAN is used. */
+#undef CRAYF
+
 /* defined if cuda_gpu is used. */
 #undef CUDAGPU
 

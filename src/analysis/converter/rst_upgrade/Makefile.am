@@ -12,7 +12,8 @@ else
   INT_LAPACK_LIB=
 endif
 
-SUBDIRS := ../../libana .
+SUBDIRS = .
+include $(top_srcdir)/src/mk/common-analysis.am
 
 bin_PROGRAMS = rst_upgrade
 
@@ -39,61 +40,69 @@ rst_upgrade_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-rst_upgrade_ADDLIB = ../../../lib/lib.a $(INT_LAPACK_LIB)
-rst_upgrade_ADDLIBANA = ../../libana/libana.a
+rst_upgrade_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
+rst_upgrade_ADDLIBANA = $(top_builddir)/src/analysis/libana/libana.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 
 .NOTPARALLEL:
+spdyndir=$(top_srcdir)/src/spdyn/
 
 sp_energy_str.fpp:
-	ln -fs ../../../spdyn/sp_energy_str.fpp .
+	ln -fs $(spdyndir)/sp_energy_str.fpp .
 
 sp_domain_str.fpp:
-	ln -fs ../../../spdyn/sp_domain_str.fpp .
+	ln -fs $(spdyndir)/sp_domain_str.fpp .
 
 sp_enefunc_str.fpp:
-	ln -fs ../../../spdyn/sp_enefunc_str.fpp .
+	ln -fs $(spdyndir)/sp_enefunc_str.fpp .
 
 sp_pairlist_str.fpp:
-	ln -fs ../../../spdyn/sp_pairlist_str.fpp .
+	ln -fs $(spdyndir)/sp_pairlist_str.fpp .
 
 sp_boundary_str.fpp:
-	ln -fs ../../../spdyn/sp_boundary_str.fpp .
+	ln -fs $(spdyndir)/sp_boundary_str.fpp .
 
 sp_constraints_str.fpp:
-	ln -fs ../../../spdyn/sp_constraints_str.fpp .
+	ln -fs $(spdyndir)/sp_constraints_str.fpp .
 
 sp_restraints_str.fpp:
-	ln -fs ../../../spdyn/sp_restraints_str.fpp .
+	ln -fs $(spdyndir)/sp_restraints_str.fpp .
 
 sp_ensemble_str.fpp:
-	ln -fs ../../../spdyn/sp_ensemble_str.fpp .
+	ln -fs $(spdyndir)/sp_ensemble_str.fpp .
 
 sp_dynvars_str.fpp:
-	ln -fs ../../../spdyn/sp_dynvars_str.fpp .
+	ln -fs $(spdyndir)/sp_dynvars_str.fpp .
 
 sp_dynamics_str.fpp:
-	ln -fs ../../../spdyn/sp_dynamics_str.fpp .
+	ln -fs $(spdyndir)/sp_dynamics_str.fpp .
 
 sp_remd_str.fpp:
-	ln -fs ../../../spdyn/sp_remd_str.fpp .
+	ln -fs $(spdyndir)/sp_remd_str.fpp .
 
 sp_parallel_io.fpp:
-	ln -fs ../../../spdyn/sp_parallel_io.fpp .
+	ln -fs $(spdyndir)/sp_parallel_io.fpp .
+
+FPP2F90_NVHPC += -I$(spdyndir)
+FPP2F90       += -I$(spdyndir)
+F90COMPILE    += -I$(spdyndir)
 
 .fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) -I../../../spdyn $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) -I../../../spdyn $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) \
-		-I../../../lib -I../../libana $(FCFLAGS) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
 rst_upgrade$(EXEEXT) : $(rst_upgrade_ADDLIBANA) $(rst_upgrade_ADDLIB) \
@@ -118,7 +127,7 @@ clean:
 		sp_parallel_io.fpp
 
 depend: clean_depend
-	python ../../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)
