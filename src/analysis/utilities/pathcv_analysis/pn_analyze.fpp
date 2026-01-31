@@ -346,9 +346,9 @@ contains
     std_prog = sqrt(std_prog-ave_prog*ave_prog)
     std_dist = sqrt(std_dist-ave_dist*ave_dist)
 
-    write(MsgOut, '(a,F12.5,a,F12.5)') 'Progress : Ave',ave_prog, \
+    write(MsgOut, '(a,F12.5,a,F12.5)') 'Progress : Ave',ave_prog, &
                                        ' Std',std_prog 
-    write(MsgOut, '(a,F12.5,a,F12.5)') 'Distance : Ave',ave_dist, \
+    write(MsgOut, '(a,F12.5,a,F12.5)') 'Distance : Ave',ave_dist, &
                                        ' Std',std_dist 
 
     call close_file(file)
