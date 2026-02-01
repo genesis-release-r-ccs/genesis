@@ -25,6 +25,9 @@ module sp_communicate_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -573,7 +576,7 @@ contains
     real(wip),               intent(inout) :: force(:,:,:)
 
     ! local variable
-    integer                  :: i, k, ii, ic, ix, id, omp_get_thread_num
+    integer                  :: i, k, ii, ic, ix, id
 #ifdef HAVE_MPI_GENESIS
     integer                  :: num_req
     integer                  :: ireq(4)
@@ -735,7 +738,7 @@ contains
     type(s_comm),    target, intent(inout) :: comm
 
     ! local variable
-    integer                  :: i, k, ii, ic, ix, id, omp_get_thread_num
+    integer                  :: i, k, ii, ic, ix, id
 #ifdef HAVE_MPI_GENESIS
     integer                  :: num_req
     integer                  :: ireq(4)
@@ -2118,7 +2121,7 @@ contains
     integer                  :: i, k, j, ii, ic, ix, iwater, list
     integer                  :: irequest, irequest1, irequest2, irequest3
     integer                  :: irequest4, irequest5, irequest6, irequest7
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 #ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif
@@ -4335,7 +4338,7 @@ contains
     integer                  :: i, k, j, ii, ic, ix, iwater, list
     integer                  :: irequest, irequest1, irequest2, irequest3
     integer                  :: irequest4, irequest5, irequest6, irequest7
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 #ifdef HAVE_MPI_GENESIS
     integer                  :: istatus(mpi_status_size)
 #endif

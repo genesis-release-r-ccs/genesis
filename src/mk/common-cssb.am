@@ -1,0 +1,13 @@
+# Common rules for src/analysis/utilities/css_builder/* (lib + libana + libspana)
+CSSB_INCLUDES = \
+  -I. \
+  -I$(top_srcdir)/src/lib -I$(top_builddir)/src/lib \
+  -I$(top_srcdir)/src/analysis/libana -I$(top_builddir)/src/analysis/libana \
+  -I$(top_srcdir)/src/analysis/utilities/css_builder/libcss -I$(top_builddir)/src/utilitiess/utilities/css_builder/libcss
+
+FPP2F90_NVHPC = $(FC) -Mpreprocess -E $(PPFLAGS) $(DEFS) \
+		$(DEFAULT_INCLUDES) $(INCLUDES) $(CSSB_INCLUDES)
+FPP2F90 = $(FPP) $(PPFLAGS) $(DEFS)
+F90COMPILE = $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) $(CSSB_INCLUDES)
+
+

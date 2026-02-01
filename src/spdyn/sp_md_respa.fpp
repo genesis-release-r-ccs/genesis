@@ -43,6 +43,12 @@ module sp_md_respa_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -246,6 +252,10 @@ contains
     !
     do i = istart, iend-multistep+1, multistep
 
+#ifdef NVTX
+      call nvtxStartRange("long-step",1)
+#endif
+
       mpi_tran = 0.0_dp
       mpi_bari = 0.0_dp
       dynvars%time = dynamics%timestep * real(i-1,dp)
@@ -276,6 +286,10 @@ contains
       !
       do j = 1, multistep
 
+#ifdef NVTX
+        call nvtxStartRange("short-step",2)
+#endif
+
         istep = i + j - 1
 
         if (dynamics%target_md .or. dynamics%steered_md) &
@@ -286,11 +300,18 @@ contains
         ! save coordiantes for constraint
         !
         call timer(TimerIntegrator, TimerOn)
+#ifdef NVTX
+        call nvtxStartRange("integrate_vv1",3)
+#endif
 
         ! VV1
         !
         call integrate_vv1(dynamics, istep, istart, j, dt_long, dt_short,  &
                            ensemble, domain, constraints, boundary, dynvars)
+
+#ifdef NVTX
+        call nvtxEndRange
+#endif
 
         call timer(TimerIntegrator, TimerOff)
 
@@ -325,9 +346,15 @@ contains
                                          domain, enefunc, pairlist, boundary, &
                                          constraints, comm)
           else
+#ifdef NVTX
+            call nvtxStartRange("domain_update",5)
+#endif
             call domain_interaction_update(istep, dynamics%nbupdate_period,     &
                                          domain, enefunc, pairlist, boundary, &
                                          constraints, comm)
+#ifdef NVTX
+            call nvtxEndRange
+#endif
           end if
 
         end if
@@ -343,8 +370,15 @@ contains
         !
         call timer(TimerIntegrator, TimerOn)
         call timer(TimerComm1, TimerOn)
+#ifdef NVTX
+        call nvtxStartRange("communicate_coor",9)
+#endif
 
         call communicate_coor(domain, comm)
+
+#ifdef NVTX
+        call nvtxEndRange
+#endif
 
         call timer(TimerComm1, TimerOff)
         call timer(TimerIntegrator, TimerOff)
@@ -370,7 +404,14 @@ contains
           call timer(TimerIntegrator, TimerOn)
           call timer(TimerComm2, TimerOn)
 
+
+#ifdef NVTX
+          call nvtxStartRange("communicate_force",10)
+#endif
           call communicate_force(domain, comm, force_short)
+#ifdef NVTX
+          call nvtxEndRange
+#endif
 
           if (constraints%water_type == TIP4) &
             call water_force_redistribution(constraints, domain, force_short, &
@@ -406,8 +447,14 @@ contains
           call timer(TimerIntegrator, TimerOn)
           call timer(TimerComm2, TimerOn)
 
+#ifdef NVTX
+          call nvtxStartRange("communicate_force",10)
+#endif
           call communicate_force(domain, comm, force_long)
           call communicate_force(domain, comm, force_short)
+#ifdef NVTX
+          call nvtxEndRange
+#endif
 
           if (constraints%water_type == TIP4) then
             call water_force_redistribution(constraints, domain, &
@@ -422,10 +469,23 @@ contains
 
         ! VV2
         !
+#ifdef NVTX
+        call nvtxStartRange("integrate_vv2",4)
+#endif
         call integrate_vv2(dynamics, istep, j, dt_long, dt_short, ensemble,    &
                            domain, constraints, boundary, dynvars)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
+
+#ifdef NVTX
+      call nvtxEndRange !short-step
+#endif
 
       end do
+#ifdef NVTX
+      call nvtxEndRange !long-step
+#endif
 
     end do
 
@@ -453,8 +513,15 @@ contains
       end if
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("integrate_vv1",3)
+#endif
+
     call integrate_vv1(dynamics, iend+1, istart, 1, dt_long, dt_short, ensemble, &
                        domain, constraints, boundary, dynvars)
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     call coord_vel_ref(domain, dynvars)
     if (ensemble%tpcontrol == TpcontrolNHC) &
@@ -2642,7 +2709,7 @@ contains
     real(dp)                 :: kin_full_ref(3), ekin_full_ref
     integer                  :: i, j, k, l, jx, i_ndegf
     integer                  :: ncell, nboundary, num_degree 
-    integer                  :: omp_get_thread_num, id
+    integer                  :: id
 
     real(wip),       pointer :: pmass, ekin0, temp0, degree
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)
@@ -3093,7 +3160,7 @@ contains
     real(wip)                :: half_dt, half_dt_long
     real(wip)                :: vel_change(1:3)
     integer                  :: j, k, l, jx, i_ndegf, ncell
-    integer                  :: omp_get_thread_num, id
+    integer                  :: id
 
     real(wip),       pointer :: pmass, pforce(:)
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)

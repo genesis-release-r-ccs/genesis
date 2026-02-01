@@ -21,6 +21,9 @@ module sp_energy_nonbond_k_generic_mod
   use mpi_parallel_mod
   use timers_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -78,7 +81,7 @@ contains
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, iix, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
 
@@ -351,7 +354,7 @@ contains
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
@@ -619,7 +622,7 @@ contains
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, iix, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
 
@@ -902,7 +905,7 @@ contains
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     integer                   :: check_virial

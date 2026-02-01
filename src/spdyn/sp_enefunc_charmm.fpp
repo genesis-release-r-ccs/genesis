@@ -36,6 +36,9 @@ module sp_enefunc_charmm_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -2575,7 +2578,7 @@ contains
     integer                  :: ncell, ncell_local, i, ii, ix, k, i1, i2, i3
     integer                  :: icel, icel1, icel2
     integer                  :: ic, j, ih, ij, index(4)
-    integer                  :: num_excl, num_nb14, id, omp_get_thread_num
+    integer                  :: num_excl, num_nb14, id
     integer                  :: found1, found2
     integer                  :: fkind
     integer                  :: list1, list2
@@ -3262,7 +3265,7 @@ contains
     integer                  :: ncell, ncell_local, i, ii, ix, k, i1, i2, i3
     integer                  :: icel, icel1, icel2
     integer                  :: ic, j, ih, ij, index(4)
-    integer                  :: num_excl, num_nb14, id, omp_get_thread_num
+    integer                  :: num_excl, num_nb14, id
     integer                  :: found1, found2
     integer                  :: fkind
     integer                  :: list1, list2, list3, step

@@ -32,6 +32,9 @@ module sp_energy_gamd_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -440,7 +443,6 @@ contains
 
     ! local variables
     integer           :: ncell, natom, id, i, j, k, ix, ic, jc
-    integer           :: omp_get_thread_num
     real(wp), pointer :: f_rest_omp(:,:,:,:)
     real(dp), pointer :: v_rest_omp(:,:,:)
 
@@ -551,7 +553,6 @@ contains
 
     ! local variables
     integer           :: ncell, natom, id, i, j, k, ix, ic, jc
-    integer           :: omp_get_thread_num
     real(wp), pointer :: f_dihe_omp(:,:,:,:)
     real(dp), pointer :: v_dihe_omp(:,:,:)
 

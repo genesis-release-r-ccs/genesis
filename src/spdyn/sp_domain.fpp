@@ -37,6 +37,9 @@ module sp_domain_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -4585,7 +4588,7 @@ contains
 
     ! local variable
     integer                   :: i, ix, iy, ij, j
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     real(wp)                  :: rr, dr(3), dir(3)
     real(wp)                  :: tr(3)
 
@@ -4811,7 +4814,7 @@ contains
 
     ! local variable
     integer                   :: i, ix, iy, ij, j
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     real(wp)                  :: rr, dr(3), dir(3)
     real(wp)                  :: tr(3)
 

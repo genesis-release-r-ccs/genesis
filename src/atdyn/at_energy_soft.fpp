@@ -72,7 +72,7 @@ contains
     real(wp)                 :: cutoff, cutoff2
     real(wp)                 :: el_fact, debye
     real(wp)                 :: work(3)
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
+    !integer                  :: i, l, istart, iend, id
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -249,7 +249,7 @@ contains
     real(wp)                 :: el_fact, debye
     real(wp)                 :: work(3)
     real(wp)                 :: box_size(3)
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
+    !integer                  :: i, l, istart, iend, id
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -435,7 +435,6 @@ contains
     integer                  :: i, j, k, l, natom, id
     integer                  :: num_nb15, ini_nb15, fin_nb15
     integer                  :: nthread, my_id, nonb_func
-    !integer                  :: omp_get_num_threads, omp_get_thread_num
 
     integer,  pointer        :: num_nb15_calc(:,:), nb15_calc_list(:,:)
     integer,  pointer        :: atmcls(:)
@@ -658,7 +657,6 @@ contains
     real(wp)                 :: work(3), box_size(3)
     integer                  :: i, j, k, l, natom, id
     integer                  :: nthread, my_id, nonb_func
-    !integer                  :: omp_get_num_threads, omp_get_thread_num
 
     integer,  pointer        :: num_nb15_calc(:), nb15_calc_list(:,:)
     integer,  pointer        :: atmcls(:)

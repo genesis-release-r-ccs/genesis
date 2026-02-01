@@ -154,7 +154,6 @@ contains
 
     ! local variables
     integer                   :: i, natom, n
-    !integer                   :: istart, iend, isd, id, omp_get_thread_num
     integer                   :: istart, iend, isd, id
     real(wp)                  :: ihalf_thick, zt, fz, hr
     real(wp)                  :: force_i, ddg, tmp, x2y2, pore_rad

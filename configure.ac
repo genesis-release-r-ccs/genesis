@@ -203,6 +203,10 @@ for vtok in ${fc_ver_info} ; do
     FC_ACT="pgf90"
     break
 
+  elif test x"${vtok}" = x"nvfortran"; then
+    FC_ACT="nvfortran"
+    break
+
   fi
 
 done
@@ -401,6 +405,10 @@ for vtok in ${cc_ver_info} ; do
     CC_ACT="pgcc"
     break
 
+  elif test x"${vtok}" = x"nvc"; then
+    CC_ACT="nvc"
+    break
+
   fi
 
 done
@@ -495,6 +503,9 @@ else
   elif test x"${FC_ACT}" = x"frt" -o x"${FC_ACT}" = x"mpifrt"; then
     AC_CHECK_PROGS(FPP, frt fpp cpp)
 
+  elif test x"${FC_ACT}" = x"nvfortran"; then
+    AC_CHECK_PROGS(FPP, nvfortran)
+
   else
     AC_CHECK_PROGS(FPP, fpp cpp)
 
@@ -539,6 +550,9 @@ if test x"${enable_openmp}" = x"yes"; then
     OPT_OPENMP="-fopenmp"
 
   elif test x"${FC_ACT}" = x"pgf90"; then
+    OPT_OPENMP="-mp"
+
+  elif test x"${FC_ACT}" = x"nvfortran"; then
     OPT_OPENMP="-mp"
 
   elif test x"${FC_ACT}" = x"frtpx"; then
@@ -614,6 +628,7 @@ if test x"${with_lapack}" == x"yes"; then
 
     if test x"${FC_ACT}" = x"gfortran" -o \
             x"${FC_ACT}" = x"flang" -o \
+            x"${FC_ACT}" = x"nvfortran" -o \
   	    x"${FC_ACT}" = x"pgf90" ; then
       lapack_lib_path=""
       blas_lib_path=""
@@ -684,6 +699,14 @@ if test x"${with_lapack}" == x"yes"; then
 
   elif test x"${FC_ACT}" = x"pgf90"; then
     lapacklib="lapack"
+    LDFLAGS+=${OPT_LD_LAPACK}
+    AC_CHECK_LIB([${lapacklib}], [dsyev],
+          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
+    LDFLAGS+=" -llapack ${blaslink}"
+
+  elif test x"${FC_ACT}" = x"nvfortran"; then
+    lapacklib="lapack"
+    LDFLAGS+=" -llapack ${blaslink}"
     LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
           [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
@@ -765,6 +788,13 @@ AC_ARG_WITH([cuda],
 	[use cuda (default: no)])],
 	[], [with_cuda=no])
 
+OPT_FC_NVTX=""
+
+AC_ARG_WITH([nvtx],
+        [AS_HELP_STRING([--with-nvtx@<:@=PATH@:>@],
+        [use nvtx (default: no)])],
+        [], [with_nvtx=no])
+
 AC_ARG_WITH([gpuarch],
 	[AS_HELP_STRING([--with-gpuarch@<:@=ARCH@:>@],
 	[use gpuarch (default: no)])],
@@ -777,6 +807,12 @@ if test x"${enable_gpu}" = x"yes"; then
   if test x"${with_cuda}" = x"no"; then
     with_cuda=yes
   fi
+else
+  with_nvtx=no
+fi
+if test x"${FC_ACT}" != x"nvfortran" -a \
+        x"${FC_ACT}" != x"gfortran"; then
+    with_nvtx=no
 fi
 
 if test x"${with_cuda}" != x"no"; then
@@ -918,6 +954,15 @@ if test x"${with_cuda}" != x"no"; then
     AC_DEFINE(PGICUDA, 1, [defined if pgi and cuda are used.])
     DEFINED_VARIABLES+=" -DPGICUDA"
 
+  elif test x"${FC_ACT}" = x"nvfortran"; then
+    OPT_LD_CUDA+=" -L${cuda_lib_path} -lcudart -lstdc++"
+    OPT_FC_CUDA+=" "
+    if test x"${with_nvtx}" = x"yes"; then
+       AC_DEFINE(NVTX, 1, [defined if cuda are used.])
+       DEFINED_VARIABLES+=" -DNVTX"
+       OPT_LD_CUDA+=" -lnvhpcwrapnvtx"
+    fi
+
   elif test x"${FC_ACT}" = x"ifort"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
 
@@ -926,6 +971,22 @@ if test x"${with_cuda}" != x"no"; then
 
   elif test x"${FC_ACT}" = x"gfortran"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
+    if test x"${with_nvtx}" != x"no"; then
+       AC_DEFINE(NVTX, 1, [defined if cuda are used.])
+       DEFINED_VARIABLES+=" -DNVTX"
+           if test x"${with_nvtx}" != x"yes"; then
+              nvtx_path=${with_nvtx}
+          AC_CHECK_FILE([${nvtx_path}/nvtx.mod],
+                [OPT_FC_NVTX=" -I${nvtx_path}"],
+                        [AC_MSG_ERROR([nvtx.mod is required to nvtx option.])])
+          AC_CHECK_FILE([${nvtx_path}/nvtx.o],
+                [OPT_LD_CUDA+=" ${nvtx_path}/nvtx.o "],
+                        [AC_MSG_ERROR([nvtx.o is required to nvtx option.])])
+          OPT_LD_CUDA+=" -L${nvtx_path}"
+           fi
+       OPT_LD_CUDA+=" -lnvToolsExt"
+
+    fi
 
   elif test x"${FC_ACT}" = x"flang"; then
     OPT_LD_CUDA+="-L${cuda_lib_path} -lcudart -lstdc++"
@@ -1210,6 +1271,10 @@ else
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O2 -fastsse -Mipa=fast,inline -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
+    elif test x"${FC_ACT}" = x"nvfortran"; then
+      FCFLAGS="-O2 -fast  -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
+      FCFLAGS_NOSIMD="-O2 -Mvect=nosimd -Munroll=c:1 -Mnoframe -Mlre -Mpre -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
+
     elif test x"${FC_ACT}" = x"frtpx"; then
       FCFLAGS="-m -Kocl -Kfast,openmp,parallel,simd=2,noalias -Nlst=t -Koptmsg=2"
 
@@ -1263,6 +1328,9 @@ else
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge -Mbackslash"
 
+    elif test x"${FC_ACT}" = x"nvfortran"; then
+      FCFLAGS="-g -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
+
     elif test x"${FC_ACT}" = x"frtpx"; then
       FCFLAGS="-m -Kocl -Kopenmp -Nlst=t  -Koptmsg=2"
 
@@ -1313,6 +1381,9 @@ else
 
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-g  -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge -Mbackslash"
+
+    elif test x"${FC_ACT}" = x"nvfortran"; then
+      FCFLAGS="-g -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
 
     elif test x"${FC_ACT}" = x"frtpx"; then
       FCFLAGS="-g -m -Kocl -Kopenmp"
@@ -1424,6 +1495,7 @@ fi
 
 FCFLAGS+=" ${OPT_OPENMP}"
 FCFLAGS+=" ${OPT_FC_CUDA}"
+FCFLAGS+=" ${OPT_FC_NVTX}"
 FCFLAGS+=" ${OPT_GPROF}"
 TMP="${FARCFLAGS} ${FCFLAGS}"
 FCFLAGS_NOOPT="${FARCFLAGS_NOOPT} ${FCFLAGS}"
@@ -1471,6 +1543,9 @@ else
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O3 -fastsse -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
 
+    elif test x"${CC_ACT}" = x"nvc"; then
+      CFLAGS="-O3 -fast -m64 -Mflushz -pc 64 -mcmodel=medium"
+
     elif test x"${CC_ACT}" = x"fccpx"; then
       CFLAGS="-m -Kvisimpact -Kocl -Kswp"
 
@@ -1517,6 +1592,9 @@ else
     elif test x"${CC_ACT}" = x"fccpx"; then
       CFLAGS="-m -Kocl"
 
+    elif test x"${CC_ACT}" = x"nvc"; then
+      CFLAGS=" -fast -m64 -Mflushz -pc 64 -mcmodel=medium"
+
     elif test x"${CC_ACT}" = x"mpifccpx"; then
       CFLAGS="-m -Kocl"
 
@@ -1559,6 +1637,9 @@ else
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-g -fastsse -m64 -Mflushz -pc 64 -mcmodel=medium -Msmartalloc=huge"
+
+    elif test x"${CC_ACT}" = x"nvc"; then
+      CFLAGS=" -g -fast -m64 -Mflushz -pc 64 -mcmodel=medium"
 
     elif test x"${CC_ACT}" = x"fccpx"; then
       CFLAGS="-g -m -Kocl"
@@ -1605,6 +1686,9 @@ else
 
     elif test x"${CC_ACT}" = x"pgcc"; then
       CFLAGS="-O0 -g -m64 -Msmartalloc=huge"
+
+    elif test x"${CC_ACT}" = x"nvc"; then
+      CFLAGS="-O0 -g -m64 "
 
     elif test x"${CC_ACT}" = x"fccpx"; then
       CFLAGS="-O0 -g -Kocl"
@@ -1678,6 +1762,9 @@ if test -z "${LDFLAGS}"; then
     LDFLAGS+=""
     #LDFLAGS="-march=$march -fuse-linker-plugin"
 
+  elif test x"${FC_ACT}" = x"nvfortran"; then
+    LDFLAGS+=""
+
   elif test x"${FC_ACT}" = x"frtpx"; then
     LDFLAGS+=" -SSL2 -Kparallel -Nfjomplib"
 
@@ -1727,6 +1814,9 @@ AS_IF([test -z "${PPFLAGS}"], [
   ], [test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"], [
     dnl If you run flang as the preprocessor driver
     PPFLAGS="-fpp"
+
+  ], [test x"${FPP}" = x"nvfortran"], [
+    PPFLAGS="" #not used
 
   ], [
     dnl Default: only enable preprocessing when FC is gfortran-style driver.
@@ -1902,6 +1992,20 @@ if test x"${FC_ACT}" = x"pgf90"; then
   DEFINED_VARIABLES+=" -D__PGI"
 fi
 AM_CONDITIONAL(PGICOMP, test x"${FC_ACT}" = x"pgf90")
+
+# NVFORTRAN preprocess macro
+if test x"${FC_ACT}" = x"nvfortran"; then
+  AC_DEFINE(__NVFORTRAN, 1, [defined if nvfortran is used.])
+  DEFINED_VARIABLES+=" -D__NVFORTRAN"
+fi
+AM_CONDITIONAL(USE_NVHPC, [test "x$FC_ACT" = "xnvfortran"])
+
+# MS-MPI setting
+
+if test x"${with_msmpi}" = x"yes"; then
+  AC_DEFINE(MSMPI, 1, [defined if MS-MPI compiler is used.])
+  DEFINED_VARIABLES+=" -DMSMPI"
+fi
 
 
 ## PGI compiler settings

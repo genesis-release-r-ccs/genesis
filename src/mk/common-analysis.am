@@ -1,0 +1,11 @@
+# Common rules for src/analysis/* (lib + libana)
+ANALYSIS_INCLUDES = \
+  -I. \
+  -I$(top_srcdir)/src/lib -I$(top_builddir)/src/lib \
+  -I$(top_srcdir)/src/analysis/libana -I$(top_builddir)/src/analysis/libana
+
+FPP2F90_NVHPC = $(FC) -Mpreprocess -E $(PPFLAGS) $(DEFS) \
+                $(DEFAULT_INCLUDES) $(INCLUDES) $(ANALYSIS_INCLUDES)
+FPP2F90 = $(FPP) $(PPFLAGS) $(DEFS)
+F90COMPILE = $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) $(ANALYSIS_INCLUDES)
+

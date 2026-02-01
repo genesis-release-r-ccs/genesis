@@ -44,6 +44,12 @@ module sp_md_vverlet_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -113,7 +119,7 @@ contains
     real(wip)                :: simtim, dt, temperature
     integer                  :: ncell, nb
     integer                  :: i, k, jx, nsteps
-    integer                  :: iseed, id, omp_get_thread_num
+    integer                  :: iseed, id
     integer                  :: istart, iend
     logical                  :: npt, npt1
 
@@ -237,6 +243,9 @@ contains
 
     do i = istart, iend
 
+#ifdef NVTX
+      call nvtxStartRange("step",1)
+#endif
       dynvars%time = dynamics%timestep * real(i-1,dp)
       dynvars%step = i-1
       enefunc%rpath_sum_mf_flag = enefunc%rpath_flag
@@ -283,11 +292,17 @@ contains
       end if
 
       call timer(TimerIntegrator, TimerOn)
+#ifdef NVTX
+      call nvtxStartRange("integrate_vv1",3)
+#endif
 
       ! VV1
       !
       call integrate_vv1(dynamics, i, ensemble, domain, constraints, &
                          boundary, dynvars)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
 
       call timer(TimerIntegrator, TimerOff)
 
@@ -330,9 +345,15 @@ contains
                                          enefunc, pairlist, boundary,           &
                                          constraints, comm)
         else
+#ifdef NVTX
+          call nvtxStartRange("domain_update",5)
+#endif
           call domain_interaction_update(i-1, dynamics%nbupdate_period, domain, &
                                          enefunc, pairlist, boundary,           &
                                          constraints, comm)
+#ifdef NVTX
+          call nvtxEndRange
+#endif
         end if
 
       end if
@@ -342,8 +363,13 @@ contains
       call timer(TimerIntegrator, TimerOn)
 
       call timer(TimerComm1, TimerOn)
-
+#ifdef NVTX
+      call nvtxStartRange("communicate_coor",9)
+#endif
       call communicate_coor(domain, comm)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
 
       call timer(TimerComm1, TimerOff)
 
@@ -370,16 +396,32 @@ contains
 
       call timer(TimerComm2, TimerOn)
 
+#ifdef NVTX
+      call nvtxStartRange("communicate_force",10)
+#endif
       call communicate_force(domain, comm, force)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
       if (constraints%water_type == TIP4) &
         call water_force_redistribution(constraints, domain, force, virial)
 
       call timer(TimerComm2, TimerOff)
 
       call random_push_stock
+#ifdef NVTX
+      call nvtxStartRange("integrate_vv2",4)
+#endif
 
       call integrate_vv2(dynamics, i, ensemble, domain, constraints, &
                          boundary, dynvars)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
+
+#ifdef NVTX
+      call nvtxEndRange ! 'step'
+#endif
 
       call timer(TimerIntegrator, TimerOff)
 
@@ -410,8 +452,14 @@ contains
       end if
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("integrate_vv1",3)
+#endif
     call integrate_vv1(dynamics, iend+1, ensemble, domain, constraints, &
                        boundary, dynvars)
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call coord_vel_ref(domain, dynvars)
     call compute_dynvars(enefunc, dynamics, boundary, ensemble, domain, &
                          dynvars)
@@ -787,7 +835,7 @@ contains
 
     ! local variables
     integer                  :: i, ix
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     integer,         pointer :: natom(:), ncell
     real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
@@ -924,7 +972,7 @@ contains
 
     ! local variables
     integer                  :: i, ix, k, l
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor
 
@@ -1063,7 +1111,7 @@ contains
 
     ! local variables
     integer                  :: i, ix, k, l
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor
 
@@ -1237,7 +1285,7 @@ contains
 
     ! local variables
     integer                  :: i, k, l, ix, ncell
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor, vel_change(3)
     real(dp)                 :: virial_constraint(3)
@@ -1362,7 +1410,7 @@ contains
     logical                  :: calc_thermostat
     integer                  :: i, ix, k, iter, maxiter
     integer(iintegers)       :: num_degree
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: temp0, tau_t, dt, half_dt, dt_therm
     real(wip)                :: tempf, tempt, factor, rr, dtemp
     real(wip)                :: scale_vel
@@ -1525,7 +1573,7 @@ contains
     logical                  :: calc_thermostat
     integer                  :: i, ix, k, iter, maxiter
     integer(iintegers)       :: num_degree
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: temp0, tau_t, dt, half_dt, dt_therm
     real(wip)                :: tempf, tempt, factor, rr, dtemp
     real(wip)                :: scale_vel, scale_vel2

@@ -23,6 +23,9 @@ module sp_pairlist_knl_mod
 #ifdef MPI
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -59,7 +62,7 @@ contains
     integer                   :: i, j, ij, k, ix, iy
     integer                   :: num_nb15
     integer                   :: num_nb15_total
-    integer                   :: id, my_id, my_id_real, omp_get_thread_num
+    integer                   :: id, my_id, my_id_real
     integer                   :: num_nb15_cell
 
     real(wip),        pointer :: coord(:,:,:)

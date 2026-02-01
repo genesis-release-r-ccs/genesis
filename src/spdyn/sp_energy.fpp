@@ -43,6 +43,12 @@ module sp_energy_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -1182,7 +1188,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -1192,6 +1197,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     !$omp parallel do private(i,ix,id)
@@ -1279,6 +1287,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! setup for emfit
     !
@@ -1452,12 +1463,21 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, npt, nonb_ene, coord_pbc,    &
                               force_omp, force_pbc, virial_cell,     &
                               virial_omp, elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
@@ -1686,6 +1706,9 @@ contains
       call boost_gamd(domain, enefunc, energy, force, virial)
     end if
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -1768,7 +1791,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -1778,6 +1800,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     !$omp parallel private(i,ix,id)
@@ -1865,6 +1890,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! setup for emfit
     !
@@ -2031,13 +2059,22 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, npt, nonb_ene, coord_pbc,    &
                               force_omp, force_pbc,                  &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
@@ -2265,6 +2302,9 @@ contains
       call boost_gamd(domain, enefunc, energy, force, virial)
     end if
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -2347,7 +2387,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -2357,6 +2396,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     !$omp parallel private(i,ix,id)
@@ -2443,6 +2485,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp
     eposi_omp     (1:nthread) = 0.0_dp
     efield_omp    (1:nthread) = 0.0_dp
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! setup for emfit
     !
@@ -2549,15 +2594,24 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, npt, nonb_ene, coord_pbc,    &
                               force_omp, force_pbc,                  &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
     ! virial with periodic boundary condition
     !
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
         domain%nonbond_kernel /= NBK_Fugaku .and.       &
         domain%nonbond_kernel /= NBK_Intel) then
@@ -2785,6 +2839,9 @@ contains
                  + energy%electric_field  &
                  + energy%restraint_position
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -2866,6 +2923,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     force     (1:3,1:natom,1:ncell)   = 0.0_wip
@@ -2883,6 +2943,9 @@ contains
     elec_omp      (1:nthread)         = 0.0_dp 
     evdw_omp      (1:nthread)         = 0.0_dp 
     eposi_omp     (1:nthread)         = 0.0_dp 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! setup for emfit
     !
@@ -2967,6 +3030,9 @@ contains
 
     ! gather values
     !
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     do id = 1, nthread
 
       do i = 1, ncell
@@ -2998,6 +3064,9 @@ contains
                  + energy%van_der_waals &
                  + energy%restraint_position
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -3067,7 +3136,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3077,6 +3145,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     virial    (1,1)             = 0.0_dp
@@ -3181,6 +3252,9 @@ contains
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
         domain%nonbond_kernel /= NBK_Intel)       &
       virial_cell   (1:3,1:maxcell) = 0.0_dp
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! nonbonded energy
     !
@@ -3280,15 +3354,24 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, .false., .false.,            &
                               coord_pbc, force_omp, force_pbc,       &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
     ! gather values
     !
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
         domain%nonbond_kernel /= NBK_Intel  .and. &
         domain%nonbond_kernel /= NBK_GPU) then
@@ -3413,6 +3496,9 @@ contains
       !$omp end parallel
 
     end if
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     return
 
@@ -3478,7 +3564,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3488,6 +3573,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     force     (1:3,1:natom,1:ncell) = 0.0_wip
@@ -3561,6 +3649,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! nonbonded energy
     !
@@ -3656,15 +3747,24 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, .false., .false.,            &
                               coord_pbc, force_omp, force_pbc,       &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
     ! gather values
     !
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
         domain%nonbond_kernel /= NBK_Intel  .and. &
         domain%nonbond_kernel /= NBK_GPU) then
@@ -3795,6 +3895,9 @@ contains
       !$omp end parallel
 
     end if
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     return
 
@@ -3860,7 +3963,6 @@ contains
     real(dp)                 :: efield_omp  (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3870,6 +3972,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     force     (1:3,1:natom,1:ncell) = 0.0_wip
@@ -3942,6 +4047,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! nonbonded energy
     !
@@ -4032,13 +4140,22 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, .false., .false., coord_pbc, &
                               force_omp, force_pbc,                  &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! gather values
     !
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
@@ -4171,6 +4288,9 @@ contains
       !$omp end parallel
 
     end if
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     return
 
@@ -5019,7 +5139,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -5029,6 +5148,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     !$omp parallel do private(i,ix,id)
@@ -5122,6 +5244,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     if (enefunc%gamd_use) &
       call error_msg('Compute_Energy> GaMD is not available in FEP')
@@ -5242,12 +5367,21 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, npt, nonb_ene, coord_pbc,    &
                               force_omp, force_pbc, virial_cell,     &
                               virial_omp, elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! virial with periodic boundary condition
     !
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
@@ -5508,6 +5642,9 @@ contains
                  + energy%electric_field  &
                  + energy%restraint_position
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -5591,7 +5728,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -5601,6 +5737,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     !$omp parallel private(i,ix,id)
@@ -5695,6 +5834,9 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! setup for emfit
     !
@@ -5810,15 +5952,24 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, npt, nonb_ene, coord_pbc,    &
                               force_omp, force_pbc,                  &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
     ! virial with periodic boundary condition
     !
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     if (enefunc%pme_use .and. (nonb_ene .or. npt) .and. &
         domain%nonbond_kernel /= NBK_Fugaku .and.       &
         domain%nonbond_kernel /= NBK_Intel) then
@@ -6075,6 +6226,9 @@ contains
                  + energy%van_der_waals &
                  + energy%restraint_position
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     if (reduce) &
       call reduce_ene(energy, virial)
 
@@ -6143,7 +6297,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -6153,6 +6306,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     virial    (1:3,1:3)             = 0.0_dp
@@ -6261,6 +6417,10 @@ contains
         domain%nonbond_kernel /= NBK_Intel)       &
       virial_cell   (1:3,1:maxcell) = 0.0_dp
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
     ! nonbonded energy
     !
     select case (boundary%type)
@@ -6359,13 +6519,22 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, .false., .false.,            &
                               coord_pbc, force_omp, force_pbc,       &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! gather values
     !
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
@@ -6510,6 +6679,9 @@ contains
       end do
     end do
     !$omp end parallel
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     return
 
@@ -6575,7 +6747,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -6585,6 +6756,9 @@ contains
 
     ! initialization of energy and forces
     !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
     call init_energy(energy)
 
     force     (1:3,1:natom,1:ncell) = 0.0_wip
@@ -6665,6 +6839,10 @@ contains
     evdw_omp      (1:nthread) = 0.0_dp 
     eposi_omp     (1:nthread) = 0.0_dp 
     efield_omp    (1:nthread) = 0.0_dp 
+
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     ! nonbonded energy
     !
@@ -6760,13 +6938,22 @@ contains
     ! finish GPU
     !
     if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
       call compute_energy_nonbond_pme_wait( &
                               pairlist, .false., .false.,            &
                               coord_pbc, force_omp, force_pbc,       &
                               virial_cell, virial_omp,               &
                               elec_omp, evdw_omp)
+#ifdef NVTX
+      call nvtxEndRange
+#endif
     end if
 
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
     ! gather values
     !
     if (domain%nonbond_kernel /= NBK_Fugaku .and. &
@@ -6917,6 +7104,9 @@ contains
       end do
     end do
     !$omp end parallel
+#ifdef NVTX
+    call nvtxEndRange
+#endif
 
     return
 

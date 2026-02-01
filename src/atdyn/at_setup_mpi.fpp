@@ -240,7 +240,6 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    !integer                  :: omp_get_num_threads, nthread
     integer                  :: thread
     integer                  :: nreplicas, nproc_per_rep
     integer                  :: color, key, temp
@@ -459,7 +458,6 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    !integer                  :: omp_get_num_threads, nthread
     integer                  :: nthread
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
@@ -738,7 +736,6 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    !integer                  :: omp_get_num_threads, nthread
     integer                  :: nthread
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp

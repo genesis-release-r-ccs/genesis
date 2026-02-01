@@ -20,6 +20,9 @@ module sp_energy_table_linear_bondcorr_mod
   use sp_domain_str_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -217,7 +220,7 @@ contains
     real(wp)                 :: R, term_elec, ccr, coef, elec_temp
     real(wp)                 :: iqtmp, jqtmp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
 
     real(wp),        pointer :: table_ecor(:), table_decor(:)
@@ -346,7 +349,7 @@ contains
     real(wp)                 :: R, term_elec, ccr, coef, elec_temp
     real(wp)                 :: iqtmp, jqtmp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
 
     real(wp),        pointer :: table_ecor(:), table_decor(:)
@@ -475,7 +478,7 @@ contains
     real(wp)                 :: R, term_elec, ccr, coef, elec_temp
     real(wp)                 :: iqtmp, jqtmp
     integer                  :: i, ix, iy, j, k, ij, L, icel, jcel
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local, num_atom
 
     real(wp),        pointer :: system_size(:)
@@ -618,7 +621,7 @@ contains
     real(wp)                 :: dij(3), rij2, work(3), viri(3), cutoff2
     real(wp)                 :: R, term_elec, ccr, coef, elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
 
     real(wp),        pointer :: charge(:,:), system_size(:)
@@ -755,7 +758,7 @@ contains
     real(wp)                 :: iqtmp, jqtmp
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id,
 
     real(wp),        pointer :: table_ene(:), table_grad(:)
     real(wp),        pointer :: density, cutoff
@@ -885,7 +888,7 @@ contains
     real(wp)                 :: iqtmp, jqtmp
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: table_ene(:), table_grad(:)
     real(wp),        pointer :: density, cutoff
@@ -1014,7 +1017,7 @@ contains
     real(wp)                 :: iqtmp, jqtmp
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L, num_atom, icel, jcel
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: system_size(:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -1156,7 +1159,7 @@ contains
     real(wp)                 :: R, term_elec, coef, cc, qq_scale
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -1291,7 +1294,7 @@ contains
     real(wp)                 :: R, term_elec, ccr, coef, elec_temp
     real(wp)                 :: minimum_contact
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
 
     real(wp),        pointer :: charge(:,:), system_size(:)
@@ -1419,7 +1422,7 @@ contains
     real(wp)                 :: R, term_elec, coef, cc, qq_scale
     real(wp)                 :: elec_temp, minimum_contact
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -1549,7 +1552,7 @@ contains
     real(wp)                 :: lj6_i, lj6_j, iqtmp, jqtmp
     real(wp)                 :: elec_temp, evdw_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
     integer                  :: iatmcls, jatmcls
 
@@ -1702,7 +1705,7 @@ contains
     real(wp)                 :: lj6_i, lj6_j, iqtmp, jqtmp
     real(wp)                 :: elec_temp, evdw_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
     integer                  :: iatmcls, jatmcls
 
@@ -1855,7 +1858,7 @@ contains
     real(wp)                 :: lj6_i, lj6_j, iqtmp, jqtmp
     real(wp)                 :: elec_temp, evdw_temp
     integer                  :: i, ix, iy, j, k, ij, L, icel, jcel
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local, num_atom
     integer                  :: iatmcls, jatmcls
 
@@ -2021,7 +2024,7 @@ contains
     real(wp)                 :: lj6_i, lj6_j
     real(wp)                 :: elec_temp, evdw_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
     integer                  :: iatmcls, jatmcls
 
@@ -2183,7 +2186,7 @@ contains
     real(wp)                 :: lj6_i, lj6_j
     real(wp)                 :: elec_temp, evdw_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
     integer                  :: iatmcls, jatmcls
 
@@ -2342,7 +2345,7 @@ contains
     real(wp)                 :: R, term_elec, coef, cc, qq_scale
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -2505,7 +2508,7 @@ contains
     real(wp)                 :: R, term_elec, coef, cc, qq_scale
     real(wp)                 :: elec_temp, minimum_contact
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: table_ene(:), table_grad(:)

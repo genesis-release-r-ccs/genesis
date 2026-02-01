@@ -12,8 +12,9 @@ if INTERNAL_LAPACK
 else
   INT_LAPACK_LIB=
 endif
+include $(top_srcdir)/src/mk/common-libonly.am
 
-SUBDIRS := ../lib .
+SUBDIRS = .
 
 bin_PROGRAMS = atdyn
 
@@ -92,12 +93,16 @@ at_energy_linear_object = \
 	at_energy_table_linear.o \
 	at_energy_table_linear_bondcorr.o 
 
+at_energy_restraints_object = \
+	at_energy_restraints.o 
+
 if QSIMULATE
-  atdyn_ADDLIB = ../lib/lib.a ../lib/qsimulate/libqs.a ../lib/json-fortran/libjsonfortran.a $(INT_LAPACK_LIB)
-  INCLUDE_DIR = -I../lib -I../lib/json-fortran
+  atdyn_ADDLIB = $(top_builddir)/src/lib/lib.a $(top_builddir)/src/lib/qsimulate/libqs.a \
+		$(top_builddir)/src/lib/json-fortran/libjsonfortran.a $(INT_LAPACK_LIB)
+  INCLUDE_DIR = -I$(top_builddir)/src/lib -I$(top_builddir)/src/lib/json-fortran
 else
-  atdyn_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
-  INCLUDE_DIR = -I../lib
+  atdyn_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
+  INCLUDE_DIR = -I$(top_builddir)/src/lib
 endif
 
 EXTRA_DIST = \
@@ -106,26 +111,28 @@ EXTRA_DIST = \
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 
-$(at_energy_linear_object) : %.o : %.fpp
+.fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS_FPP__PGI_NOOPT) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) $(INCLUDE_DIR) $(FCFLAGS_FPP__PGI_NOOPT) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) $(INCLUDE_DIR) $(FCFLAGS_FPP__PGI_NOOPT) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
-.fpp.o:
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) $(INCLUDE_DIR) $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) $(INCLUDE_DIR) $(FCFLAGS) -c $*.f90
+at_energy_table_linear.o \
+at_energy_table_linear_bondcorr.o: FCFLAGS = $(FCFLAGS_FPP__PGI_NOOPT)
+
+# restraints kernel: NVHPC only NOSIMD
+if USE_NVHPC
+  at_energy_restraints.o: FCFLAGS = $(FCFLAGS_NOSIMD)
 endif
 
 atdyn$(EXEEXT) : $(atdyn_ADDLIB) $(atdyn_OBJECTS)
@@ -135,7 +142,7 @@ clean:
 	rm -f $(bin_PROGRAMS) $(atdyn_OBJECTS) *.f90 *~ *.mod
 
 depend: clean_depend
-	python ../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

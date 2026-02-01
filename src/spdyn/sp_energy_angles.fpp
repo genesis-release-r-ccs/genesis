@@ -19,6 +19,12 @@ module sp_energy_angles_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef NVTX
+  use nvtx
+#endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -68,7 +74,7 @@ contains
     real(wp)                 :: eangle_temp, eurey_temp, work(9), viri(3)
     integer                  :: i, j, ix, icel1, icel2, icel3, i1, i2, i3
     integer                  :: list(3), pbc_int, k1, k2, k3
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     real(wp),        pointer :: fc(:,:), theta0(:,:)
     real(wp),        pointer :: system_size(:)
@@ -80,6 +86,9 @@ contains
 
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -337,6 +346,9 @@ contains
 
     !$omp end parallel 
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return
@@ -376,7 +388,7 @@ contains
     real(wp)                 :: eangle_temp, work(6), viri(3)
     integer                  :: i, ix, icel1, icel2, icel3, i1, i2, i3
     integer                  :: list(3), pbc_int, k1, k2, k3
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     real(wp),        pointer :: fc(:,:), theta0(:,:)
     real(wp),        pointer :: system_size(:)
@@ -387,6 +399,9 @@ contains
 
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -511,6 +526,9 @@ contains
 
     !$omp end parallel
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return
@@ -554,7 +572,7 @@ contains
     real(wp)                 :: eangle_temp, eurey_temp, work(9), viri(3)
     integer                  :: i, j, ix, icel1, icel2, icel3, i1, i2, i3
     integer                  :: list(3), pbc_int, k1, k2, k3
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     real(wp),        pointer :: fc(:,:), theta0(:,:)
     real(wp),        pointer :: system_size(:)
@@ -569,6 +587,9 @@ contains
     real(wp)                 :: lambbond
 
     call timer(TimerAngle, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("angle",2)
+#endif
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
@@ -836,6 +857,9 @@ contains
 
     !$omp end parallel 
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerAngle, TimerOff)
 
     return

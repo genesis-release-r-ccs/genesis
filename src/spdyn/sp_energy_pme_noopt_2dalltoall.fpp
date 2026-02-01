@@ -27,6 +27,9 @@ module sp_energy_pme_noopt_2dalltoall_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -937,7 +940,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(3), is(n_bs,3)
     integer                  :: start(3), end(3)
     integer                  :: vx_tmp(n_bs), vy_tmp(n_bs), vz_tmp(n_bs)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk, iorg, k_f, k_t
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -1572,7 +1575,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(3), is(n_bs,3)
     integer                  :: start(3), end(3)
     integer                  :: vx_tmp(n_bs), vy_tmp(n_bs), vz_tmp(n_bs)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk, iorg, k_f, k_t
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end

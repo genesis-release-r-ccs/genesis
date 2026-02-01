@@ -23,6 +23,9 @@ module sp_pairlist_gpu_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -65,7 +68,7 @@ contains
     integer                   :: num_excl, ini_excl, fin_excl
     integer                   :: num_nb14, ini_nb14, fin_nb14
     logical                   :: nb15_calc
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
     real(wip),        pointer :: coord(:,:,:)
     real(wp),         pointer :: charge(:,:)

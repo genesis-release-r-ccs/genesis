@@ -20,6 +20,9 @@ module sp_energy_nonbond_gpu_mod
   use mpi_parallel_mod
   use timers_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -1010,7 +1013,7 @@ contains
     integer                   :: index, univ_ij
     integer                   :: i, j, ix, iy, iix, iiy, k, L, L1, idx
     integer                   :: ix_natom, iy_natom
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: num_count
 
@@ -1158,7 +1161,7 @@ contains
     integer                   :: index, univ_ij
     integer                   :: i, j, ix, iy, iix, iiy, k, L, L1, idx
     integer                   :: ix_natom, iy_natom
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: num_count
 

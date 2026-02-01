@@ -516,7 +516,7 @@ contains
 
     if (.not. qmmm%do_qmmm) return
 
-    if ((forcefield /= ForcefieldCHARMM) .and. \
+    if ((forcefield /= ForcefieldCHARMM) .and. &
         (forcefield /= ForcefieldAMBER)) then
         if (main_rank) then
           call error_msg("Setup_QMMM> Check force field")

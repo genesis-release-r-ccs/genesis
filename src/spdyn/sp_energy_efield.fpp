@@ -19,6 +19,9 @@ module sp_energy_efield_mod
   use timers_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -56,7 +59,7 @@ contains
     ! local variables
     real(wp)                 :: efield_temp, work(3), center(3), viri(3)
     integer                  :: i, ix
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     integer,         pointer :: natom(:), ncell_local
     real(wp),        pointer :: charge(:,:)

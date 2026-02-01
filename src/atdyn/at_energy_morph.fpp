@@ -116,7 +116,6 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    !integer                  :: i, j, k, id, omp_get_thread_num
     integer                  :: i, j, k, id
     integer                  :: istart_bb, iend_bb
     integer                  :: istart_sc, iend_sc
@@ -320,7 +319,6 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    !integer                  :: i, j, k, id, omp_get_thread_num
     integer                  :: i, j, k, id
     integer                  :: istart_bb, iend_bb
     integer                  :: i1, i2
@@ -453,7 +451,6 @@ contains
     real(wp),                intent(inout) :: cv(1:2)
 
     ! local variables
-    !integer                  :: i, j, k, id, omp_get_thread_num
     integer                  :: i, j, k, id
     integer                  :: istart_sc, iend_sc
     integer                  :: i1, i2

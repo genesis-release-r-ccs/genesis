@@ -1,0 +1,10 @@
+# Common rules for directories that only need src/lib
+LIBONLY_INCLUDES = \
+  -I. \
+  -I$(top_srcdir)/src/lib -I$(top_builddir)/src/lib
+
+FPP2F90_NVHPC = $(FC) -Mpreprocess -E $(PPFLAGS) $(DEFS) \
+                $(DEFAULT_INCLUDES) $(INCLUDES) $(LIBONLY_INCLUDES)
+FPP2F90 = $(FPP) $(PPFLAGS) $(DEFS)
+F90COMPILE = $(FC) $(DEFAULT_INCLUDES) $(INCLUDES) $(LIBONLY_INCLUDES)
+

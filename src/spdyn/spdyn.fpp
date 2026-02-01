@@ -52,6 +52,12 @@ program spdyn
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef NVTX
+  use nvtx
+#endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads
+#endif
 
   implicit none
 
@@ -81,7 +87,7 @@ program spdyn
   type(s_comm)                :: comm
   type(s_remd)                :: remd
   type(s_rpath)               :: rpath
-  integer                     :: omp_get_max_threads, i
+  integer                     :: i
   real(dp)                    :: sas, eae
   type(s_alchemy)             :: alchemy
 
@@ -349,6 +355,9 @@ contains
     call mpi_barrier(mpi_comm_world, ierror)
 #endif
     call timer(TimerDynamics, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("dynamics")
+#endif
 
     select case (genesis_run_mode)
 
@@ -424,6 +433,9 @@ contains
 
     end select
 
+#ifdef NVTX
+    call nvtxEndRange
+#endif
     call timer(TimerDynamics, TimerOff)
 
 

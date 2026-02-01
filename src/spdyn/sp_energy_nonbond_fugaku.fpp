@@ -20,6 +20,9 @@ module sp_energy_nonbond_fugaku_mod
   use mpi_parallel_mod
   use timers_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -81,7 +84,7 @@ contains
     real(wp)                  :: force_local(3)
     real(wp)                  :: viri(3)
     integer                   :: i, ix, iy, j, k, ki, kki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
@@ -305,7 +308,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp, jqtmp
     real(wp)                  :: force_local(3), viri(3)
     integer                   :: i, ix, ixx, iy, j, k, ki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
@@ -498,7 +501,7 @@ contains
     real(wp)                  :: rtmp(3), qtmp, jqtmp
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ki, kki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
@@ -691,7 +694,7 @@ contains
     real(wp)                  :: force_local(3)
     real(wp)                  :: viri(3), within_cutoff
     integer                   :: i, ix, iy, j, k, ki, kki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
@@ -917,7 +920,7 @@ contains
     real(wp)                  :: rtmp(3), qtmp, jqtmp
     real(wp)                  :: force_local(3), viri(3), within_cutoff
     integer                   :: i, ix, iy, j, k, ki, ij, L, L1, ixx
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
@@ -1112,7 +1115,7 @@ contains
     real(wp)                  :: rtmp(3), qtmp, jqtmp
     real(wp)                  :: force_local(3), within_cutoff
     integer                   :: i, ix, iy, j, k, ki, kki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
@@ -1307,7 +1310,7 @@ contains
     real(wp)                  :: force_local(3)
     real(wp)                  :: viri(3)
     integer                   :: i, ix, iy, j, k, ki, kki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls, jatmcls
     integer                   :: ncell, ncell_local
 
@@ -1550,7 +1553,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp, jqtmp
     real(wp)                  :: force_local(3), viri(3)
     integer                   :: i, ix, ixx, iy, j, k, ki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 
@@ -1753,7 +1756,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp, jqtmp
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, ixx, iy, j, k, ki, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
 

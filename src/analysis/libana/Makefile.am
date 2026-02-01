@@ -7,9 +7,11 @@
 #
 #--------1---------2---------3---------4---------5---------6---------7---------8
 
-SUBDIRS := ../../lib .
+SUBDIRS = .
 
 noinst_LIBRARIES = libana.a
+
+include $(top_srcdir)/src/mk/common-libonly.am
 
 libana_a_SOURCES = \
 	input_str.fpp \
@@ -29,20 +31,25 @@ libana_a_SOURCES = \
 EXTRA_DIST = \
 	Makefile.depends 
 
-libana_ADDLIB = ../../lib/lib.a
+libana_ADDLIB = $(top_builddir)/src/lib/lib.a
 
 SUFFIXES = .fpp
 DEPENDS = Makefile.depends
 
 .fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../../lib $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../../lib $(FCFLAGS) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
 endif
 
 libana.a : $(libana_a_OBJECTS)
@@ -52,7 +59,7 @@ clean:
 	rm -f $(noinst_LIBRARIES) $(libana_a_OBJECTS) *.f90 *~ *.mod
 
 depend: clean_depend
-	python ../../../fortdep.py *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)

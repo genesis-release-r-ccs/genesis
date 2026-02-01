@@ -12,8 +12,9 @@ if INTERNAL_LAPACK
 else
   INT_LAPACK_LIB=
 endif
+include $(top_srcdir)/src/mk/common-libonly.am
 
-SUBDIRS	:= ../lib .
+SUBDIRS	= .
 
 if PARALLEL_IO
   PRST_SETUP=prst_setup
@@ -116,14 +117,13 @@ spdyn_SOURCES = \
 if CUDAGPU
 spdyn_SOURCES += \
 	gpu_sp_energy.cu \
-	gpu_common.h \
-	spdyn.fpp
-else
-spdyn_SOURCES += \
-	spdyn.fpp
+	gpu_common.h 
 endif
 
-spdyn_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
+spdyn_SOURCES += \
+	spdyn.fpp
+
+spdyn_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
 
 prst_setup_SOURCES = \
 	sp_domain_str.fpp \
@@ -223,14 +223,14 @@ prst_setup_SOURCES = \
 
 if CUDAGPU
 prst_setup_SOURCES += \
-	gpu_sp_energy.cu \
-	prst_setup.fpp
-else
-prst_setup_SOURCES += \
-	prst_setup.fpp
+	gpu_sp_energy.cu 
+
 endif
 
-prst_setup_ADDLIB = ../lib/lib.a $(INT_LAPACK_LIB)
+prst_setup_SOURCES += \
+	prst_setup.fpp
+
+prst_setup_ADDLIB = $(top_builddir)/src/lib/lib.a $(INT_LAPACK_LIB)
 
 SUFFIXES = .fpp
 
@@ -246,91 +246,30 @@ MAINTAINERCLEANFILES = Makefile.in
 
 CLEANFILES = $(bin_PROGRAMS) $(spdyn_OBJECTS) $(prst_setup_OBJECTS) *.f90 *~ *.mod
 
-sp_pairlist_fugaku.o : sp_pairlist_fugaku.fpp
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_KERNELS_PAIRLIST) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-endif
-
-sp_energy_dihedrals.o : sp_energy_dihedrals.fpp
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_DIHEDRAL) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-endif
-
-sp_energy_nonbond_fugaku.o : sp_energy_nonbond_fugaku.fpp
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_KERNELS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-endif
-
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_KERNELS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-endif
-
-sp_energy_pme_noopt_1dalltoall.o : sp_energy_pme_noopt_1dalltoall.fpp 
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_NOOPT) -c $*.f90
-endif
-
-sp_energy_pme_noopt_2dalltoall.o : sp_energy_pme_noopt_2dalltoall.fpp 
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_NOOPT) -c $*.f90
-endif
-
-sp_energy_pme_noopt_slab.o : sp_energy_pme_noopt_slab.fpp 
-if USEKCOMP
-	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
-	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
-else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS_NOOPT) -c $*.f90
-endif
-
 .fpp.o:
+if USE_NVHPC
+	$(FPP2F90_NVHPC) $*.fpp > $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+else
 if USEKCOMP
 	cp $*.fpp $*.f90
-	$(FPP) $(PPFLAGS) $(DEFS) $*.f90
+	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
-	$(FPP) $(PPFLAGS) $(DEFS) $*.fpp $*.f90
-	$(FC)  $(DEFAULT_INCLUDES) $(INCLUDES) -I../lib $(FCFLAGS) -c $*.f90
+	$(FPP2F90) $*.fpp $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+endif
+endif
+
+if USEKCOMP
+sp_pairlist_fugaku.o sp_pairlist_spica.o: FCFLAGS=$(FCFLAGS_KERNELS_PAIRLIST)
+sp_energy_dihedrals.o: FCFLAGS=$(FCFLAGS_DIHEDRAL)
+sp_energy_nonbond_fugaku.o: FCFLAGS=$(FCFLAGS_KERNELS)
+endif
+if !USEKCOMP
+sp_energy_pme_noopt_1dalltoall.o sp_energy_pme_noopt_1dallgather.o: FCFLAGS=$(FCFLAGS_NOOPT)
+sp_energy_pme_noopt_2dalltoall.o sp_energy_pme_noopt_slab.o: FCFLAGS=$(FCFLAGS_NOOPT)
 endif
 
 if CUDAGPU
@@ -347,10 +286,10 @@ prst_setup$(EXEEXT) : $(spdyn_ADDLIB) $(prst_setup_OBJECTS)
 		$(prst_setup_ADDLIB) $(LDFLAGS)
 
 $(spdyn_ADDLIB):
-	cd ../lib; ${MAKE}
+	cd $(top_srcdir)/src/lib; ${MAKE}
 
 depend: clean_depend
-	python ../../fortdep.py -e ../lib -f ".fpp" *.fpp > $(DEPENDS)
+	python $(top_srcdir)/fortdep.py -e $(top_srcdir)/src/lib -f ".fpp" *.fpp > $(DEPENDS)
 
 clean_depend:
 	rm -f $(DEPENDS)
