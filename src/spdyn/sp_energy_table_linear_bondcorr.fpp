@@ -758,7 +758,7 @@ contains
     real(wp)                 :: iqtmp, jqtmp
     real(wp)                 :: elec_temp
     integer                  :: i, ix, iy, j, k, ij, L
-    integer                  :: ncell_local, id,
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: table_ene(:), table_grad(:)
     real(wp),        pointer :: density, cutoff
