@@ -282,7 +282,6 @@ contains
     integer                   :: istart_atom, iend_atom
     integer                   :: ngrid(3), n_bs
     integer                   :: niy, iyss
-    !integer                   :: id, omp_get_thread_num
     integer                   :: id
 
 #ifdef FFTW

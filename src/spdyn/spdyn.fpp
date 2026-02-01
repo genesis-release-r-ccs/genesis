@@ -55,6 +55,9 @@ program spdyn
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_max_threads
+#endif
 
   implicit none
 
@@ -84,7 +87,7 @@ program spdyn
   type(s_comm)                :: comm
   type(s_remd)                :: remd
   type(s_rpath)               :: rpath
-  integer                     :: omp_get_max_threads, i
+  integer                     :: i
   real(dp)                    :: sas, eae
   type(s_alchemy)             :: alchemy
 

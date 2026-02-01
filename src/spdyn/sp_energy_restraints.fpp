@@ -31,6 +31,9 @@ module sp_energy_restraints_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -206,7 +209,7 @@ contains
     real(wp)                 :: tmp_wp(1:3)
     real(wip)                :: d2(1:3)
     integer                  :: i, ix, i1, j, k
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ncell_local
 
     real(wp),        pointer :: restraint_force(:,:,:), restraint_coord(:,:,:)
@@ -1742,7 +1745,6 @@ contains
 
     ! FEP
     integer                  :: ncell, natom, id, i, j, k, ix, ic, jc
-    integer                  :: omp_get_thread_num
     real(wp),        pointer :: f_fep(:,:,:,:)
     real(dp)                 :: v_fep(3,3,nthread)
     real(dp)                 :: v_ext_fep(3,3,nthread)

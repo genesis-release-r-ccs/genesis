@@ -22,7 +22,7 @@ module at_energy_go_mod
   use mpi_parallel_mod
   use constants_mod
 #ifdef OMP
-    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+  use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #endif
 
   implicit none
@@ -75,7 +75,6 @@ contains
     real(wp)                 :: rij2, inv_rij2, inv_rij6, inv_rij12
     real(wp)                 :: lj6, lj12, coef
     real(wp)                 :: work(3)
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -179,7 +178,6 @@ contains
     real(wp)                 :: cutoff2, cutoff
     real(wp)                 :: veps, rmin
     integer                  :: i, j, l, istart, iend, imb
-    !integer                  :: id, omp_get_thread_num
     integer                  :: id
     integer                  :: a1, a2
 
@@ -310,7 +308,6 @@ contains
     real(wp)                 :: term
     real(wp)                 :: el_fact, debye
     real(wp)                 :: work(3)
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
     integer                  :: goelec
@@ -439,7 +436,6 @@ contains
     real(wp)                 :: inv_rij2, inv_rij6, inv_rij10, inv_rij12
     real(wp)                 :: lj6, lj10, lj12, coef
     real(wp)                 :: work(3)
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -550,7 +546,6 @@ contains
     real(wp)                 :: work(3)
     real(wp)                 :: bsize(3), inv_bsize(3)
     real(wp)                 :: cutoff, cutoff2
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -675,7 +670,6 @@ contains
     real(wp)                 :: work(3)
     real(wp)                 :: bsize(3), inv_bsize(3)
     real(wp)                 :: cutoff, cutoff2
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
     integer                  :: goelec
@@ -820,7 +814,6 @@ contains
     real(wp)                 :: work(3)
     real(wp)                 :: bsize(3), inv_bsize(3)
     real(wp)                 :: cutoff, cutoff2
-    !integer                  :: i, l, istart, iend, id, omp_get_thread_num
     integer                  :: i, l, istart, iend, id
     integer                  :: a1, a2
 
@@ -1084,7 +1077,6 @@ contains
     integer                   :: i, j, k, l, natom, id
     integer                   :: num_nb15, ini_nb15, fin_nb15
     integer                   ::  nthread, my_id
-    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: forcefield
          
     integer, pointer          :: num_nb15_calc(:,:), nb15_calc_list(:,:)
@@ -1216,7 +1208,6 @@ contains
     real(wp),                 intent(inout) :: econt
 
     ! local variables
-    !integer           :: i, l, istart, iend, id, omp_get_thread_num
     integer           :: i, l, istart, iend, id
     integer           :: a1, a2
     real(wp)          :: dij(3), rij2, rij
@@ -1369,7 +1360,6 @@ contains
     integer                   :: i, j, k, l, natom, id
     integer                   :: num_nb15, ini_nb15, fin_nb15
     integer                   :: nthread, my_id
-    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: forcefield
          
     integer, pointer          :: num_nb15_calc(:,:), nb15_calc_list(:,:)
@@ -1516,7 +1506,6 @@ contains
 
     ! local variables
     integer             :: my_id, id
-    !integer             :: omp_get_num_threads, omp_get_thread_num
     !
     integer             :: natom
     integer             :: num_exv, ini_exv, fin_exv
@@ -1757,7 +1746,6 @@ contains
     integer                   :: i, j, k, l, natom, id
     integer                   :: num_nb15, ini_nb15, fin_nb15
     integer                   :: nthread, my_id
-    !integer                   :: omp_get_num_threads, omp_get_thread_num
     integer                   :: forcefield
     integer                   :: goelec
 

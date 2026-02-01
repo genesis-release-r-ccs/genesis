@@ -22,6 +22,9 @@ module sp_energy_bonds_mod
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -62,7 +65,7 @@ contains
     real(wp)                 :: d12(1:3), r12, r_dif, cc_frc
     real(wp)                 :: ebond_temp, work(3), viri(3)
     integer                  :: i, j, ix, icel1, icel2, i1, i2
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: list(3), pbc_int, k1, k2, k3
 
     real(wp),        pointer :: fc(:,:), r0(:,:)
@@ -339,7 +342,7 @@ contains
     real(wp)                 :: d12(1:3), r12, r_dif, cc_frc
     real(wp)                 :: eenm_temp, work(3), viri(3)
     integer                  :: i, j, ix, icel1, icel2, i1, i2
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: list(3), pbc_int, k1, k2, k3
 
     real(wp),        pointer :: fc(:,:), r0(:,:)
@@ -460,7 +463,7 @@ contains
     real(wp)                 :: d12(1:3), r12, r_dif, cc_frc
     real(wp)                 :: ebond_temp, work(3), viri(3)
     integer                  :: i, j, ix, icel1, icel2, i1, i2
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: list(3), pbc_int, k1, k2, k3
 
     real(wp),        pointer :: fc(:,:), r0(:,:)

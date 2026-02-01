@@ -40,6 +40,9 @@ module sp_enefunc_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -1644,7 +1647,7 @@ contains
     real(wp)                 :: d12(1:3), r12, r_dif
     integer                  :: i, j, ix, icel1, icel2, i1, i2
     integer                  :: icel3, i3,icel4, i4
-    integer                  :: id, my_id, omp_get_thread_num
+    integer                  :: id, my_id
     integer                  :: pbc_int, k1, k2, k3, kk1, kk2, kk3
     real(wp), parameter      :: maxdistance = 0.5_wp
     real(wp)                 :: maxcell_size 

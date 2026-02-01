@@ -26,6 +26,9 @@ module sp_setup_mpi_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_num_threads
+#endif
 
   implicit none
   private
@@ -53,7 +56,6 @@ contains
 
     ! local variables
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads
     integer                  :: nthread
     logical                  :: prime_flag
 
@@ -184,7 +186,7 @@ contains
     integer                  :: rep_x, rep_y, rep_z
     integer                  :: domain_x, domain_y, domain_z
     integer                  :: proc_x, proc_y, proc_z
-    integer                  :: omp_get_num_threads, nthread
+    integer                  :: nthread
     integer                  :: nreplicas, nproc_per_rep
     integer                  :: color, key, temp
     character(6)             :: mast, nonb1, nonb2
@@ -403,7 +405,7 @@ contains
 
     ! local variables
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: omp_get_num_threads, nthread
+    integer                  :: nthread
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
     character(6)             :: mast, nonb1, nonb2

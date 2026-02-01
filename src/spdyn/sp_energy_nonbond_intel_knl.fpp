@@ -21,6 +21,9 @@ module sp_energy_nonbond_intel_knl_mod
   use mpi_parallel_mod
   use timers_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -78,7 +81,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: elec_temp, evdw_temp
     real(wp)                  :: force_local(3)
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ij, i, j, ix, iy, k, L, L1
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
@@ -421,7 +424,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: elec_temp, evdw_temp
     real(wp)                  :: force_local(3)
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ij, i, j, ix, iy, k, L, L1
     integer                   :: ncell, ncell_local
     integer                   :: iatmcls, jatmcls
@@ -785,7 +788,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
@@ -807,7 +810,7 @@ contains
 
 
     cell_pairlist   => domain%cell_pairlist1
-    atmcls          => domain%atom_cls_no
+    a./sp_energy_pme_noopt_1dalltoall.fptmcls          => domain%atom_cls_no
     natom           => domain%num_atom
     coord           => domain%coord
     trans1          => domain%trans_vec
@@ -1096,7 +1099,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: elec_temp, evdw_temp
     real(wp)                  :: force_local(3)
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ij, i, j, ix, iy, k, L, L1
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
@@ -1415,7 +1418,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: force_local(3)
     integer                   :: i, ix, iy, j, k, ij, L, L1
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     integer                   :: check_virial
@@ -1725,7 +1728,7 @@ contains
     real(wp)                  :: rtmp(1:3), qtmp
     real(wp)                  :: elec_temp, evdw_temp
     real(wp)                  :: force_local(3)
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: ij, i, j, ix, iy, k, L, L1
     integer                   :: ncell, ncell_local
     integer                   :: iatmcls, jatmcls

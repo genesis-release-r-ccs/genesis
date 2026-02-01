@@ -23,6 +23,9 @@ module sp_pairlist_fugaku_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -61,7 +64,7 @@ contains
     integer                   :: i, j, ij, ix, iy
     integer                   :: start_i, start_j, ixx, iyy, num_atom
     integer                   :: num_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
     integer :: num_add_prefetch, k
 
@@ -345,7 +348,7 @@ contains
     integer                   :: i, j, ij, ix, iy
     integer                   :: start_i, start_j, ixx, iyy, num_atom
     integer                   :: num_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
     integer :: num_add_prefetch, k
 

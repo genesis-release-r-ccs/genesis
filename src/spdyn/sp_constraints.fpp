@@ -31,6 +31,9 @@ module sp_constraints_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -1615,7 +1618,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
@@ -1717,7 +1720,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
@@ -1820,7 +1823,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: vel_cm(1:3)
@@ -1923,7 +1926,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(8)
 
     integer,             pointer :: HGr_local(:,:), HGr_bond_list(:,:,:,:)
@@ -2001,7 +2004,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: total_mass
     real(wip)                    :: r_cm(1:3), f_tot(1:3)
@@ -2129,7 +2132,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
@@ -2326,7 +2329,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
@@ -2584,7 +2587,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
@@ -2736,7 +2739,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
@@ -2894,7 +2897,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wip)                    :: factor
     real(wip)                    :: total_mass
@@ -3053,7 +3056,7 @@ contains
 
     ! local variables
     integer                      :: icel, i, ix, j, k, ih, connect
-    integer                      :: id, omp_get_thread_num
+    integer                      :: id
     integer                      :: iatm(1:8), water_atom
     real(wp)                     :: factor
     real(wp)                     :: total_mass
@@ -3215,7 +3218,7 @@ contains
     real(dp)                 :: viri_local(1:3,1:3)
     real(dp)                 :: virial_omp(3,3,nthread)
     integer                  :: i, ix, iatom(1:3), i1, j1, k1
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
 
@@ -3451,7 +3454,7 @@ contains
     real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
     real(dp)                 :: dcoord(3,2), dvel(3,2)
     real(dp)                 :: virial_omp(3,nthread)
-    integer                  :: i, ix, list1, list2, id, omp_get_thread_num
+    integer                  :: i, ix, list1, list2, id
 
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
 
@@ -3549,7 +3552,7 @@ contains
     real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
     real(dp)                 :: dcoord(3,2), dvel(3,2)
     real(dp)                 :: virial_omp(3,nthread)
-    integer                  :: i, ix, list1, list2, id, omp_get_thread_num
+    integer                  :: i, ix, list1, list2, id
 
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
 
@@ -3644,7 +3647,7 @@ contains
     real(dp)                 :: viri_local(1:3,1:3)
     real(dp)                 :: virial_omp(3,3,nthread)
     integer                  :: i, ix, iatom(1:3), i1, j1, k1
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
 
@@ -3853,7 +3856,7 @@ contains
     logical                      :: shake_end
     integer                      :: icel, i, j, k, ih, connect, id
     integer                      :: atm1, atm2, iatm(1:8)
-    integer                      :: iteration, omp_get_thread_num
+    integer                      :: iteration
 
     real(wip),           pointer :: HGr_bond_dist(:,:,:,:)
     real(dp ),           pointer :: HGr_bond_vector(:,:,:,:,:)
@@ -4118,7 +4121,7 @@ contains
     real(dp)                  :: a3d(1:3), b3d(1:3), c3d(1:3)
     real(dp)                  :: xb2d, xb2d2, hh2, deltx, hhhh
     integer                   :: i, ix, iatom(3)
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
     real(wip),        pointer :: mass(:,:)
     integer,          pointer :: nwater(:), water_list(:,:,:)
@@ -4316,7 +4319,7 @@ contains
     real(dp)                     :: coord_dtmp(1:3,1:8), vel_dtmp(1:3,1:8)
     integer                      :: icel, i, j, k, ih, connect, id
     integer                      :: atm1, atm2, iatm(1:8)
-    integer                      :: iteration, omp_get_thread_num
+    integer                      :: iteration
     logical                      :: shake_end
 
     real(dp),            pointer :: HGr_bond_vector(:,:,:,:,:)
@@ -4484,7 +4487,7 @@ contains
     real(dp)                  :: vab0, vbc0, vca0, cosA, cosB, cosC
     real(dp)                  :: MaBC, MbCA, McAB, T_AB, T_BC, T_CA, Det
     integer                   :: i, ix, iatom(1:3), k
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
 
     integer,          pointer :: nwater(:), water_list(:,:,:)
     integer,          pointer :: ncell
@@ -4620,7 +4623,7 @@ contains
     real(dp)                     :: factor, g12, g12m1, g12m2
     real(dp)                     :: coord_dtmp(1:3,1:8), vel_dtmp(1:3,1:8)
     integer                      :: icel, i, j, k, ih, connect, id
-    integer                      :: iteration, omp_get_thread_num
+    integer                      :: iteration
     integer                      :: iatm(1:8)
     logical                      :: rattle_end
 
@@ -4754,7 +4757,7 @@ contains
 
     ! local variables
     integer                :: i, j, index(4)
-    integer                :: id, omp_get_thread_num
+    integer                :: id
     real(wip)              :: rOD, dist_rijk, rij(3), rjk(3)
     real(wip)              :: rijk(3), uijk(3)
 
@@ -4817,7 +4820,7 @@ contains
 
     ! local variables
     integer                :: i, j, index(4), k
-    integer                :: id, omp_get_thread_num
+    integer                :: id
     real(wip)              :: factor, rOD, dist_rijk, dist_rid
     real(wip)              :: rid(3), rij(3), rjk(3), rijk(3)
     real(wip)              :: Fd(3), F1(3), rid_Fd

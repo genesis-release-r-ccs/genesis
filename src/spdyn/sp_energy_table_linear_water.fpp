@@ -19,6 +19,9 @@ module sp_energy_table_linear_water_mod
   use sp_domain_str_mod
   use mpi_parallel_mod
   use constants_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -73,7 +76,7 @@ contains
     real(wp)                  :: force_localj(3,3,3,MaxWater)
     integer                   :: i, iy, j, k, ij, iix, iwater, jwater
     integer                   :: num_nb15, ini_nb15, fin_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: i1, j1, L, L1
     integer                   :: num_count(3,3), c
     integer                   :: small_count, j_small(MaxWater)
@@ -392,7 +395,7 @@ contains
     real(wp)                  :: force_localj(3,3,3,MaxWater)
     integer                   :: i, iy, j, k, ij, iix, iwater, jwater
     integer                   :: num_nb15, ini_nb15, fin_nb15
-    integer                   :: id, omp_get_thread_num
+    integer                   :: id
     integer                   :: i1, j1, L
     integer                   :: num_count(3,3), c
     integer                   :: small_count, j_small(MaxWater)

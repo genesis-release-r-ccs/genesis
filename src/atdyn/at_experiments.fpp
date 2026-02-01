@@ -521,7 +521,6 @@ contains
     integer           :: sum_ig, ave_ig
     integer           :: idomain, axis_length(3), iaxis
     integer           :: itmp1, itmp2, icount1
-    !integer           :: id, omp_get_thread_num
     integer           :: id
     integer           :: max_natom_local
     logical           :: do_allocate

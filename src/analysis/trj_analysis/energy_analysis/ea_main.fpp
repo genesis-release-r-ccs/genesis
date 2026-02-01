@@ -39,6 +39,9 @@ program ea_main
   use string_mod
   use mpi_parallel_mod
   use messages_mod
+#ifdef OMP
+  use omp_lib, only:  omp_get_max_threads
+#endif
 
 #ifdef HAVE_MPI_GENESIS
   use mpi
@@ -63,7 +66,6 @@ program ea_main
   type(s_remd)           :: remd
   type(s_ensemble)       :: ensemble
   type(s_dynamics)       :: dynamics
-  integer                :: omp_get_max_threads
 
 #ifdef HAVE_MPI_GENESIS
   call mpi_init(ierror)

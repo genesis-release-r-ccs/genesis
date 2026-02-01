@@ -47,6 +47,9 @@ module sp_md_vverlet_mod
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -116,7 +119,7 @@ contains
     real(wip)                :: simtim, dt, temperature
     integer                  :: ncell, nb
     integer                  :: i, k, jx, nsteps
-    integer                  :: iseed, id, omp_get_thread_num
+    integer                  :: iseed, id
     integer                  :: istart, iend
     logical                  :: npt, npt1
 
@@ -832,7 +835,7 @@ contains
 
     ! local variables
     integer                  :: i, ix
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     integer,         pointer :: natom(:), ncell
     real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
@@ -969,7 +972,7 @@ contains
 
     ! local variables
     integer                  :: i, ix, k, l
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor
 
@@ -1108,7 +1111,7 @@ contains
 
     ! local variables
     integer                  :: i, ix, k, l
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor
 
@@ -1282,7 +1285,7 @@ contains
 
     ! local variables
     integer                  :: i, k, l, ix, ncell
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: dt, half_dt
     real(wip)                :: factor, vel_change(3)
     real(dp)                 :: virial_constraint(3)
@@ -1407,7 +1410,7 @@ contains
     logical                  :: calc_thermostat
     integer                  :: i, ix, k, iter, maxiter
     integer(iintegers)       :: num_degree
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: temp0, tau_t, dt, half_dt, dt_therm
     real(wip)                :: tempf, tempt, factor, rr, dtemp
     real(wip)                :: scale_vel
@@ -1570,7 +1573,7 @@ contains
     logical                  :: calc_thermostat
     integer                  :: i, ix, k, iter, maxiter
     integer(iintegers)       :: num_degree
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     real(wip)                :: temp0, tau_t, dt, half_dt, dt_therm
     real(wip)                :: tempf, tempt, factor, rr, dtemp
     real(wip)                :: scale_vel, scale_vel2

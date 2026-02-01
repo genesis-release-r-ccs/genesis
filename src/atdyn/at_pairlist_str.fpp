@@ -299,7 +299,6 @@ contains
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
-    !integer                  :: nthread, omp_get_max_threads
     integer                  :: nthread
 
 
@@ -960,7 +959,6 @@ contains
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
-    !integer                  :: nthread, omp_get_max_threads
     integer                  :: nthread
 
 

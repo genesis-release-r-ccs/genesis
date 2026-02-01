@@ -27,6 +27,9 @@ module sp_energy_pme_opt_1dalltoall_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -1028,7 +1031,7 @@ contains
     integer                  :: ixx, iyy, izz, iyyzz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -1478,7 +1481,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -1987,7 +1990,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk, iorg, k_f, k_t
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -2446,7 +2449,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -3002,7 +3005,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk, iorg, k_f, k_t
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end
@@ -3522,7 +3525,7 @@ contains
     integer                  :: ixx, iyy, izz, ii(4)
     integer                  :: iix(4), iiy(4), iiz(4)
     integer                  :: start(3), end(3)
-    integer                  :: ncell, ncell_local, omp_get_thread_num
+    integer                  :: ncell, ncell_local
     integer                  :: kk
     integer                  :: iprocx, iprocy
     integer                  :: ix_start, ix_end, iz_start, iz_end

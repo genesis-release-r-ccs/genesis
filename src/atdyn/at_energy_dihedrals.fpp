@@ -1060,7 +1060,6 @@ contains
 
     ! local variables
     integer                  :: istart, iend
-    !integer                  :: i, l, m, n, id, omp_get_thread_num
     integer                  :: i, l, m, n, id
     integer                  :: krot
     real(wp)                 :: tmp, etmp, var_tmp
@@ -1395,7 +1394,6 @@ contains
 
     ! local variables
     integer                  :: istart, iend
-    !integer                  :: i, l, m, n, id, omp_get_thread_num
     integer                  :: i, l, m, n, id
     integer                  :: krot
     real(wp)                 :: tmp, etmp, var_tmp
@@ -1700,7 +1698,6 @@ contains
 
     ! local variables
     integer                  :: istart, iend
-    !integer                  :: i, l, m, n, id, omp_get_thread_num
     integer                  :: i, l, m, n, id
     real(wp)                 :: tmp, etmp, var_tmp
     real(wp)                 :: dji(1:3), dkj(1:3), dkl(1:3)
@@ -2038,7 +2035,6 @@ contains
 
     ! local variables
     integer                  :: istart, iend
-    !integer                  :: i, l, m, n, id, omp_get_thread_num
     integer                  :: i, l, m, n, id
     real(wp)                 :: tmp, etmp, var_tmp
     real(wp)                 :: dji(1:3), dkj(1:3), dkl(1:3)
@@ -2341,7 +2337,6 @@ contains
 
     ! local variables
     integer                  :: istart, iend
-    !integer                  :: i, l, m, n, id, omp_get_thread_num
     integer                  :: i, l, m, n, id
     integer                  :: dtype
     real(wp)                 :: tmp, etmp, var_tmp
@@ -3088,7 +3083,6 @@ contains
 
     ! local variables
     integer           :: istart, iend
-    !integer           :: i, l, m, n, id, omp_get_thread_num
     integer           :: i, l, m, n, id
     integer           :: krot
     real(wp)          :: tmp, etmp, var_tmp
@@ -3477,7 +3471,6 @@ contains
 
     ! local variables
     integer           :: istart, iend
-    !integer           :: i, l, m, n, id, omp_get_thread_num
     integer           :: i, l, m, n, id
     real(wp)          :: tmp, etmp, var_tmp
     real(wp)          :: dji(1:3), dkj(1:3), dkl(1:3)
@@ -3871,7 +3864,6 @@ contains
 
     ! local variables
     integer           :: istart, iend
-    !integer           :: i, l, m, n, id, omp_get_thread_num
     integer           :: i, l, m, n, id
     integer           :: dtype
     real(wp)          :: tmp, etmp, var_tmp

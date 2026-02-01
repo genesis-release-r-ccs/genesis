@@ -46,6 +46,9 @@ module sp_energy_mod
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -1185,7 +1188,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -1789,7 +1791,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -2386,7 +2387,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3136,7 +3136,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3565,7 +3564,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -3965,7 +3963,6 @@ contains
     real(dp)                 :: efield_omp  (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -5142,7 +5139,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -5732,7 +5728,6 @@ contains
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -6302,7 +6297,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms
@@ -6753,7 +6747,6 @@ contains
     real(dp)                 :: efield_omp (nthread)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, k, start_i
-    integer                  :: omp_get_thread_num
 
 
     ! number of cells and atoms

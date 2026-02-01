@@ -21,6 +21,9 @@ module sp_energy_table_linear_mod
   use mpi_parallel_mod
   use constants_mod
   use timers_mod
+#ifdef OMP
+    use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -220,7 +223,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -373,7 +376,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -526,7 +529,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, icel, jcel, m, L, L1
     integer                  :: iatmcls, jatmcls, num_atom
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -689,7 +692,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -854,7 +857,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -1020,7 +1023,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: table_ene(:), table_grad(:)
@@ -1186,7 +1189,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, icel, jcel
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14, num_atom
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -1361,7 +1364,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -1531,7 +1534,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -1697,7 +1700,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -1859,7 +1862,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: nonb_lj6_factor(:)
@@ -2027,7 +2030,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id 
 
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
     real(wp),        pointer :: nonb_lj6_factor(:)
@@ -2195,7 +2198,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1, icel, jcel
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14, num_atom
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -2370,7 +2373,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -2544,7 +2547,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -2842,7 +2845,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -3049,7 +3052,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -3262,7 +3265,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L, L1
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)
@@ -3472,7 +3475,7 @@ contains
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: iatmcls, jatmcls
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
 
     real(wp),        pointer :: charge(:,:), system_size(:)
     real(wp),        pointer :: nb14_lj12(:,:), nb14_lj6(:,:)

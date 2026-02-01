@@ -24,6 +24,9 @@ module sp_energy_dihedrals_mod
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -81,7 +84,7 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num, list(4), pbc_index(3)
+    integer                  :: list(4), pbc_index(3)
 
     real(wp),        pointer :: fc(:,:), phase(:,:)
     real(wp),        pointer :: system_size(:)
@@ -275,7 +278,6 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:), phase(:,:)
     real(wp),        pointer :: system_size(:)
@@ -468,7 +470,6 @@ contains
     real(wp)                 :: vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:,:), system_size(:)
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
@@ -632,7 +633,7 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     real(wp),        pointer :: fc(:,:), phase(:,:), system_size(:)
     integer,         pointer :: nimp(:), imprlist(:,:,:)
@@ -805,7 +806,6 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:), phase(:,:), system_size(:)
     integer,         pointer :: nimp(:), imprlist(:,:,:)
@@ -990,7 +990,7 @@ contains
     real(wp)                 :: gradpsi(9), vpsi(3)
     real(wp)                 :: grid_power(2,4), dgrid_power(2,4)
     real(wp)                 :: ecmap_temp
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ic1, ic2, ia1, ia2
 
     real(wp),        pointer :: coef(:,:,:,:,:), system_size(:)
@@ -1351,7 +1351,7 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num, list(4), pbc_index(3)
+    integer                  :: list(4), pbc_index(3)
 
     real(wp),        pointer :: fc(:,:), phase(:,:)
     real(wp),        pointer :: system_size(:)
@@ -1559,7 +1559,6 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:), phase(:,:)
     real(wp),        pointer :: system_size(:)
@@ -1768,7 +1767,6 @@ contains
     real(wp)                 :: vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:,:), system_size(:)
     integer,         pointer :: ndihe(:), dihelist(:,:,:)
@@ -1946,7 +1944,7 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
 
     real(wp),        pointer :: fc(:,:), phase(:,:), system_size(:)
     integer,         pointer :: nimp(:), imprlist(:,:,:)
@@ -2133,7 +2131,6 @@ contains
     real(wp)                 :: cosnt, sinnt, vtmp
     real(wp)                 :: grad(9), v(3), cwork(3,4)
     real(wp)                 :: work(9), viri(3)
-    integer                  :: omp_get_thread_num
 
     real(wp),        pointer :: fc(:,:), phase(:,:), system_size(:)
     integer,         pointer :: nimp(:), imprlist(:,:,:)
@@ -2332,7 +2329,7 @@ contains
     real(wp)                 :: gradpsi(9), vpsi(3)
     real(wp)                 :: grid_power(2,4), dgrid_power(2,4)
     real(wp)                 :: ecmap_temp
-    integer                  :: id, omp_get_thread_num
+    integer                  :: id
     integer                  :: ic1, ic2, ia1, ia2
 
     real(wp),        pointer :: coef(:,:,:,:,:), system_size(:)

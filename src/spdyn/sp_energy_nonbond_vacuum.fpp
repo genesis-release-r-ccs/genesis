@@ -20,6 +20,9 @@ module sp_energy_nonbond_vacuum_mod
   use mpi_parallel_mod
   use constants_mod
   use timers_mod
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -130,7 +133,7 @@ contains
     real(wp)                  :: force_localj(3,MaxAtom)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num, j_list(MaxAtom)
+    integer                   :: id, j_list(MaxAtom)
     integer                   :: ncell, ncell_local
     real(wp)                  :: el_fact, rij2_inv, rij_inv
 
@@ -450,7 +453,7 @@ contains
     real(wp)                  :: dij_list(4,MaxAtom)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num, j_list(MaxAtom)
+    integer                   :: id, j_list(MaxAtom)
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     real(wp)                  :: el_fact, rij2_inv, rij_inv
@@ -764,7 +767,7 @@ contains
     real(wp)                 :: viri(1:3)
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
     integer                  :: iatmcls, jatmcls
     real(wp)                 :: el_fact, rij2_inv, rij_inv
 
@@ -914,7 +917,7 @@ contains
     real(wp)                 :: lj_scale, qq_scale, cc
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
     real(wp)                 :: el_fact, rij2_inv, rij_inv
     integer                  :: iatmcls, jatmcls
 
@@ -1126,7 +1129,7 @@ contains
     real(wp)                  :: force_localj(3,MaxAtom)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num, j_list(MaxAtom)
+    integer                   :: id, j_list(MaxAtom)
     integer                   :: ncell, ncell_local
     real(wp)                  :: el_fact, rij2_inv, rij_inv
 
@@ -1469,7 +1472,7 @@ contains
     real(wp)                  :: dij_list(4,MaxAtom)
     integer                   :: i, ix, iy, j, k, ij, iix, iwater, list, L, L1
     integer                   :: num_nb15, ini_nb15, fin_nb15, num_count
-    integer                   :: id, omp_get_thread_num, j_list(MaxAtom)
+    integer                   :: id, j_list(MaxAtom)
     integer                   :: iatmcls,jatmcls
     integer                   :: ncell, ncell_local
     real(wp)                  :: el_fact, rij2_inv, rij_inv
@@ -1811,7 +1814,7 @@ contains
     real(wp)                 :: viri(1:3)
     integer                  :: i, ix, iy, j, k, ij, m, L
     integer                  :: num_nb14, ini_nb14, fin_nb14
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
     integer                  :: iatmcls, jatmcls
     real(wp)                 :: el_fact, rij2_inv, rij_inv
 
@@ -1978,7 +1981,7 @@ contains
     real(wp)                 :: viri(1:3)
     real(wp)                 :: lj_scale, qq_scale, cc
     integer                  :: i, ix, iy, j, k, ij, m, L
-    integer                  :: ncell_local, id, omp_get_thread_num
+    integer                  :: ncell_local, id
     integer                  :: iatmcls, jatmcls
     real(wp)                 :: el_fact, rij2_inv, rij_inv
 

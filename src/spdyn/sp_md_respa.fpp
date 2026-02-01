@@ -46,6 +46,9 @@ module sp_md_respa_mod
 #ifdef NVTX
   use nvtx
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
 #ifdef HAVE_MPI_GENESIS
@@ -2706,7 +2709,7 @@ contains
     real(dp)                 :: kin_full_ref(3), ekin_full_ref
     integer                  :: i, j, k, l, jx, i_ndegf
     integer                  :: ncell, nboundary, num_degree 
-    integer                  :: omp_get_thread_num, id
+    integer                  :: id
 
     real(wip),       pointer :: pmass, ekin0, temp0, degree
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)
@@ -3157,7 +3160,7 @@ contains
     real(wip)                :: half_dt, half_dt_long
     real(wip)                :: vel_change(1:3)
     integer                  :: j, k, l, jx, i_ndegf, ncell
-    integer                  :: omp_get_thread_num, id
+    integer                  :: id
 
     real(wip),       pointer :: pmass, pforce(:)
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)

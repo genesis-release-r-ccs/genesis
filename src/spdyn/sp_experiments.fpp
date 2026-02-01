@@ -32,6 +32,9 @@ module sp_experiments_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
+#ifdef OMP
+  use omp_lib, only: omp_get_thread_num
+#endif
 
   implicit none
   private
@@ -997,7 +1000,7 @@ contains
     integer           :: i1, j1, k1, ncell
     integer           :: nlen, ixx, icycle, ncycle
     integer           :: idomain, itmp1, itmp2
-    integer           :: id, omp_get_thread_num
+    integer           :: id
     integer           :: n_grid_cut
     real(wp)          :: yzfactor, zfactor, max_length
     real(wp)          :: drho_dx(3), before_allreduce(2), after_allreduce(2)
