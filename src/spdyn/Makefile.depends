@@ -10,7 +10,7 @@ pr_charmm2hm.o: pr_charmm2hm.fpp pr_pdb2hm_mod.mod pr_huge_molecule_mod.mod
 pr_charmm2hm_mod.mod: pr_charmm2hm.fpp pr_charmm2hm.o
 pr_control.o: pr_control.fpp sp_input_mod.mod sp_energy_mod.mod sp_restraints_mod.mod sp_boundary_mod.mod sp_dynamics_mod.mod sp_constraints_mod.mod sp_ensemble_str_mod.mod sp_ensemble_mod.mod sp_output_mod.mod 
 pr_control_mod.mod: pr_control.fpp pr_control.o
-pr_domain_index.o: pr_domain_index.fpp  
+pr_domain_index.o: pr_domain_index.fpp pr_huge_molecule_mod.mod 
 pr_domain_index_mod.mod: pr_domain_index.fpp pr_domain_index.o
 pr_gromacs2cache.o: pr_gromacs2cache.fpp pr_pdb2cache_mod.mod pr_cached_molecule_mod.mod 
 pr_gromacs2cache_mod.mod: pr_gromacs2cache.fpp pr_gromacs2cache.o
