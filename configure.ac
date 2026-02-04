@@ -1431,6 +1431,9 @@ else
     elif test x"${FC_ACT}" = x"pgf90"; then
       FCFLAGS="-O0 -g -m64 -Msmartalloc=huge"
 
+    elif test x"${FC_ACT}" = x"nvfortran"; then
+      FCFLAGS="-O0 -g -m64 -mcmodel=medium -Mbackslash"
+
     elif test x"${FC_ACT}" = x"frtpx"; then
       FCFLAGS=" -O0 -g -m -Kocl -Kopenmp -Hs -Hu -Ha -Nlst=t -Koptmsg=2"
 
@@ -1507,6 +1510,7 @@ AC_SUBST(FCFLAGS_KERNELS)
 AC_SUBST(FCFLAGS_KERNELS_PAIRLIST)
 AC_SUBST(FCFLAGS_DIHEDRAL)
 AC_SUBST(FCFLAGS_DISABLEFARC)
+AC_SUBST(FCFLAGS_NOSIMD)
 
 # CFLAGS
 if test $ac_test_CFLAGS; then

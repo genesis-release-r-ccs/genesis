@@ -114,7 +114,7 @@ DEPENDS = Makefile.depends
 .fpp.o:
 if USE_NVHPC
 	$(FPP2F90_NVHPC) $*.fpp > $*.f90
-	$(F90COMPILE) $(FCFLAGS_FPP__PGI_NOOPT) -c $*.f90
+	$(F90COMPILE) $(FCFLAGS) -c $*.f90
 else
 if USEKCOMP
 	cp $*.fpp $*.f90
