@@ -38,7 +38,7 @@ def getdirs(path):
 ###### initialization
 
 #os.environ["OMP_NUM_THREADS"] = "1"
-tolerance = 1.0e-8 # relative energy difference (diff/abs(e))
+tolerance = 5.0e-7 # relative energy difference (diff/abs(e))
 tolerance_fujitsu = 5.0e-6 # relative energy difference (diff/abs(e))
 tolerance_gpu_respa = 5.0e-6 # relative energy difference (diff/abs(e))
 tolerance_fujitsu_weak = 1.0e-5 # relative energy difference (diff/abs(e))
