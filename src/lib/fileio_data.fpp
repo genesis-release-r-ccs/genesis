@@ -2920,7 +2920,7 @@ contains
 #else
     !!inquire(unit_no,flen=flen)
     call fd_flen_(unit_no, flen8)
-    if (flen == -1) then
+    if (flen8 == -1) then
             call error_msg('FD_FLEN> fd_flen does not work.')
     endif
 #endif
