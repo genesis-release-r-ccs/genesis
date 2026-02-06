@@ -321,6 +321,7 @@ contains
 
     imol = 0
     jst  = 1
+    com(1:3)=0.0_wp
     do i = 1, natoms
 
       atom_index = option%analysis_atom%idx(i)
