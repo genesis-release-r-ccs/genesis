@@ -58,6 +58,7 @@ depend on the force field and molecular model.
   * **CAGO**: C\ :math:`\alpha` Go-model :cite:`Clementi:2000` (**ATDYN** only)
   * **AAGO**: All-atom Go-model :cite:`Whitford:2009` (**ATDYN** only)
   * **RESIDCG**: Residue-level coarse-grained models (**ATDYN** only)
+  * **SPICA**: SPICA and pSPICA force field (**SPDYN** only)
 
 **Note:** Recently, ff19SB is provided in AMBER force field :cite:`Tian:2020`.
 ff19SB is recommended to use with OPC four-point water model, which is available only in **SPDYN**.
@@ -120,6 +121,13 @@ Such shift is turned on when ``Electrostatic=Cutoff`` is specified.
 
   Distance used to make a Verlet pair list for non-bonded interactions :cite:`Verlet:1967`.
   This distance must be larger than *cutoffdist*.
+
+**dmin_size_cg** *Real*
+
+  **Default : 20.0** (unit :  :math:`\text{\AA}`)
+
+  The minimum domain size for SPICA/pSPICA force field.
+  If this value is less than 1.5 times of *pairlistdist*, it is automatically set to 1.5 × *pairlistdist*.
 
 **dielec_const** *Real*
 
@@ -381,10 +389,10 @@ FFT in the PME method.
 
 **PME_scheme** *AUTOSELECT / OPT_1DALLTOAlL / NOOPT_1DALLTOALL / OPT_2DALLTOALL / NOOPT_2DALLTOALL* (**SPDYN** only)
 
-  **Default : AUTOSELECTL**
+  **Default : AUTOSELECT**
 
-  *AUTOSELECT* chooses the best scheme by running in setup procedure.
-  Other schemes can be chosen manually according to your preference..
+  *AUTOSELECT* chooses the optimal scheme during the setup procedure for all-atom models. For the *SPICA/pSPICA* force fields, the optimal option is predefined.
+  Other schemes mayn be selected manually according to your preference. 
   For *1DALLTOALL* and *2DALLTOALL*, see ref :cite:`Jung:2016` for details.
 
 **SPDYN** use OpenMP/MPI hybrid parallel fast Fourier transformation library, FFTE :cite:`FFTE:Online`.
