@@ -109,8 +109,11 @@ For details, see :ref:`ensemble`.
     
   * **VRES**: RESPA integrator (**SPDYN** only).
 
-  * **VVER_CG**: velocity Verlet integrator for the coarse-grained simulations (**ATDYN** and Langevin thermostat only).
 
+  * **VVER_CG**: velocity Verlet integrator specifically for CG simulations in
+    **ATDYN** (available only with the Langevin thermostat).  *Note*: In **CGDYN**,
+    the standard VVER keyword is used for CG integration.
+  
 
 **timestep** *Real*
 
