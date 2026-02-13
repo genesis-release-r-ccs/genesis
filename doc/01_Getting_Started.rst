@@ -31,13 +31,13 @@ is suitable for Fujitsu machines like FX100.
 MPI and OpenMP
 ^^^^^^^^^^^^^^
 
-Both **ATDYN** and **SPDYN** work on multiple CPU cores using MPI
-(Message Passing Interface) and OpenMP protocols (hybrid MPI+OpenMP).
-MPI and OpenMP are commonly used for parallel computing.
-In general, MPI is employed for communication between different machines,
-nodes, or processors, where the memory is not shared among them (distributed-memory).
-On the other hand, OpenMP is employed in a single processor, and thus,
-memory is shared in the parallel computation.
+**ATDYN**, **SPDYN**, and **CGDYN** all support hybrid parallel execution on
+multiple CPU cores using MPI (Message Passing Interface) combined with OpenMP.
+MPI and OpenMP are standard protocols for parallel computing. In general, MPI is
+employed for communication between distributed-memory systems, such as different
+compute nodes, where memory is not shared. In contrast, OpenMP is utilized
+within a shared-memory environment (typically a single node), allowing parallel
+threads to access the same memory space directly.
 
 OpenMP is natively supported in most modern Fortran compilers.
 As for MPI, however, the users may have to install MPI libraries by
