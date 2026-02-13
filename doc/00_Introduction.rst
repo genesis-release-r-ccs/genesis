@@ -29,37 +29,37 @@ computing on Graphics Processing Units) also become popular,
 and thus their utilization is also desired.
 Actually, many MD program packages support various accelerators.
 
-Our major motivation is to develop MD simulation software
-with a scalable performance on such modern supercomputers. For this
-purpose, we have developed the software from scratch, introducing the
-hybrid (MPI + OpenMP) parallelism, several new parallel
-algorithms :cite:`Jung:2013` :cite:`Jung:2014`, and GPGPU calculation.
-Another motivation is to develop a simple MD program, which can be
-easily understood and modified for methodological developments. These two
-policies (high parallel performance and simplicity) usually conflict
-each other in computer software. 
-To avoid the conflict, we have developed two MD programs in **GENESIS**, 
-namely **SPDYN** (*Sp*\ atial decomposition *dyn*\ amics)
-and **ATDYN** (*At*\ omic decomposition *dyn*\ amics).
+Our primary motivation is to develop MD simulation software that delivers
+scalable performance on modern supercomputers. To achieve this, we developed
+GENESIS from scratch, incorporating hybrid (MPI + OpenMP) parallelism, several
+original parallel algorithms :cite:`Jung:2013` :cite:`Jung:2014`, and GPGPU
+acceleration. Another key objective is to maintain a codebase that is simple
+enough to be easily understood and modified for methodological developments.
+Since high parallel performance and code simplicity often conflict in software
+engineering, we address this challenge by providing three distinct MD engines in
+**GENESIS**: **SPDYN** (*Sp*\ atial decomposition *dyn*\ amics)
+**ATDYN** (*At*\ omic decomposition *dyn*\ amics), and 
+**CGDYN** (*Coarse-Grained* molecular *dyn*\ amics).
 
-**SPDYN** and **ATDYN** share almost the same data structures, subroutines,
-and modules, but differ in their parallelization schemes.
-In **SPDYN**, the spatial decomposition scheme is implemented with new
-parallel algorithms :cite:`Jung:2013` :cite:`Jung:2014` and GPGPU calculation.
-In **ATDYN**, the atomic decomposition scheme is introduced for simplicity.
-The performance of **ATDYN** is not comparable to **SPDYN** due to the
-simple parallelization scheme.
-However, **ATDYN** is easier to modify for development of new algorithms
-or novel molecular models. We hope that users develop new methodologies
-in **ATDYN** at first and, eventually, port them to **SPDYN** for the
-better performance.  As we maintain consistency between the source codes
-of **ATDYN** and **SPDYN**, switching from **ATDYN** to **SPDYN** is
-not quite hard.
+**SPDYN**, **CGDYN**, and **ATDYN** share many common data structures,
+subroutines, and modules, but diverge significantly in their parallelization
+strategies to target specific needs. **SPDYN** and **CGDYN** are dedicated to
+high-performance simulations using spatial decomposition techniques: **SPDYN**
+employs a static decomposition scheme optimized for all-atom systems
+:cite:`Jung:2013` :cite:`Jung:2014`, while **CGDYN** utilizes an advanced
+dynamic domain decomposition scheme to ensure efficient load balancing in
+coarse-grained (CG) simulations :cite:`Jung:2024`. In contrast, **ATDYN** adopts
+an atomic decomposition scheme, prioritizing algorithmic simplicity over raw
+performance. Although **ATDYN** cannot match the scalability of the domain
+decomposition engines, its straightforward architecture makes it the ideal
+platform for developing new algorithms or novel molecular models. We encourage
+users to prototype new methodologies in **ATDYN** and subsequently port them to
+**SPDYN** or **CGDYN** for production runs. Thanks to the strict consistency
+maintained across the source codes of all three engines, transitioning from the
+development phase (**ATDYN**) to high-performance execution (**SPDYN** or
+**CGDYN**) is seamless.
 
 Other features in **GENESIS** are listed below:
-
-* Not only atomistic molecular force field (CHARMM, AMBER) but
-  also some coarse-grained models are available in **ATDYN**.
 
 * For extremely large biomolecular systems (more than 10 million
   atoms), parallel input/output (I/O) scheme is implemented.
