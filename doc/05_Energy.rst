@@ -986,7 +986,7 @@ please make use of the "GENESIS-CG-tool" :cite:`Tan:PLOSCB2022`, which is
 included in GENESIS as a submodule and can be found from
 "src/analysis/cg_tool".  It is also deposited as a Github repository, with
 which a wiki page of the GENESIS-CG-tool can be found:
-https://github.com/noinil/genesis_cg_tool/wiki
+https://github.com/genesis-release-r-ccs/genesis_cg_tool/wiki
 
 AICG2+ protein model
 --------------------
@@ -1171,8 +1171,8 @@ in the studies of nucleosome dynamics :cite:`Niina:nuc2017,Brandani:nuc2018`. We
 also provide this model in GENESIS.
 
 
-HPS/KH IDR models
------------------
+HPS/KH IDR and RNA models
+-------------------------
 
 GENESIS provides two models for intrinsically disordered proteins, namely the
 HPS and KH IDR models :cite:`Dignon:plos2018`.  These two models share the same
@@ -1213,6 +1213,43 @@ For more details such as the parameter values in the HPS and KH models, please r
 Notably, user can easily change the hydrophobicity parameters in the topology
 files (see more descriptions in the wiki-page of the GENESIS-CG-tool).  
 
+
+MPIPI IDR models
+----------------
+
+GENESIS also provides the MPIPI model for intrinsically disordered proteins
+:cite:`Joseph:MPIPI2021`.  The potential function includes the bond terms
+for the local interactions, and the electrostatic term (Debye-Hückel form, the
+same as described in the 3SPN.2C section) and the Wang-Frenkel type interactions
+:cite:`Wang:LJ2020,Joseph:MPIPI2021`:
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::
+
+      \phi(r) = \varepsilon \alpha \left[ \left(\frac{\sigma}{r} \right)^{2\mu} - 1\right] \left[3^{2\mu} \left(\frac{\sigma}{r} \right)^{2\mu} - 1 \right]^{2},
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+where :math:`\mu=1` and :math:`r_c=3\sigma` is the cutoff, and
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::
+
+    \alpha = 2 \cdot 3^{2\mu} \left( \frac{3}{2 \left( 3^{2\mu} -1 \right)} \right)^{3},
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+is used to garantee that the potential minimum is :math:`-\varepsilon`.
 
 Structure and context-based RNA model
 -------------------------------------
@@ -1273,6 +1310,12 @@ the Debye-Hückel type electrostatic interaction.
   **Default : 44.0**
 
   Distance for the pair list of 12-6 type Lennard-Jones interactions.
+
+**cg_pairlistdist_WF** *Real* (unit:  :math:`\text{\AA}`)
+
+  **Default : 25.0**
+
+  Distance for the pair list of Wang-Frenkel type interactions.
 
 **cg_pairlistdist_PWMcos** *Real* (unit:  :math:`\text{\AA}`)
 
