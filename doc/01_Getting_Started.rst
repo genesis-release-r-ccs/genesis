@@ -22,11 +22,11 @@ In addition, "preprocessor" is required, because the source code is
 One of the commonly used Fortran compilers is ``gfortran``, which
 is freely available as part of the GNU Compiler Collection (GCC).
 In this case, ``cpp`` is selected as a preprocessor, which is also available freely.
-Another recommended Fortran compiler is ``ifort`` provided
+Another recommended Fortran compiler is ``ifx`` provided
 by Intel Corporation which enables us to run the program much faster on Intel CPU.
 In the Intel compiler package, ``fpp`` is provided as a preprocessor.
 Fujitsu compiler ``frtpx``, which also functions as a preprocessor,
-is suitable for Fujitsu machines like FX100.
+is suitable for Fujitsu machines like Fugaku.
 
 MPI and OpenMP
 ^^^^^^^^^^^^^^
@@ -45,7 +45,7 @@ themselves, especially, in the case of laptop PCs and workstations.
 One of the commonly used MPI software is OpenMPI (https://www.open-mpi.org/).
 When the users install the OpenMPI libraries in the computer, the users must
 specify Fortran and C compilers (e.g., ``gfortran`` and ``gcc``) to be used with MPI.
-After installing the libraries, the users can use ``mpif90``, ``mpicc``, and ``mpirun``,
+After installing the libraries, the users can use ``mpifort``, ``mpicc``, and ``mpirun``,
 which are necessary to compile and run the program that is parallelized with MPI. 
 OpenMPI is available freely, and the example installation scheme is shown in :ref:`Appendix`.
 Intel and Fujitsu Corporations are also providing their own MPI libraries for parallel computation.
@@ -85,9 +85,11 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
 
 * Fortran and C compilers
 
-  * GCC compiler ``gfortran``, ``gcc`` (version 7.0.0 or higher is required)
-  * Intel compiler ``ifort``, ``icc`` (ifx, icx are available from ver 2.1.3.)
+  * GCC compiler ``gfortran``, ``gcc`` (version 7.0.0 is required. version 8.5.0 or later is preferred.)
+  * LLVM compiler ``flang``, ``clang`` 
+  * Intel compiler ``ifx``, ``icx`` (Please use ``ifort``, ``icc`` before ver 2.1.3.)
   * Fujitsu compiler ``frtpx``, ``fccpx``
+  * Nvidia HPC SDK ``nvc``, ``nvfortran``
   * Cygwin/mingw (spdyn, ver 1.7.1)
 
 * Preprocessors
@@ -98,7 +100,7 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
 
 * MPI libraries for parallel computing
 
-  * OpenMPI ``mpirun``, ``mpif90``, ``mpicc``
+  * OpenMPI ``mpirun``, ``mpif90``, ``mpicc`` (including Nvidia HPC SDK)
   * Intel MPI ``mpiexec``, ``mpiifort``, ``mpiicc``(``mpiifx``, ``mpiicx`` are available from ver 2.1.3)
   * Fujitsu MPI
   * Microsoft MPI (spdyn, ver 1.7.1)
@@ -117,7 +119,7 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
   * The following GPU cards and CUDA versions have been tested by the GENESIS developers
 
     * NVIDIA K20, K40, P100, TITAN V, GTX 1080, GTX 1080Ti, RTX 2080, RTX 2080Ti, RTX 3090, RTX A6000, RTX 4500 ada (from ver 2.1.6), A30, A100, H100 (from ver 2.1.6) , GH200 (from ver 2.1.6)
-    * CUDA ver. 8.0, 9.0, 9.1, 9.2, 10.0, 11.4, 11.5, 12.1-12.6
+    * CUDA ver. 8.0, 9.0, 9.1, 9.2, 10.0, 11.4, 11.5, 12.1-12.6, 13.0-13.1
     * For GPUs of the Hopper generation or later, we recommend using version 2.1.6 or later.
 
 .. note::
@@ -125,11 +127,7 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
    the above requirements are likely already provided, so you do not need to install them yourself.
    Please refer to the users' guide of the supercomputer, or consult the system administrator.
 
-   In general, the latest version of CUDA does not support the latest version of GCC compiler.
-   If you cannot compile GENESIS with new CUDA and new GCC compiler,
-   please first make an attempt to install the new CUDA using an older GCC compiler,
-   and then install GENESIS with those CUDA and GCC compilers.
-
+   Only certain combinations of GCC and CUDA versions are supported. Please verify compatibility between the versions before use.
 
 .. raw:: latex
 
@@ -373,9 +371,9 @@ CUDA is installed in "/usr/local/cuda-x.x/" or "/usr/lib/x86_64-linux-gnu/",
 and "nvcc" should be in a "bin" directory of the install directory.
 The path to "nvcc" and CUDA libraries should be set in a startup file
 such as "~/.bashrc".  For example, add the following information to "~/.bashrc" 
-in the case of CUDA 11.4, 
+in the case of CUDA 13.1, 
 :: 
-  CUDAROOT=/usr/local/cuda-11.4
+  CUDAROOT=/usr/local/cuda-13.1
   export PATH=$CUDAROOT/bin:$PATH
   export LD_LIBRARY_PATH=$CUDAROOT/lib64:/lib:$LD_LIBRARY_PATH
 
@@ -383,7 +381,7 @@ then reload "~/.bashrc" and try the configure command again.
 If there still remain some troubles, explicitly specify a path to CUDA 
 libraries in the configure command by:
 :: 
-   $ ./configure --enable-single --enable-gpu --with-cuda=/usr/local/cuda-11.4
+   $ ./configure --enable-single --enable-gpu --with-cuda=/usr/local/cuda-13.1
 
 
 Configuration for supercomputer systems
@@ -402,8 +400,8 @@ because Fujitsu compiler has a trouble in compiling **prst_setup** (see aldo :re
 Configuration for single CPU calculations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 By specifying the "``--disable-mpi``" option, the users can install **GENESIS** that can work on one CPU.
-The configure script automatically looks for "gfortran", "ifort", "frt", or "frtpx" for Fortran compiler, 
-and "gcc", "icc", "fcc", or "fccpx" for C compiler. Therefore, in this case MPI libraries are not required
+The configure script automatically looks for "gfortran", "ifx", "frt", or "frtpx" for Fortran compiler, 
+and "gcc", "icx", "fcc", or "fccpx" for C compiler. Therefore, in this case MPI libraries are not required
 for the installation and execution of **GENESIS**. **ATDYN** and analysis tools are installed.
 :: 
    $ ./configure --disable-mpi
@@ -504,10 +502,10 @@ If any tests cannot run, please check the following points:
 For **spdyn** on Fugaku in RIKEN, the number of MPI processors be greater than or equal to 8. We recommend to use mixed precision on Fugaku.
 
 The "test.py" script compares energy in log file between the developer’s and user’s ones.
-If the energy differences are less than the tolerance (default = 1.00e-08),
+If the energy differences are less than the tolerance (The tolerance value may vary depending on the conditions.),
 "Passed" is displayed for each test. Among the physical quantities in the log file,
 virial is the most sensitive to numerical factors, and thus, the tolerance
-for virial is set to a larger value (1.00e-06).
+for virial is set to a larger value.
 After all tests are finished, the total number of succeeded, 
 failed, and aborted runs will be displayed at the end.
 :: 
