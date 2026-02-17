@@ -76,7 +76,7 @@ General keywords
 
   Number of restraint functions.
   
-**function**:math:`\textbf{\textit{N}}` *POSI / DIST / DISTMASS / ANGLE / ANGLEMASS / DIHED / DIHEDMASS / RMSD /RMSDMASS / PC / PCMASS / REPUL / REPULMASS / FB / FBMASS / EM*
+**function**:math:`\textbf{\textit{N}}` *POSI / DIST / DISTMASS / ANGLE / ANGLEMASS / DIHED / DIHEDMASS / RMSD /RMSDMASS / PC / PCMASS / REPUL / REPULMASS / FB / FBMASS / EM / PULL / LPULL / ROTATION / ROTSLAB / LROT*
 
   **Default: N/A**
 
@@ -105,6 +105,16 @@ General keywords
   * **FB or FBMASS**: flat-bottom distance restraint. 
 
   * **EM**: cryo-EM flexible fitting (see :ref:`Experiments`)
+
+  * **PULL**: constant-force pulling (**SPDYN** only).
+
+  * **LPULL**: constant force pulling applied to a a small group that fits withing a single sub-domain (**SPDYN** only).
+
+  * **ROTATION**: rotational restraints (**SPDYN** only).
+
+  * **ROTATION**: rotational restraints where the rotation group is subdivided into a set of equidistnat slabs perpendicular to the rotation axis (**SPDYN** only).
+
+  * **LROT**: rotational restraints for a small group that fits within a single sub-domain (**SPDYN** only).
 
   *DIST*, *ANGLE*, *DIHED* impose restraints on a distance/angle/dihedral
   defined by groups in the **[SELECTION]** section specified by 
@@ -220,6 +230,36 @@ General keywords
   In SPDYN, the RMSD restraint is automatically selected as the target for TMD/SMD, 
   but in ATDYN, it is possible to select a different restraint. (If you do not select a restraint, 
   RMSD will be selected.)
+
+**eps**: *Real* (**SPDYN** only)
+
+  **Default : 0.001**
+
+  A small value introduced to avoid singularities in rotational restraints. 
+
+**slab_thickness**: *Real* (**SPDYN** only)
+
+  **Default : 15.0** (Unit: Angstrom)
+
+  Thickness of the slab used for **ROTSLAB**. 
+
+**slab_tol**: *Real* (**SPDYN** only)
+
+  **Default : 0.001** 
+
+  Lower limit for the evaluation of Gaussian function used in **ROTSLAB**. 
+
+**reffile**: *Logical* (**SPDYN** only)
+
+  **Default : NO** 
+
+  Logical flag indicating whether a reference coordinate file is used to define the reference set for rotational restraints. 
+
+**vector**:math:`\textbf{\textit{N}}` *Real Real Real*
+
+  **Default: 0.0 0.0 0.0** 
+
+  Direction vector for constant-force pulling and orientation vector for rotational restraints.
 
 Restraints of a linear combination of distances
 -----------------------------------------------
