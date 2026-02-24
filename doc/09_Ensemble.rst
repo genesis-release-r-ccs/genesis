@@ -158,6 +158,8 @@ where :math:`K` is the kinetic energy, :math:`\gamma_p` is the barostat
 friction parameter (*gamma_p* keyword), :math:`R_p` is the stochastic 
 pressure variable. 
 
+In **SPDYN**, we make use of BAOAB Langevin scheme for NVT (:cite:`Leimkuhler:2013`) and NPT (:cite:`Jung:2025`).
+
 -----------------------------------------------------------------------
 
 **ensemble** *NVE / NVT / NPT / NPAT / NPgT*
@@ -218,35 +220,35 @@ pressure variable.
 
   * **NHC**: Nose-Hoover chain thermostat with MTK barostat :cite:`Berendsen:1984` :cite:`Martyna:1996`
 
-  * **LANGEVIN**: Langevin thermostat/barostat :cite:`Quigley:2004` (for ATDYN only)
+  * **LANGEVIN**: Langevin thermostat/barostat (:cite:`Quigley:2004` for ATDYN and :cite:`Leimkuhler:2013` and :cite:`Jung:2025` for SPDYN)
 
-  +------------+-------------+------------------------------+
-  | integrator |  ensemble   |  tpcontrol                   |
-  +============+=============+==============================+
-  | LEAP       |  NVT        |  BERENDSEN, LANGEVIN         |
-  |            +-------------+------------------------------+
-  | (ATDYN)    |  NPT        |  BERENDSEN, LANGEVIN         |
-  |            +-------------+------------------------------+
-  |            |  NPAT/NPgT  |  BERENDSEN, LANGEVIN         |
-  +------------+-------------+------------------------------+
-  | VVER       |  NVT        |  BERENDSEN, LANGEVIN, BUSSI  |
-  |            +-------------+------------------------------+
-  | (ATDYN)    |  NPT        |  LANGEVIN, BUSSI             |
-  |            +-------------+------------------------------+
-  |            |  NPAT/NPgT  |  LANGEVIN                    |
-  +------------+-------------+------------------------------+
-  | VVER       |  NVT        |  BUSSI, BERENDSEN, NHC       |
-  |            +-------------+------------------------------+
-  | (SPDYN)    |  NPT        |  BUSSI, BERENDSEN, NHC       |
-  |            +-------------+------------------------------+
-  |            |  NPAT/NPgT  |  BUSSI, BERENDSEN, NHC       |
-  +------------+-------------+------------------------------+
-  | VRES       |  NVT        |  BUSSI, BERENDSEN, NHC       |
-  |            +-------------+------------------------------+
-  | (SPDYN)    |  NPT        |  BUSSI, BERENDSEN, NHC       |
-  |            +-------------+------------------------------+
-  |            |  NPAT/NPgT  |  BUSSI, BERENDSEN, NHC       |
-  +------------+-------------+------------------------------+
+  +------------+-------------+---------------------------------------+
+  | integrator |  ensemble   |  tpcontrol                            |
+  +============+=============+=======================================+
+  | LEAP       |  NVT        |  BERENDSEN, LANGEVIN                  |
+  |            +-------------+---------------------------------------+
+  | (ATDYN)    |  NPT        |  BERENDSEN, LANGEVIN                  |
+  |            +-------------+---------------------------------------+
+  |            |  NPAT/NPgT  |  BERENDSEN, LANGEVIN                  |
+  +------------+-------------+---------------------------------------+
+  | VVER       |  NVT        |  BERENDSEN, LANGEVIN, BUSSI           |
+  |            +-------------+---------------------------------------+
+  | (ATDYN)    |  NPT        |  LANGEVIN, BUSSI                      |
+  |            +-------------+---------------------------------------+
+  |            |  NPAT/NPgT  |  LANGEVIN                             |
+  +------------+-------------+---------------------------------------+
+  | VVER       |  NVT        |  BUSSI, BERENDSEN, NHC, LANGEVIN      |
+  |            +-------------+---------------------------------------+
+  | (SPDYN)    |  NPT        |  BUSSI, BERENDSEN, NHC, LANGEVIN      |
+  |            +-------------+---------------------------------------+
+  |            |  NPAT/NPgT  |  BUSSI, BERENDSEN, NHC, LANGEVIN      |
+  +------------+-------------+---------------------------------------+
+  | VRES       |  NVT        |  BUSSI, BERENDSEN, NHC                |
+  |            +-------------+---------------------------------------+
+  | (SPDYN)    |  NPT        |  BUSSI, BERENDSEN, NHC                |
+  |            +-------------+---------------------------------------+
+  |            |  NPAT/NPgT  |  BUSSI, BERENDSEN, NHC                |
+  +------------+-------------+---------------------------------------+
 
 **tau_t** *Real*
 
