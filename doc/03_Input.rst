@@ -26,8 +26,14 @@ The following table summarizes the essential input files and setup tools for eac
 +--------------------+----------------------------------+---------------------------------+
 | KB Go-model        | top, par, psf, pdb               | MMTSB server                    |
 +--------------------+----------------------------------+---------------------------------+
+| Other CG models*   | grotop, grocrd                   | GENESIS-cg-tool                 |
++--------------------+----------------------------------+---------------------------------+
 | All-atom Go-model  | grotop, grocrd (or pdb)          | SMOG server, SMOG2              |
 +--------------------+----------------------------------+---------------------------------+
+
+(* Residue-level CG models such as AICG2+ :cite:`Li:PNAS2014`, 3SPN.2C
+:cite:`Hinckley:2013,Freeman:2014`, HPS :cite:`Dignon:plos2018`, MPIPI
+:cite:`Joseph:MPIPI2021`, PWMcos :cite:`Tan:PWMcos`, and others)
 
 
 CHARMM force field
@@ -80,15 +86,29 @@ these files as the inputs.
 Other force fields
 ------------------
 
-**GENESIS** can deal with coarse-grained (CG) models such as the Go-model :cite:`Taketomi:1975` and MARTINI :cite:`Marrink:2007`.
-In this case, the users again use external setup tools to build the system and prepare
-the parameter and topology files. For the all-atom Go-model :cite:`Whitford:2009`, 
-the users use the SMOG server :cite:`Noel:2010` or SMOG2 program :cite:`Noel:2016`, 
-which generates grotop and grocrd files. The grotop file contains
-the information about parameter and topology, and the grocrd file includes
-the coordinates of the initial structure, both of which are the file formats
-used in the GROMACS program. For the Karanicolas-Brooks (KB) Go-model :cite:`Karanicolas:2002hl` :cite:`karanicolas2003improved`,
-the users use the MMTSB server :cite:`Feig:2004`, which generates par, top, pdb, and psf files.
+Prior to **GENESIS** v1.7, coarse-grained (CG) models such as the Go-model
+:cite:`Taketomi:1975` and MARTINI :cite:`Marrink:2007` were already supported,
+where users relied on external setup tools to build the system and prepare the
+parameter and topology files. For the all-atom Go-model :cite:`Whitford:2009`,
+the users use the SMOG server :cite:`Noel:2010` or SMOG2 program
+:cite:`Noel:2016`, which generates grotop and grocrd files. The grotop file
+contains the information about parameter and topology, and the grocrd file
+includes the coordinates of the initial structure, both of which are the file
+formats used in the GROMACS program. For the Karanicolas-Brooks (KB) Go-model
+:cite:`Karanicolas:2002hl` :cite:`karanicolas2003improved`, the users use the
+MMTSB server :cite:`Feig:2004`, which generates par, top, pdb, and psf files.
+
+Since **GENESIS** v1.7, support for CG models has been substantially extended.
+The newly supported models include AICG2+ :cite:`Li:PNAS2014`, 3SPN.2C
+:cite:`Hinckley:2013,Freeman:2014`, structure-based RNA models
+:cite:`Hori:JCTC2012`, HPS :cite:`Dignon:plos2018`, MPIPI
+:cite:`Joseph:MPIPI2021`, PWMcos :cite:`Tan:PWMcos`, and others. For most of
+these models, system preparation can be performed using the **GENESIS-cg-tool**
+:cite:`Tan:PLOSCB2022`, which generates the coordinate (GROCRD) and topology
+(GROTOP) files required for CG simulations.  For more information, please refer
+to the `online documentation
+<https://github.com/genesis-release-r-ccs/genesis_cg_tool/wiki>`_ and `tutorials
+<https://mdgenesis.org/docs/tutorial_2022/>`_ (section 11).
 
 
 General input files
