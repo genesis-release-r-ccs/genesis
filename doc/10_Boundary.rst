@@ -41,8 +41,11 @@ Boundary condition
 
   **Default : NO**
 
-  Logical flag to use PBC coordinates in force/energy calculations. (only available for coarse-grained models and PBC in **ATDYN**, In **SPDYN**, **local_pbc** is automatically defined in CHARMM and GROAMBER force fields)
-
+  Logical flag to use local PBC coordinates in force/energy calculations. For
+  coarse-grained models, this option is available in both **ATDYN** and **CGDYN**. In
+  **SPDYN**, local_pbc is automatically enabled for the CHARMM and GROAMBER force
+  fields.
+  
 
 .. note::
   If the simulation system has a periodic boundary condition (**PBC**),
@@ -87,19 +90,19 @@ From GENESIS 2.0, the minimum cell size does not change by changing the working 
 
 **domain_x** *Integer*
 
-  **Default : N/A (Optional)** (**SPDYN** only)
+  **Default : N/A (Optional)** (**SPDYN** and **CGDYN** only)
 
   Number of domains along the x dimension.
 
 **domain_y** *Integer*
 
-  **Default : N/A (Optional)** (**SPDYN** only)
+  **Default : N/A (Optional)** (**SPDYN** and **CGDYN** only)
 
   Number of domains along the y dimension.
 
 **domain_z** *Integer*
 
-  **Default : N/A (Optional)** (**SPDYN** only)
+  **Default : N/A (Optional)** (**SPDYN** and **CGDYN** only)
 
   Number of domains along the z dimension.
 
