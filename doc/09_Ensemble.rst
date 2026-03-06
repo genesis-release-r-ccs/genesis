@@ -259,7 +259,7 @@ In **SPDYN** and **CGDYN**, we make use of BAOAB Langevin scheme for NVT (:cite:
   |                 +-------------+----------------------------------+
   | VVER_CG (ATDYN) |  NPAT/NPgT  |  N/A                             |
   |                 +-------------+----------------------------------+
-  |                 |  NPT        |  N/A                             |
+  |                 |  NPT        |  LANGEVIN                        |
   +-----------------+-------------+----------------------------------+
 
 **tau_t** *Real*
@@ -292,7 +292,7 @@ In **SPDYN** and **CGDYN**, we make use of BAOAB Langevin scheme for NVT (:cite:
 
   Friction parameter of the Langevin barostat.
 
-**isotropy** *ISO / ANISO / SEMI-ISO / XY-FIXED*
+**isotropy** *ISO / ANISO / SEMI-ISO / XY-FIXED / Z-FIXED-SEMI-ISO*
 
   **Default : ISO**
 
@@ -311,6 +311,9 @@ In **SPDYN** and **CGDYN**, we make use of BAOAB Langevin scheme for NVT (:cite:
 
   * **XY-FIXED**: X and Y dimensions are fixed, while Z dimension can change
     (NPAT only).
+
+  * **Z-FIXED-SEMI-ISO**: Z dimension is fixed, while X and Y dimensions can change
+    but their ratio is kept constant (iSoLF CG lipid model only).
 
 Examples
 ========
