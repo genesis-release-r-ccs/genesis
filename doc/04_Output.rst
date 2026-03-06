@@ -130,6 +130,31 @@ Output file in FEP simulations
   the filename must contain '{}', which is automatically replaced with the replica index.
 
 
+Output files in ABMD simulations
+================================
+When the user performs RE-ABMD, gREST-ABMD or BE-ABMD simulations,
+the user must include '{}' in the output filename.
+This {} is automatically replaced with the replica index.
+
+**abmdfile**
+
+  This file provides the time-dependent biassing potential along predefined collective variables (CVs).
+  The filename must be given in the case of ``monitor_period > 0`` in **[ABMD]** section.
+  ABMD and MW-ABMD provide a single file, whereas RE-ABMD, gREST-ABMD, and BE-ABMD provide multiple files for each replica.
+
+**splinefile**
+
+  This file provides the spline coefficients used to reconstruct the bias potential when restarting ABMD simulations.
+  The filename must be given in the case of ``monitor_period_spline > 0`` in **[ABMD]** section.
+  ABMD and MW-ABMD provide a single file, whereas RE-ABMD, gREST-ABMD, and BE-ABMD provide multiple files for each replica.
+
+**reacfile**
+
+  This file provides the computed values of the collective variables (CVs) during the simulation.
+  The filename must be given in the case of ``monitor_period > 0`` in **[ReacCoord]** section.
+  ABMD provides a single file, whereas MW-ABMD, RE-ABMD, gREST-ABMD, and BE-ABMD provide multiple files for each replica.
+
+
 Examples
 ========
 

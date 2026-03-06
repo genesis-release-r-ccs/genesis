@@ -131,7 +131,7 @@ General input files
 
 **psffile**
 
-  CHARMM/X-PLOR 'psffile` containing information of the system
+  CHARMM/X-PLOR 'psffile' containing information of the system
   such as atomic masses, charges, and atom connectivities.
 
 **prmtopfile** 
@@ -297,6 +297,15 @@ This rule is also applicable to the restart filename.
   and this *fitfile* is simply ignored, even if it is specified in the **[INPUT]** section.
 
 
+Input files for ABMD simulations
+================================
+
+**splinefile**
+
+  This file contains the spline coefficients used to reconstruct the bias potential when restarting ABMD simulations.
+  ABMD and MW-ABMD require one spline file, whereas RE-ABMD, gREST-ABMD, and BE-ABMD require one spline file for each replica.
+
+
 Examples
 ========
 
@@ -408,3 +417,16 @@ REMD simulations with restarting:
   psffile = ../build/input.psf
   pdbfile = ../build/input.pdb
   rstfile = run_rep{}.rst
+
+ABMD simulations with restarting:
+::
+
+  [INPUT]
+  topfile    = ../toppar/top_all36_prot.rtf
+  parfile    = ../toppar/par_all36m_prot.prm
+  strfile    = ../toppar/toppar_water_ions.str
+  psffile    = ../build/input.psf
+  pdbfile    = ../build/input.pdb
+  rstfile    = run.rst
+  splinefile = run.sp
+  
