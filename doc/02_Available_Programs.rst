@@ -32,6 +32,17 @@ Basic functions
   while integration of the equations of motion as well as accumulation of the force and
   energy are done with double-precision.
 
+**cgdyn**
+
+  The simulator specifically designed for coarse-grained (CG) simulations,
+  parallelized with a domain decomposition scheme with dynamic load balancing.
+  Compared to atdyn, **cgdyn** is optimized for larger CG systems and achieves
+  better parallel performance by leveraging domain decomposition. The program
+  runs on CPU with the hybrid MPI+OpenMP protocol, with mixed and double
+  precision calculations available. **cgdyn** supports a variety of CG models
+  (see "Residue-level coarse-grained models" in "Chapter 6 Energy Section").
+  
+  
 .. list-table::
    Available functions in **atdyn** and **spdyn**
   :header-rows: 1
@@ -114,6 +125,15 @@ Note that in the figure the system periodicity is not considered for simplicity.
    :alt: 
 
    Parallelization scheme in the (a) atomic decomposition and (b) domain decomposition.
+
+In coarse-grained MD simulations, however, the spatial distribution of particles
+is often highly non-uniform. For example, in systems containing biomolecular
+condensates or membrane-bound complexes, particles tend to cluster in localized
+regions. This inhomogeneity can lead to severe load imbalance across MPI
+processors when using a fixed domain decomposition. To address this, **CGDYN**
+employs a dynamic load-balancing scheme based on kd-tree partitioning, where
+domain boundaries are adjusted adaptively to ensure an even distribution of
+computational workload among processors :cite:`Jung:2024`.
 
 
 Hybrid MPI+OpenMP calculation in SPDYN
@@ -234,7 +254,7 @@ or reconstruct a larger system.
 Available sections
 ------------------
 
-Fundamental functions in **SPDYN** and **ATDYN** are energy minimization (Min),
+Fundamental functions in **ATDYN**, **SPDYN** and **CGDYN** are energy minimization (Min),
 molecular dynamics method (MD), replica-exchange method (REMD),
 string method (String), and vibrational analysis (Vib).
 As shown in the last part of the previous chapter, the users carry out simulations
@@ -384,7 +404,7 @@ Analysis tools
 =======================================================================
 
 The following programs are available as the trajectory analysis tools in **GENESIS**.
-Basic usage of each tool is similar to that of **spdyn** or **atdyn**.
+Basic usage of each tool is similar to that of **atdyn**, **spdyn**, or **cgdyn**.
 The users can generate a template control file for each program
 by using the "[program_name] -h ctrl" command.
 The control file is mainly composed of INPUT, OUTPUT, TRAJECTORY,
@@ -435,6 +455,10 @@ Trajectory analysis
 **qval_analysis**
 
   Analyze the fraction of native contacts (Q-value) in the selected atom group.
+
+**qval_residcg_analysis**
+
+  Analyze the fraction of native contacts (Q-value) in the selected atom group, for residue-level CG simulations.
 
 **rg_analysis**
 
