@@ -60,6 +60,15 @@ The users have to install these libraries by themselves,
 if they are not installed in the computer (see :ref:`Appendix`).
 In the case of the Intel and Fujitsu compilers, Intel MKL and Fujitsu SSL II are automatically selected, respectively.
 
+Julia
+^^^^^
+
+**GENESIS** provides tools for the modeling and preparation
+of coarse-grained simulations. These tools are grouped into
+a single package named GENESIS-cg-tool (https://github.com/genesis-release-r-ccs/genesis_cg_tool).
+For using them, the user needs to install a Julia compiler.
+This compiler can be obtained from the official Julia webpage (https://julialang.org/).
+
 GPGPU
 ^^^^^
 
@@ -69,6 +78,8 @@ which enables us to effectively run the program on NVIDIA GPU cards.
 If the users want to run **SPDYN** with GPGPU calculations, 
 the CUDA toolkit (https://developer.nvidia.com/cuda-toolkit) must be also installed in the computer.
 Note that OpenACC is not employed in **GENESIS** currently.
+Limited support on AMD GPU cards is also available. In this case,
+the users need to install the ROCm Software stack (https://www.amd.com/en/products/software/rocm.html).
 
 -------------------------------------------------------------------------
 
@@ -121,6 +132,8 @@ the combination of GCC compiler, GCC preprocessor, and OpenMPI is recommended.
     * NVIDIA K20, K40, P100, TITAN V, GTX 1080, GTX 1080Ti, RTX 2080, RTX 2080Ti, RTX 3090, RTX A6000, RTX 4500 ada (from ver 2.1.6), A30, A100, H100 (from ver 2.1.6) , GH200 (from ver 2.1.6)
     * CUDA ver. 8.0, 9.0, 9.1, 9.2, 10.0, 11.4, 11.5, 12.1-12.6, 13.0-13.1
     * For GPUs of the Hopper generation or later, we recommend using version 2.1.6 or later.
+
+  * In the case of AMD GPUs, **GENESIS** has been tested on MI250X cards.
 
 .. note::
    If you are using a supercomputer at a university or research institute,
@@ -292,6 +305,10 @@ The representative options are as follows.
 
   Define path to the CUDA libraries manually.
 
+``--with-rocm=PATH``
+
+  Define path to the ROCm libraries manually.
+
 ``--disable-mpi``
 
   Turn off MPI parallelization. In this case, **SPDYN** is not installed.
@@ -382,6 +399,12 @@ If there still remain some troubles, explicitly specify a path to CUDA
 libraries in the configure command by:
 :: 
    $ ./configure --enable-single --enable-gpu --with-cuda=/usr/local/cuda-13.1
+
+**GENESIS** compiles with support for NVIDIA GPUs by default when
+the --enable-gpu flag is provided. For compiling support for AMD
+GPUs, please also provide the --enable-rocm flag:
+:: 
+   $ ./configure --enable-single --enable-gpu --with-rocm
 
 
 Configuration for supercomputer systems
