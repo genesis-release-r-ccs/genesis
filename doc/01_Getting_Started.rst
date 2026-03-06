@@ -65,7 +65,7 @@ Julia
 
 **GENESIS** provides tools for the modeling and preparation
 of coarse-grained simulations. These tools are grouped into
-a single package named GENESIS-cg-tool (https://github.com/genesis-release-r-ccs/genesis_cg_tool).
+a single package named GENESIS-CG-tool (https://github.com/genesis-release-r-ccs/genesis_cg_tool).
 For using them, the user needs to install a Julia compiler.
 This compiler can be obtained from the official Julia webpage (https://julialang.org/).
 

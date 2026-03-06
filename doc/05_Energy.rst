@@ -1278,6 +1278,41 @@ angles), the forth term is the structure-based Go-like potential for native
 contacts, the fifth term is for the non-native contacts, and the sixth term is
 the Debye-Hückel type electrostatic interaction.
 
+Lipid model
+----------------
+
+Finally, **GENESIS** implements the implicit solvent lipid force field, iSoLF,
+version 2.0, which provides a wider variety of lipid molecules and improves
+the consistency with physical properties :cite:`UgarteLaTorre:2023`. The potential
+function includes the bond and angle terms for the local interactions, a electrostatic
+term with the Debye-Hückel functional form, a excluded volume term consisting of the
+repulsive part of the Lennard-Jones potential, a polar term consisting of the
+attractive part of the Lennard-Jones potential, and an attractive term between
+the lipid tails of the following form:
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::
+
+	  V_{\text{Attraction}} = \sum_{i<j}^{n_{nl\text{-pairs}}} 
+      \begin{cases} 
+        -\varepsilon_{ij}, & r_{ij} \leq \sqrt[6]{2}\sigma_{ij} \\
+        -\varepsilon_{ij} \left[ 2 \left( \frac{r_{ij} - \sqrt[6]{2}\sigma_{ij}}{\omega_{ij}} \right)^3 - 3 \left( \frac{r_{ij} - \sqrt[6]{2}\sigma_{ij}}{\omega_{ij}} \right)^2 + 1 \right], & \sqrt[6]{2}\sigma_{ij} < r_{ij} \leq \sqrt[6]{2}\sigma_{ij} + \omega_{ij} \\
+        0, & \sqrt[6]{2}\sigma_{ij} + \omega_{ij} < r_{ij}
+      \end{cases}
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+where :math:`\epsilon_{ij}` is the force scaling factor between the particle pair :math:`ij`,
+:math:`\sigma_{ij}` is repulsive range for the :math:`ij` particle pair, :math:`\omega_{ij}`
+is the attraction range for the :math:`ij` particle pair, :math:`r_{ij}` is the distance
+between the :math:`i` th and :math:`j` th particle, and :math:`n_{nl-pairs}` is the total
+number of non-local pairs of (lipid tail) CG beads.
+
 
 ------------------------------------------------------------------
 
