@@ -13,6 +13,9 @@ Biassed Molecular Dynamics (ABMD) simulation :cite:`Babin:2008,Babin:2009`.
 ABMD is an enhanced sampling method that applies a time-dependent bias 
 potential along predefined collective variables (CVs) to accelerate 
 sampling of rare events and explore the free energy landscape.
+The ABMD method requires the **[ReacCoord]** section to define the 
+reaction coordinates. Please refer to the **[ReacCoord]** section for details 
+on how to set up the reaction coordinates.
 
 The time-dependent bias potential, :math:`U(\xi \mid t)`, at time *t* along 
 predefined CV, :math:`\xi`, is added to the system potential energy :math:`U(\vec{x})`:
@@ -114,6 +117,85 @@ This factor modifies the update rate of the bias potential, resulting in
 
      \vspace{-3mm}
 
+
+ABMD has four commonly used extensions: multiple-walker ABMD (MW-ABMD) 
+:cite:`Babin:2008,Babin:2009`, replica-exchange ABMD (RE-ABMD),
+:cite:`Babin:2008,Babin:2009`,
+generalized replica-exchange with soulte tempering ABMD (gREST-ABMD) 
+[in preparation], and bias-exchange ABMD (BE-ABMD) :cite:`Ito:2024`.
+In MW-ABMD, multiple simulations are performed simultaneously while 
+sharing a common bias potential :math:`U(\xi \mid t)`.
+The shared bias potential is updated at every MD step according to
+
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::
+  
+     \frac{\partial}{\partial t} U(\xi \mid t)
+     =
+     \frac{k_B T}{\tau_F}
+     \sum_{\alpha}
+     G\!\left[\xi-\sigma\left(\mathbf{r}_1^{\alpha},\ldots,\mathbf{r}_N^{\alpha}\right)\right].
+
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+
+Here, :math:`N` denotes the total number of atoms and :math:`\mathbf{r}`
+represents the atomic positions in each MD trajectory labeled by :math:`\alpha`.
+RE-ABMD combines temperature replica-exchange MD (T-REMD) with ABMD in 
+order to improve conformational sampling using multiple replicas simulated 
+at different target temperatures. In BE-ABMD, replicas exchange different 
+bias potentials :math:`U(\xi \mid t)` between replicas :math:`a` and :math:`b`
+based on the Metropolis criterion,
+
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+  .. math::
+
+     P^{ab} = \min\left(1,\exp(-\Delta)\right),
+
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+
+where
+
+
+  .. raw:: latex
+
+     \vspace{-5mm}
+
+
+  .. math::
+
+     \Delta =
+     (\beta_b-\beta_a)(E^a-E^b)
+     +
+     \beta_a\left[U^a(\xi^b)-U^a(\xi^a)\right]
+     -
+     \beta_b\left[U^b(\xi^b)-U^b(\xi^a)\right].
+
+  .. raw:: latex
+
+     \vspace{-3mm}
+
+
+Here, :math:`P^{ab}` is the exchange probability and :math:`E` denotes 
+the potential energy. These methods can be applied 
+to MD simulations with all-atom (AA), coarse-grained (CG), and QM/MM 
+models using multiple collective variables available in ATDYN and SPDYN.
+
 -----------------------------------------------------------------------
 
 **tau** *Real*
@@ -152,3 +234,57 @@ Example of a ABMD simulation for production.
   wt_temperature         = 3000.0
   monitor_period         = 1000
   monitor_period_spline  = 10000
+
+Example of a MW-ABMD simulation for production.
+::
+
+  [ABMD]
+  tau                    = 100.0
+  wt_temperature         = 3000.0
+  monitor_period         = 1000
+  monitor_period_spline  = 10000
+
+  [REMD]
+  dimension        = 1
+  exchange_period  = 0
+  type1            = TEMPERATURE
+  nreplica1        = 4
+  parameters1      = 300.00 300.00 300.00 300.00
+
+Example of a RE-ABMD simulation for production.
+::
+
+  [ABMD]
+  tau                    = 100.0
+  wt_temperature         = 3000.0
+  monitor_period         = 1000
+  monitor_period_spline  = 10000
+
+  [REMD]
+  dimension        = 1
+  exchange_period  = 1000
+  type1            = TEMPERATURE
+  nreplica1        = 4
+  parameters1      = 300.00 350.00 400.00 450.00
+
+Example of a gREST-ABMD simulation for production.
+::
+
+  [ABMD]
+  tau                    = 100.0
+  wt_temperature         = 3000.0
+  monitor_period         = 1000
+  monitor_period_spline  = 10000
+
+  [REMD]
+  dimension        = 1
+  exchange_period  = 1000
+  type1            = REST
+  nreplica1        = 4
+  parameters1      = 300.00 350.00 400.00 450.00
+  select_index1    = 1
+  param_type1      = C LJ D CM
+  analysis_grest   = no
+
+  [SELECTION]
+  group1           = ((segid:PROA or segid:PROB) and (rno:79 or rno:83)) or (rnam:DMPC and (an:N or an:P))

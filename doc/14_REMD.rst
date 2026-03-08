@@ -31,7 +31,7 @@ In REMD methods, the transition probability of the replica exchange process is g
      \vspace{-5mm}
 
   .. math::  
-     w(X \to X') & = \mathrm{min}(1, \frac{P(X')}{P(X)}) = \mathrm{min}(1,\mathrm{exp}(-\Delta)).
+     w(X \to X') = \mathrm{min}(1, \frac{P(X')}{P(X)}) = \mathrm{min}(1,\mathrm{exp}(-\Delta)).
 
 
   .. raw:: latex
