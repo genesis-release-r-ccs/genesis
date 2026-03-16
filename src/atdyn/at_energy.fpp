@@ -67,7 +67,7 @@ module at_energy_mod
     real(wp)              :: switchdist       = 10.0_wp
     real(wp)              :: cutoffdist       = 12.0_wp
     real(wp)              :: pairlistdist     = 13.5_wp
-    real(wp)              :: dmin_size_cg 
+    real(wp)              :: dmin_size_cg
     real(wp)              :: dielec_const     =  1.0_wp
     real(wp)              :: debye            =  10.0_wp
     logical               :: vdw_force_switch = .false.
@@ -121,7 +121,7 @@ module at_energy_mod
     real(wp)              :: eef1_temperature = 298.15_wp
 
     ! ~CG~ 3SPN.2C DNA: cutoff and parilist dist for BP and ele
-    ! 
+    !
     real(wp)              :: cg_cutoffdist_ele      = 52.0_wp
     real(wp)              :: cg_cutoffdist_126      = 39.0_wp
     real(wp)              :: cg_cutoffdist_DNAbp    = 18.0_wp
@@ -144,7 +144,7 @@ module at_energy_mod
 
   ! varibles
   logical, save           :: etitle           = .true.
-  logical, save           :: vervose          = .true. 
+  logical, save           :: vervose          = .true.
 
   ! subroutines
   public  :: show_ctrl_energy
@@ -645,7 +645,7 @@ contains
       end if
     end if
 
-    if (ene_info%go_electrostatic /= GoElectrostaticNONE) then 
+    if (ene_info%go_electrostatic /= GoElectrostaticNONE) then
       if (ene_info%forcefield == ForcefieldAAGO .or. ene_info%forcefield == ForcefieldKBGO) then
         call error_msg('Read_Ctrl_Energy> Electrostatic interaction is not supported for AAGO and KBGO model')
       end if
@@ -667,7 +667,7 @@ contains
     if (ene_info%switchdist > 100.0_wp) then
       call error_msg( &
          'Read_Ctrl_Energy> switchdist must be less than 100.0')
-    end if 
+    end if
 
     if (ene_info%cutoffdist > 100.0_wp) then
       call error_msg( &
@@ -677,8 +677,8 @@ contains
     if (ene_info%pairlistdist > 100.0_wp) then
       call error_msg( &
          'Read_Ctrl_Energy> pairlistdist must be less than 100.0')
-    end if 
-    
+    end if
+
     ! error check
     !
     if (ene_info%contact_check) then
@@ -712,11 +712,11 @@ contains
       write(MsgOut,'(A)')  'Read_Ctrl_Energy> Parameters of Energy Calculations'
       write(MsgOut,'(A20,A10)')                                   &
             '  forcefield      = ',                               &
-                trim(ForceFieldTypes(ene_info%forcefield))      
-                                                                
+                trim(ForceFieldTypes(ene_info%forcefield))
+
       write(MsgOut,'(A20,F10.3,A20,F10.3)')                       &
             '  switchdist      = ', ene_info%switchdist,          &
-            '  cutoffdist      = ', ene_info%cutoffdist         
+            '  cutoffdist      = ', ene_info%cutoffdist
 
       if (ene_info%electrostatic == ElectrostaticCUTOFF .and. &
            ene_info%vdw_shift) &
@@ -724,13 +724,13 @@ contains
 
       write(MsgOut,'(A20,F10.3,A20,F10.3)')                       &
             '  pairlistdist    = ', ene_info%pairlistdist,        &
-            '  dielec_const    = ', ene_info%dielec_const       
+            '  dielec_const    = ', ene_info%dielec_const
       write(MsgOut,'(A20,F10.3,A20,F10.3)')                       &
             '  debye           = ', ene_info%debye
-                                                                
-      if (ene_info%vdw_force_switch) then                       
+
+      if (ene_info%vdw_force_switch) then
         write(MsgOut,'(A)') '  vdw_force_switch=        yes'
-      else                                                      
+      else
         if (ene_info%forcefield == ForcefieldGROAMBER .or.        &
             ene_info%forcefield == ForcefieldGROMARTINI ) then
           if (ene_info%vdw_shift) then
@@ -742,7 +742,7 @@ contains
             end if
           elseif (ene_info%cutoffdist-ene_info%switchdist < EPS) then
             write(MsgOut,'(A)') '  vdW switch      =        no'
-          else 
+          else
             write(MsgOut,'(A)') '  vdW switch      =       yes'
           end if
         else
@@ -1047,7 +1047,7 @@ contains
     end do
     !$omp end parallel do
 
-    if (enefunc%gamd_use) then 
+    if (enefunc%gamd_use) then
       nonb_ene_flag = .true.
     else
       nonb_ene_flag = nonb_ene
@@ -1428,7 +1428,7 @@ contains
 
     ! GaMD boost and statistics
     !
-    if (enefunc%gamd_use) then 
+    if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
 
@@ -1706,7 +1706,7 @@ contains
         ! type = 22
         call compute_energy_flexible_dihed_pbc(enefunc, boundary, coord_pbc, &
             force, virial, energy%dihedral)
-        ! 
+        !
         if (enefunc%cg_safe_dihedral_calc) then
           ! type = 32
           call compute_energy_cg_dihed_periodic_cos2mod_pbc(enefunc,      &
@@ -1944,7 +1944,7 @@ contains
     ! -----------------------------
     ! CG DNA non-local interactions
     ! -----------------------------
-    ! 
+    !
     select case(boundary%type)
 
     case (BoundaryTypePBC)
@@ -1980,15 +1980,15 @@ contains
       end if
 
     case default
-      
+
       call error_msg('Compute_Energy_Go> Bad boundary condition for 3SPN.2C DNA model.')
 
     end select
-    
+
     ! -------------------------------------
     ! CG electrostatics: Debye-Huckel model
     ! -------------------------------------
-    ! 
+    !
     select case(boundary%type)
 
     case (BoundaryTypePBC)
@@ -2018,7 +2018,7 @@ contains
     ! ---------------------------------------------
     ! CG model: general excluded volume interaction
     ! ---------------------------------------------
-    ! 
+    !
     select case(boundary%type)
 
     case (BoundaryTypePBC)
@@ -2048,7 +2048,7 @@ contains
     ! ---------------------------
     ! CG protein-DNA interactions
     ! ---------------------------
-    ! 
+    !
     select case(boundary%type)
 
     case (BoundaryTypePBC)
@@ -2155,13 +2155,13 @@ contains
 
     ! GaMD boost and statistics
     !
-    if (enefunc%gamd_use) then 
+    if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
 
     ! GaMD boost and statistics
     !
-    if (enefunc%gamd_use) then 
+    if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
 
@@ -2558,7 +2558,7 @@ contains
 
     ! GaMD boost and statistics
     !
-    if (enefunc%gamd_use) then 
+    if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
 
@@ -3271,7 +3271,7 @@ contains
         qmmm%qm_count = qmmm%qm_count + 1
       else
         if (mod(my_replica_no, nrep_per_proc) == 0) qmmm%qm_count = qmmm%qm_count + 1
-      end if  
+      end if
 
     end if
 
@@ -3468,7 +3468,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_spot
-  !> @brief        calculate spherical boundary 
+  !> @brief        calculate spherical boundary
   !! @authors      KY
   !! @param[in]    molecule : molecule information
   !! @param[in]    boundary : boundary information
@@ -3519,7 +3519,7 @@ contains
     !$omp         force_local, vtmp,                      &
     !$omp         rn, rmin, din, rin,                     &
     !$omp         const, fcoeff, expo, id, my_id)         &
-    !$omp reduction(+:espot, virial_local, nc) 
+    !$omp reduction(+:espot, virial_local, nc)
 
 #ifdef OMP
     id = omp_get_thread_num()
@@ -3684,7 +3684,7 @@ contains
       values(ifm) = energy%base_stacking
       ifm = ifm+1
     end if
-    
+
     if (enefunc%num_impropers > 0 ) then
       write(category(ifm),frmt) 'IMPROPER'
       values(ifm) = energy%improper
@@ -4084,7 +4084,7 @@ contains
             RestraintsFuncDIHED:RestraintsFuncDIHEDCOM, &
             RestraintsFuncREPUL:RestraintsFuncREPULCOM, &
             RestraintsFuncFB:RestraintsFuncFBCOM)
- 
+
         restdist = restdist + energy%restraint(i)
 
       end select
@@ -4190,7 +4190,7 @@ contains
             RestraintsFuncDIHED:RestraintsFuncDIHEDCOM, &
             RestraintsFuncREPUL:RestraintsFuncREPULCOM, &
             RestraintsFuncFB:RestraintsFuncFBCOM)
- 
+
         restdist = restdist + energy%restraint(i)
 
       end select
@@ -4348,7 +4348,7 @@ contains
     real(wp),                intent(in)    :: force_work(:,:,:)
     type(s_energy),          intent(inout) :: energy
     real(wp),                intent(inout) :: force(:,:)
-    
+
     ! local variables
     real(wp)                 :: exp_sum(1:MBeneTotal), beta, exptot
     real(wp)                 :: energy_min(1:MBeneTotal)
@@ -4462,7 +4462,7 @@ contains
 
     irep_first = 0
     i = enefunc%istart_restraint
-    do while(i <= enefunc%iend_restraint .and. irep_first == 0) 
+    do while(i <= enefunc%iend_restraint .and. irep_first == 0)
       if (enefunc%restraint_replica_index(i) > 0) irep_first = i
       i = i + 1
     end do
@@ -4505,7 +4505,7 @@ contains
           etmp = 0.0_dp
           do i = 1, enefunc%stats_natom
             atom_i = enefunc%stats_atom(i,dimno_i)
-            stmp = (1.0_dp / enefunc%stats_mass(i,dimno_i)) 
+            stmp = (1.0_dp / enefunc%stats_mass(i,dimno_i))
             d(1:3) = enefunc%stats_grad(1:3,i,dimno_i)
             do j = 1, enefunc%stats_natom
               atom_j = enefunc%stats_atom(j,dimno_j)
@@ -4627,8 +4627,11 @@ contains
     before_allreduce(39) = energy%cg_IDR_KH
     before_allreduce(40) = energy%cg_KH_inter_pro
     before_allreduce(41) = energy%cg_exv
+    before_allreduce(44) = energy%cg_WCA
+    before_allreduce(45) = energy%cg_ISOLF
+    before_allreduce(46) = energy%cg_LJ
 
-    call mpi_allreduce(before_allreduce, after_allreduce, 41, &
+    call mpi_allreduce(before_allreduce, after_allreduce, 46, &
                        mpi_wp_real,  mpi_sum,                 &
                        mpi_comm_country, ierror)
 
@@ -4670,6 +4673,9 @@ contains
     energy%cg_IDR_KH          = after_allreduce(39)
     energy%cg_KH_inter_pro    = after_allreduce(40)
     energy%cg_exv             = after_allreduce(41)
+    energy%cg_WCA             = after_allreduce(44)
+    energy%cg_ISOLF           = after_allreduce(45)
+    energy%cg_LJ              = after_allreduce(46)
 
     return
 
@@ -4721,12 +4727,12 @@ contains
         temporary(2,j) = force(2,j,jm)
         temporary(3,j) = force(3,j,jm)
       end do
-     
+
       ncycle = (natom - 1) / mpi_drain + 1
       nlen   = mpi_drain
       ixx    = 1
-     
-     
+
+
       do icycle = 1, ncycle
         if (icycle == ncycle) nlen = natom - (ncycle-1) * mpi_drain
         call mpi_allreduce(temporary(1,ixx), force(1,ixx,jm), 3*nlen, &
@@ -4746,7 +4752,7 @@ contains
           before_allreduce(n) = virial(i,j,jm)
         end do
       end do
-     
+
       n = n + 1
       before_allreduce(n) = energy(MBeneNonb,jm)
       n = n + 1
@@ -4765,7 +4771,7 @@ contains
           virial(i,j,jm) = after_allreduce(n)
         end do
       end do
-     
+
       n = n + 1
       energy(MBeneNonb,jm) = after_allreduce(n)
       n = n + 1

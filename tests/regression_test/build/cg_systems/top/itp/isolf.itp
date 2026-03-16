@@ -1,0 +1,1275 @@
+; ------------------------------------------------
+; ISOLF: Implicit Solvent Lipid Force Field v2.2.0
+; ------------------------------------------------
+
+[ atomtypes ]
+; name   n     mass   charge ptype      rmin      eps
+;    -   -    g/mol        e     -        nm   kJ/mol
+   PHA   1 110.0066   -1.000     A    0.0000   0.0000
+   CHO   1  87.1660    1.000     A    0.0000   0.0000
+   ETH   1  45.0845    1.000     A    0.0000   0.0000
+   GLY   1  75.0878    0.000     A    0.0000   0.0000
+   SER   1  88.0868    0.000     A    0.0000   0.0000
+   PHO   1 108.9986   -1.000     A    0.0000   0.0000
+   MID   1 143.1196    0.000     A    0.0000   0.0000
+   DL1   1 140.2700    0.000     A    0.0000   0.0000
+   DL2   1 142.2860    0.000     A    0.0000   0.0000
+   DM1   1 168.3240    0.000     A    0.0000   0.0000
+   DM2   1 170.3400    0.000     A    0.0000   0.0000
+   DP1   1 140.2700    0.000     A    0.0000   0.0000
+   DP2   1 140.2700    0.000     A    0.0000   0.0000
+   DP3   1 114.2320    0.000     A    0.0000   0.0000
+   DO1   1 140.2700    0.000     A    0.0000   0.0000
+   DO2   1 136.2380    0.000     A    0.0000   0.0000
+   DO3   1 170.3400    0.000     A    0.0000   0.0000
+   DS1   1 140.2700    0.000     A    0.0000   0.0000
+   DS2   1 140.2700    0.000     A    0.0000   0.0000
+   DS3   1 170.3400    0.000     A    0.0000   0.0000
+   PO1   1 140.2700    0.000     A    0.0000   0.0000
+   PO2   1 138.2540    0.000     A    0.0000   0.0000
+   PO3   1 142.2860    0.000     A    0.0000   0.0000
+   SO1   1 140.2700    0.000     A    0.0000   0.0000
+   SO2   1 138.2540    0.000     A    0.0000   0.0000
+   SO3   1 170.3400    0.000     A    0.0000   0.0000
+
+[ cg_LJ_parameters ]
+; name  name  epsilon    sigma  cut-off
+;    -     -   kJ/mol       nm       nm
+   SER   SER    1.656    0.588    1.470
+   SER   PHA    1.780    0.583    1.458
+   SER   CHO    1.702    0.619    1.547
+   SER   ETH    1.640    0.513    1.282
+   SER   PHO    1.780    0.583    1.458
+
+[ cg_WCA_parameters ]
+; name  name  epsilon    sigma
+;    -     -   kJ/mol       nm
+   PHA   PHA    1.913    0.578
+   PHA   CHO    1.830    0.614
+   PHA   ETH    1.763    0.508
+   PHA   GLY    1.756    0.570
+   PHA   PHO    1.913    0.578
+   PHA   MID    1.894    0.542
+   PHA   DL1    2.067    0.641
+   PHA   DL2    2.067    0.641
+   PHA   DM1    2.101    0.652
+   PHA   DM2    2.101    0.652
+   PHA   DO1    1.766    0.652
+   PHA   DO2    1.766    0.652
+   PHA   DO3    1.766    0.652
+   PHA   DP1    1.903    0.644
+   PHA   DP2    1.903    0.644
+   PHA   DP3    1.903    0.644
+   PHA   DS1    2.127    0.639
+   PHA   DS2    2.127    0.639
+   PHA   DS3    2.127    0.639
+   PHA   PO1    1.813    0.658
+   PHA   PO2    1.813    0.658
+   PHA   PO3    1.813    0.658
+   PHA   SO1    1.859    0.650
+   PHA   SO2    1.859    0.650
+   PHA   SO3    1.859    0.650
+   CHO   PHA    1.830    0.614
+   CHO   CHO    1.750    0.650
+   CHO   ETH    1.686    0.544
+   CHO   GLY    1.680    0.606
+   CHO   PHO    1.830    0.614
+   CHO   MID    1.811    0.579
+   CHO   DL1    1.977    0.677
+   CHO   DL2    1.977    0.677
+   CHO   DM1    2.009    0.689
+   CHO   DM2    2.009    0.689
+   CHO   DO1    1.689    0.688
+   CHO   DO2    1.689    0.688
+   CHO   DO3    1.689    0.688
+   CHO   DP1    1.821    0.680
+   CHO   DP2    1.821    0.680
+   CHO   DP3    1.821    0.680
+   CHO   DS1    2.035    0.675
+   CHO   DS2    2.035    0.675
+   CHO   DS3    2.035    0.675
+   CHO   PO1    1.734    0.694
+   CHO   PO2    1.734    0.694
+   CHO   PO3    1.734    0.694
+   CHO   SO1    1.778    0.686
+   CHO   SO2    1.778    0.686
+   CHO   SO3    1.778    0.686
+   ETH   PHA    1.763    0.508
+   ETH   CHO    1.686    0.544
+   ETH   ETH    1.624    0.438
+   ETH   GLY    1.618    0.500
+   ETH   PHO    1.763    0.508
+   ETH   MID    1.745    0.473
+   ETH   DL1    1.904    0.571
+   ETH   DL2    1.904    0.571
+   ETH   DM1    1.936    0.583
+   ETH   DM2    1.936    0.583
+   ETH   DO1    1.627    0.582
+   ETH   DO2    1.627    0.582
+   ETH   DO3    1.627    0.582
+   ETH   DP1    1.754    0.574
+   ETH   DP2    1.754    0.574
+   ETH   DP3    1.754    0.574
+   ETH   DS1    1.960    0.570
+   ETH   DS2    1.960    0.570
+   ETH   DS3    1.960    0.570
+   ETH   PO1    1.671    0.588
+   ETH   PO2    1.671    0.588
+   ETH   PO3    1.671    0.588
+   ETH   SO1    1.713    0.580
+   ETH   SO2    1.713    0.580
+   ETH   SO3    1.713    0.580
+   GLY   PHA    1.756    0.570
+   GLY   CHO    1.680    0.606
+   GLY   ETH    1.618    0.500
+   GLY   GLY    1.612    0.562
+   GLY   PHO    1.756    0.570
+   GLY   MID    1.739    0.534
+   GLY   DL1    1.897    0.633
+   GLY   DL2    1.897    0.633
+   GLY   DM1    1.928    0.645
+   GLY   DM2    1.928    0.645
+   GLY   DO1    1.621    0.644
+   GLY   DO2    1.621    0.644
+   GLY   DO3    1.621    0.644
+   GLY   DP1    1.747    0.636
+   GLY   DP2    1.747    0.636
+   GLY   DP3    1.747    0.636
+   GLY   DS1    1.953    0.631
+   GLY   DS2    1.953    0.631
+   GLY   DS3    1.953    0.631
+   GLY   PO1    1.665    0.650
+   GLY   PO2    1.665    0.650
+   GLY   PO3    1.665    0.650
+   GLY   SO1    1.706    0.642
+   GLY   SO2    1.706    0.642
+   GLY   SO3    1.706    0.642
+   PHO   PHA    1.913    0.578
+   PHO   CHO    1.830    0.614
+   PHO   ETH    1.763    0.508
+   PHO   GLY    1.756    0.570
+   PHO   PHO    1.913    0.578
+   PHO   MID    1.894    0.542
+   PHO   DL1    2.067    0.641
+   PHO   DL2    2.067    0.641
+   PHO   DM1    2.101    0.652
+   PHO   DM2    2.101    0.652
+   PHO   DO1    1.766    0.652
+   PHO   DO2    1.766    0.652
+   PHO   DO3    1.766    0.652
+   PHO   DP1    1.903    0.644
+   PHO   DP2    1.903    0.644
+   PHO   DP3    1.903    0.644
+   PHO   DS1    2.127    0.639
+   PHO   DS2    2.127    0.639
+   PHO   DS3    2.127    0.639
+   PHO   PO1    1.813    0.658
+   PHO   PO2    1.813    0.658
+   PHO   PO3    1.813    0.658
+   PHO   SO1    1.859    0.650
+   PHO   SO2    1.859    0.650
+   PHO   SO3    1.859    0.650
+   MID   PHA    1.894    0.542
+   MID   CHO    1.811    0.579
+   MID   ETH    1.745    0.473
+   MID   GLY    1.739    0.534
+   MID   PHO    1.894    0.542
+   MID   MID    1.875    0.507
+   MID   DL1    2.046    0.605
+   MID   DL2    2.046    0.605
+   MID   DM1    2.080    0.617
+   MID   DM2    2.080    0.617
+   MID   DO1    1.748    0.617
+   MID   DO2    1.748    0.617
+   MID   DO3    1.748    0.617
+   MID   DP1    1.884    0.609
+   MID   DP2    1.884    0.609
+   MID   DP3    1.884    0.609
+   MID   DS1    2.106    0.604
+   MID   DS2    2.106    0.604
+   MID   DS3    2.106    0.604
+   MID   PO1    1.795    0.623
+   MID   PO2    1.795    0.623
+   MID   PO3    1.795    0.623
+   MID   SO1    1.840    0.615
+   MID   SO2    1.840    0.615
+   MID   SO3    1.840    0.615
+   SER   GLY    1.634    0.575
+   SER   MID    1.762    0.547
+   SER   DL1    1.923    0.646
+   SER   DL2    1.923    0.646
+   SER   DM1    1.955    0.657
+   SER   DM2    1.955    0.657
+   SER   DO1    1.643    0.657
+   SER   DO2    1.643    0.657
+   SER   DO3    1.643    0.657
+   SER   DP1    1.771    0.649
+   SER   DP2    1.771    0.649
+   SER   DP3    1.771    0.649
+   SER   DS1    1.979    0.644
+   SER   DS2    1.979    0.644
+   SER   DS3    1.979    0.644
+   SER   PO1    1.687    0.663
+   SER   PO2    1.687    0.663
+   SER   PO3    1.687    0.663
+   SER   SO1    1.729    0.655
+   SER   SO2    1.729    0.655
+   SER   SO3    1.729    0.655
+
+[ cg_ISOLF_parameters ]
+; name  epsilon    sigma    omega
+;    -   kJ/mol       nm       nm
+   DL1    2.233    0.704    1.286
+   DL2    2.233    0.704    1.286
+   DM1    2.307    0.727    1.475
+   DM2    2.307    0.727    1.475
+   DO1    1.630    0.726    1.265
+   DO2    1.630    0.726    1.265
+   DO3    1.630    0.726    1.265
+   DP1    1.894    0.710    1.406
+   DP2    1.894    0.710    1.406
+   DP3    1.894    0.710    1.406
+   DS1    2.366    0.701    1.389
+   DS2    2.366    0.701    1.389
+   DS3    2.366    0.701    1.389
+   PO1    1.719    0.738    1.186
+   PO2    1.719    0.738    1.186
+   PO3    1.719    0.738    1.186
+   SO1    1.806    0.722    1.254
+   SO2    1.806    0.722    1.254
+   SO3    1.806    0.722    1.254
+
+[ moleculetype ]
+; name  nrexcl
+  DLPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   DLPA    PHA    1   -1.000 110.0066
+   2    MID      1   DLPA    MID    1    0.000 143.1196
+   3    DL1      1   DLPA    DL1    1    0.000 140.2700
+   4    DL2      1   DLPA    DL2    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4685      1763.4748
+   2   3   1   0.4745      2922.1840
+   3   4   1   0.5645      2069.9689
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 173.6364         7.1514
+   2   3   4   1 179.0909        11.4009
+
+[ moleculetype ]
+; name  nrexcl
+  DLPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   DLPC    CHO    1    1.000  87.1660
+   2    PHO      1   DLPC    PHO    1   -1.000 108.9986
+   3    MID      1   DLPC    MID    1    0.000 143.1196
+   4    DL1      1   DLPC    DL1    1    0.000 140.2700
+   5    DL2      1   DLPC    DL2    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      1984.7592
+   2   3   1   0.4715      1952.6966
+   3   4   1   0.4675      2471.3237
+   4   5   1   0.5505      1613.7962
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 140.9091         3.7505
+   2   3   4   1 179.0909         6.7101
+   3   4   5   1 179.0909         9.4786
+
+[ moleculetype ]
+; name  nrexcl
+  DLPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   DLPE    ETH    1    1.000  45.0845
+   2    PHO      1   DLPE    PHO    1   -1.000 108.9986
+   3    MID      1   DLPE    MID    1    0.000 143.1196
+   4    DL1      1   DLPE    DL1    1    0.000 140.2700
+   5    DL2      1   DLPE    DL2    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3565      4645.8799
+   2   3   1   0.4735      2031.9526
+   3   4   1   0.4755      2898.3888
+   4   5   1   0.5665      2154.0865
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 106.3636         4.6831
+   2   3   4   1 177.2727         7.4433
+   3   4   5   1 179.0909        11.9031
+
+[ moleculetype ]
+; name  nrexcl
+  DLPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   DLPG    GLY    1    0.000  75.0878
+   2    PHO      1   DLPG    PHO    1   -1.000 108.9986
+   3    MID      1   DLPG    MID    1    0.000 143.1196
+   4    DL1      1   DLPG    DL1    1    0.000 140.2700
+   5    DL2      1   DLPG    DL2    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3815      2556.8209
+   2   3   1   0.4695      1909.5121
+   3   4   1   0.4665      2343.0142
+   4   5   1   0.5455      1441.4569
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 100.9091         2.9059
+   2   3   4   1 179.0909         5.4369
+   3   4   5   1 179.0909         8.9696
+
+[ moleculetype ]
+; name  nrexcl
+  DLPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   DLPS    SER    1    0.000  88.0868
+   2    PHO      1   DLPS    PHO    1   -1.000 108.9986
+   3    MID      1   DLPS    MID    1    0.000 143.1196
+   4    DL1      1   DLPS    DL1    1    0.000 140.2700
+   5    DL2      1   DLPS    DL2    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4425      8885.3633
+   2   3   1   0.4695      1831.8375
+   3   4   1   0.4735      2797.4588
+   4   5   1   0.5635      2094.5199
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         8.1513
+   2   3   4   1 177.2727         7.3486
+   3   4   5   1 179.0909        11.5875
+
+[ moleculetype ]
+; name  nrexcl
+  DMPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   DMPA    PHA    1   -1.000 110.0066
+   2    MID      1   DMPA    MID    1    0.000 143.1196
+   3    DM1      1   DMPA    DM1    1    0.000 168.3240
+   4    DM2      1   DMPA    DM2    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4675      1798.0765
+   2   3   1   0.5265      2211.4453
+   3   4   1   0.6715      1503.6403
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 177.2727         6.7631
+   2   3   4   1 179.0909        12.3727
+
+[ moleculetype ]
+; name  nrexcl
+  DMPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   DMPC    CHO    1    1.000  87.1660
+   2    PHO      1   DMPC    PHO    1   -1.000 108.9986
+   3    MID      1   DMPC    MID    1    0.000 143.1196
+   4    DM1      1   DMPC    DM1    1    0.000 168.3240
+   5    DM2      1   DMPC    DM2    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4035      2029.6147
+   2   3   1   0.4715      1909.9275
+   3   4   1   0.5235      2050.6087
+   4   5   1   0.6635      1228.7037
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 140.9091         3.7407
+   2   3   4   1 179.0909         7.0334
+   3   4   5   1 179.0909        10.1357
+
+[ moleculetype ]
+; name  nrexcl
+  DMPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   DMPE    ETH    1    1.000  45.0845
+   2    PHO      1   DMPE    PHO    1   -1.000 108.9986
+   3    MID      1   DMPE    MID    1    0.000 143.1196
+   4    DM1      1   DMPE    DM1    1    0.000 168.3240
+   5    DM2      1   DMPE    DM2    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3565      4747.6185
+   2   3   1   0.4745      2197.4850
+   3   4   1   0.5295      2411.0787
+   4   5   1   0.6755      1524.5372
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 106.3636         4.8453
+   2   3   4   1 179.0909         7.5227
+   3   4   5   1 179.0909        13.0184
+
+[ moleculetype ]
+; name  nrexcl
+  DMPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   DMPG    GLY    1    0.000  75.0878
+   2    PHO      1   DMPG    PHO    1   -1.000 108.9986
+   3    MID      1   DMPG    MID    1    0.000 143.1196
+   4    DM1      1   DMPG    DM1    1    0.000 168.3240
+   5    DM2      1   DMPG    DM2    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3815      2567.1502
+   2   3   1   0.4715      1987.6395
+   3   4   1   0.5195      1925.4607
+   4   5   1   0.6515      1029.6688
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1  99.0909         2.6501
+   2   3   4   1 179.0909         5.6415
+   3   4   5   1 179.0909         9.4798
+
+[ moleculetype ]
+; name  nrexcl
+  DMPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   DMPS    SER    1    0.000  88.0868
+   2    PHO      1   DMPS    PHO    1   -1.000 108.9986
+   3    MID      1   DMPS    MID    1    0.000 143.1196
+   4    DM1      1   DMPS    DM1    1    0.000 168.3240
+   5    DM2      1   DMPS    DM2    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4435      9430.0853
+   2   3   1   0.4695      1847.0322
+   3   4   1   0.5305      2297.7119
+   4   5   1   0.6775      1555.2015
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         8.1785
+   2   3   4   1 179.0909         7.4593
+   3   4   5   1 179.0909        12.7777
+
+[ moleculetype ]
+; name  nrexcl
+  DPPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   DPPA    PHA    1   -1.000 110.0066
+   2    MID      1   DPPA    MID    1    0.000 143.1196
+   3    DP1      1   DPPA    DP1    1    0.000 140.2700
+   4    DP2      1   DPPA    DP2    1    0.000 140.2700
+   5    DP3      1   DPPA    DP3    1    0.000 114.2320
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4725      1810.4703
+   2   3   1   0.4995      4793.1979
+   3   4   1   0.6345     51782.5469
+   4   5   1   0.5745     49240.8982
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 171.8182         9.4853
+   2   3   4   1 179.0909        22.2413
+   3   4   5   1 179.0909        21.1266
+
+[ moleculetype ]
+; name  nrexcl
+  DPPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   DPPC    CHO    1    1.000  87.1660
+   2    PHO      1   DPPC    PHO    1   -1.000 108.9986
+   3    MID      1   DPPC    MID    1    0.000 143.1196
+   4    DP1      1   DPPC    DP1    1    0.000 140.2700
+   5    DP2      1   DPPC    DP2    1    0.000 140.2700
+   6    DP3      1   DPPC    DP3    1    0.000 114.2320
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      2030.8916
+   2   3   1   0.4705      1918.7328
+   3   4   1   0.4705      2746.8150
+   4   5   1   0.5625      2157.3367
+   5   6   1   0.5005      2101.9025
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 117.2727         3.3790
+   2   3   4   1 179.0909         7.2353
+   3   4   5   1 179.0909        11.5372
+   4   5   6   1 179.0909         9.3884
+
+[ moleculetype ]
+; name  nrexcl
+  DPPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   DPPE    ETH    1    1.000  45.0845
+   2    PHO      1   DPPE    PHO    1   -1.000 108.9986
+   3    MID      1   DPPE    MID    1    0.000 143.1196
+   4    DP1      1   DPPE    DP1    1    0.000 140.2700
+   5    DP2      1   DPPE    DP2    1    0.000 140.2700
+   6    DP3      1   DPPE    DP3    1    0.000 114.2320
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3555      4597.7787
+   2   3   1   0.4795      2169.1758
+   3   4   1   0.4985      4478.8599
+   4   5   1   0.6345     51396.7936
+   5   6   1   0.5745     49529.0984
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 104.5455         5.6466
+   2   3   4   1 175.4545        11.6392
+   3   4   5   1 179.0909        30.5951
+   4   5   6   1 179.0909        22.4752
+
+[ moleculetype ]
+; name  nrexcl
+  DPPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   DPPG    GLY    1    0.000  75.0878
+   2    PHO      1   DPPG    PHO    1   -1.000 108.9986
+   3    MID      1   DPPG    MID    1    0.000 143.1196
+   4    DP1      1   DPPG    DP1    1    0.000 140.2700
+   5    DP2      1   DPPG    DP2    1    0.000 140.2700
+   6    DP3      1   DPPG    DP3    1    0.000 114.2320
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3805      2575.8486
+   2   3   1   0.4705      2097.6156
+   3   4   1   0.4675      2530.2906
+   4   5   1   0.5555      1822.9846
+   5   6   1   0.4935      1852.5981
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 102.7273         3.1117
+   2   3   4   1 177.2727         6.0854
+   3   4   5   1 179.0909        10.5978
+   4   5   6   1 179.0909         8.6826
+
+[ moleculetype ]
+; name  nrexcl
+  DPPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   DPPS    SER    1    0.000  88.0868
+   2    PHO      1   DPPS    PHO    1   -1.000 108.9986
+   3    MID      1   DPPS    MID    1    0.000 143.1196
+   4    DP1      1   DPPS    DP1    1    0.000 140.2700
+   5    DP2      1   DPPS    DP2    1    0.000 140.2700
+   6    DP3      1   DPPS    DP3    1    0.000 114.2320
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4425      8992.8549
+   2   3   1   0.4745      2086.2240
+   3   4   1   0.4975      4450.9854
+   4   5   1   0.6335     47005.4472
+   5   6   1   0.5745     49037.8970
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         8.8070
+   2   3   4   1 171.8182        10.1312
+   3   4   5   1 179.0909        20.2075
+   4   5   6   1 179.0909        19.9637
+
+[ moleculetype ]
+; name  nrexcl
+  DOPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   DOPA    PHA    1   -1.000 110.0066
+   2    MID      1   DOPA    MID    1    0.000 143.1196
+   3    DO1      1   DOPA    DO1    1    0.000 140.2700
+   4    DO2      1   DOPA    DO2    1    0.000 136.2380
+   5    DO3      1   DOPA    DO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4665      1728.5872
+   2   3   1   0.4645      2309.8495
+   3   4   1   0.5085      1788.8395
+   4   5   1   0.5575      1157.2747
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 179.0909         5.5459
+   2   3   4   1 179.0909        10.6842
+   3   4   5   1 179.0909         5.0570
+
+[ moleculetype ]
+; name  nrexcl
+  DOPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   DOPC    CHO    1    1.000  87.1660
+   2    PHO      1   DOPC    PHO    1   -1.000 108.9986
+   3    MID      1   DOPC    MID    1    0.000 143.1196
+   4    DO1      1   DOPC    DO1    1    0.000 140.2700
+   5    DO2      1   DOPC    DO2    1    0.000 136.2380
+   6    DO3      1   DOPC    DO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      1990.9749
+   2   3   1   0.4705      1892.7450
+   3   4   1   0.4615      2095.9687
+   4   5   1   0.5035      1644.4215
+   5   6   1   0.5475       989.7797
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 140.9091         3.7324
+   2   3   4   1 179.0909         6.3352
+   3   4   5   1 179.0909         9.7590
+   4   5   6   1 179.0909         4.5454
+
+[ moleculetype ]
+; name  nrexcl
+  DOPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   DOPE    ETH    1    1.000  45.0845
+   2    PHO      1   DOPE    PHO    1   -1.000 108.9986
+   3    MID      1   DOPE    MID    1    0.000 143.1196
+   4    DO1      1   DOPE    DO1    1    0.000 140.2700
+   5    DO2      1   DOPE    DO2    1    0.000 136.2380
+   6    DO3      1   DOPE    DO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3565      4675.3439
+   2   3   1   0.4695      1890.4082
+   3   4   1   0.4645      2285.6905
+   4   5   1   0.5155      2036.3043
+   5   6   1   0.5605      1211.3682
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 108.1818         4.5993
+   2   3   4   1 179.0909         6.1163
+   3   4   5   1 179.0909        10.9289
+   4   5   6   1 177.2727         5.6215
+
+[ moleculetype ]
+; name  nrexcl
+  DOPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   DOPG    GLY    1    0.000  75.0878
+   2    PHO      1   DOPG    PHO    1   -1.000 108.9986
+   3    MID      1   DOPG    MID    1    0.000 143.1196
+   4    DO1      1   DOPG    DO1    1    0.000 140.2700
+   5    DO2      1   DOPG    DO2    1    0.000 136.2380
+   6    DO3      1   DOPG    DO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3805      2544.3856
+   2   3   1   0.4695      1914.2659
+   3   4   1   0.4575      1927.2703
+   4   5   1   0.4975      1516.9694
+   5   6   1   0.5375       859.2079
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 100.9091         3.0537
+   2   3   4   1 177.2727         5.5036
+   3   4   5   1 179.0909         9.2750
+   4   5   6   1 179.0909         4.2659
+
+[ moleculetype ]
+; name  nrexcl
+  DOPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   DOPS    SER    1    0.000  88.0868
+   2    PHO      1   DOPS    PHO    1   -1.000 108.9986
+   3    MID      1   DOPS    MID    1    0.000 143.1196
+   4    DO1      1   DOPS    DO1    1    0.000 140.2700
+   5    DO2      1   DOPS    DO2    1    0.000 136.2380
+   6    DO3      1   DOPS    DO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4425      8829.7109
+   2   3   1   0.4665      1770.1901
+   3   4   1   0.4655      2335.7991
+   4   5   1   0.5095      1809.3645
+   5   6   1   0.5575      1165.3019
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         8.0045
+   2   3   4   1 179.0909         6.3878
+   3   4   5   1 179.0909        10.8988
+   4   5   6   1 179.0909         5.1405
+
+[ moleculetype ]
+; name  nrexcl
+  DSPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   DSPA    PHA    1   -1.000 110.0066
+   2    MID      1   DSPA    MID    1    0.000 143.1196
+   3    DS1      1   DSPA    DS1    1    0.000 140.2700
+   4    DS2      1   DSPA    DS2    1    0.000 140.2700
+   5    DS3      1   DSPA    DS3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4725      1841.0139
+   2   3   1   0.4995      4709.6117
+   3   4   1   0.6345     50774.0941
+   4   5   1   0.7005     39358.9782
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 175.4545         7.7745
+   2   3   4   1 179.0909        32.8992
+   3   4   5   1 179.0909        70.0234
+
+[ moleculetype ]
+; name  nrexcl
+  DSPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   DSPC    CHO    1    1.000  87.1660
+   2    PHO      1   DSPC    PHO    1   -1.000 108.9986
+   3    MID      1   DSPC    MID    1    0.000 143.1196
+   4    DS1      1   DSPC    DS1    1    0.000 140.2700
+   5    DS2      1   DSPC    DS2    1    0.000 140.2700
+   6    DS3      1   DSPC    DS3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      1951.8821
+   2   3   1   0.4765      2029.1603
+   3   4   1   0.4955      4201.5328
+   4   5   1   0.6335     46812.9296
+   5   6   1   0.7005     39495.7646
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 140.9091         4.1673
+   2   3   4   1 179.0909         7.9410
+   3   4   5   1 179.0909        13.4998
+   4   5   6   1 179.0909        15.8906
+
+[ moleculetype ]
+; name  nrexcl
+  DSPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   DSPE    ETH    1    1.000  45.0845
+   2    PHO      1   DSPE    PHO    1   -1.000 108.9986
+   3    MID      1   DSPE    MID    1    0.000 143.1196
+   4    DS1      1   DSPE    DS1    1    0.000 140.2700
+   5    DS2      1   DSPE    DS2    1    0.000 140.2700
+   6    DS3      1   DSPE    DS3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3555      4583.0591
+   2   3   1   0.4805      2205.1861
+   3   4   1   0.4995      4643.6881
+   4   5   1   0.6345     51429.2558
+   5   6   1   0.7005     40292.6788
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 106.3636         6.0572
+   2   3   4   1 179.0909         9.9200
+   3   4   5   1 179.0909        33.5578
+   4   5   6   1 179.0909        61.3964
+
+[ moleculetype ]
+; name  nrexcl
+  DSPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   DSPG    GLY    1    0.000  75.0878
+   2    PHO      1   DSPG    PHO    1   -1.000 108.9986
+   3    MID      1   DSPG    MID    1    0.000 143.1196
+   4    DS1      1   DSPG    DS1    1    0.000 140.2700
+   5    DS2      1   DSPG    DS2    1    0.000 140.2700
+   6    DS3      1   DSPG    DS3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3805      2478.1795
+   2   3   1   0.4735      2004.6771
+   3   4   1   0.4975      4475.5104
+   4   5   1   0.6345     51166.9923
+   5   6   1   0.7005     39172.2941
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 133.6364         6.4439
+   2   3   4   1 175.4545         7.3115
+   3   4   5   1 179.0909        13.8743
+   4   5   6   1 179.0909        16.5246
+
+[ moleculetype ]
+; name  nrexcl
+  DSPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   DSPS    SER    1    0.000  88.0868
+   2    PHO      1   DSPS    PHO    1   -1.000 108.9986
+   3    MID      1   DSPS    MID    1    0.000 143.1196
+   4    DS1      1   DSPS    DS1    1    0.000 140.2700
+   5    DS2      1   DSPS    DS2    1    0.000 140.2700
+   6    DS3      1   DSPS    DS3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4435      9235.7510
+   2   3   1   0.4755      2041.8932
+   3   4   1   0.4975      4255.9195
+   4   5   1   0.6345     51453.5621
+   5   6   1   0.7005     39994.3043
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         8.3988
+   2   3   4   1 179.0909         7.5279
+   3   4   5   1 179.0909        25.6652
+   4   5   6   1 179.0909        48.8164
+
+[ moleculetype ]
+; name  nrexcl
+  POPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   POPA    PHA    1   -1.000 110.0066
+   2    MID      1   POPA    MID    1    0.000 143.1196
+   3    PO1      1   POPA    PO1    1    0.000 140.2700
+   4    PO2      1   POPA    PO2    1    0.000 138.2540
+   5    PO3      1   POPA    PO3    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4665      1711.8591
+   2   3   1   0.4685      2437.0221
+   3   4   1   0.5415      2056.8662
+   4   5   1   0.5185       481.4885
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 177.2727         6.1382
+   2   3   4   1 179.0909        11.9056
+   3   4   5   1 179.0909         5.8275
+
+[ moleculetype ]
+; name  nrexcl
+  POPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   POPC    CHO    1    1.000  87.1660
+   2    PHO      1   POPC    PHO    1   -1.000 108.9986
+   3    MID      1   POPC    MID    1    0.000 143.1196
+   4    PO1      1   POPC    PO1    1    0.000 140.2700
+   5    PO2      1   POPC    PO2    1    0.000 138.2540
+   6    PO3      1   POPC    PO3    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      1994.8377
+   2   3   1   0.4705      1871.2843
+   3   4   1   0.4645      2258.5233
+   4   5   1   0.5355      1928.5928
+   5   6   1   0.5015       383.4372
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 140.9091         3.7422
+   2   3   4   1 179.0909         6.5685
+   3   4   5   1 179.0909        10.2469
+   4   5   6   1 179.0909         4.8591
+
+[ moleculetype ]
+; name  nrexcl
+  POPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   POPE    ETH    1    1.000  45.0845
+   2    PHO      1   POPE    PHO    1   -1.000 108.9986
+   3    MID      1   POPE    MID    1    0.000 143.1196
+   4    PO1      1   POPE    PO1    1    0.000 140.2700
+   5    PO2      1   POPE    PO2    1    0.000 138.2540
+   6    PO3      1   POPE    PO3    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3565      4682.7105
+   2   3   1   0.4715      1945.7284
+   3   4   1   0.4725      2710.9747
+   4   5   1   0.5475      2345.5751
+   5   6   1   0.5245       524.6947
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 108.1818         4.7933
+   2   3   4   1 177.2727         6.9601
+   3   4   5   1 179.0909        12.3173
+   4   5   6   1 179.0909         6.3149
+
+[ moleculetype ]
+; name  nrexcl
+  POPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   POPG    GLY    1    0.000  75.0878
+   2    PHO      1   POPG    PHO    1   -1.000 108.9986
+   3    MID      1   POPG    MID    1    0.000 143.1196
+   4    PO1      1   POPG    PO1    1    0.000 140.2700
+   5    PO2      1   POPG    PO2    1    0.000 138.2540
+   6    PO3      1   POPG    PO3    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3815      2579.5595
+   2   3   1   0.4705      1925.8955
+   3   4   1   0.4635      2226.4036
+   4   5   1   0.5265      1625.8103
+   5   6   1   0.4945       346.8038
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1  99.0909         2.8033
+   2   3   4   1 179.0909         5.3570
+   3   4   5   1 179.0909         9.6056
+   4   5   6   1 179.0909         4.4210
+
+[ moleculetype ]
+; name  nrexcl
+  POPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   POPS    SER    1    0.000  88.0868
+   2    PHO      1   POPS    PHO    1   -1.000 108.9986
+   3    MID      1   POPS    MID    1    0.000 143.1196
+   4    PO1      1   POPS    PO1    1    0.000 140.2700
+   5    PO2      1   POPS    PO2    1    0.000 138.2540
+   6    PO3      1   POPS    PO3    1    0.000 142.2860
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4425      8900.3877
+   2   3   1   0.4665      1772.1281
+   3   4   1   0.4695      2546.0923
+   4   5   1   0.5415      1994.4299
+   5   6   1   0.5185       495.7537
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         7.9485
+   2   3   4   1 177.2727         7.0625
+   3   4   5   1 179.0909        12.1286
+   4   5   6   1 179.0909         5.8918
+
+[ moleculetype ]
+; name  nrexcl
+  SOPA       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    PHA      1   SOPA    PHA    1   -1.000 110.0066
+   2    MID      1   SOPA    MID    1    0.000 143.1196
+   3    SO1      1   SOPA    SO1    1    0.000 140.2700
+   4    SO2      1   SOPA    SO2    1    0.000 138.2540
+   5    SO3      1   SOPA    SO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4675      1703.2501
+   2   3   1   0.4695      2431.6779
+   3   4   1   0.5455      2205.1838
+   4   5   1   0.5885      1486.6234
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 177.2727         6.1522
+   2   3   4   1 179.0909        12.2971
+   3   4   5   1 179.0909         7.6138
+
+[ moleculetype ]
+; name  nrexcl
+  SOPC       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    CHO      1   SOPC    CHO    1    1.000  87.1660
+   2    PHO      1   SOPC    PHO    1   -1.000 108.9986
+   3    MID      1   SOPC    MID    1    0.000 143.1196
+   4    SO1      1   SOPC    SO1    1    0.000 140.2700
+   5    SO2      1   SOPC    SO2    1    0.000 138.2540
+   6    SO3      1   SOPC    SO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4025      1982.4036
+   2   3   1   0.4715      1942.0011
+   3   4   1   0.4645      2257.9851
+   4   5   1   0.5365      1971.7266
+   5   6   1   0.5745      1223.3944
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 142.7273         3.3095
+   2   3   4   1 179.0909         6.5660
+   3   4   5   1 179.0909        10.4714
+   4   5   6   1 179.0909         6.4456
+
+[ moleculetype ]
+; name  nrexcl
+  SOPE       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    ETH      1   SOPE    ETH    1    1.000  45.0845
+   2    PHO      1   SOPE    PHO    1   -1.000 108.9986
+   3    MID      1   SOPE    MID    1    0.000 143.1196
+   4    SO1      1   SOPE    SO1    1    0.000 140.2700
+   5    SO2      1   SOPE    SO2    1    0.000 138.2540
+   6    SO3      1   SOPE    SO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3565      4651.5092
+   2   3   1   0.4725      1947.8874
+   3   4   1   0.4705      2591.4312
+   4   5   1   0.5485      2413.7047
+   5   6   1   0.5915      1597.0852
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 106.3636         4.5047
+   2   3   4   1 179.0909         6.6445
+   3   4   5   1 179.0909        12.7920
+   4   5   6   1 179.0909         8.1336
+
+[ moleculetype ]
+; name  nrexcl
+  SOPG       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    GLY      1   SOPG    GLY    1    0.000  75.0878
+   2    PHO      1   SOPG    PHO    1   -1.000 108.9986
+   3    MID      1   SOPG    MID    1    0.000 143.1196
+   4    SO1      1   SOPG    SO1    1    0.000 140.2700
+   5    SO2      1   SOPG    SO2    1    0.000 138.2540
+   6    SO3      1   SOPG    SO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.3815      2610.6696
+   2   3   1   0.4705      1937.8007
+   3   4   1   0.4635      2214.6943
+   4   5   1   0.5295      1697.0900
+   5   6   1   0.5635      1000.4587
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 100.9091         2.9407
+   2   3   4   1 179.0909         5.4076
+   3   4   5   1 179.0909         9.8651
+   4   5   6   1 179.0909         6.0359
+
+[ moleculetype ]
+; name  nrexcl
+  SOPS       2
+
+[ atoms ]
+; nr   type  resnr    res   atom   cg   charge     mass
+;  -      -      -      -      -    -        e      amu
+   1    SER      1   SOPS    SER    1    0.000  88.0868
+   2    PHO      1   SOPS    PHO    1   -1.000 108.9986
+   3    MID      1   SOPS    MID    1    0.000 143.1196
+   4    SO1      1   SOPS    SO1    1    0.000 140.2700
+   5    SO2      1   SOPS    SO2    1    0.000 138.2540
+   6    SO3      1   SOPS    SO3    1    0.000 170.3400
+
+[ bonds ]
+;  i   j   f       eq           coef
+;  -   -   -       nm  kJ*nm-2*mol-1
+   1   2   1   0.4435      9094.0328
+   2   3   1   0.4675      1810.0408
+   3   4   1   0.4715      2665.9390
+   4   5   1   0.5445      2201.6502
+   5   6   1   0.5845      1361.3512
+
+[ angles ]
+;  i   j   k   f       eq           coef
+;  -   -   -   -      deg kJ*rad-2*mol-1
+   1   2   3   1 128.1818         7.7438
+   2   3   4   1 179.0909         6.6411
+   3   4   5   1 179.0909        12.4501
+   4   5   6   1 179.0909         7.5990
+
