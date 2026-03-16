@@ -28,7 +28,7 @@ Build_Information> Compiler Information
   MPI Compiler = Open MPI
 
 Runtime_Information> Machine and Library Information
-  date       = 2026/03/06 17:29:59
+  date       = 2026/03/16 16:07:22
   cpu model    = N/A
   exec. host   = diego@
   LD library   = /lib:/usr/lib:/etc/ld.so.conf.d:/Users/diego/.local/lib
@@ -65,13 +65,13 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   efield_virial   =              no
  
 Read_Ctrl_Dynamics> Parameters of MD simulation
-  integrator      =    VVER_CG  nsteps          =        100
+  integrator      =    VVER_CG  nsteps          =         10
   timestep        =     0.0100  initial_time    =     0.0000
-  eneout_period   =         20  rstout_period   =          0
+  eneout_period   =          2  rstout_period   =          0
   crdout_period   =          0  velout_period   =          0
   nbupdate_period =         10  stoptr_period   =         10
   qmsave_period   =          0
-  iseed           =         -1
+  iseed           =       1234
   annealing       =         no
   verbose         =         no
   target_md       =         no
@@ -112,9 +112,9 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
 [STEP2] Setup MPI
  
 Setup_Mpi_Md> Summary of Setup MPI
-  number of MPI processes   =          1
-  number of OpenMP threads  =         10
-  total number of CPU cores =         10
+  number of MPI processes   =          8
+  number of OpenMP threads  =          1
+  total number of CPU cores =          8
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -176,7 +176,7 @@ Setup_Boundary> Setup Variables for Boundary Condition
   origin(x,y,z)   =      0.000     0.000     0.000
  
 Random_Init> Initialize the random number
-  seed            = 2027211620
+  seed            = 1234
 
 Define_Enefunc_Gromacs> Number of Interactions in Each Term
   bond_ene        =      10240  angle_ene       =       8192
@@ -205,48 +205,48 @@ Setup_Fitting_Atdyn> NO fitting is applied, skip
  
 INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE             WCA           ISOLF  NATIVE_CONTACT          CG_EXV           ELECT     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
  --------------- --------------- --------------- --------------- ---------------
-INFO:         20          0.2000     -21349.5438     -30673.9997       9324.4559          1.3887       3615.3767       2844.8275        388.2138     -37626.6339          0.0000          0.0000        104.2163        254.5932   13811915.0532        262.7919        262.7919        200.0000     -17218.0396        -54.6173        -49.9235        -52.7159        -61.2126
+INFO:          2          0.0200     -21424.6139     -30881.1061       9456.4922          1.3869       3699.6195       2899.8550        368.6429     -37956.0355          0.0000          0.0000        106.8121        258.1983   13737222.5298        262.0804        262.0804        200.0000     -16992.4292        -53.3488        -50.1547        -51.1781        -58.7137
 
-INFO:         40          0.4000     -21285.5255     -30569.0523       9283.5267          1.3612       3533.1514       2787.1171        376.8239     -37369.6980          0.0000          0.0000        103.5534        253.4757   13889627.9643        263.5301        263.5301        200.0000     -17905.3075        -57.8392        -53.5122        -55.3134        -64.6921
+INFO:          4          0.0400     -21413.6197     -30857.7755       9444.1559          1.3864       3686.5976       2893.2408        369.8538     -37913.9698          0.0000          0.0000        106.5021        257.8614   13745740.2699        262.1616        262.1616        200.0000     -17000.9882        -53.3995        -49.8912        -51.4332        -58.8740
 
-INFO:         60          0.6000     -21223.6952     -30342.9468       9119.2516          1.3769       3526.0470       2729.4451        379.9363     -37081.8758          0.0000          0.0000        103.5006        248.9903   13961011.6978        264.2065        264.2065        200.0000     -18081.6926        -58.9477        -54.8835        -56.0285        -65.9311
+INFO:          6          0.0600     -21402.4597     -30832.9416       9430.4819          1.3859       3674.4679       2886.7292        371.6922     -37872.0140          0.0000          0.0000        106.1831        257.4881   13754191.8929        262.2422        262.2422        200.0000     -17003.1205        -53.4227        -49.6353        -51.5978        -59.0351
 
-INFO:         80          0.8000     -21176.3274     -30282.8254       9106.4980          1.3489       3468.4529       2672.3924        358.1923     -36884.3659          0.0000          0.0000        102.5029        248.6421   14025785.4808        264.8187        264.8187        200.0000     -18414.5461        -60.3443        -57.7466        -59.1884        -64.0977
+INFO:          8          0.0800     -21388.2288     -30806.5935       9418.3648          1.3861       3663.4124       2880.3445        374.2741     -37830.4891          0.0000          0.0000        105.8647        257.1573   13762591.4986        262.3222        262.3222        200.0000     -17002.8038        -53.4288        -49.4064        -51.6819        -59.1981
 
-INFO:        100          1.0000     -21123.6088     -30179.7158       9056.1070          1.3467       3447.4718       2624.3028        335.9805     -36689.8970          0.0000          0.0000        102.4260        247.2662   14083486.3079        265.3628        265.3628        200.0000     -18540.1267        -60.8720        -57.9595        -61.7892        -62.8673
+INFO:         10          0.1000     -21377.2316     -30778.9030       9401.6714          1.3874       3653.1848       2874.0612        377.8245     -37789.5232          0.0000          0.0000        105.5498        256.7015   13770934.5212        262.4017        262.4017        200.0000     -16996.8850        -53.4224        -49.1897        -51.6971        -59.3803
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       1.385
-    setup         =       0.193
-    dynamics      =       1.192
-      energy      =       0.586
-      integrator  =       0.134
+  total time      =       0.294
+    setup         =       0.206
+    dynamics      =       0.088
+      energy      =       0.051
+      integrator  =       0.015
       migration   =       0.000
-      pairlist    =       0.528 (       0.528,       0.528)
+      pairlist    =       0.080 (       0.078,       0.082)
   energy           
-    bond          =       0.019 (       0.019,       0.019)
+    bond          =       0.000 (       0.000,       0.000)
     enm           =       0.000 (       0.000,       0.000)
-    angle         =       0.030 (       0.030,       0.030)
-    dihedral      =       0.021 (       0.021,       0.021)
+    angle         =       0.000 (       0.000,       0.000)
+    dihedral      =       0.000 (       0.000,       0.000)
     base stacking =       0.000 (       0.000,       0.000)
-    nonbond       =       0.484 (       0.484,       0.484)
-      CG exv      =       0.009 (       0.009,       0.009)
+    nonbond       =       0.037 (       0.035,       0.040)
+      CG exv      =       0.000 (       0.000,       0.000)
       CG DNA bp   =       0.000 (       0.000,       0.000)
       CG DNA exv  =       0.000 (       0.000,       0.000)
-      CG ele      =       0.320 (       0.320,       0.320)
+      CG ele      =       0.025 (       0.024,       0.026)
       CG PWMcos   =       0.000 (       0.000,       0.000)
       CG PWMcosns =       0.000 (       0.000,       0.000)
       CG IDR-HPS  =       0.000 (       0.000,       0.000)
       CG IDR-KH   =       0.000 (       0.000,       0.000)
       CG KH       =       0.000 (       0.000,       0.000)
-      CG WCA      =       0.018 (       0.018,       0.018)
-      CG ISOLF    =       0.130 (       0.130,       0.130)
+      CG WCA      =       0.001 (       0.000,       0.001)
+      CG ISOLF    =       0.011 (       0.010,       0.014)
       CG LJ       =       0.000 (       0.000,       0.000)
     CG IDR-MPIPI  =       0.000 (       0.000,       0.000)
-      Contact     =       0.007 (       0.007,       0.007)
+      Contact     =       0.000 (       0.000,       0.000)
       pme real    =       0.000 (       0.000,       0.000)
       pme recip   =       0.000 (       0.000,       0.000)
     solvation     =       0.000 (       0.000,       0.000)
