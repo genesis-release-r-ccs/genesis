@@ -20,6 +20,7 @@ module sp_energy_nonbonds_mod
   use sp_energy_nonbond_pme_table_mod
   use sp_energy_table_linear_mod
   use sp_energy_nonbond_pme_notable_mod
+  use sp_energy_nonbond_spica_mod
   use sp_energy_nonbond_ljpme_mod
   use sp_energy_nonbond_generic_mod
   use sp_energy_nonbond_vacuum_mod
@@ -42,7 +43,12 @@ module sp_energy_nonbonds_mod
   ! subroutines
   public  :: compute_energy_nonbond_cutoff
   public  :: compute_energy_nonbond_pme
+  public  :: compute_energy_nonbond_pme_spica
+  public  :: compute_energy_nonbond_pme_pspica
   public  :: compute_energy_nonbond_pme_short
+  public  :: compute_energy_nonbond_pme_spica_short
+  public  :: compute_energy_nonbond_pme_pspica_short
+
   public  :: compute_energy_nonbond_pme_long
   ! FEP
   public  :: compute_energy_nonbond_cutoff_fep
@@ -330,6 +336,269 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    compute_energy_nonbond_pme_spica
+  !> @brief        Calculate nonbond energy with SPICA model
+  !! @authors      JJ
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair-list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    nonb_limiter : flag for contact checker
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] eelec        : electrostatic energy of target systems
+  !! @param[inout] evdw         : van der Waals energy of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_nonbond_pme_spica(domain, enefunc, pairlist,     &
+                                        boundary, npt, nonb_ene,             &
+                                        nonb_limiter, atmcls_pbc,            &
+                                        coord_pbc, force_long, force,        &
+                                        force_pbc, virial_cell, virial,      &
+                                        eelec, evdw)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    logical,                 intent(in)    :: npt
+    logical,                 intent(in)    :: nonb_ene
+    logical,                 intent(in)    :: nonb_limiter
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wip),               intent(inout) :: force_long(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(3,3,nthread)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw(nthread)
+
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerPmeReal, TimerOn)
+
+    ! Calculate PME real part
+    !
+    if (real_calc) then
+
+      call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("real",5)
+#endif
+
+      if (nonb_limiter) then
+
+        if (nonb_ene) then
+          call compute_energy_nonbond_notbl_spica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+        else
+          call compute_force_nonbond_notbl_spica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial)
+        end if
+      else
+
+        if (nonb_ene) then
+
+          call compute_energy_nonbond_notbl_spica( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+
+        else
+
+          call compute_force_nonbond_notbl_spica( &
+                                      domain, enefunc, pairlist, &
+                                      npt, atmcls_pbc,           &
+                                      coord_pbc, force_pbc,      &
+                                      virial)
+
+        end if
+
+      end if
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
+    end if
+    call timer(TimerPmeReal, TimerOff)
+
+    ! Calculate PME reciprocal part
+    !
+    if (reciprocal_calc) then
+
+      call timer(TimerPmeRecip, TimerOn)
+
+#ifdef NVTX
+   if (npt)  call nvtxStartRange("recip-pre",6)
+#endif
+      if (npt) call pme_pre(domain, boundary)
+#ifdef NVTX
+   if (npt)  call nvtxEndRange
+#endif
+
+#ifdef NVTX
+    call nvtxStartRange("recip",7)
+#endif
+
+      call pme_recip(domain, force_long, virial, eelec)
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
+      call timer(TimerPmeRecip, TimerOff)
+
+    end if
+
+    ! Add self energy
+    !
+    eelec(1) = eelec(1) + u_self
+
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_nonbond_pme_spica
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_nonbond_pme_pspica
+  !> @brief        Calculate nonbond energy with PSPICA model
+  !! @authors      JJ
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair-list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    nonb_limiter : flag for contact checker
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] eelec        : electrostatic energy of target systems
+  !! @param[inout] evdw         : van der Waals energy of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_nonbond_pme_pspica(domain, enefunc, pairlist,    &
+                                        boundary, npt, nonb_ene,             &
+                                        nonb_limiter, atmcls_pbc,            &
+                                        coord_pbc, force_long, force,        &
+                                        force_pbc, virial_cell, virial,      &
+                                        eelec, evdw)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    logical,                 intent(in)    :: npt
+    logical,                 intent(in)    :: nonb_ene
+    logical,                 intent(in)    :: nonb_limiter
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wip),               intent(inout) :: force_long(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(3,3,nthread)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw(nthread)
+
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerPmeReal, TimerOn)
+
+    ! Calculate PME real part
+    !
+    if (real_calc) then
+
+      call timer(TimerPmeReal, TimerOn)
+
+      if (nonb_limiter) then
+
+        if (nonb_ene) then
+          call compute_energy_nonbond_notbl_pspica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+        else
+          call compute_force_nonbond_notbl_pspica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial)
+        end if
+      else
+
+        if (nonb_ene) then
+          call compute_energy_nonbond_notbl_pspica( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+
+        else
+
+          call compute_force_nonbond_notbl_pspica( &
+                                      domain, enefunc, pairlist, &
+                                      npt, atmcls_pbc,           &
+                                      coord_pbc, force_pbc,      &
+                                      virial)
+
+        end if
+
+      end if
+
+    end if
+
+    call timer(TimerPmeReal, TimerOff)
+
+    ! Calculate PME reciprocal part
+    !
+    if (reciprocal_calc) then
+
+      call timer(TimerPmeRecip, TimerOn)
+
+      if (npt) call pme_pre(domain, boundary)
+
+      call pme_recip(domain, force_long, virial, eelec)
+
+      call timer(TimerPmeRecip, TimerOff)
+
+    end if
+
+    ! Add self energy
+    !
+    eelec(1) = eelec(1) + u_self
+
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_nonbond_pme_pspica
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    compute_energy_nonbond_pme_short
   !> @brief        Calculate nonbond energy (real part) by PME
   !! @authors      JJ
@@ -433,6 +702,163 @@ contains
     return
 
   end subroutine compute_energy_nonbond_pme_short
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_nonbond_pme_spica_short
+  !> @brief        Calculate nonbond energy (real part) by PME
+  !! @authors      JJ        
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair-list information
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
+  !! @param[inout] virial       : virial term of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_nonbond_pme_spica_short(domain, enefunc, pairlist, &
+                                              npt,                             &
+                                              atmcls_pbc,                      &
+                                              coord_pbc, force, force_pbc,     &
+                                              virial_cell, virial)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    logical,                 intent(in)    :: npt
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
+
+    ! local variables
+    real(dp)                 :: eelec(nthread), evdw(nthread)
+
+
+    call timer(TimerNonBond, TimerOn)
+
+    ! Calculate PME real part
+    !
+    if (real_calc) then
+
+      call timer(TimerPmeReal, TimerOn)
+#ifdef NVTX
+    call nvtxStartRange("real",5)
+#endif
+
+      if (enefunc%nonb_limiter) then
+
+        call compute_energy_nonbond_notbl_spica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+
+      else
+
+        call compute_force_nonbond_notbl_spica( &
+                                      domain, enefunc, pairlist, &
+                                      npt, atmcls_pbc, coord_pbc,&
+                                      force_pbc, virial)
+
+      end if
+
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+      call timer(TimerPmeReal, TimerOff)
+
+    end if
+
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_nonbond_pme_spica_short
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_nonbond_pme_pspica_short
+  !> @brief        Calculate nonbond energy (real part) by PME
+  !! @authors      JJ
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair-list information
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[inout] coord_pbc    : pbc oriented coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_pbc    : forces for each cell
+  !! @param[inout] virial_cell  : virial term of target system in cell
+  !! @param[inout] virial       : virial term of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_nonbond_pme_pspica_short(domain, enefunc, pairlist, &
+                                              npt,                             &
+                                              atmcls_pbc,                      &
+                                              coord_pbc, force, force_pbc,     &
+                                              virial_cell, virial)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    logical,                 intent(in)    :: npt
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
+
+    ! local variables
+    real(dp)                 :: eelec(nthread), evdw(nthread)
+
+
+    call timer(TimerNonBond, TimerOn)
+
+    ! Calculate PME real part
+    !
+    if (real_calc) then
+
+      call timer(TimerPmeReal, TimerOn)
+
+      if (enefunc%nonb_limiter) then
+
+        call compute_energy_nonbond_notbl_pspica_check( &
+                                      domain, enefunc, pairlist, &
+                                      atmcls_pbc, coord_pbc,     &
+                                      force_pbc, virial,         &
+                                      eelec, evdw)
+
+      else
+
+        call compute_force_nonbond_notbl_pspica( &
+                                      domain, enefunc, pairlist, &
+                                      npt, atmcls_pbc, coord_pbc,&
+                                      force_pbc, virial)
+
+      end if
+
+      call timer(TimerPmeReal, TimerOff)
+
+    end if
+
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_nonbond_pme_pspica_short
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

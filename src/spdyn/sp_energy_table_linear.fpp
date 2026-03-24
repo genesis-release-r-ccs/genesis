@@ -83,9 +83,14 @@ contains
     real(dp),                intent(inout) :: eelec(nthread)
     real(dp),                intent(inout) :: evdw(nthread)
 
-   
-    if (enefunc%forcefield == ForcefieldCHARMM) then
+    if (enefunc%forcefield == ForcefieldSPICA) then
 
+      call compute_energy_nonbond14_spica(&
+                              domain, enefunc, atmcls, coord,      &
+                              force_pbc, virial, eelec, evdw)
+
+    else if (enefunc%forcefield == ForcefieldCHARMM) then
+   
       if (enefunc%vdw == VDWPME) then
 
         if (enefunc%nonb_limiter) then
@@ -488,6 +493,179 @@ contains
     return
 
   end subroutine compute_energy_nonbond14_charmm_fugaku
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_nonbond14_spica
+  !> @brief        calculate nonbonded14 energy with PME and lookup table
+  !!               (linear, fugaku kernel)
+  !  @authors      JJ
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    atmcls  : atom class number
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !! @param[inout] evdw    : van der Waals energy of target systems
+  !                           
+  !======1=========2=========3=========4=========5=========6=========7=========8
+        
+  subroutine compute_energy_nonbond14_spica(domain, enefunc, atmcls, &
+                                            coord, force, virial, eelec, evdw)
+            
+    ! formal arguments        
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(in)    :: enefunc
+    integer,                 intent(in)    :: atmcls(:)
+    real(wp),                intent(in)    :: coord(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw(nthread)
+
+    ! local variables
+    real(wp)                 :: dij(3), rij2, rij2_inv
+    real(wp)                 :: R, table(6), iqtmp, jqtmp
+    real(wp)                 :: term_ljA, term_ljB, term_elec
+    real(wp)                 :: cutoff2, grad_coef, ljA, ljB
+    real(wp)                 :: work(3), viri(3)
+    real(wp)                 :: evdw_temp, elec_temp
+    integer                  :: i, ix, iy, j, k, ij, m, L, L1
+    integer                  :: iatmcls, jatmcls
+    integer                  :: num_nb14, ini_nb14, fin_nb14
+    integer                  :: ncell_local, id
+
+    real(wp),        pointer :: nb14_ljA(:,:), nb14_ljB(:,:)
+    real(wp),        pointer :: table_ene(:), table_grad(:)
+    real(wp),        pointer :: density, cutoff
+    integer,         pointer :: natom(:)
+    integer,         pointer :: nonb_ljtype(:,:)
+    integer(int2),   pointer :: cell_pair(:,:)
+    integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
+
+    cell_pair       => domain%cell_pairlist1
+    natom           => domain%num_atom
+
+    table_ene       => enefunc%table%table_ene
+    table_grad      => enefunc%table%table_grad
+    density         => enefunc%table%density
+    cutoff          => enefunc%cutoffdist
+    nb14_ljA        => enefunc%nb14_lj12
+    nb14_ljB        => enefunc%nb14_lj6
+    num_nb14_calc   => enefunc%num_nb14_calc
+    nb14_calc_list  => enefunc%nb14_calc_list
+    nonb_ljtype     => enefunc%nonb_ljtype
+
+    cutoff2         =  cutoff * cutoff
+    ncell_local     =  domain%num_cell_local
+
+    !$omp parallel default(shared)                                             &
+    !$omp private(id, i, j, k, ij, ix, iy, m, ini_nb14, fin_nb14, num_nb14,    &
+    !$omp         dij, rij2, rij2_inv, L, R, term_ljA, term_ljB, term_elec,    &
+    !$omp         grad_coef, work, table, ljA, ljB, iatmcls, jatmcls, iqtmp,   &
+    !$omp         jqtmp, L1, viri, evdw_temp, elec_temp)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    ! calculate energy and gradient
+    !
+    do ij = id+1, ncell_local, nthread
+
+      evdw_temp = 0.0_wp
+      elec_temp = 0.0_wp
+      viri(1:3) = 0.0_wp
+
+      do k = 1, num_nb14_calc(ij)
+
+        i  = nb14_calc_list(1,k,ij)
+        j  = nb14_calc_list(2,k,ij)
+
+        iatmcls = atmcls(i)
+        jatmcls = atmcls(j)
+
+        ! compute distance
+        !
+        dij(1) = coord(1,i,1) - coord(1,j,1)
+        dij(2) = coord(2,i,1) - coord(2,j,1)
+        dij(3) = coord(3,i,1) - coord(3,j,1)
+        rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+        iqtmp  = coord(4,i,1)
+        jqtmp  = coord(4,j,1)
+
+        ! energy and gradient
+        !
+        rij2_inv = 1.0_wp / rij2
+        rij2  = cutoff2 * density * rij2_inv
+        L     = int(rij2)
+        R     = rij2 - L
+
+        if (nonb_ljtype(iatmcls,jatmcls) == 9) then
+
+          ljA   = nb14_ljA(iatmcls,jatmcls)
+          ljB   = nb14_ljB(iatmcls,jatmcls)
+          term_ljB  = rij2_inv * rij2_inv * rij2_inv
+          term_ljA  = term_ljB * rij2_inv * sqrt(rij2_inv)
+          term_elec = table_ene(L) + R*(table_ene(L+1)-table_ene(L))
+          evdw_temp = evdw_temp + term_ljA*ljA - term_ljB*ljB
+          elec_temp = elec_temp + iqtmp*jqtmp*term_elec
+          term_ljA  = -9.0_wp * term_ljA * rij2_inv
+          term_ljB  = -6.0_wp * term_ljB * rij2_inv
+          term_elec = table_grad(L) + R*(table_grad(L+1)-table_grad(L))
+          grad_coef = term_ljA*ljA - term_ljB*ljB &
+                    + iqtmp*jqtmp*term_elec
+
+        else if (nonb_ljtype(iatmcls,jatmcls) == 12) then
+
+          ljA   = nb14_ljA(iatmcls,jatmcls)
+          ljB   = nb14_ljB(iatmcls,jatmcls)
+          term_ljB  = rij2_inv * rij2_inv
+          term_ljA  = term_ljB * term_ljB * term_ljB
+          term_elec = table_ene(L) + R*(table_ene(L+1)-table_ene(L))
+          evdw_temp = evdw_temp + term_ljA*ljA - term_ljB*ljB
+          elec_temp = elec_temp + iqtmp*jqtmp*term_elec
+          term_ljA  = -12.0_wp * term_ljA * rij2_inv
+          term_ljB  = - 4.0_wp * term_ljB * rij2_inv
+          term_elec = table_grad(L) + R*(table_grad(L+1)-table_grad(L))
+          grad_coef = term_ljA*ljA - term_ljB*ljB &
+                    + iqtmp*jqtmp*term_elec
+
+        end if
+
+        work(1) = grad_coef*dij(1)
+        work(2) = grad_coef*dij(2)
+        work(3) = grad_coef*dij(3)
+
+        viri(1) = viri(1) + dij(1)*work(1)
+        viri(2) = viri(2) + dij(2)*work(2)
+        viri(3) = viri(3) + dij(3)*work(3)
+
+        force(1,i,1,id+1) = force(1,i,1,id+1) - work(1)
+        force(2,i,1,id+1) = force(2,i,1,id+1) - work(2)
+        force(3,i,1,id+1) = force(3,i,1,id+1) - work(3)
+        force(1,j,1,id+1) = force(1,j,1,id+1) + work(1)
+        force(2,j,1,id+1) = force(2,j,1,id+1) + work(2)
+        force(3,j,1,id+1) = force(3,j,1,id+1) + work(3)
+
+      end do
+
+      virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
+      virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
+      evdw(id+1)  = evdw(id+1) + evdw_temp
+      eelec(id+1) = eelec(id+1) + elec_temp
+
+    end do
+    !$omp end parallel
+
+    return
+
+  end subroutine compute_energy_nonbond14_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

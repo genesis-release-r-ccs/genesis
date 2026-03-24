@@ -112,7 +112,7 @@ contains
 
     else
 
-      if (enefunc%nonb_limiter) then
+      if (enefunc%nonb_limiter .and. enefunc%forcefield /= ForcefieldSpica) then
 
         call pme_bond_corr_general_check( &
                               domain, enefunc, coord, force, virial, &
@@ -126,6 +126,11 @@ contains
                               virial, eelec)
         else if (domain%nonbond_kernel == NBK_Fugaku) then
            call pme_bond_corr_general_fugaku( &
+                              domain, enefunc, coord, force_pbc,     &
+                              virial, eelec)
+        else if (domain%nonbond_kernel == NBK_Spica .or. &
+                 domain%nonbond_kernel == NBK_PSpica) then
+           call pme_bond_corr_general_spica( &
                               domain, enefunc, coord, force_pbc,     &
                               virial, eelec)
         else if (domain%nonbond_kernel == NBK_GPU) then
@@ -144,7 +149,7 @@ contains
 
     if (enefunc%forcefield /= ForcefieldCHARMM) then
 
-      if (enefunc%nonb_limiter) then
+      if (enefunc%nonb_limiter .and. enefunc%forcefield /= ForcefieldSpica) then
 
         call pme_bond_corr_gro_amber_check( &
                               domain, enefunc, coord, force, virial, &
@@ -160,6 +165,11 @@ contains
 
         if (domain%nonbond_kernel == NBK_Intel) then
           call pme_bond_corr_gro_amber_intel( &
+                              domain, enefunc, coord, force_pbc,     &
+                              virial, eelec)
+        else if (domain%nonbond_kernel == NBK_Spica .or. &
+                 domain%nonbond_kernel == NBK_PSpica) then
+          call pme_bond_corr_gro_amber_spica( &
                               domain, enefunc, coord, force_pbc,     &
                               virial, eelec)
         else if (domain%nonbond_kernel == NBK_Fugaku) then
@@ -318,6 +328,135 @@ contains
     return
 
   end subroutine pme_bond_corr_general_intel
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !     
+  !  Subroutine    pme_bond_corr_general_spica
+  !> @brief        calculate bond correction term in PME (general, intel kernel)
+  !! @authors      JJ         
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces of target systems 
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !       
+  !======1=========2=========3=========4=========5=========6=========7=========8
+                              
+  subroutine pme_bond_corr_general_spica(domain, enefunc, coord, force, &
+                                         virial, eelec)
+                              
+    ! formal arguments        
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(in)    :: enefunc
+    real(wp),                intent(in)    :: coord(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
+    real(dp),                intent(inout) :: eelec(nthread)
+
+    ! local variables
+    real(wp)                 :: dij(3), rij2, work(3), viri(3), cutoff2
+    real(wp)                 :: R, term_elec, ccr, coef, elec_temp
+    real(wp)                 :: iqtmp, jqtmp
+    integer                  :: i, ix, iy, j, k, ij, L
+    integer                  :: id
+    integer                  :: ncell_local
+
+    real(wp),        pointer :: table_ecor(:), table_decor(:)
+    real(wp),        pointer :: density, cutoff
+    integer(int2),   pointer :: cell_pair(:,:)
+    integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
+    integer,         pointer :: num_nonb_excl(:), nonb_excl_list(:,:,:)
+
+
+    cell_pair       => domain%cell_pairlist1
+    natom           => domain%num_atom
+    nwater          => domain%num_water
+    water_list      => domain%water_list
+
+    table_ecor      => enefunc%table%table_ecor
+    table_decor     => enefunc%table%table_decor
+    density         => enefunc%table%density
+    cutoff          => enefunc%cutoffdist
+    num_nonb_excl   => enefunc%num_nonb_excl
+    nonb_excl_list  => enefunc%nonb_excl_list
+
+    ncell_local = domain%num_cell_local
+    cutoff2     = cutoff*cutoff
+
+    !$omp parallel default(shared)                                      &
+    !$omp private(id, i, j, k, ij, ix, iy, dij, rij2, L, R, coef, work, &
+    !$omp         viri, term_elec,  ccr, elec_temp, iqtmp, jqtmp)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+    ! calculate energy and gradient
+    !
+    do ij = id+1, ncell_local, nthread
+
+      elec_temp = 0.0_wp
+      viri(1:3) = 0.0_wp
+
+      do k = 1, num_nonb_excl(ij)
+
+        i  = nonb_excl_list(1,k,ij)
+        j  = nonb_excl_list(2,k,ij)
+
+        ! compute distance
+        !
+        dij(1) = coord(1,i,1) - coord(1,j,1)
+        dij(2) = coord(2,i,1) - coord(2,j,1)
+        dij(3) = coord(3,i,1) - coord(3,j,1)
+        rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+        iqtmp = coord(4,i,1)
+        jqtmp = coord(4,j,1)
+
+        ! energy and gradient
+        !
+        rij2 = rij2*2.0_wp*density
+        L    = int(rij2)
+        R    = rij2 - L
+
+        term_elec = table_ecor(L) + R*(table_ecor(L+1)-table_ecor(L))
+        ccr       = iqtmp * jqtmp * term_elec
+        elec_temp = elec_temp + ccr
+
+        term_elec = table_decor(L) + R*(table_decor(L+1)-table_decor(L))
+        coef      = iqtmp * jqtmp * term_elec
+
+        work(1) = coef*dij(1)
+        work(2) = coef*dij(2)
+        work(3) = coef*dij(3)
+
+        viri(1) = viri(1) + dij(1)*work(1)
+        viri(2) = viri(2) + dij(2)*work(2)
+        viri(3) = viri(3) + dij(3)*work(3)
+
+        force(1,i,1,id+1) = force(1,i,1,id+1) - work(1)
+        force(2,i,1,id+1) = force(2,i,1,id+1) - work(2)
+        force(3,i,1,id+1) = force(3,i,1,id+1) - work(3)
+        force(1,j,1,id+1) = force(1,j,1,id+1) + work(1)
+        force(2,j,1,id+1) = force(2,j,1,id+1) + work(2)
+        force(3,j,1,id+1) = force(3,j,1,id+1) + work(3)
+
+      end do
+
+      virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
+      virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
+      eelec(id+1) = eelec(id+1) + elec_temp
+
+    end do
+
+    !$omp end parallel
+
+    return
+
+  end subroutine pme_bond_corr_general_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -856,6 +995,134 @@ contains
 
   end subroutine pme_bond_corr_gro_amber_intel
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !     
+  !  Subroutine    pme_bond_corr_gro_amber_spica
+  !> @brief        calculate bodn correction relating with 14 scaling
+  !  @authors      JJ
+  !! @param[in]    domain  : domain information
+  !! @param[in]    enefunc : potential energy functions
+  !! @param[in]    coord   : coordinates for each cell
+  !! @param[inout] force   : forces for each cell
+  !! @param[inout] virial  : virial term of target systems
+  !! @param[inout] eelec   : electrostatic energy of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine pme_bond_corr_gro_amber_spica(domain, enefunc, coord, &
+                                           force, virial, eelec)
+
+    ! formal arguments
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_enefunc), target, intent(in)    :: enefunc
+    real(wp),                intent(in)    :: coord(:,:,:)
+    real(wp),                intent(inout) :: force(:,:,:,:)
+    real(dp),                intent(inout) :: virial(:,:,:)
+    real(dp),                intent(inout) :: eelec(nthread)
+
+    ! local variables
+    real(wp)                 :: dij(3), rij2, work(3), viri(3), cutoff2
+    real(wp)                 :: R, term_elec, coef, cc, qq_scale
+    real(wp)                 :: iqtmp, jqtmp
+    real(wp)                 :: elec_temp
+    integer                  :: i, ix, iy, j, k, ij, L
+    integer                  :: ncell_local, id
+
+    real(wp),        pointer :: table_ene(:), table_grad(:)
+    real(wp),        pointer :: density, cutoff
+    integer,         pointer :: natom(:)
+    integer(int2),   pointer :: cell_pair(:,:)
+    integer,         pointer :: num_nb14_calc(:), nb14_calc_list(:,:,:)
+
+
+    cell_pair       => domain%cell_pairlist1
+    natom           => domain%num_atom
+
+    table_ene       => enefunc%table%table_ecor
+    table_grad      => enefunc%table%table_decor
+    density         => enefunc%table%density
+    cutoff          => enefunc%cutoffdist
+    num_nb14_calc   => enefunc%num_nb14_calc
+    nb14_calc_list  => enefunc%nb14_calc_list
+
+    cutoff2         =  cutoff * cutoff
+    ncell_local     =  domain%num_cell_local
+
+    !$omp parallel default(shared)                                      &
+    !$omp private(id, i, j, k, ij, ix, iy, dij, rij2, L, R, coef, work, &
+    !$omp         term_elec, cc, qq_scale, iqtmp, jqtmp, viri, elec_temp)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+
+    ! calculate energy and gradient
+    !
+    do ij = id+1, ncell_local, nthread
+
+      elec_temp = 0.0_wp
+      viri(1:3) = 0.0_wp
+
+      do k = 1, num_nb14_calc(ij)
+
+        i  = nb14_calc_list(1,k,ij)
+        j  = nb14_calc_list(2,k,ij)
+
+        ! compute distance
+        !
+        dij(1) = coord(i,1,1) - coord(j,1,1)
+        dij(2) = coord(i,2,1) - coord(j,2,1)
+        dij(3) = coord(i,3,1) - coord(j,3,1)
+        rij2   = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+        iqtmp  = coord(i,4,1)
+        jqtmp  = coord(j,4,1)
+
+        ! energy and gradient
+        !
+        rij2 = 2.0_wp*density*rij2
+        L    = int(rij2)
+        R    = rij2 - L
+
+        qq_scale  = -enefunc%nb14_qq_scale(k,ij)+1.0_wp
+        term_elec = table_ene(L) + R*(table_ene(L+1)-table_ene(L))
+        cc        = iqtmp*jqtmp*qq_scale
+        elec_temp = elec_temp + term_elec*cc
+
+        term_elec = table_grad(L) + R*(table_grad(L+1)-table_grad(L))
+        coef      = cc*term_elec
+
+        work(1) = coef*dij(1)
+        work(2) = coef*dij(2)
+        work(3) = coef*dij(3)
+
+        viri(1) = viri(1) + dij(1)*work(1)
+        viri(2) = viri(2) + dij(2)*work(2)
+        viri(3) = viri(3) + dij(3)*work(3)
+
+        force(i,1,1,id+1) = force(i,1,1,id+1) - work(1)
+        force(i,2,1,id+1) = force(i,2,1,id+1) - work(2)
+        force(i,3,1,id+1) = force(i,3,1,id+1) - work(3)
+        force(j,1,1,id+1) = force(j,1,1,id+1) + work(1)
+        force(j,2,1,id+1) = force(j,2,1,id+1) + work(2)
+        force(j,3,1,id+1) = force(j,3,1,id+1) + work(3)
+
+      end do
+
+      virial(1,1,id+1) = virial(1,1,id+1) - viri(1)
+      virial(2,2,id+1) = virial(2,2,id+1) - viri(2)
+      virial(3,3,id+1) = virial(3,3,id+1) - viri(3)
+      eelec(id+1) = eelec(id+1) + elec_temp
+
+    end do
+
+    !$omp end parallel
+
+    return
+
+  end subroutine pme_bond_corr_gro_amber_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

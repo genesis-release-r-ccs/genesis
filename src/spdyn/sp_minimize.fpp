@@ -67,8 +67,8 @@ module sp_minimize_mod
     logical            :: check_structure      = .true.
     logical            :: fix_ring_error       = .false.
     logical            :: fix_chirality_error  = .false.
-    character(MaxLine) :: exclude_ring_grpid   = ''
-    character(MaxLine) :: exclude_chiral_grpid = ''
+    character(MaxLine) :: exclude_ring_grpid   = ' '
+    character(MaxLine) :: exclude_chiral_grpid = ' '
   end type s_min_info
 
   ! subroutines
@@ -529,7 +529,7 @@ contains
     end do
 
     if (constraints%fast_water) &
-      call compute_settle_min(coord_ref, domain, constraints, coord)
+      call compute_rigid_water_min(coord_ref, domain, constraints, coord)
 
     if (constraints%water_type == TIP4) &
       call decide_dummy(domain, constraints, coord)
@@ -627,7 +627,7 @@ contains
         end do
       end do
       if (constraints%fast_water) &
-        call compute_settle_min(coord_ref, domain, constraints, coord)
+        call compute_rigid_water_min(coord_ref, domain, constraints, coord)
 
       if (constraints%water_type == TIP4) call decide_dummy(domain, constraints, coord)
 

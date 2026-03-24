@@ -17,6 +17,7 @@ module sp_enefunc_mod
   use sp_enefunc_gromacs_mod
   use sp_enefunc_amber_mod
   use sp_enefunc_charmm_mod
+  use sp_enefunc_spica_mod
   use sp_enefunc_restraints_mod
   use sp_enefunc_localres_mod
   use sp_enefunc_table_mod
@@ -118,6 +119,7 @@ contains
     enefunc%switchdist        = ene_info%switchdist
     enefunc%cutoffdist        = ene_info%cutoffdist
     enefunc%pairlistdist      = ene_info%pairlistdist
+    enefunc%flexible_pairlist_update = ene_info%flexible_pairlist_update
     enefunc%dielec_const      = ene_info%dielec_const
     enefunc%force_switch      = ene_info%vdw_force_switch
     enefunc%vdw_shift         = ene_info%vdw_shift
@@ -136,6 +138,8 @@ contains
     enefunc%nonb_limiter      = ene_info%nonb_limiter
     enefunc%minimum_contact   = ene_info%minimum_contact
     enefunc%err_minimum_contact = ene_info%err_minimum_contact
+    enefunc%force_max         = ene_info%force_max
+    enefunc%force_max_assign  = ene_info%force_max_assign
 
     enefunc%efield(1)         = ene_info%efield_x           
     enefunc%efield(2)         = ene_info%efield_y           
@@ -164,10 +168,17 @@ contains
 
     ! charmm
     !
-    if (par%num_bonds > 0) then
+    if (par%num_bonds > 0 .and. enefunc%forcefield /= ForceFieldSpica) then
 
       call define_enefunc_charmm(ene_info, par, localres, molecule, &
                                  constraints, restraints, domain, enefunc)
+
+    ! spica
+    !
+    else if (par%num_bonds > 0) then
+  
+      call define_enefunc_spica(ene_info, par, localres, molecule,  &
+                                constraints, restraints, domain, enefunc, comm)
 
     ! amber
     !
@@ -200,8 +211,13 @@ contains
 
     ! bonding_checker
     !
-    if (ene_info%structure_check /= StructureCheckNone)  &
-      call check_bonding(enefunc, domain)
+    if (ene_info%structure_check /= StructureCheckNone) then
+      if (ene_info%forcefield /= ForcefieldSpica) then
+        call check_bonding(enefunc, domain)
+      else
+        call check_bonding_spica(enefunc, domain)
+      end if
+    end if
 
     return
 
@@ -273,7 +289,6 @@ contains
     call alloc_enefunc(enefunc, EneFuncAngl, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncDihe, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncImpr, ncel, ncel)
-    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
     if (constraints%rigid_bond) then
 
@@ -321,8 +336,8 @@ contains
 
     ! reassign bond information
     !
+    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
     call update_enefunc_pio(domain, comm, enefunc, constraints)
-    call dealloc_enefunc(enefunc, EneFuncBondCell)
 
     ! nonbonded
     !
@@ -341,8 +356,13 @@ contains
     !
     call setup_enefunc_localres(localres, domain, enefunc)
 
-    if (ene_info%structure_check /= StructureCheckNone)  &
-      call check_bonding(enefunc, domain)
+    if (ene_info%structure_check /= StructureCheckNone) then
+      if (ene_info%forcefield /= ForcefieldSpica) then
+        call check_bonding(enefunc, domain)
+      else
+        call check_bonding_spica(enefunc, domain)
+      end if
+    end if 
 
     call dealloc_domain(domain, DomainDynvar_pio)
     call dealloc_enefunc(enefunc, EneFuncBase_pio)
@@ -407,14 +427,6 @@ contains
     ! bond
     !
     call update_outgoing_enefunc_bond(domain, enefunc)
-
-    ! enm
-    !
-    if (enefunc%enm_use) then
-      call update_enefunc_enm(domain, enefunc)
-      call update_cell_size_enm(domain, enefunc, comm)
-      call update_cell_boundary_enm(domain, enefunc, comm)
-    end if
 
     ! angle
     !
@@ -481,6 +493,14 @@ contains
     !
     call update_incoming_enefunc_fitting(domain, enefunc)
 
+    ! enm
+    !
+    if (enefunc%enm_use) then
+      call update_enefunc_enm(domain, enefunc)
+      call update_cell_size_enm(domain, enefunc, comm)
+      call update_cell_boundary_enm(domain, enefunc, comm)
+    end if
+
     ! re-count nonbond exclusion list
     !
 
@@ -488,15 +508,29 @@ contains
 
     if (constraints%rigid_bond) then
 
-      call count_nonb_excl(first, .true., constraints, domain, enefunc)
+      if (enefunc%forcefield /= ForceFieldSpica) then
+        call count_nonb_excl(first, .true., constraints, domain, enefunc)
+      else
+        call count_nonb_excl_spica(first, constraints, domain, enefunc)
+      end if
 
     else
 
-      call count_nonb_excl(first, .false., constraints, domain, enefunc)
+      if (enefunc%forcefield /= ForcefieldSpica) then
+        call count_nonb_excl(first, .false., constraints, domain, enefunc)
+      else
+        call count_nonb_excl_spica(first, constraints, domain, enefunc)
+      end if
 
     end if
 
-    if (enefunc%bonding_check) call check_bonding(enefunc, domain)
+    if (enefunc%bonding_check) then
+      if (enefunc%forcefield /= ForcefieldSpica) then
+        call check_bonding(enefunc, domain)
+      else
+        call check_bonding_spica(enefunc, domain)
+      end if
+    end if 
 
     return
 
@@ -1741,7 +1775,7 @@ contains
            write(MsgOut,'(A,2I10,F10.5)') &
           'Check_bonding> distance is grater than cellsize:', &
            bondlist(1,ix,i),bondlist(2,ix,i),r12
-           call error_msg('')
+           call error_msg(' ')
         end if
 
       end do
@@ -1773,7 +1807,7 @@ contains
            write(MsgOut,'(A,2I10,F10.5)') &
            'Check_bonding> distance in angle is grater than cellsize:', &
            anglelist(1,ix,i),anglelist(3,ix,i),r12
-           call error_msg('')
+           call error_msg(' ')
         end if
 
       end do
@@ -1825,7 +1859,7 @@ contains
            write(MsgOut,'(A,2I10,F10.5)') &
            'Check_bonding> distance in dihedral is grater than cellsize:', &
            dihelist(1,ix,i),dihelist(4,ix,i),r12
-           call error_msg('')
+           call error_msg(' ')
         end if
 
       end do
@@ -1844,7 +1878,7 @@ contains
             write(MsgOut,'(A,2I10,F10.5)') &
            'Check_bonding> distance in rb dihedral is grater than cellsize:', &
             rb_dihelist(1,ix,i), rb_dihelist(4,ix,i),r12
-            call error_msg('')
+            call error_msg(' ')
           end if
        
         end do
@@ -1864,7 +1898,7 @@ contains
           write(MsgOut,'(A,2I10,F10.5)') &
       'Check_bonding> distance in improper dihedral is grater than cellsize:', &
           imprlist(1,ix,i), imprlist(4,ix,i),r12
-          call error_msg('')
+          call error_msg(' ')
         end if
       end do
 
@@ -1875,6 +1909,295 @@ contains
     return
 
   end subroutine check_bonding
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !   
+  !  Subroutine    check_bonding_spica
+  !> @brief        check bonds in SPICA
+  !! @authors      CK, JJ
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    domain   : domain information
+  !   
+  !======1=========2=========3=========4=========5=========6=========7=========8
+      
+  subroutine check_bonding_spica(enefunc, domain)
+      
+    ! formal arguments
+    type(s_enefunc), target, intent(in)    :: enefunc
+    type(s_domain),  target, intent(in)    :: domain
+
+    ! local variables
+    real(wp)                 :: d12(1:3), r12, r_dif
+    integer                  :: i, j, ix, icel1, icel2, i1, i2
+    integer                  :: icel3, i3,icel4, i4
+    integer                  :: id, my_id, omp_get_thread_num
+    integer                  :: pbc_int, k1, k2, k3, kk1, kk2, kk3
+    real(wp), parameter      :: maxdistance = 3.5_wp
+    real(wp)                 :: maxcell_size
+   
+    real(wp),        pointer :: r0(:,:)
+    integer,         pointer :: nbond(:), bondlist(:,:,:)
+    integer,         pointer :: nenm(:), enmlist(:,:,:)
+    integer,         pointer :: nangle(:), anglelist(:,:,:)
+    integer,         pointer :: ndihe(:),  dihelist(:,:,:)
+    integer,         pointer :: nrbdihe(:),  rb_dihelist(:,:,:)
+    integer,         pointer :: nimpr(:),  imprlist(:,:,:)
+    integer,         pointer :: ncell_local
+    integer(int2),   pointer :: id_g2l(:,:)
+    real(wip),       pointer :: coord(:,:,:)
+    integer,         pointer :: bond_pbc(:,:), angl_pbc(:,:,:), dihe_pbc(:,:,:)
+
+    ncell_local => domain%num_cell_local
+    id_g2l      => domain%id_g2l
+    coord       => domain%coord
+
+    maxcell_size = max(domain%cell_size(1),  &
+                       domain%cell_size(2),  &
+                       domain%cell_size(3))
+
+    nbond       => enefunc%num_bond
+    bondlist    => enefunc%bond_list
+    r0          => enefunc%bond_dist_min
+    bond_pbc    => enefunc%bond_pbc
+
+    nenm        => enefunc%num_enm
+    enmlist     => enefunc%enm_list
+
+    nangle      => enefunc%num_angle
+    anglelist   => enefunc%angle_list
+    angl_pbc    => enefunc%angle_pbc
+
+    ndihe       => enefunc%num_dihedral
+    dihelist    => enefunc%dihe_list
+    dihe_pbc    => enefunc%dihe_pbc
+
+    nrbdihe     => enefunc%num_rb_dihedral
+    rb_dihelist => enefunc%rb_dihe_list
+
+    nimpr       => enefunc%num_improper
+    imprlist    => enefunc%impr_list
+
+    !$omp parallel default(shared)                                     &
+    !$omp private(id, i, j, ix, icel1, i1, icel2, i2, d12, r12, r_dif, &
+    !$omp         my_id, icel3, i3, icel4, i4, pbc_int, k1, k2, k3,    &
+    !$omp         kk1, kk2, kk3)
+    !
+#ifdef OMP
+    id  = omp_get_thread_num()
+#else
+    id  = 0
+#endif
+    my_id = id
+
+    do i = my_id+1, ncell_local, nthread
+
+      do ix = 1, nbond(i)
+
+        icel1 = id_g2l(1,bondlist(1,ix,i))
+        i1    = id_g2l(2,bondlist(1,ix,i))
+        icel2 = id_g2l(1,bondlist(2,ix,i))
+        i2    = id_g2l(2,bondlist(2,ix,i))
+
+        pbc_int = bond_pbc(ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        k1 = k1 - 1
+        k2 = k2 - 1
+        k3 = k3 - 1
+
+        ! bond energy: E=K[b-b0]^2
+        !
+        d12(1) = coord(1,i1,icel1) - coord(1,i2,icel2) &
+               + domain%system_size(1)*real(k1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i2,icel2) &
+               + domain%system_size(2)*real(k2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i2,icel2) &
+               + domain%system_size(3)*real(k3,wp)
+        r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+        r_dif = r12 - r0(ix,i)
+        if (r_dif > maxdistance) &
+           write(MsgOut,'(A,I10,I10,2F10.5)') &
+          'WARNING: too long bond (final one is target):', &
+           bondlist(1,ix,i),bondlist(2,ix,i),r12,r0(ix,i)
+        if (r_dif < -maxdistance) &
+           write(MsgOut,'(A,I10,I10,2F10.5)') &
+          'WARNING: too short bond (final one is target):', &
+           bondlist(1,ix,i),bondlist(2,ix,i),r12, r0(ix,i)
+        if (r12 > maxcell_size) then
+           write(MsgOut,'(A,2I10,F10.5)') &
+          'Check_bonding> distance is grater than cellsize:', &
+           bondlist(1,ix,i),bondlist(2,ix,i),r12
+           call error_msg(' ')
+        endif
+
+      end do
+
+      do ix = 1, nenm(i)
+
+        icel1 = id_g2l(1,enmlist(1,ix,i))
+        i1    = id_g2l(2,enmlist(1,ix,i))
+        icel2 = id_g2l(1,enmlist(2,ix,i))
+        i2    = id_g2l(2,enmlist(2,ix,i))
+
+        ! bond energy: E=K[b-b0]^2
+        !
+        d12(1) = coord(1,i1,icel1) - coord(1,i2,icel2)
+        d12(2) = coord(2,i1,icel1) - coord(2,i2,icel2)
+        d12(3) = coord(3,i1,icel1) - coord(3,i2,icel2)
+        r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+        r_dif = r12 - enefunc%enm_dist_min(ix,i)
+        if (enefunc%enm_dist_min(ix,i) > enefunc%cutoffdist) &
+           write(MsgOut,'(A,I10,I10,2F10.5)') &
+          'WARNING: too large target enm:', &
+           enmlist(1,ix,i),enmlist(2,ix,i),enefunc%enm_dist_min(ix,i)
+        if (r_dif > maxdistance) &
+           write(MsgOut,'(A,I10,I10,2F10.5)') &
+          'WARNING: too long enm (final one is target):', &
+           enmlist(1,ix,i),enmlist(2,ix,i),r12,enefunc%enm_dist_min(ix,i)
+        if (r_dif < -maxdistance) &
+           write(MsgOut,'(A,I10,I10,2F10.5)') &
+          'WARNING: too short enm (final one is target):', &
+           enmlist(1,ix,i),enmlist(2,ix,i),r12, enefunc%enm_dist_min(ix,i)
+        if (r12 > maxcell_size) then
+           write(MsgOut,'(A,2I10,F10.5)') &
+          'Check_bonding> distance is grater than cellsize:', &
+           enmlist(1,ix,i),enmlist(2,ix,i),r12
+           call error_msg(' ')
+        endif
+
+      end do
+
+      do ix = 1, nangle(i)
+
+        icel1 = id_g2l(1,anglelist(1,ix,i))
+        i1    = id_g2l(2,anglelist(1,ix,i))
+        icel3 = id_g2l(1,anglelist(3,ix,i))
+        i3    = id_g2l(2,anglelist(3,ix,i))
+
+        pbc_int = angl_pbc(3,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        k1 = k1 - 1
+        k2 = k2 - 1
+        k3 = k3 - 1
+        d12(1) = coord(1,i1,icel1) - coord(1,i3,icel3) &
+               + domain%system_size(1)*real(k1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i3,icel3) &
+               + domain%system_size(2)*real(k2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i3,icel3) &
+               + domain%system_size(3)*real(k3,wp)
+        r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+
+        if (r12 > maxcell_size) then
+           write(MsgOut,'(A,2I10,F10.5)') &
+           'Check_bonding> distance in angle is grater than cellsize:', &
+           anglelist(1,ix,i),anglelist(3,ix,i),r12
+           call error_msg(' ')
+        endif
+
+      end do
+
+      do ix = 1, ndihe(i)
+
+        icel1 = id_g2l(1,dihelist(1,ix,i))
+        i1    = id_g2l(2,dihelist(1,ix,i))
+        icel4 = id_g2l(1,dihelist(4,ix,i))
+        i4    = id_g2l(2,dihelist(4,ix,i))
+
+        pbc_int = dihe_pbc(1,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = k1 - 1
+        kk2 = k2 - 1
+        kk3 = k3 - 1
+
+        pbc_int = dihe_pbc(2,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = kk1 + k1 - 1
+        kk2 = kk2 + k2 - 1
+        kk3 = kk3 + k3 - 1
+
+        pbc_int = dihe_pbc(3,ix,i)
+        k3 = pbc_int / 9
+        pbc_int = pbc_int - k3*9
+        k2 = pbc_int / 3
+        k1 = pbc_int - k2*3
+        kk1 = kk1 - k1 + 1
+        kk2 = kk2 - k2 + 1
+        kk3 = kk3 - k3 + 1
+
+        d12(1) = coord(1,i1,icel1) - coord(1,i4,icel4) &
+               + domain%system_size(1)*real(kk1,wp)
+        d12(2) = coord(2,i1,icel1) - coord(2,i4,icel4) &
+               + domain%system_size(2)*real(kk2,wp)
+        d12(3) = coord(3,i1,icel1) - coord(3,i4,icel4) &
+               + domain%system_size(3)*real(kk3,wp)
+
+        r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+
+        if (r12 > maxcell_size) then
+           write(MsgOut,'(A,2I10,F10.5)') &
+           'Check_bonding> distance in dihedral is grater than cellsize:', &
+           dihelist(1,ix,i),dihelist(4,ix,i),r12
+           call error_msg(' ')
+        endif
+
+      end do
+
+      if (nrbdihe(i) > 0) then
+        do ix = 1, nrbdihe(i)
+
+          icel1 = id_g2l(1,rb_dihelist(1,ix,i))
+          i1    = id_g2l(2,rb_dihelist(1,ix,i))
+          icel4 = id_g2l(1,rb_dihelist(4,ix,i))
+          i4    = id_g2l(2,rb_dihelist(4,ix,i))
+
+          d12(1:3) = coord(1:3,i1,icel1) - coord(1:3,i4,icel4)
+          r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+          if (r12 > maxcell_size) then
+            write(MsgOut,'(A,2I10,F10.5)') &
+           'Check_bonding> distance in rb dihedral is grater than cellsize:', &
+            rb_dihelist(1,ix,i), rb_dihelist(4,ix,i),r12
+            call error_msg(' ')
+          endif
+
+        end do
+      endif
+
+      do ix = 1, nimpr(i)
+
+        icel1 = id_g2l(1,imprlist(1,ix,i))
+        i1    = id_g2l(2,imprlist(1,ix,i))
+        icel4 = id_g2l(1,imprlist(4,ix,i))
+        i4    = id_g2l(2,imprlist(4,ix,i))
+
+        d12(1:3) = coord(1:3,i1,icel1) - coord(1:3,i4,icel4)
+        r12   = sqrt( d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3) )
+
+        if (r12 > maxcell_size) then
+          write(MsgOut,'(A,2I10,F10.5)') &
+      'Check_bonding> distance in improper dihedral is grater than cellsize:', &
+          imprlist(1,ix,i), imprlist(4,ix,i),r12
+          call error_msg(' ')
+        endif
+      end do
+
+    end do
+
+    !$omp end parallel
+
+    return
+
+  end subroutine check_bonding_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -1984,6 +2307,11 @@ contains
     !
 
     first = .false.
+
+    if (domain%nonbond_kernel == NBK_Spica) then
+      call error_msg('Update_EneFunc_Fep> SPICA force field is not '//&
+              'supported in FEP')
+    end if
 
     if (constraints%rigid_bond) then
 

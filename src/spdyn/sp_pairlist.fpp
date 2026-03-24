@@ -16,6 +16,7 @@ module sp_pairlist_mod
 
   use sp_pairlist_gpu_mod
   use sp_pairlist_fugaku_mod
+  use sp_pairlist_spica_mod
   use sp_pairlist_generic_mod
   use sp_pairlist_str_mod
   use sp_enefunc_str_mod
@@ -58,7 +59,15 @@ contains
 
     pairlist%pairlistdist = enefunc%pairlistdist
 
-    if (enefunc%pairlist_check .or. (.not.enefunc%pme_use) .or. &
+    if (domain%pairlist_kernel == PLK_SPICA) then
+
+      call alloc_pairlist_spica(enefunc, domain, pairlist)
+
+    else if (domain%pairlist_kernel == PLK_PSPICA) then
+
+      call alloc_pairlist_pspica(enefunc, domain, pairlist)
+
+    else if (enefunc%pairlist_check .or. (.not.enefunc%pme_use) .or. &
         enefunc%nonb_limiter) then
 
       call alloc_pairlist(pairlist, PairListGeneric, domain%num_cell_local)
@@ -151,7 +160,15 @@ contains
 
     else
 
-      if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
+      if (domain%nonbond_kernel == NBK_SPICA) then
+
+        call update_pairlist_spica(enefunc, domain, pairlist)
+
+      else if (domain%nonbond_kernel == NBK_PSPICA) then
+
+        call update_pairlist_pspica(enefunc, domain, pairlist)
+
+      else if (.not. enefunc%pme_use .or. enefunc%nonb_limiter) then
         call update_pairlist_pbc_generic(enefunc, domain, pairlist)
 
       else

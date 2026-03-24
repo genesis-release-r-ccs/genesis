@@ -447,7 +447,7 @@ contains
       write(MsgOut,'(A)') ' '
     end if
 
-    call dealloc_pme(enefunc)
+    call dealloc_pme(domain, enefunc)
     call dealloc_constraints_all(constraints)
     call dealloc_boundary_all   (boundary)
     call dealloc_pairlist_all   (pairlist)

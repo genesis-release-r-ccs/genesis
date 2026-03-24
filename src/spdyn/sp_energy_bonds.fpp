@@ -315,35 +315,54 @@ contains
   end subroutine compute_energy_bond
 
   !======1=========2=========3=========4=========5=========6=========7=========8
-  !
+  ! 
   !  Subroutine    compute_energy_enm 
-  !> @brief        calculate enm energy
-  !! @authors      JJ, YS
+  !> @brief        Calculates ENM energy
+  !! @authors      JJ        
   !! @param[in]    domain  : domain information
   !! @param[in]    enefunc : potential energy functions information
   !! @param[in]    coord   : coordinates of target systems
   !! @param[inout] force   : forces of target systems
-  !! @param[inout] virial  : virial term of target systems
-  !! @param[inout] ebond   : bond energy of target systems
-  ! 
+  !! @param[inout] virial  : virial term of target systems               
+  !! @param[inout] eenm    : ENM energy of target systems
+  !! @param[inout] eelec   : Electrostatic energy that should be excluded in ENM
+  !! @param[inout] evdw    : van der Waals energy that should be excluded in ENM
+  !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine compute_energy_enm(domain, enefunc, coord, force, virial, eenm)
+  subroutine compute_energy_enm(domain, enefunc, coord, nonb_limiter, force, &
+                                virial, eenm, eelec, evdw)
 
     ! formal arguments
     type(s_domain),  target, intent(in)    :: domain
     type(s_enefunc), target, intent(in)    :: enefunc
     real(wip),               intent(in)    :: coord(:,:,:)
+    logical,                 intent(in)    :: nonb_limiter
     real(wp),                intent(inout) :: force(:,:,:,:)
     real(dp),                intent(inout) :: virial(:,:,:)
     real(dp),                intent(inout) :: eenm(nthread)
+    real(dp),                intent(inout) :: eelec(nthread)
+    real(dp),                intent(inout) :: evdw(nthread)
 
     ! local variables
     real(wp)                 :: d12(1:3), r12, r_dif, cc_frc
+    real(wp)                 :: rij2, rij2_inv, rij3_inv
+    real(wp)                 :: ljA, ljB, R, term_ljA, term_ljB, term_elec
+    real(wp)                 :: cutoff2, grad_coef, within_cutoff
+    real(wp)                 :: qtmp, jqtmp
+    real(wp)                 :: minimum_contact
     real(wp)                 :: eenm_temp, work(3), viri(3)
     integer                  :: i, j, ix, icel1, icel2, i1, i2
     integer                  :: id
-    integer                  :: list(3), pbc_int, k1, k2, k3
+    integer                  :: list(3)
+    integer                  :: iatmcls, jatmcls, L
+
+    real(wp),        pointer :: charge(:,:)
+    real(wp),        pointer :: nonb_ljA(:,:), nonb_ljB(:,:)
+    real(wp),        pointer :: density, cutoff
+    real(wp),        pointer :: table_ene(:), table_grad(:)
+    real(wp),        pointer :: table_ecor(:), table_decor(:)
+    integer,         pointer :: atmcls(:,:), cell_pair(:,:)
 
     real(wp),        pointer :: fc(:,:), r0(:,:)
     real(wp),        pointer :: system_size(:)
@@ -351,22 +370,37 @@ contains
     integer,         pointer :: ncell_local
     integer(int2),   pointer :: id_g2l(:,:)
 
-
-    call timer(TimerBond, TimerOn)
+    cutoff2 = enefunc%cutoffdist * enefunc%cutoffdist
 
     ncell_local => domain%num_cell_local
     id_g2l      => domain%id_g2l
+    atmcls      => domain%atom_cls_no
+    charge      => domain%charge
+    cell_pair   => domain%cell_pairlist2
 
     enm         => enefunc%num_enm
     enmlist     => enefunc%enm_list
     fc          => enefunc%enm_force_const
     r0          => enefunc%enm_dist_min
+    table_ene   => enefunc%table%table_ene
+    table_grad  => enefunc%table%table_grad
+    table_ecor  => enefunc%table%table_ecor
+    table_decor => enefunc%table%table_decor
+    density     => enefunc%table%density
+    cutoff      => enefunc%cutoffdist
+    nonb_ljA    => enefunc%nonb_lj12
+    nonb_ljB    => enefunc%nonb_lj6
+
+    minimum_contact   =  enefunc%minimum_contact
 
     ! calculate bond energy
     !
-    !$omp parallel default(shared)                                     &
-    !$omp private(id, i, j, ix, icel1, i1, icel2, i2, d12, r12, r_dif, &
-    !$omp         cc_frc, eenm_temp, work, list, viri, pbc_int, k1, k2, k3)
+    !$omp parallel default(shared)                                       &
+    !$omp private(id, i, j, ix, icel1, i1, icel2, i2, d12, r12, r_dif,   &
+    !$omp         cc_frc, eenm_temp, work, list, viri, rij2, rij2_inv,   &
+    !$omp         rij3_inv, ljA, ljB, L, R, term_ljA, term_ljB,    &
+    !$omp         term_elec, grad_coef, within_cutoff, iatmcls, jatmcls, &
+    !$omp         qtmp, jqtmp)
     !
 #ifdef OMP
     id  = omp_get_thread_num()
@@ -388,26 +422,62 @@ contains
 
         ! bond energy: E=K[b-b0]^2
         !
-        d12(1) = coord(1,i1,icel1) - coord(1,i2,icel2) 
-        d12(2) = coord(2,i1,icel1) - coord(2,i2,icel2) 
-        d12(3) = coord(3,i1,icel1) - coord(3,i2,icel2) 
-        r12   = sqrt(d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3))
+        d12(1) = coord(1,i1,icel1) - coord(1,i2,icel2)
+        d12(2) = coord(2,i1,icel1) - coord(2,i2,icel2)
+        d12(3) = coord(3,i1,icel1) - coord(3,i2,icel2)
+        rij2   = d12(1)*d12(1) + d12(2)*d12(2) + d12(3)*d12(3)
+        r12    = sqrt(rij2)
         r_dif = r12 - r0(ix,i)
         eenm_temp = eenm_temp + fc(ix,i) * r_dif * r_dif
-
-        ! gradient: dE/dX
-        !
         cc_frc  = (2.0_wp * fc(ix,i) * r_dif) / r12
-        work(1) = cc_frc * d12(1)
-        work(2) = cc_frc * d12(2)
-        work(3) = cc_frc * d12(3)
+        work(1) = (cc_frc) * d12(1)
+        work(2) = (cc_frc) * d12(2)
+        work(3) = (cc_frc) * d12(3)
+
+        if (cell_pair(icel1,icel2) > maxcell_near) then
+          if (nonb_limiter) rij2 = max(rij2,minimum_contact)
+          within_cutoff = merge(0.0_wp, 1.0_wp, rij2 > cutoff2)
+          rij2_inv = 1.0_wp / rij2
+          rij3_inv = rij2_inv * sqrt(rij2_inv)
+          rij2   = cutoff2*density*rij2_inv
+          iatmcls = atmcls(i1,icel1)
+          jatmcls = atmcls(i2,icel2)
+          ljA     = nonb_ljA(jatmcls,iatmcls)
+          ljB     = nonb_ljB(jatmcls,iatmcls)
+          qtmp    = charge(i1,icel1)
+          jqtmp   = charge(i2,icel2)
+          L       = int(rij2)
+          R       = rij2 - L
+          term_ljB  = rij3_inv * rij3_inv * within_cutoff
+          term_ljA  = term_ljB * rij3_inv
+          term_elec = table_ene(L) + R*(table_ene(L+1)-table_ene(L))
+          term_elec = term_elec * within_cutoff
+          term_elec = term_elec &
+                    + table_ecor(L) + R*(table_ecor(L+1)-table_ecor(L))
+          evdw(id+1) = evdw(id+1) - term_ljA*ljA + term_ljB*ljB
+          eelec(id+1) = eelec(id+1) - qtmp*jqtmp*term_elec
+
+          ! gradient: dE/dX
+          !
+          term_ljA  = -9.0_wp * term_ljA * rij2_inv
+          term_ljB  = -6.0_wp * term_ljB * rij2_inv
+          term_elec = table_grad(L) + R*(table_grad(L+1)-table_grad(L))
+          term_elec = term_elec * within_cutoff
+          term_elec = term_elec &
+                    + table_decor(L) + R*(table_decor(L+1)-table_decor(L))
+          grad_coef = term_ljA*ljA - term_ljB*ljB + qtmp*jqtmp*term_elec
+          cc_frc  = (2.0_wp * fc(ix,i) * r_dif) / r12
+          work(1) = work(1) - grad_coef * d12(1)
+          work(2) = work(2) - grad_coef * d12(2)
+          work(3) = work(3) - grad_coef * d12(3)
+        end if
 
         ! virial
         !
-        viri(1) = viri(1) + d12(1)*work(1)  
-        viri(2) = viri(2) + d12(2)*work(2)  
-        viri(3) = viri(3) + d12(3)*work(3)  
-  
+        viri(1) = viri(1) + d12(1)*work(1)
+        viri(2) = viri(2) + d12(2)*work(2)
+        viri(3) = viri(3) + d12(3)*work(3)
+
         ! store force: F=-dE/dX
         !
         force(1,i1,icel1,id+1) = force(1,i1,icel1,id+1) - work(1)
@@ -426,14 +496,12 @@ contains
 
     end do
 
-    !$omp end parallel 
-    
-    call timer(TimerBond, TimerOff)
+    !$omp end parallel
 
     return
 
   end subroutine compute_energy_enm
- 
+
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_bond_fep

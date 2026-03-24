@@ -82,9 +82,9 @@ module sp_constraints_str_mod
     real(wip)                     :: water_rOD
     real(wip)                     :: water_massO
     real(wip)                     :: water_massH
-    real(wip)                     :: water_mass1
-    real(wip)                     :: water_mass2
-    real(wip)                     :: water_r12
+    real(wip)                     :: water_mass1(3)
+    real(wip)                     :: water_mass2(3)
+    real(wip)                     :: water_r12(3)
 
   end type s_constraints
 

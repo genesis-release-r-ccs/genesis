@@ -1,0 +1,38 @@
+[INPUT]
+topfile = ../../../build/dopc_spica/toppar/top_spica_charmm.rtf
+parfile = ../../../build/dopc_spica/toppar/par_spica_charmm.prm
+psffile = ../../../build/dopc_spica/gns_spica.psf
+pdbfile = ../../../build/dopc_spica/md1/md1.pdb
+rstfile = ../../../build/dopc_spica/md1/md1.rst
+
+[OUTPUT]
+
+[ENERGY]
+forcefield      = SPICA
+electrostatic   = PME
+switchdist      = 12.0
+cutoffdist      = 15.0
+pairlistdist    = 18.0 
+pme_max_spacing = 5
+
+[DYNAMICS]
+integrator      = VVER
+timestep        = 0.010
+nbupdate_period = 2
+nsteps          = 20
+eneout_period   = 2 
+verbose         = YES
+
+[CONSTRAINTS]
+rigid_bond      = NO
+fast_water      = NO
+
+[ENSEMBLE]
+ensemble        = NPT
+tpcontrol       = BUSSI
+temperature     = 300
+pressure        = 1.0
+
+[BOUNDARY]
+type            = PBC
+

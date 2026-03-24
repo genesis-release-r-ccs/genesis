@@ -66,7 +66,7 @@ sp_enefunc_charmm.o: sp_enefunc_charmm.fpp sp_enefunc_fit_mod.mod sp_enefunc_res
 sp_enefunc_charmm_mod.mod: sp_enefunc_charmm.fpp sp_enefunc_charmm.o
 sp_enefunc_fit.o: sp_enefunc_fit.fpp sp_restraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_fit_mod.mod: sp_enefunc_fit.fpp sp_enefunc_fit.o
-sp_enefunc.o: sp_enefunc.fpp sp_communicate_mod.mod sp_enefunc_gromacs_mod.mod sp_migration_mod.mod sp_enefunc_restraints_mod.mod sp_constraints_str_mod.mod sp_energy_mod.mod sp_enefunc_table_mod.mod sp_enefunc_amber_mod.mod sp_energy_str_mod.mod sp_enefunc_charmm_mod.mod sp_restraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_localres_mod.mod sp_enefunc_str_mod.mod 
+sp_enefunc.o: sp_enefunc.fpp sp_communicate_mod.mod sp_enefunc_gromacs_mod.mod sp_migration_mod.mod sp_enefunc_restraints_mod.mod sp_constraints_str_mod.mod sp_energy_mod.mod sp_enefunc_table_mod.mod sp_enefunc_amber_mod.mod sp_energy_str_mod.mod sp_enefunc_charmm_mod.mod sp_restraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_localres_mod.mod sp_enefunc_str_mod.mod sp_enefunc_spica_mod.mod
 sp_enefunc_mod.mod: sp_enefunc.fpp sp_enefunc.o
 sp_enefunc_gamd.o: sp_enefunc_gamd.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_gamd_mod.mod: sp_enefunc_gamd.fpp sp_enefunc_gamd.o
@@ -76,6 +76,8 @@ sp_enefunc_localres.o: sp_enefunc_localres.fpp sp_domain_str_mod.mod sp_enefunc_
 sp_enefunc_localres_mod.mod: sp_enefunc_localres.fpp sp_enefunc_localres.o
 sp_enefunc_restraints.o: sp_enefunc_restraints.fpp sp_restraints_str_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod 
 sp_enefunc_restraints_mod.mod: sp_enefunc_restraints.fpp sp_enefunc_restraints.o
+sp_enefunc_spica.o: sp_enefunc_spica.fpp sp_constraints_str_mod.mod sp_boundary_str_mod.mod sp_enefunc_restraints_mod.mod sp_domain_str_mod.mod sp_restraints_str_mod.mod sp_enefunc_localres_mod.mod sp_energy_mod.mod sp_energy_str_mod.mod sp_enefunc_table_mod.mod sp_enefunc_fit_mod.mod sp_enefunc_str_mod.mod sp_communicate_mod.mod
+sp_enefunc_spica_mod.mod: sp_enefunc_spica.fpp sp_enefunc_spica.o
 sp_enefunc_str.o: sp_enefunc_str.fpp sp_domain_str_mod.mod 
 sp_enefunc_str_mod.mod: sp_enefunc_str.fpp sp_enefunc_str.o
 sp_enefunc_table.o: sp_enefunc_table.fpp sp_energy_mod.mod sp_energy_pme_mod.mod sp_boundary_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
@@ -114,12 +116,14 @@ sp_energy_nonbond_pme_notable.o: sp_energy_nonbond_pme_notable.fpp sp_energy_non
 sp_energy_nonbond_pme_notable_mod.mod: sp_energy_nonbond_pme_notable.fpp sp_energy_nonbond_pme_notable.o
 sp_energy_nonbond_pme_table.o: sp_energy_nonbond_pme_table.fpp sp_energy_nonbond_generic_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_intel_mod.mod sp_energy_nonbond_gpu_mod.mod sp_energy_nonbond_fugaku_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_fep_mod.mod 
 sp_energy_nonbond_pme_table_mod.mod: sp_energy_nonbond_pme_table.fpp sp_energy_nonbond_pme_table.o
-sp_energy_nonbonds.o: sp_energy_nonbonds.fpp sp_energy_nonbond_generic_mod.mod sp_energy_pme_mod.mod sp_energy_nonbond_pme_notable_mod.mod sp_energy_nonbond_pme_table_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_ljpme_mod.mod sp_boundary_str_mod.mod sp_energy_nonbond_vacuum_mod.mod sp_energy_str_mod.mod sp_energy_table_cubic_mod.mod sp_domain_str_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_energy_table_linear_mod.mod sp_enefunc_str_mod.mod 
+sp_energy_nonbonds.o: sp_energy_nonbonds.fpp sp_energy_nonbond_generic_mod.mod sp_energy_pme_mod.mod sp_energy_nonbond_pme_notable_mod.mod sp_energy_nonbond_pme_table_mod.mod sp_pairlist_str_mod.mod sp_energy_nonbond_ljpme_mod.mod sp_boundary_str_mod.mod sp_energy_nonbond_vacuum_mod.mod sp_energy_str_mod.mod sp_energy_table_cubic_mod.mod sp_domain_str_mod.mod sp_energy_table_linear_bondcorr_mod.mod sp_energy_table_linear_mod.mod sp_enefunc_str_mod.mod sp_energy_nonbond_spica_mod.mod
 sp_energy_nonbonds_mod.mod: sp_energy_nonbonds.fpp sp_energy_nonbonds.o
+sp_energy_nonbond_spica.o: sp_energy_nonbond_spica.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_energy_nonbond_spica_mod.mod: sp_energy_nonbond_spica.fpp sp_energy_nonbond_spica.o
 sp_energy_nonbond_vacuum.o: sp_energy_nonbond_vacuum.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_energy_nonbond_vacuum_mod.mod: sp_energy_nonbond_vacuum.fpp sp_energy_nonbond_vacuum.o
 sp_energy_pme.o: sp_energy_pme.fpp sp_energy_pme_opt_2dalltoall_mod.mod sp_energy_pme_opt_slab_mod.mod sp_energy_pme_noopt_1dalltoall_mod.mod sp_energy_pme_opt_1dalltoall_mod.mod sp_boundary_str_mod.mod sp_domain_str_mod.mod sp_energy_pme_noopt_slab_mod.mod sp_enefunc_str_mod.mod sp_energy_pme_noopt_2dalltoall_mod.mod 
-sp_energy_pme_mod.mod: sp_energy_pme.fpp sp_energy_pme.o
+sp_energy_pme_mod.mod: sp_energy_pme.fpp sp_energy_pme.o sp_energy_pme_spica_mod.mod
 sp_energy_pme_noopt_1dalltoall.o: sp_energy_pme_noopt_1dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_noopt_1dalltoall_mod.mod: sp_energy_pme_noopt_1dalltoall.fpp sp_energy_pme_noopt_1dalltoall.o
 sp_energy_pme_noopt_2dalltoall.o: sp_energy_pme_noopt_2dalltoall.fpp sp_domain_str_mod.mod sp_energy_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
@@ -132,6 +136,8 @@ sp_energy_pme_opt_2dalltoall.o: sp_energy_pme_opt_2dalltoall.fpp sp_domain_str_m
 sp_energy_pme_opt_2dalltoall_mod.mod: sp_energy_pme_opt_2dalltoall.fpp sp_energy_pme_opt_2dalltoall.o
 sp_energy_pme_opt_slab.o: sp_energy_pme_opt_slab.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_pme_opt_slab_mod.mod: sp_energy_pme_opt_slab.fpp sp_energy_pme_opt_slab.o
+sp_energy_pme_spica.o: sp_energy_pme_spica.fpp sp_domain_str_mod.mod sp_boundary_str_mod.mod sp_enefunc_str_mod.mod sp_energy_str_mod.mod 
+sp_energy_pme_spica_mod.mod: sp_energy_pme_spica.fpp sp_energy_pme_spica.o
 sp_energy_restraints.o: sp_energy_restraints.fpp sp_restraints_str_mod.mod sp_enefunc_fit_mod.mod sp_experiments_mod.mod sp_domain_str_mod.mod sp_rpath_str_mod.mod sp_enefunc_str_mod.mod sp_boundary_str_mod.mod 
 sp_energy_restraints_mod.mod: sp_energy_restraints.fpp sp_energy_restraints.o
 sp_energy_str.o: sp_energy_str.fpp  
@@ -182,7 +188,7 @@ sp_output.o: sp_output.fpp sp_grest_energy_mod.mod sp_alchemy_str_mod.mod sp_rem
 sp_output_mod.mod: sp_output.fpp sp_output.o
 sp_output_str.o: sp_output_str.fpp  
 sp_output_str_mod.mod: sp_output_str.fpp sp_output_str.o
-sp_pairlist.o: sp_pairlist.fpp sp_pairlist_fugaku_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_gpu_mod.mod sp_pairlist_str_mod.mod sp_pairlist_generic_mod.mod 
+sp_pairlist.o: sp_pairlist.fpp sp_pairlist_fugaku_mod.mod sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_gpu_mod.mod sp_pairlist_str_mod.mod sp_pairlist_generic_mod.mod sp_pairlist_spica_mod.mod
 sp_pairlist_mod.mod: sp_pairlist.fpp sp_pairlist.o
 sp_pairlist_fugaku.o: sp_pairlist_fugaku.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_pairlist_fugaku_mod.mod: sp_pairlist_fugaku.fpp sp_pairlist_fugaku.o
@@ -190,6 +196,8 @@ sp_pairlist_generic.o: sp_pairlist_generic.fpp sp_domain_str_mod.mod sp_enefunc_
 sp_pairlist_generic_mod.mod: sp_pairlist_generic.fpp sp_pairlist_generic.o
 sp_pairlist_gpu.o: sp_pairlist_gpu.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_pairlist_gpu_mod.mod: sp_pairlist_gpu.fpp sp_pairlist_gpu.o
+sp_pairlist_spica.o: sp_pairlist_spica.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
+sp_pairlist_spica_mod.mod: sp_pairlist_spica.fpp sp_pairlist_spica.o
 sp_pairlist_knl.o: sp_pairlist_knl.fpp sp_domain_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod 
 sp_pairlist_knl_mod.mod: sp_pairlist_knl.fpp sp_pairlist_knl.o
 sp_pairlist_str.o: sp_pairlist_str.fpp sp_domain_str_mod.mod 
@@ -214,5 +222,5 @@ sp_setup_mpi.o: sp_setup_mpi.fpp sp_rpath_mod.mod sp_energy_mod.mod sp_boundary_
 sp_setup_mpi_mod.mod: sp_setup_mpi.fpp sp_setup_mpi.o
 sp_setup_spdyn.o: sp_setup_spdyn.fpp sp_communicate_mod.mod sp_input_mod.mod sp_enefunc_fit_mod.mod sp_restraints_mod.mod sp_energy_pme_mod.mod sp_boundary_mod.mod sp_experiments_mod.mod sp_alchemy_str_mod.mod sp_remd_str_mod.mod sp_control_mod.mod sp_restart_mod.mod sp_fep_topology_mod.mod sp_update_domain_mod.mod sp_alchemy_mod.mod sp_output_str_mod.mod sp_pairlist_str_mod.mod sp_rpath_mod.mod sp_gamd_mod.mod sp_dynamics_mod.mod sp_ensemble_str_mod.mod sp_output_mod.mod sp_boundary_str_mod.mod sp_dynvars_str_mod.mod sp_constraints_str_mod.mod sp_energy_mod.mod sp_enefunc_table_mod.mod sp_enefunc_mod.mod sp_energy_str_mod.mod sp_constraints_mod.mod sp_dynamics_str_mod.mod sp_rpath_str_mod.mod sp_ensemble_mod.mod sp_pairlist_mod.mod sp_restraints_str_mod.mod sp_domain_mod.mod sp_parallel_io_mod.mod sp_domain_str_mod.mod sp_remd_mod.mod sp_dynvars_mod.mod sp_enefunc_str_mod.mod sp_minimize_mod.mod sp_minimize_str_mod.mod 
 sp_setup_spdyn_mod.mod: sp_setup_spdyn.fpp sp_setup_spdyn.o
-sp_update_domain.o: sp_update_domain.fpp sp_constraints_str_mod.mod sp_communicate_mod.mod sp_migration_mod.mod sp_domain_mod.mod sp_domain_str_mod.mod sp_enefunc_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_pairlist_mod.mod sp_boundary_str_mod.mod sp_minimize_str_mod.mod 
+sp_update_domain.o: sp_update_domain.fpp sp_constraints_str_mod.mod sp_communicate_mod.mod sp_migration_mod.mod sp_domain_mod.mod sp_domain_str_mod.mod sp_enefunc_mod.mod sp_dynamics_str_mod.mod sp_enefunc_str_mod.mod sp_pairlist_str_mod.mod sp_pairlist_mod.mod sp_boundary_str_mod.mod sp_minimize_str_mod.mod sp_pairlist_spica_mod.mod
 sp_update_domain_mod.mod: sp_update_domain.fpp sp_update_domain.o

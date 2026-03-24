@@ -68,6 +68,7 @@ module sp_communicate_mod
   public  :: communicate_coor
   public  :: communicate_ptl
   public  :: communicate_constraints
+  public  :: communicate_spica_tip2
   public  :: communicate_bond
   public  :: update_cell_boundary
   public  :: update_cell_boundary_enm
@@ -131,7 +132,12 @@ contains
                   (cell_length(1)+2)*cell_length(3), &
                   (cell_length(1)+2)*(cell_length(2)+2))
 
-    size = 8 * MaxAtom * max_cell
+    if (domain%nonbond_kernel == NBK_Spica .or. &
+        domain%nonbond_kernel == NBK_Pspica) then
+      size = 16 * MaxAtom * max_cell
+    else
+      size = 8 * MaxAtom * max_cell
+    end if
     allocate(comm%ic_upper_send(max_cell,3), comm%ic_lower_send(max_cell,3), &
              comm%ic_upper_recv(max_cell,3), comm%ic_lower_recv(max_cell,3), &
              comm%if_upper_send(max_cell,3), comm%if_lower_send(max_cell,3), &
@@ -1612,6 +1618,302 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    communicate_spica_tip2
+  !> @brief        Pack the incoming particles data (pspica case)
+  !! @authors      JJ
+  !! @param[inout] domain      : domain information
+  !! @param[inout] comm        : communication information
+  !! @param[inout] constraints : constraints information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine communicate_spica_tip2(domain, comm, constraints)
+
+    ! formal arguments
+    type(s_domain),      target, intent(inout) :: domain
+    type(s_comm),        target, intent(inout) :: comm
+    type(s_constraints), target, intent(inout) :: constraints
+
+    ! local variable
+    integer                      :: send_size(2,2), recv_size(2,2)
+    integer                      :: real_size, int_size
+    integer                      :: i, j, k, l, ii, ic, ix, nadd, water_atom
+    integer                      :: water_atom1 
+    integer                      :: list, list1, size
+    integer                      :: irequest, irequest1, irequest2, irequest3
+    integer                      :: irequest4, irequest5, irequest6, irequest7
+#ifdef HAVE_MPI_GENESIS
+    integer                      :: istatus(mpi_status_size)
+#endif
+    real(wip),           pointer :: buf_send(:,:), buf_recv(:,:)
+    real(wip),           pointer :: buf_real(:,:,:), water_move_real(:,:,:)
+    real(wip),           pointer :: HGr_move_real(:,:,:,:)
+    integer,             pointer :: if_lower_send(:,:), if_upper_send(:,:)
+    integer,             pointer :: if_lower_recv(:,:), if_upper_recv(:,:)
+    integer,             pointer :: iproc_upper(:), iproc_lower(:), num_cell(:)
+    integer,             pointer :: ptl_add(:), water_move(:)
+    integer,             pointer :: buf_int(:,:,:), water_move_int(:,:,:)
+    integer,             pointer :: HGr_move(:,:), HGr_move_int(:,:,:,:)
+    integer,             pointer :: int_send(:,:), int_recv(:,:)
+
+
+    iproc_upper     => domain%iproc_upper
+    iproc_lower     => domain%iproc_lower
+    ptl_add         => domain%ptl_add
+    buf_real        => domain%buf_real
+    buf_int         => domain%buf_integer
+    water_move      => domain%water%move
+    water_move_real => domain%water%move_real
+    water_move_int  => domain%water%move_integer
+
+    buf_send        => comm%buf_send
+    buf_recv        => comm%buf_recv
+    int_send        => comm%int_send
+    int_recv        => comm%int_recv
+    if_lower_send   => comm%if_lower_send
+    if_upper_send   => comm%if_upper_send
+    if_lower_recv   => comm%if_lower_recv
+    if_upper_recv   => comm%if_upper_recv
+    num_cell        => comm%num_cell
+
+    water_atom  = 2
+    water_atom1 = water_atom + 1
+    size = 2
+
+    do ii = 3, 1, -1
+
+      ! Pack outgoing data (lower)
+      !
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_lower_send(i,ii)
+        int_send(size*(i-1)+1,1) = ptl_add(ic)
+        int_send(size*(i-1)+2,1) = water_move(ic)
+        do ix = 1, ptl_add(ic)
+          k = k + 1
+          do list = 1, 8
+            buf_send(8*(k-1)+list,1) = buf_real(list,ix,ic)
+          end do
+          do list = 1, 3
+            list1 = 3*(k-1) + list + size*num_cell(ii)
+            int_send(list1,1) = buf_int(list,ix,ic)
+          end do
+        end do
+      end do
+      real_size = 8*k
+      int_size = 3*k + size*num_cell(ii)
+
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_lower_send(i,ii)
+        do ix = 1, water_move(ic)
+          k = k + 1
+          do j = 1, 6*water_atom
+            buf_send(real_size+6*water_atom*(k-1)+j,1) &
+                            = water_move_real(j,ix,ic)
+          end do
+          do j = 1, water_atom1
+            int_send(int_size+water_atom1*(k-1)+j,1)    &
+                          = water_move_int(j,ix,ic)
+          end do
+        end do
+      end do
+
+      send_size(1,1) = int_size + water_atom1*k
+      send_size(2,1) = real_size + 6*water_atom*k
+
+      ! pack the outgoing date (upper)
+      !
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_upper_send(i,ii)
+        int_send(size*(i-1)+1,2) = ptl_add(ic)
+        int_send(size*(i-1)+2,2) = water_move(ic)
+        do ix = 1, ptl_add(ic)
+          k = k + 1
+          do list = 1, 8
+            buf_send(8*(k-1)+list,2) = buf_real(list,ix,ic)
+          end do
+          do list = 1, 3
+            list1 = 3*(k-1) + list + size*num_cell(ii)
+            int_send(list1,2) = buf_int(list,ix,ic)
+          end do
+        end do
+      end do
+      real_size = 8*k
+      int_size = 3*k + size*num_cell(ii)
+
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_upper_send(i,ii)
+        do ix = 1, water_move(ic)
+          k = k + 1
+          do j = 1, 6*water_atom
+            buf_send(real_size+6*water_atom*(k-1)+j,2) &
+                           =  water_move_real(j,ix,ic)
+          end do
+          do j = 1, water_atom1
+            int_send(int_size+water_atom1*(k-1)+j,2)   &
+                          = water_move_int(j,ix,ic)
+          end do
+        end do
+      end do
+
+      send_size(1,2) = int_size + water_atom1*k
+      send_size(2,2) = real_size + 6*water_atom*k
+
+#ifdef HAVE_MPI_GENESIS
+
+      ! send the size of data
+      !
+      call mpi_irecv(recv_size(1,1), 2, mpi_integer, iproc_upper(ii),      &
+                     iproc_upper(ii), mpi_comm_city, irequest, ierror)
+      call mpi_isend(send_size(1,1), 2, mpi_integer, iproc_lower(ii),      &
+                     my_city_rank, mpi_comm_city, irequest1, ierror)
+      call mpi_irecv(recv_size(1,2), 2, mpi_integer, iproc_lower(ii),      &
+                     my_city_rank+nproc_city, mpi_comm_city, irequest2,    &
+                     ierror)
+      call mpi_isend(send_size(1,2), 2, mpi_integer, iproc_upper(ii),      &
+                     iproc_upper(ii)+nproc_city, mpi_comm_city, irequest3, &
+                      ierror)
+
+      call mpi_wait(irequest,  istatus, ierror)
+      call mpi_wait(irequest1, istatus, ierror)
+      call mpi_wait(irequest2, istatus, ierror)
+      call mpi_wait(irequest3, istatus, ierror)
+
+      ! send the data
+      !
+      call mpi_irecv(int_recv(1,1), recv_size(1,1), mpi_integer,           &
+                     iproc_upper(ii), iproc_upper(ii),                     &
+                     mpi_comm_city, irequest, ierror)
+      call mpi_isend(int_send(1,1), send_size(1,1), mpi_integer,           &
+                     iproc_lower(ii),  my_city_rank,                       &
+                     mpi_comm_city, irequest1, ierror)
+
+      ! send the data
+      !
+      call mpi_irecv(int_recv(1,2), recv_size(1,2), mpi_integer,           &
+                     iproc_lower(ii),  my_city_rank+nproc_city,            &
+                     mpi_comm_city, irequest2, ierror)
+      call mpi_isend(int_send(1,2), send_size(1,2), mpi_integer,           &
+                     iproc_upper(ii), iproc_upper(ii)+nproc_city,          &
+                     mpi_comm_city, irequest3, ierror)
+
+      call mpi_wait(irequest,  istatus, ierror)
+      call mpi_wait(irequest1, istatus, ierror)
+      call mpi_wait(irequest2, istatus, ierror)
+      call mpi_wait(irequest3, istatus, ierror)
+
+      call mpi_irecv(buf_recv(1,1), recv_size(2,1), mpi_wip_real,         &
+                     iproc_upper(ii), iproc_upper(ii)+2*nproc_city,       &
+                     mpi_comm_city, irequest4, ierror)
+      call mpi_isend(buf_send(1,1), send_size(2,1), mpi_wip_real,         &
+                     iproc_lower(ii), my_city_rank+2*nproc_city,          &
+                     mpi_comm_city, irequest5, ierror)
+
+      call mpi_irecv(buf_recv(1,2), recv_size(2,2), mpi_wip_real,         &
+                     iproc_lower(ii), my_city_rank+3*nproc_city,          &
+                     mpi_comm_city, irequest6, ierror)
+      call mpi_isend(buf_send(1,2), send_size(2,2), mpi_wip_real,         &
+                     iproc_upper(ii), iproc_upper(ii)+3*nproc_city,       &
+                     mpi_comm_city, irequest7, ierror)
+
+      call mpi_wait(irequest4, istatus, ierror)
+      call mpi_wait(irequest5, istatus, ierror)
+      call mpi_wait(irequest6, istatus, ierror)
+      call mpi_wait(irequest7, istatus, ierror)
+#endif
+
+      ! get the imcoming data (from upper)
+      !
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_upper_recv(i,ii)
+        nadd = int_recv(size*(i-1)+1,1)
+        do ix = ptl_add(ic)+1, ptl_add(ic)+nadd
+          k = k + 1
+          do list = 1, 8
+            buf_real(list,ix,ic) = buf_recv(8*(k-1)+list,1)
+          end do
+          do list = 1, 3
+            list1 = 3*(k-1) + list + size*num_cell(ii)
+            buf_int(list,ix,ic) = int_recv(list1,1)
+          end do
+        end do
+        ptl_add(ic) = ptl_add(ic) + nadd
+      end do
+      real_size = 8*k
+      int_size = 3*k + size*num_cell(ii)
+
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_upper_recv(i,ii)
+        nadd = int_recv(size*(i-1)+2,1)
+        do ix = water_move(ic)+1, water_move(ic)+nadd
+          k = k + 1
+          do j = 1, 6*water_atom
+            water_move_real(j,ix,ic) &
+              = buf_recv(real_size+6*water_atom*(k-1)+j,1)
+          end do
+          do j = 1, water_atom1
+            water_move_int(j,ix,ic) &
+            = int_recv(int_size+water_atom1*(k-1)+j,1)
+          end do
+        end do
+        water_move(ic) = water_move(ic) + nadd
+      end do
+
+      ! get the imcoming data (from lower)
+      !
+      k = 0
+      do i = 1, num_cell(ii)
+
+        ic = if_lower_recv(i,ii)
+        nadd = int_recv(size*(i-1)+1,2)
+        do ix = ptl_add(ic)+1, ptl_add(ic)+nadd
+          k = k + 1
+          do list = 1, 8
+            buf_real(list,ix,ic) = buf_recv(8*(k-1)+list,2)
+          end do
+          do list = 1, 3
+            list1 = 3*(k-1) + list + size*num_cell(ii)
+            buf_int(list,ix,ic) = int_recv(list1,2)
+          end do
+        end do
+        ptl_add(ic) = ptl_add(ic) + nadd
+      end do
+      real_size = 8*k
+      int_size = 3*k + size*num_cell(ii)
+
+      k = 0
+      do i = 1, num_cell(ii)
+        ic = if_lower_recv(i,ii)
+        nadd = int_recv(size*(i-1)+2,2)
+        do ix = water_move(ic)+1, water_move(ic)+nadd
+          k = k + 1
+          do j = 1, 6*water_atom
+            water_move_real(j,ix,ic) &
+              = buf_recv(real_size+6*water_atom*(k-1)+j,2)
+          end do
+          do j = 1, water_atom1
+            water_move_int(j,ix,ic) &
+               = int_recv(int_size+water_atom1*(k-1)+j,2)
+          end do
+        end do
+
+        water_move(ic) = water_move(ic) + nadd
+
+      end do
+
+    end do
+
+    return
+
+  end subroutine communicate_spica_tip2
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    communicate_bond
   !> @brief        Pack the incoming bonding data of each boundary cell
   !! @authors      JJ
@@ -2127,6 +2429,7 @@ contains
 #endif
 
     real(wip),       pointer :: coord(:,:,:), velocity(:,:,:)
+    real(wip),       pointer :: coord_b(:,:,:)
     real(wp),        pointer :: trans(:,:,:)
     real(wp),        pointer :: charge(:,:)
     real(wp),        pointer :: cell_pbc_move(:,:)
@@ -2146,7 +2449,6 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: No_HGr(:), HGr_local(:,:),HGr_bond_list(:,:,:,:)
 
-
     ncell_local   => domain%num_cell_local
     ncell_bd      => domain%num_cell_boundary
     natom         => domain%num_atom
@@ -2154,6 +2456,7 @@ contains
     nwater        => domain%num_water
     water_list    => domain%water_list
     coord         => domain%coord
+    coord_b       => domain%coord_backup
     velocity      => domain%velocity
     charge        => domain%charge
     mass          => domain%mass
@@ -2373,6 +2676,9 @@ contains
       do ix = 1, natom(i)
         inv_mass(ix,i) = 0.0_wip
         if (mass(ix,i) > EPS) inv_mass(ix,i) = 1.0_wip / mass(ix,i)
+        coord_b(1,ix,i) = coord(1,ix,i)
+        coord_b(2,ix,i) = coord(2,ix,i)
+        coord_b(3,ix,i) = coord(3,ix,i)
       end do
     end do
 
@@ -2526,7 +2832,9 @@ contains
         move(2) = bsize_y*0.5_wip-bsize_y*anint(y_shift/bsize_y)
         move(3) = bsize_z*0.5_wip-bsize_z*anint(z_shift/bsize_z)
         if (domain%nonbond_kernel == NBK_Fugaku .or. &
-            domain%nonbond_kernel == NBK_Intel) then
+            domain%nonbond_kernel == NBK_Intel  .or. &
+            domain%nonbond_kernel == NBK_Spica  .or. &
+            domain%nonbond_kernel == NBK_PSpica) then
           move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
           move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
           move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -2646,7 +2954,9 @@ contains
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -2672,7 +2982,9 @@ contains
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -4774,7 +5086,9 @@ contains
         move(2) = bsize_y*0.5_wip-bsize_y*anint(y_shift/bsize_y)
         move(3) = bsize_z*0.5_wip-bsize_z*anint(z_shift/bsize_z)
         if (domain%nonbond_kernel == NBK_Fugaku .or. &
-            domain%nonbond_kernel == NBK_Intel) then
+            domain%nonbond_kernel == NBK_Intel  .or. &
+            domain%nonbond_kernel == NBK_Spica  .or. &
+            domain%nonbond_kernel == NBK_PSpica)  then
           move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
           move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
           move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -4803,7 +5117,9 @@ contains
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica)  then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -4894,7 +5210,9 @@ contains
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z
@@ -4920,7 +5238,9 @@ contains
           move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
           move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica) then
             move(1) = move(1) + cell_pbc_move(1,ic)*bsize_x
             move(2) = move(2) + cell_pbc_move(2,ic)*bsize_y
             move(3) = move(3) + cell_pbc_move(3,ic)*bsize_z

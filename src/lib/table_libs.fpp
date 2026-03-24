@@ -22,6 +22,7 @@ module table_libs_mod
   private
 
   public :: table_pme_linear_noswitch
+  public :: table_pme_linear_spica
   public :: table_pme_linear_noswitch_atdyn
   public :: table_pme_linear_switch
   public :: table_pme_linear_pme
@@ -109,6 +110,75 @@ contains
     return
 
   end subroutine table_pme_linear_noswitch
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    table_pme_linear_spica
+  !> @brief        table for pme and linear without switch (used in spica)
+  !! @authors      CK, JJ
+  !! @param[in]    switch_int  : integer switchdist
+  !! @param[in]    cutoff_int  : integer cutoff distance
+  !! @param[in]    density     : table density
+  !! @param[in]    cutoff2     : square cutoff distance
+  !! @param[in]    switchdist2 : square switch distance
+  !! @param[in]    el_fact     : inverse of dielectoric constant
+  !! @param[in]    alpha       : ewald factor
+  !! @param[in]    alpha2sp    : ewald factor
+  !! @param[in]    alpha2m     : ewald factor
+  !! @param[out]   table_ene   : energy table
+  !! @param[out]   table_grad  : gradient table
+  !! @param[out]   table_ecor  : energy table (bond correction)
+  !! @param[out]   table_decor : gradient table (bond correction)
+  !! @note         J.Jung et al., J.Comput.Chem., 34, 2412-2420 (2013)
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine table_pme_linear_spica(cutoff_int, cutoff_int1, density, cutoff2, &
+                                    el_fact, alpha, alpha2sp, alpha2m,         &
+                                    table_ene, table_grad, table_ecor,         &
+                                    table_decor)
+    ! formal arguments
+    integer,                 intent(in)    :: cutoff_int, cutoff_int1
+    real(wp),                intent(in)    :: density
+    real(wp),                intent(in)    :: cutoff2
+    real(wp),                intent(in)    :: el_fact
+    real(wp),                intent(in)    :: alpha
+    real(wp),                intent(in)    :: alpha2m
+    real(wp),                intent(in)    :: alpha2sp
+    real(wp),                intent(inout) :: table_ene(:)
+    real(wp),                intent(inout) :: table_grad(:)
+    real(wp),                intent(inout) :: table_ecor(:)
+    real(wp),                intent(inout) :: table_decor(:)
+
+    ! local variables
+    integer                  :: i
+    real(wp)                 :: rij, rij2
+    real(wp)                 :: inv_r2, inv_rij, inv_r6, inv_r12
+
+
+    do i = int(density), cutoff_int
+      rij2     = cutoff2*density/real(i,wp)
+      rij      = sqrt(rij2)
+      inv_r2   = 1.0_wp / rij2
+      inv_rij  = 1.0_wp / rij
+      table_ene(i)     = el_fact*erfc04(alpha*rij)*inv_rij
+      table_grad(i)    = -(table_ene(i)+ &
+                           alpha2sp*el_fact*exp(alpha2m*rij2))*inv_r2
+    end do
+
+    do i = 1, cutoff_int1
+      rij2    = real(i,wp) / (2.0_wp*density)
+      rij     = sqrt(rij2)
+      inv_r2  = 1.0_wp / rij2
+      inv_rij = 1.0_wp / rij
+      table_ecor(i) = -erf_n(alpha*rij)*inv_rij*el_fact
+      table_decor(i) = -(table_ecor(i)+ &
+                            alpha2sp*el_fact*exp(alpha2m*rij2))*inv_r2
+    end do
+
+    return
+
+  end subroutine table_pme_linear_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

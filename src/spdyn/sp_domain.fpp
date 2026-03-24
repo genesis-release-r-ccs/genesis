@@ -221,9 +221,9 @@ contains
     !
     call check_light_atom_name(con_info%hydrogen_mass_upper_bound, molecule)
 
-    call setup_solute_and_water(molecule, enefunc,       &
-                                constraints%water_model, &
-                                constraints%water_type,  &
+    call setup_solute_and_water(ene_info, molecule, enefunc,  &
+                                constraints%water_model,      &
+                                constraints%water_type,       &
                                 constraints%num_water)
 
     num_solute_all            = enefunc%table%num_solute      &
@@ -231,50 +231,6 @@ contains
                                *boundary%num_duplicate(2)     &
                                *boundary%num_duplicate(3)
     call alloc_domain(domain, DomainGlobal, domain%num_atom_all, 1, 1)
-
-    if (constraints%water_type == TIP4) then
-      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
-    else if (constraints%water_type == TIP3) then
-      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
-    else if (constraints%water_type == TIP2) then
-      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 2, 1)
-    else if (constraints%water_type == TIP1) then
-      call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
-    end if
-
-    call setup_hbond_group     (molecule, domain, enefunc, constraints)
-    call setup_atom_by_HBond   (molecule, boundary, enefunc, constraints, &
-                                domain)
-    call setup_global_to_local_atom_index(enefunc, domain)
-
-!   call setup_ring_check      (molecule, enefunc, constraints, domain)
-
-#ifdef DEBUG
-    ! debug
-    !
-
-    if (main_rank) then
-      write(MsgOut,*) ''
-      write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
-      write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
-      write(MsgOut,*) 'sp_domain_str     ::MaxMove      : ', MaxMove
-      write(MsgOut,*) 'sp_domain_str     ::MaxWaterMove : ', MaxWaterMove
-      write(MsgOut,*) ''
-      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
-      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
-      write(MsgOut,*) ''
-      write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
-      write(MsgOut,*) 'sp_constraints_str::HGrpMaxMove  : ', HGrpMaxMove
-      write(MsgOut,*) ''
-
-    end if
-#endif
-
-    ! assign the interaction cell for each interaction
-    !
-    call setup_domain_interaction(boundary, domain)
-
-    call check_atom_coord(ene_info, boundary, domain)
 
     ! setup water molecule information
     !
@@ -291,18 +247,80 @@ contains
       domain%water%mass(2)        = enefunc%table%mass_H
       domain%water%mass(3)        = enefunc%table%mass_H
       domain%water%mass(4)        = enefunc%table%mass_D
-    else if (constraints%water_type == TIP2) then
-      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
-      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_2
-      domain%water%charge(1)      = enefunc%table%charge_1
-      domain%water%charge(2)      = enefunc%table%charge_2
-      domain%water%mass(1)        = enefunc%table%mass_1
-      domain%water%mass(2)        = enefunc%table%mass_2
+    else if (constraints%water_type == TIP2) then      
+      domain%water%atom_cls_no_tip2(1,1:3) = enefunc%table%atom_cls_no_1(1:3)
+      domain%water%atom_cls_no_tip2(2,1:3) = enefunc%table%atom_cls_no_2(1:3)
+      domain%water%charge_tip2(1,1:3)        = enefunc%table%charge_1(1:3)
+      domain%water%charge_tip2(2,1:3)        = enefunc%table%charge_2(1:3)
+      domain%water%mass_tip2(1,1:3)          = enefunc%table%mass_1(1:3)
+      domain%water%mass_tip2(2,1:3)          = enefunc%table%mass_2(1:3)
+      if ((abs(domain%water%charge_tip2(1,1)) > EPS .or. &
+           abs(domain%water%charge_tip2(2,1)) > EPS) .and. &
+          ene_info%forcefield == ForcefieldSpica) then
+        domain%pairlist_kernel = PLK_PSPICA
+        domain%nonbond_kernel = NBK_PSPICA
+        if (main_rank) then
+          write(MsgOut,'(a)')   'Nonbond kernel is changed.'
+          write(MsgOut,'(a)')   'Select_kernel> '
+          write(MsgOut,'(a,a)') '  Pairlist        = ', PLK_Strings(domain%pairlist_kernel)
+          write(MsgOut,'(a,a)') '  Nonbond         = ', NBK_Types(domain%nonbond_kernel)
+          write(MsgOut,'(a)')   ' '
+        end if
+      end if
     else
-      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
-      domain%water%charge(1)      = enefunc%table%charge_1
-      domain%water%mass(1)        = enefunc%table%mass_1
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1(1)
+      domain%water%charge(1)      = enefunc%table%charge_1(1)
+      domain%water%mass(1)        = enefunc%table%mass_1(1)
     end if
+
+    if (ene_info%forcefield /= ForceFieldSpica) then
+      if (constraints%water_type == TIP4) then
+        call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 4, 1)
+      else if (constraints%water_type == TIP3) then
+        call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 3, 1)
+      else if (constraints%water_type == TIP2) then
+        call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 2, 1)
+      else if (constraints%water_type == TIP1) then
+        call alloc_domain(domain, DomainDynvar_Atom, ncel_all, 1, 1)
+      end if
+      call setup_hbond_group  (molecule, domain, enefunc, constraints)
+      call setup_atom_by_HBond(molecule, boundary, enefunc, constraints, &
+                               domain)
+    else
+      call setup_atom_spica(molecule, boundary, enefunc, constraints, &
+                            domain)
+    end if
+
+    call setup_global_to_local_atom_index(enefunc, domain)
+
+!   call setup_ring_check      (molecule, enefunc, constraints, domain)
+
+#ifdef DEBUG
+    ! debug
+    !
+
+    if (main_rank) then
+      write(MsgOut,*) ' '
+      write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
+      write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
+      write(MsgOut,*) 'sp_domain_str     ::MaxMove      : ', MaxMove
+      write(MsgOut,*) 'sp_domain_str     ::MaxWaterMove : ', MaxWaterMove
+      write(MsgOut,*) ' '
+      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
+      write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
+      write(MsgOut,*) ' '
+      write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
+      write(MsgOut,*) 'sp_constraints_str::HGrpMaxMove  : ', HGrpMaxMove
+      write(MsgOut,*) ' '
+
+    end if
+#endif
+
+    ! assign the interaction cell for each interaction
+    !
+    call setup_domain_interaction(ene_info, boundary, domain)
+
+    call check_atom_coord(ene_info, boundary, domain)
 
     return
 
@@ -427,15 +445,14 @@ contains
 
     ! assign the interaction cell for each interaction
     !
-    call setup_domain_interaction(boundary, domain)
+    call setup_domain_interaction(ene_info, boundary, domain)
 
     if (enefunc%contact_check) &
       call check_atom_coord_pio(enefunc, boundary, domain)
 
     ! setup water molecule information
     !
-!    if (constraints%water_type >= TIP3) then
-    if (constraints%water_type >= TIP2) then
+    if (constraints%water_type >= TIP3) then
       domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O
       domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_H
       domain%water%atom_cls_no(3) = enefunc%table%atom_cls_no_H
@@ -448,10 +465,17 @@ contains
       domain%water%mass(2)        = enefunc%table%mass_H
       domain%water%mass(3)        = enefunc%table%mass_H
       domain%water%mass(4)        = enefunc%table%mass_D
+    else if (constraints%water_type == TIP2) then
+      domain%water%atom_cls_no_tip2(1,1:3) = enefunc%table%atom_cls_no_1(1:3)
+      domain%water%atom_cls_no_tip2(2,1:3) = enefunc%table%atom_cls_no_2(1:3)
+      domain%water%charge_tip2(1,1:3)      = enefunc%table%charge_1(1:3)
+      domain%water%charge_tip2(2,1:3)      = enefunc%table%charge_2(1:3)
+      domain%water%mass_tip2(1,1:3)        = enefunc%table%mass_1(1:3)
+      domain%water%mass_tip2(2,1:3)        = enefunc%table%mass_2(1:3)
     else
-      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
-      domain%water%charge(1)      = enefunc%table%charge_1
-      domain%water%mass(1)        = enefunc%table%mass_1
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1(1)
+      domain%water%charge(1)      = enefunc%table%charge_1(1)
+      domain%water%mass(1)        = enefunc%table%mass_1(1)
     end if
 
     return
@@ -468,9 +492,10 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_domain_interaction(boundary, domain)
+  subroutine setup_domain_interaction(ene_info, boundary, domain)
 
     ! formal arguments
+    type(s_ene_info),         intent(in)    :: ene_info
     type(s_boundary), target, intent(in)    :: boundary
     type(s_domain),   target, intent(inout) :: domain
 
@@ -479,6 +504,7 @@ contains
     integer                   :: ncel_local, nboundary, cell(3)
 
     real(wip),        pointer :: bsize_x, bsize_y, bsize_z
+    real(wp),         pointer :: cell_size(:)
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: cell_start(:), cell_end(:)
     integer(int2),    pointer :: cell_pair(:,:)
@@ -509,6 +535,7 @@ contains
     cell_l2gx1   => domain%cell_l2gx_orig
     cell_l2gy1   => domain%cell_l2gy_orig
     cell_l2gz1   => domain%cell_l2gz_orig
+    cell_size    => domain%cell_size
     nsolute      => domain%num_solute
     nwater       => domain%num_water
     natom_t0     => domain%num_atom
@@ -535,7 +562,8 @@ contains
 
     ! assign the interaction cell for each interaction
     !
-    call assign_cell_interaction(natom, num_domain, cell,             &
+    call assign_cell_interaction(ene_info%pairlistdist, natom,        &
+                                 num_domain, cell, cell_size,         &
                                  cell_l2gx,  cell_l2gy,  cell_l2gz,   &
                                  cell_l2gx1, cell_l2gy1, cell_l2gz1,  &
                                  cell_gxyz2l, cell_start, cell_end,   &
@@ -680,6 +708,7 @@ contains
     integer                   :: ncel_local, nboundary, cell(3)
 
     real(wip),        pointer :: bsize_x, bsize_y, bsize_z
+    real(wp),         pointer :: cell_size(:)
     integer(1),       pointer :: cell_move(:,:,:)
     integer,          pointer :: cell_start(:), cell_end(:)
     integer(int2),    pointer :: cell_pair(:,:)
@@ -708,6 +737,7 @@ contains
     cell_l2gx1   => domain%cell_l2gx_orig
     cell_l2gy1   => domain%cell_l2gy_orig
     cell_l2gz1   => domain%cell_l2gz_orig
+    cell_size    => domain%cell_size
     neighbor     => domain%neighbor
     virial_check => domain%virial_check
 
@@ -747,7 +777,8 @@ contains
 
     ! assign the interaction cell for each interaction
     !
-    call assign_cell_interaction(cpu_time, num_domain, cell,          &
+    call assign_cell_interaction(enefunc%pairlistdist, cpu_time,      &
+                                 num_domain, cell, cell_size,         &
                                  cell_l2gx,  cell_l2gy,  cell_l2gz,   &
                                  cell_l2gx1, cell_l2gy1, cell_l2gz1,  &
                                  cell_gxyz2l, cell_start, cell_end,   &
@@ -1463,12 +1494,12 @@ contains
 
     if (main_rank) then
       write(MsgOut,*) 'Cell volume                      : ', v
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
       write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
       write(MsgOut,*) 'sp_domain_str     ::MaxMove      : ', MaxMove
       write(MsgOut,*) 'sp_domain_str     ::MaxWaterMove : ', MaxWaterMove
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_enefunc_str    ::MaxBond      : ', MaxBond
       write(MsgOut,*) 'sp_enefunc_str    ::MaxAngle     : ', MaxAngle
       write(MsgOut,*) 'sp_enefunc_str    ::MaxDihe      : ', MaxDihe
@@ -1479,15 +1510,15 @@ contains
       write(MsgOut,*) 'sp_enefunc_str    ::DiheMove     : ', DiheMove
       write(MsgOut,*) 'sp_enefunc_str    ::ImprMove     : ', ImprMove
       write(MsgOut,*) 'sp_enefunc_str    ::CmapMove     : ', CmapMove
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
       if (domain%fep_use) &
         write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15_fep  : ', MaxNb15_fep
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
       write(MsgOut,*) 'sp_constraints_str::HGrpMaxMove  : ', HGrpMaxMove
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
 
     end if
 #endif
@@ -1796,6 +1827,7 @@ contains
   !  Subroutine    setup_solute_and_water
   !> @brief        setup solute and water list
   !! @authors      JJ
+  !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    molecule    : molecule information
   !! @param[inout] enefunc     : potential energy functions information
   !! @param[inout] water_model : water model
@@ -1803,10 +1835,11 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine setup_solute_and_water(molecule, enefunc, water_model, &
+  subroutine setup_solute_and_water(ene_info, molecule, enefunc, water_model, &
                                     water_type, num_water)
 
     ! formal arguments
+    type(s_ene_info),        intent(in)    :: ene_info
     type(s_molecule),        intent(in)    :: molecule
     type(s_enefunc),         intent(inout) :: enefunc
     character(*),            intent(inout) :: water_model
@@ -1823,23 +1856,44 @@ contains
     nwater  = 0
     nsolute = 0
 
-    do i = 1, natom
-      if ((molecule%residue_name(i)(1:3) .eq. 'TIP' .or.  &
-           molecule%residue_name(i)(1:3) .eq. 'WAT' .or.  &
-           molecule%residue_name(i)(1:3) .eq. 'MIZ' .or.  &
-           molecule%residue_name(i)(1:3) .eq. 'SOL').and. &
-          .not.(molecule%light_atom_mass(i))      .and. &
-          .not.(molecule%light_atom_name(i))      .and. &
-           molecule%atom_name(i)(1:1) .ne. 'H'    .and. &
-           molecule%mass(i) > EPS) then
-        nwater = nwater + 1
-      else if (molecule%residue_name(i)(1:3) .ne. 'TIP' .and. &
-               molecule%residue_name(i)(1:3) .ne. 'WAT' .and. &
-               molecule%residue_name(i)(1:3) .ne. 'MIZ' .and. &
-               molecule%residue_name(i)(1:3) .ne. 'SOL') then
-        nsolute = nsolute + 1
-      end if
-    end do
+    if (ene_info%forcefield /= ForceFieldSpica) then
+      do i = 1, natom
+        if ((molecule%residue_name(i)(1:3) == 'TIP' .or.  &
+             molecule%residue_name(i)(1:3) == 'WAT' .or.  &
+             molecule%residue_name(i)(1:3) == 'SOL').and. &
+            .not.(molecule%light_atom_mass(i))      .and. &
+            .not.(molecule%light_atom_name(i))      .and. &
+             molecule%atom_name(i)(1:1) /= 'H'    .and. &
+             molecule%mass(i) > EPS) then
+          nwater = nwater + 1
+        else if (molecule%residue_name(i)(1:3) /= 'TIP' .and. &
+                 molecule%residue_name(i)(1:3) /= 'WAT' .and. &
+                 molecule%residue_name(i)(1:3) /= 'SOL') then
+          nsolute = nsolute + 1
+        end if
+      end do
+    else
+      do i = 1, natom
+        if ((molecule%residue_name(i)(1:3) == 'TIP' .or.  &
+             molecule%residue_name(i)(1:3) == 'WAT' .or.  &
+             molecule%residue_name(i)(1:3) == 'MIZ' .or.  &
+             molecule%residue_name(i)(1:3) == 'PWA' .or.  &
+             molecule%residue_name(i)(1:3) == 'SOL' .or.  &
+             molecule%residue_name(i)(1:3) == 'PCL' .or.  &
+             molecule%residue_name(i)(1:3) == 'PSO').and. &
+             molecule%atom_cls_name(i)(1:1) /= 'H') then
+          nwater = nwater + 1
+        else if (molecule%residue_name(i)(1:3) /= 'TIP' .and. &
+                 molecule%residue_name(i)(1:3) /= 'WAT' .and. &
+                 molecule%residue_name(i)(1:3) /= 'MIZ' .and. &
+                 molecule%residue_name(i)(1:3) /= 'PWA' .and. &
+                 molecule%residue_name(i)(1:3) /= 'SOL' .and. &
+                 molecule%residue_name(i)(1:3) /= 'PCL' .and. &
+                 molecule%residue_name(i)(1:3) /= 'PSO') then
+          nsolute = nsolute + 1
+        end if
+      end do
+    end if
 
     if ((natom-nsolute)/4 == nwater .and. nwater > 0) then
       water_type = TIP4
@@ -1850,13 +1904,13 @@ contains
     else if (natom-nsolute == nwater .and. nwater > 0) then
       water_type = TIP1
     else
-      call error_msg('Setup_Solute_And_Water> # of water is incorrect.')
+      call error_msg('Setup_Solute_And_Water> Incorrect number of '//&
+	             'water molecules.')
     end if
 
     enefunc%table%num_water  = nwater
     enefunc%table%num_solute = nsolute
     num_water = nwater
-    call alloc_enefunc(enefunc, EneFuncTableWat, nwater,  1)
     call alloc_enefunc(enefunc, EneFuncTableSol, nsolute, natom)
 
     if (water_type == TIP4) then
@@ -1869,6 +1923,8 @@ contains
       water_atom = 1
     end if
 
+    call alloc_enefunc(enefunc, EneFuncTableWat, nwater, water_atom)
+
     i       = 1
     nwater  = 0
     nsolute = 0
@@ -1877,10 +1933,18 @@ contains
 
       if (i > natom) exit
 
-      if (molecule%residue_name(i)(1:3) .eq. 'TIP' .or. &
-          molecule%residue_name(i)(1:3) .eq. 'WAT' .or. &
-          molecule%residue_name(i)(1:3) .eq. 'MIZ' .or. &
-          molecule%residue_name(i)(1:3) .eq. 'SOL') then
+      if ((ene_info%forcefield /= ForceFieldSpica .and. &
+           (molecule%residue_name(i)(1:3) == 'TIP' .or. &
+            molecule%residue_name(i)(1:3) == 'WAT' .or. &
+            molecule%residue_name(i)(1:3) == 'SOL')) .or. &
+          (ene_info%forcefield == ForceFieldSpica .and. &
+           (molecule%residue_name(i)(1:3) == 'TIP' .or. &
+            molecule%residue_name(i)(1:3) == 'WAT' .or. &
+            molecule%residue_name(i)(1:3) == 'MIZ' .or. &
+            molecule%residue_name(i)(1:3) == 'PWA' .or. &
+            molecule%residue_name(i)(1:3) == 'SOL' .or. &
+            molecule%residue_name(i)(1:3) == 'PCL' .or. &
+            molecule%residue_name(i)(1:3) == 'PSO'))) then
 
         do k = 1, water_atom
           mass(k) = molecule%mass(i-1+k)
@@ -1919,6 +1983,18 @@ contains
         end if
         nwater = nwater + 1
         enefunc%table%water_list(1:water_atom,nwater) = id(1:water_atom)
+        if (ene_info%forcefield == ForceFieldSpica .and. water_atom == 2) then
+          if (molecule%residue_name(i)(1:3) == 'PWA') then
+            enefunc%table%water_type(nwater) = 1
+          else if (molecule%residue_name(i)(1:3) == 'PCL') then
+            enefunc%table%water_type(nwater) = 2
+          else if (molecule%residue_name(i)(1:3) == 'PSO') then
+            enefunc%table%water_type(nwater) = 3
+          else
+            call error_msg('Setup_Solute_And_Water> Water assignment error.')
+            enefunc%table%water_type(nwater) = 0
+          end if
+        end if
         i = i + water_atom
 
       else
@@ -1933,16 +2009,16 @@ contains
     end do
 
     if (nwater /= enefunc%table%num_water) &
-      call error_msg('Setup_Solute_And_Water> number of water is incorrect')
+      call error_msg('Setup_Solute_And_Water> Incorrect number of '//&
+                     'water molecules')
 
     if (nsolute /= enefunc%table%num_solute) &
-      call error_msg('Setup_Solute_And_Water> number of solute is incorrect')
+      call error_msg('Setup_Solute_And_Water> Incorrect number of '//&
+                     'solute atoms')
 
 
     ! set water oxygen and hydrogen
     !
-    ! if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
-    !     water_atom >= 3) then
     if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
         water_atom >= 3) then
 
@@ -1968,22 +2044,27 @@ contains
     else if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
              water_atom == 2) then
 
-      io = enefunc%table%water_list(1,1)
-      ih = enefunc%table%water_list(2,1)
-      enefunc%table%atom_cls_no_1  = molecule%atom_cls_no(io)
-      enefunc%table%atom_cls_no_2  = molecule%atom_cls_no(ih)
-      enefunc%table%charge_1       = molecule%charge(io)
-      enefunc%table%charge_2       = molecule%charge(ih)
-      enefunc%table%mass_1         = molecule%mass(io)
-      enefunc%table%mass_2         = molecule%mass(ih)
+      enefunc%table%atom_cls_no_1(1:3)  = 0
+      enefunc%table%atom_cls_no_2(1:3)  = 0
+      do i = 1, nwater
+        k  = enefunc%table%water_type(i)
+        io = enefunc%table%water_list(1,i)
+        ih = enefunc%table%water_list(2,i)
+        enefunc%table%atom_cls_no_1(k)  = molecule%atom_cls_no(io)
+        enefunc%table%atom_cls_no_2(k)  = molecule%atom_cls_no(ih)
+        enefunc%table%charge_1(k)       = molecule%charge(io)
+        enefunc%table%charge_2(k)       = molecule%charge(ih)
+        enefunc%table%mass_1(k)         = molecule%mass(io)
+        enefunc%table%mass_2(k)         = molecule%mass(ih)
+      end do
 
     else if (size(enefunc%table%water_list(1,:)) /= 0 .and. &
              water_atom == 1) then
 
       io = enefunc%table%water_list(1,1)
-      enefunc%table%atom_cls_no_1 = molecule%atom_cls_no(io)
-      enefunc%table%charge_1      = molecule%charge(io)
-      enefunc%table%mass_1        = molecule%mass(io)
+      enefunc%table%atom_cls_no_1(1) = molecule%atom_cls_no(io)
+      enefunc%table%charge_1(1)      = molecule%charge(io)
+      enefunc%table%mass_1(1)        = molecule%mass(io)
 
     end if
 
@@ -2283,7 +2364,8 @@ contains
 
       else if (constraints%duplicate(i1) >= 8) then
         call error_msg( &
-             'Setup_HBond_Group> Bond(>8) for one atom is not considered')
+             'Setup_HBond_Group> Atoms with >8 bonds are not '//&
+	     'supported in H-bond groups')
 
       end if
 
@@ -3101,6 +3183,466 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    setup_atom_spica
+  !> @brief        setup atom maps by Spica force field
+  !! @authors      JJ 
+  !! @param[inout] molecule    : molecule information
+  !! @param[in]    boundary    : boundary condition information
+  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] domain      : domain information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_atom_spica(molecule, boundary, enefunc, constraints, &
+                                 domain)
+
+    ! formal arguments
+    type(s_molecule),    target, intent(inout) :: molecule
+    type(s_boundary),    target, intent(in)    :: boundary
+    type(s_enefunc),     target, intent(in)    :: enefunc
+    type(s_constraints), target, intent(inout) :: constraints
+    type(s_domain),      target, intent(inout) :: domain
+
+    ! local variable
+    real(wip)                    :: shift(3), bsize(3), bsize_orig(3), csize(3)
+    real(wip)                    :: move(3), origin(3), coord_temp(3)
+    integer                      :: ioffset
+    integer                      :: i, j, ic(1:3), icel, i1, j1, k1, k
+    integer                      :: dupl_x, dupl_y, dupl_z
+    integer                      :: dupl(3), num_cell(3), num_cell_block(3)
+    integer                      :: duplicate_cell_startx, duplicate_cell_endx
+    integer                      :: duplicate_cell_starty, duplicate_cell_endy
+    integer                      :: duplicate_cell_startz, duplicate_cell_endz
+    integer                      :: isolute, iwater, ih1, ih2, id
+    integer                      :: icel_local
+    integer                      :: ncel_local, ncel
+    integer                      :: patm, psol, pwat, pnoh, phgl
+    character(4)                 :: ci1
+    logical                      :: mi1, cl1
+
+    real(wip),           pointer :: bsize_x, bsize_y, bsize_z
+    real(wip),           pointer :: csize_x, csize_y, csize_z
+    real(wp),            pointer :: cell_pbc_move(:,:)
+    integer,             pointer :: num_dupl(:)
+    integer,             pointer :: ncel_x, ncel_y, ncel_z
+    integer(int2),       pointer :: cell_g2l(:), cell_g2b(:)
+    integer,             pointer :: natom(:), nsolute(:), nwater(:)
+    integer,             pointer :: solute_list(:,:), water_list(:,:,:)
+    integer,             pointer :: water_type(:,:)
+    integer,             pointer :: No_HGr(:), HGr_local(:,:)
+    integer,             pointer :: HGr_bond_list(:,:,:,:)
+
+    ncel          = domain%num_cell_local + domain%num_cell_boundary
+    ncel_local    = domain%num_cell_local
+
+    cell_g2l      => domain%cell_g2l
+    cell_g2b      => domain%cell_g2b
+    natom         => domain%num_atom
+    nsolute       => domain%num_solute
+    nwater        => domain%num_water
+    cell_pbc_move => domain%cell_pbc_move
+
+    num_dupl      => boundary%num_duplicate
+    bsize(1)      = boundary%box_size_x
+    bsize(2)      = boundary%box_size_y
+    bsize(3)      = boundary%box_size_z
+    bsize_orig(1) = boundary%box_size_orig(1)
+    bsize_orig(2) = boundary%box_size_orig(2)
+    bsize_orig(3) = boundary%box_size_orig(3)
+    csize(1)      = boundary%cell_size_x
+    csize(2)      = boundary%cell_size_y
+    csize(3)      = boundary%cell_size_z
+    num_cell(1)   = boundary%num_cells_x
+    num_cell(2)   = boundary%num_cells_y
+    num_cell(3)   = boundary%num_cells_z
+
+    origin(1)     = boundary%origin_x
+    origin(2)     = boundary%origin_y
+    origin(3)     = boundary%origin_z
+
+    natom  (1:ncel) = 0
+    nsolute(1:ncel) = 0
+    nwater (1:ncel) = 0
+
+    ! count particles
+    !
+    do dupl_x = 1, num_dupl(1)
+      dupl(1) = dupl_x
+      do dupl_y = 1, num_dupl(2)
+        dupl(2) = dupl_y
+        do dupl_z = 1, num_dupl(3)
+          dupl(3) = dupl_z
+
+          ioffset = dupl(1)-1 + (dupl(2)-1)*num_dupl(1) &
+                  + (dupl(3)-1)*num_dupl(1)*num_dupl(2)
+          ioffset = ioffset * molecule%num_atoms
+
+          do isolute = 1, enefunc%table%num_solute
+
+            i   = enefunc%table%solute_list(isolute)
+            shift(1:3) = molecule%atom_coord(1:3,i) &
+                       + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
+            move(1:3)  = bsize(1:3)*0.5_wip &
+                       - bsize(1:3)*anint(shift(1:3)/bsize(1:3))
+            shift(1:3) = shift(1:3) + move(1:3)
+
+            ic(1:3) = int(shift(1:3)/csize(1:3))
+            if (ic(1) == num_cell(1)) ic(1) = ic(1) - 1
+            if (ic(2) == num_cell(2)) ic(2) = ic(2) - 1
+            if (ic(3) == num_cell(3)) ic(3) = ic(3) - 1
+            icel = 1 + ic(1) + ic(2)*num_cell(1) + ic(3)*num_cell(1)*num_cell(2)
+
+            if (cell_g2l(icel) /= 0) then
+
+              icel_local = cell_g2l(icel)
+              patm =  natom  (icel_local)
+              psol =  nsolute(icel_local)
+              patm = patm + 1
+              psol = psol + 1
+              natom  (icel_local) = patm
+              nsolute(icel_local) = psol
+
+            end if
+
+          end do
+        end do
+      end do
+    end do
+
+    ! water atoms in each domain
+    !
+    do dupl_x = 1, num_dupl(1)
+      dupl(1) = dupl_x
+      do dupl_y = 1, num_dupl(2)
+        dupl(2) = dupl_y
+        do dupl_z = 1, num_dupl(3)
+          dupl(3) = dupl_z
+
+          ioffset = dupl(1)-1 + (dupl(2)-1)*num_dupl(1) &
+                  + (dupl(3)-1)*num_dupl(1)*num_dupl(2)
+          ioffset = ioffset * molecule%num_atoms
+
+          do iwater = 1, enefunc%table%num_water
+
+            i   = enefunc%table%water_list(1,iwater)
+            coord_temp(1:3) = molecule%atom_coord(1:3,i)
+            shift(1:3) = molecule%atom_coord(1:3,i) &
+                       + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
+            move(1:3)  = bsize(1:3)*0.5_wip &
+                       - bsize(1:3)*anint(shift(1:3)/bsize(1:3))
+            shift(1:3) = shift(1:3) + move(1:3)
+
+            ic(1:3) = int(shift(1:3)/csize(1:3))
+            if (ic(1) == num_cell(1)) ic(1) = ic(1) - 1
+            if (ic(2) == num_cell(2)) ic(2) = ic(2) - 1
+            if (ic(3) == num_cell(3)) ic(3) = ic(3) - 1
+            icel = 1 + ic(1) + ic(2)*num_cell(1) + ic(3)*num_cell(1)*num_cell(2)
+
+            if (cell_g2l(icel) /= 0) then
+
+              icel_local = cell_g2l(icel)
+              patm =  natom (icel_local)
+              pwat =  nwater(icel_local)
+              pwat = pwat + 1
+              patm = patm + 1
+              natom(icel_local)  = patm
+              nwater(icel_local) = pwat
+
+            end if
+
+          end do
+        end do
+      end do
+    end do
+
+    patm = 0
+    pwat = 0
+    do i = 1, ncel_local
+      patm = max(patm,natom(i))
+      pwat = max(pwat,nwater(i))
+    end do
+#ifdef HAVE_MPI_GENESIS
+        call mpi_allreduce(mpi_in_place, patm, 1, mpi_integer, &
+                           mpi_max, mpi_comm_country, ierror)
+        call mpi_allreduce(mpi_in_place, pwat, 1, mpi_integer, &
+                           mpi_max, mpi_comm_country, ierror)
+#endif
+    MaxAtom      = 3*patm
+    MaxMove      = MaxAtom / 3
+    MaxWater     = 3*pwat
+    MaxWaterMove = MaxWater / 3
+    HGroupMax    = 0
+    if (main_rank) then
+      write(MsgOut,*) ' '
+      write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
+      write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
+      write(MsgOut,*) ' '
+    end if
+
+    if (constraints%water_type == TIP2) then
+      call alloc_domain(domain, DomainDynvar_Atom, ncel, 2, 1)
+    else 
+      call alloc_domain(domain, DomainDynvar_Atom, ncel, 1, 1)
+    end if          
+    call alloc_constraints(constraints, ConstraintsDomainBond, ncel, &
+                           constraints%connect)
+    No_HGr        => constraints%No_HGr
+    solute_list   => domain%solute_list
+    water_list    => domain%water_list
+    water_type    => domain%water_type
+
+    natom  (1:ncel) = 0
+    nsolute(1:ncel) = 0
+    nwater (1:ncel) = 0
+
+    ! solute atoms in each domain
+    !
+    do dupl_x = 1, num_dupl(1)
+      dupl(1) = dupl_x
+      do dupl_y = 1, num_dupl(2)
+        dupl(2) = dupl_y
+        do dupl_z = 1, num_dupl(3)
+          dupl(3) = dupl_z
+
+          ioffset = dupl(1)-1 + (dupl(2)-1)*num_dupl(1) &
+                  + (dupl(3)-1)*num_dupl(1)*num_dupl(2)
+
+          ioffset = ioffset * molecule%num_atoms
+
+          do isolute = 1, enefunc%table%num_solute
+
+            ! check atom coordinate
+            !
+            i   = enefunc%table%solute_list(isolute)
+            shift(1:3) = molecule%atom_coord(1:3,i) &
+                       + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
+            move(1:3)  = bsize(1:3)*0.5_wip &
+                       - bsize(1:3)*anint(shift(1:3)/bsize(1:3))
+            shift(1:3) = shift(1:3) + move(1:3)
+
+            !assign cell
+            !
+            ic(1:3) = int(shift(1:3)/csize(1:3))
+            if (ic(1) == num_cell(1)) ic(1) = ic(1) - 1
+            if (ic(2) == num_cell(2)) ic(2) = ic(2) - 1
+            if (ic(3) == num_cell(3)) ic(3) = ic(3) - 1
+            icel = 1 + ic(1) + ic(2)*num_cell(1) + ic(3)*num_cell(1)*num_cell(2)
+
+            ! atoms inside the domain
+            !
+            if (cell_g2l(icel) /= 0) then
+
+              ! local cell index
+              !
+              icel_local = cell_g2l(icel)
+              patm =  natom  (icel_local)
+              psol =  nsolute(icel_local)
+
+              ! local_count : total number of atoms in each cell
+              !
+              patm = patm + 1
+              psol = psol + 1
+              solute_list(psol,icel_local) = patm
+
+              call molecule_to_domain(molecule, move, origin, i,   &
+                                      domain, icel_local, patm,    &
+                                      dupl, bsize_orig, ioffset)
+              natom  (icel_local) = patm
+              nsolute(icel_local) = psol
+
+            ! atoms in the boundary
+            !
+            else if (cell_g2b(icel) /= 0) then
+
+              ! local cell index
+              !
+              icel_local = cell_g2b(icel) + ncel_local
+              patm =  natom  (icel_local)
+              psol =  nsolute(icel_local)
+
+              ! local_count : total number of atoms in each cell
+              !
+              patm = patm + 1
+              psol = psol + 1
+              solute_list(psol,icel_local) = patm
+
+              move(1:3) = move(1:3)                                &
+                        + cell_pbc_move(1:3,icel_local)*bsize(1:3)
+              call molecule_to_domain(molecule, move, origin, i,     &
+                                      domain, icel_local, patm,      &
+                                      dupl, bsize_orig, ioffset)
+              natom  (icel_local) = patm
+              nsolute(icel_local) = psol
+
+            end if
+
+          end do
+        end do
+      end do
+    end do
+    No_HGr(1:ncel) = nsolute(1:ncel)
+
+    ! water atoms in each domain
+    !
+    do dupl_x = 1, num_dupl(1)
+      dupl(1) = dupl_x
+      do dupl_y = 1, num_dupl(2)
+        dupl(2) = dupl_y
+        do dupl_z = 1, num_dupl(3)
+          dupl(3) = dupl_z
+
+          ioffset = dupl(1)-1 + (dupl(2)-1)*num_dupl(1) &
+                  + (dupl(3)-1)*num_dupl(1)*num_dupl(2)
+          ioffset = ioffset * molecule%num_atoms
+
+          do iwater = 1, enefunc%table%num_water
+
+            i   = enefunc%table%water_list(1,iwater)
+            if (constraints%water_type == TIP2) then
+              ih1 = enefunc%table%water_list(2,iwater)
+              id  = enefunc%table%water_type(  iwater)
+            end if
+
+            coord_temp(1:3) = molecule%atom_coord(1:3,i)
+
+            !coordinate shifted against the origin
+            !
+            shift(1:3) = molecule%atom_coord(1:3,i) &
+                       + bsize_orig(1:3)*real(dupl(1:3)-1,wip) - origin(1:3)
+            move(1:3)  = bsize(1:3)*0.5_wip &
+                       - bsize(1:3)*anint(shift(1:3)/bsize(1:3))
+            shift(1:3) = shift(1:3) + move(1:3)
+
+            !assign which cell
+            !
+            ic(1:3) = int(shift(1:3)/csize(1:3))
+            if (ic(1) == num_cell(1)) ic(1) = ic(1) - 1
+            if (ic(2) == num_cell(2)) ic(2) = ic(2) - 1
+            if (ic(3) == num_cell(3)) ic(3) = ic(3) - 1
+            icel = 1 + ic(1) + ic(2)*num_cell(1) + ic(3)*num_cell(1)*num_cell(2)
+
+            ! atoms inside the domain
+            !
+            if (cell_g2l(icel) /= 0) then
+
+              ! local cell index
+              !
+              icel_local = cell_g2l(icel)
+              patm =  natom (icel_local)
+              pwat =  nwater(icel_local)
+              pwat = pwat + 1
+
+              ! first particle
+              !
+              patm = patm + 1
+              water_list(1,pwat,icel_local) = patm
+              if (constraints%water_type == TIP2) &
+                water_type(pwat,icel_local) = id
+              call molecule_to_domain(molecule, move, origin, i, &
+                                      domain, icel_local, patm,  &
+                                      dupl, bsize_orig, ioffset)
+
+              if (constraints%water_type == TIP2) then
+
+                ! second particle
+                !
+                patm = patm + 1
+                water_list(2,pwat,icel_local) = patm
+                do k = 1, 3
+                  if (molecule%atom_coord(k,ih1) < &
+                         coord_temp(k) - 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) + bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) + bsize(k)
+                  else if (molecule%atom_coord(k,ih1) > &
+                         coord_temp(k) + 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) - bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) - bsize(k)
+                  end if
+                end do
+                call molecule_to_domain(molecule, move, origin, ih1, &
+                                        domain, icel_local, patm,    &
+                                        dupl, bsize_orig, ioffset)
+
+              end if
+              natom(icel_local)  = patm
+              nwater(icel_local) = pwat
+
+            ! atoms in the boundary
+            !
+            else if (cell_g2b(icel) /= 0) then
+
+              ! local cell index
+              !
+              icel_local = cell_g2b(icel) + ncel_local
+              patm =  natom (icel_local)
+              pwat =  nwater(icel_local)
+              pwat = pwat + 1
+
+              ! first particle
+              !
+              patm = patm + 1
+              water_list(1,pwat,icel_local) = patm
+              if (constraints%water_type == TIP2) &
+                water_type(pwat,icel_local) = id
+              move(1:3) = move(1:3)                                &
+                        + cell_pbc_move(1:3,icel_local)*bsize(1:3)
+
+              call molecule_to_domain(molecule, move, origin, i, &
+                                      domain, icel_local, patm,  &
+                                      dupl, bsize_orig, ioffset)
+
+              if (constraints%water_type == TIP2) then
+
+                ! second particle
+                !
+                patm = patm + 1
+                water_list(2,pwat,icel_local) = patm
+                do k = 1, 3
+                  if (molecule%atom_coord(k,ih1) < &
+                         coord_temp(k) - 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) + bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) + bsize(k)
+                  else if (molecule%atom_coord(k,ih1) > &
+                         coord_temp(k) + 0.5_wp*bsize(k)) then
+                    molecule%atom_coord(k,ih1) = &
+                           molecule%atom_coord(k,ih1) - bsize(k)
+                    if (allocated(molecule%atom_refcoord)) &
+                      molecule%atom_refcoord(k,ih1) =           &
+                           molecule%atom_refcoord(k,ih1) - bsize(k)
+                  end if
+                end do
+                call molecule_to_domain(molecule, move, origin, ih1, &
+                                        domain, icel_local, patm,    &
+                                        dupl, bsize_orig, ioffset)
+
+             end if
+
+              natom(icel_local)  = patm
+              nwater(icel_local) = pwat
+
+            end if
+          end do
+
+        end do
+      end do
+    end do
+
+    return
+
+  end subroutine setup_atom_spica
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    setup_atom_by_HBond_pio
   !> @brief        setup atom maps with H-bond connection groups
   !! @authors      JJ
@@ -3368,7 +3910,9 @@ contains
           end do
 
           if (domain%nonbond_kernel == NBK_Fugaku .or. &
-              domain%nonbond_kernel == NBK_Intel) then
+              domain%nonbond_kernel == NBK_Intel  .or. &
+              domain%nonbond_kernel == NBK_Spica  .or. &
+              domain%nonbond_kernel == NBK_PSpica) then
             do ix = 1, No_HGr(i)
               trans(1:3,ix,i) = bsize(1:3)*0.5_wip                           &
                               - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3)) &
@@ -3396,7 +3940,9 @@ contains
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,list,i)/bsize(1:3))
               if (domain%nonbond_kernel == NBK_Fugaku .or. &
-                  domain%nonbond_kernel == NBK_Intel)      &
+                  domain%nonbond_kernel == NBK_Intel  .or. &
+                  domain%nonbond_kernel == NBK_Spica  .or. &
+                  domain%nonbond_kernel == NBK_PSpica)     &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do list = 1, j+1
                 k = k + 1
@@ -3410,7 +3956,9 @@ contains
             do ix = nsolute(i)+1, natom(i)-3, 4
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or.  &
+                  domain%nonbond_kernel == NBK_Spica  .or.  &
+                  domain%nonbond_kernel == NBK_PSpica)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 4
                 trans(1:3,ix-1+j,i) = move(1:3)
@@ -3420,7 +3968,9 @@ contains
             do ix = nsolute(i)+1, natom(i)-2, 3
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or.  &
+                  domain%nonbond_kernel == NBK_Spica  .or.  &
+                  domain%nonbond_kernel == NBK_PSpica)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 3
                 trans(1:3,ix-1+j,i) = move(1:3)
@@ -3430,7 +3980,9 @@ contains
             do ix = nsolute(i)+1, natom(i)-1, 2
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku .or.  &
+                  domain%nonbond_kernel == NBK_Spica  .or.  &
+                  domain%nonbond_kernel == NBK_PSpica)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               do j = 1, 2
                 trans(1:3,ix-1+j,i) = move(1:3)
@@ -3440,7 +3992,9 @@ contains
             do ix = nsolute(i)+1, natom(i)
               move(1:3) = bsize(1:3)*0.5_wip &
                         - bsize(1:3)*anint(coord(1:3,ix,i)/bsize(1:3))
-              if (domain%nonbond_kernel == NBK_Fugaku) &
+              if (domain%nonbond_kernel == NBK_Fugaku  .or. &
+                  domain%nonbond_kernel == NBK_Spica  .or.  &
+                  domain%nonbond_kernel == NBK_PSpica)      &
                 move(1:3) = move(1:3) + cell_pbc_move(1:3,i)*bsize(1:3)
               trans(1:3,ix,i) = move(1:3)
             end do
@@ -3979,7 +4533,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine assign_cell_interaction(natom, num_domain, cell,            &
+  subroutine assign_cell_interaction(pairlistdist, natom, num_domain,    &
+                                     cell, cell_size,                    &
                                      cell_l2gx,  cell_l2gy,  cell_l2gz,  &
                                      cell_l2gx1, cell_l2gy1, cell_l2gz1, &
                                      cell_gxyz2l,cell_start, cell_end,   &
@@ -3987,6 +4542,7 @@ contains
                                      cell_move, cell_pair, virial_check)
 
     ! formal arguments
+    real(wp),                intent(in)    :: pairlistdist, cell_size(:)
     real(wp),                intent(in)    :: natom(:)
     integer,                 intent(in)    :: num_domain(:)
     integer,                 intent(in)    :: cell(:)
@@ -4006,11 +4562,11 @@ contains
     integer(int1),           intent(inout) :: virial_check(:,:)
 
     ! local variables
-    real(wip)                :: ic1, ic2
+    real(wip)                :: ic1, ic2, dij(3), dist
     integer                  :: i, i1, i2, i3, j, ii, jj, ij
     integer                  :: icx1, icy1, icz1, icx2, icy2, icz2
     integer                  :: icx, icy, icz, movex, movey, movez
-
+    integer                  :: idx, idy, idz
 
     ij = 0
 
@@ -4035,7 +4591,18 @@ contains
         icy = min(abs(icy1-icy2),abs(icy1-icy2-cell(2)),abs(icy1-icy2+cell(2)))
         icz = min(abs(icz1-icz2),abs(icz1-icz2-cell(3)),abs(icz1-icz2+cell(3)))
 
-        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2) then
+        idx = 0
+        idy = 0
+        idz = 0
+        if (abs(icx) == 2) idx = 1
+        if (abs(icy) == 2) idy = 1
+        if (abs(icz) == 2) idz = 1
+        dij(1) = idx*cell_size(1)
+        dij(2) = idy*cell_size(2)
+        dij(3) = idz*cell_size(3)
+        dist = sqrt(dij(1)*dij(1)+dij(2)*dij(2)+dij(3)*dij(3))
+        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2 .and. &
+            dist < pairlistdist) then
           icx = (icx1 + icx2)/2
           icy = (icy1 + icy2)/2
           icz = (icz1 + icz2)/2
@@ -4143,7 +4710,18 @@ contains
         icy = icy1 - icy2 + movey
         icz = icz1 - icz2 + movez
 
-        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2) then
+        idx = 0
+        idy = 0
+        idz = 0
+        if (abs(icx) == 2) idx = 1
+        if (abs(icy) == 2) idy = 1
+        if (abs(icz) == 2) idz = 1
+        dij(1) = idx*cell_size(1)
+        dij(2) = idy*cell_size(2)
+        dij(3) = idz*cell_size(3)
+        dist = sqrt(dij(1)*dij(1)+dij(2)*dij(2)+dij(3)*dij(3))
+        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2 .and. &
+            dist < pairlistdist) then
 
           ij = ij + 1
           icx = icx1 + icx2 + movex
@@ -4226,7 +4804,18 @@ contains
         icy = min(abs(icy1-icy2), abs(icy1-icy2-cell(2)),abs(icy1-icy2+cell(2)))
         icz = min(abs(icz1-icz2), abs(icz1-icz2-cell(3)),abs(icz1-icz2+cell(3)))
 
-        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2) then
+        idx = 0
+        idy = 0
+        idz = 0
+        if (abs(icx) == 2) idx = 1
+        if (abs(icy) == 2) idy = 1
+        if (abs(icz) == 2) idz = 1
+        dij(1) = idx*cell_size(1)
+        dij(2) = idy*cell_size(2)
+        dij(3) = idz*cell_size(3)
+        dist = sqrt(dij(1)*dij(1)+dij(2)*dij(2)+dij(3)*dij(3))
+        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2 .and. &
+            dist < pairlistdist) then
 
         if (icx == abs(icx1-icx2-cell(1))) then
           cell_move(1,j,i) = -1
@@ -4338,7 +4927,19 @@ contains
         icy = icy1 - icy2 + movey
         icz = icz1 - icz2 + movez
 
-        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2) then
+        idx = 0
+        idy = 0
+        idz = 0
+        if (abs(icx) == 2) idx = 1
+        if (abs(icy) == 2) idy = 1
+        if (abs(icz) == 2) idz = 1
+        dij(1) = idx*cell_size(1)
+        dij(2) = idy*cell_size(2)
+        dij(3) = idz*cell_size(3)
+        dist = sqrt(dij(1)*dij(1)+dij(2)*dij(2)+dij(3)*dij(3))
+
+        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2 .and. &
+            dist < pairlistdist) then
 
           ij = ij + 1
           icx = icx1 + icx2
@@ -4418,7 +5019,18 @@ contains
         icy = min(abs(icy1-icy2), abs(icy1-icy2-cell(2)),abs(icy1-icy2+cell(2)))
         icz = min(abs(icz1-icz2), abs(icz1-icz2-cell(3)),abs(icz1-icz2+cell(3)))
 
-        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2) then
+        idx = 0
+        idy = 0
+        idz = 0
+        if (abs(icx) == 2) idx = 1
+        if (abs(icy) == 2) idy = 1
+        if (abs(icz) == 2) idz = 1
+        dij(1) = idx*cell_size(1)
+        dij(2) = idy*cell_size(2)
+        dij(3) = idz*cell_size(3)
+        dist = sqrt(dij(1)*dij(1)+dij(2)*dij(2)+dij(3)*dij(3))
+        if (abs(icx) <= 2 .and. abs(icy) <= 2 .and. abs(icz) <= 2 .and. &
+            dist < pairlistdist) then
 
         if (icx == abs(icx1-icx2-cell(1))) then
           cell_move(1,j,i) = -1
@@ -4494,7 +5106,7 @@ contains
     real(wp),         pointer :: charge(:), mass(:)
     integer,          pointer :: atom_class(:)
 
-    real(wip),        pointer :: coord_local (:,:,:)
+    real(wip),        pointer :: coord_local (:,:,:), coord_back(:,:,:)
     real(wip),        pointer :: ref_local   (:,:,:)
     real(wip),        pointer :: vel_local   (:,:,:)
     real(wp),         pointer :: charge_local(:,:)
@@ -4516,6 +5128,7 @@ contains
     id_g2l       => domain%id_g2l
     id_l2g       => domain%id_l2g
     coord_local  => domain%coord
+    coord_back   => domain%coord_backup
     ref_local    => domain%coord_ref
     vel_local    => domain%velocity
     charge_local => domain%charge
@@ -4530,6 +5143,7 @@ contains
     coord_local(1:3,icel_atom,icel) = coord (1:3,iatom)              &
                                     + real(dupl(1:3)-1,wip)*box(1:3) &
                                     - origin(1:3)
+    coord_back (1:3,icel_atom,icel) = coord_local(1:3,icel_atom,icel)
     ref_local  (1:3,icel_atom,icel) = coord_local(1:3,icel_atom,icel)
     vel_local  (1:3,icel_atom,icel) = vel   (1:3,iatom)
     charge_local   (icel_atom,icel) = charge    (iatom)
@@ -4658,19 +5272,22 @@ contains
           dr(2) = dir(2) - coord(2,iy,i)
           dr(3) = dir(3) - coord(3,iy,i)
           rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-          if (rr < EPS) &
-            call error_msg('Check_Atom_Coord> coordinates are too close')
+          if (rr < EPS .and. ene_info%error_check_coord) &
+            call error_msg('Check_Atom_Coord> Atomic overlap detected: '//&
+	                   'coordinates are too close')
           if (rr < ene_info%minimum_contact .and. &
               mass(ix,i)*mass(iy,i) > EPS) then
             !$omp critical
             write(MsgOut, '(A,I10,I10,F10.5)') &
-            'WARNING: too small distances: ', id_l2g(ix,i), id_l2g(iy,i), &
+            'WARNING: Too small distances:', id_l2g(ix,i), id_l2g(iy,i), &
                                               sqrt(rr)
             !$omp end critical
             if (rr < ene_info%err_minimum_contact .and. &
-                mass(ix,i)*mass(iy,i) > EPS      .and. &
-                .not. ene_info%contact_check) &
-              call error_msg('Check_Atom_Coord> too small contact: please use nonb_limiter')
+                mass(ix,i)*mass(iy,i) > EPS      .and.  &
+                .not. ene_info%contact_check     .and.  &
+                ene_info%error_check_coord)             &
+              call error_msg('Check_Atom_Coord> Contact distance too small: '//&
+                             'please use nonb_limiter')
           end if
         end do
       end do
@@ -4718,17 +5335,20 @@ contains
             dr(2) = dr(2) - system_size(2)*anint(dr(2)/system_size(2))
             dr(3) = dr(3) - system_size(3)*anint(dr(3)/system_size(3))
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-            if (rr < EPS) &
-              call error_msg('Check_Atom_Coord> coordinates are too close')
+            if (rr < EPS .and. ene_info%error_check_coord) &
+              call error_msg('Check_Atom_Coord> Atom overlap detected: '//&
+	                     'coordinates are too close')
             if (rr < ene_info%minimum_contact) then
               !$omp critical
               write(MsgOut, '(A,I10,I10,F10.5)') &
-              'WARNING: too small distances: ', id_l2g(ix,i), id_l2g(iy,j), &
+              'WARNING: Too small distances:', id_l2g(ix,i), id_l2g(iy,j), &
                                                 sqrt(rr)
               !$omp end critical
               if (rr < ene_info%err_minimum_contact .and. &
-                  .not. ene_info%contact_check) &
-                call error_msg('Check_Atom_Coord> too small contact: please use nonb_limiter')
+                  .not. ene_info%contact_check     .and.  &
+                  ene_info%error_check_coord)             &
+                call error_msg('Check_Atom_Coord> Contact distance too '//&
+                               'small: please use nonb_limiter')
             end if
           end do
         end do
@@ -4771,17 +5391,20 @@ contains
             dr(2) = dir(2) - coord(2,iy,j)
             dr(3) = dir(3) - coord(3,iy,j)
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-            if (rr < EPS) &
-              call error_msg('Check_Atom_Coord> coordinates are too close')
+            if (rr < EPS .and. ene_info%error_check_coord) &
+              call error_msg('Check_Atom_Coord> Atom overlap detected: '//&
+	                     'coordinates are too close')
             if (rr < ene_info%minimum_contact) then
               !$omp critical
               write(MsgOut,'(A,I10,I10,F10.5)') &
-              'WARNING: too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
+              'WARNING: Too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
                                               sqrt(rr)
               !$omp end critical
               if (rr < ene_info%err_minimum_contact .and.  &
-                 .not. ene_info%contact_check) &
-                call error_msg('Check_Atom_Coord> too small contact: please use nonb_limiter')
+                  .not. ene_info%contact_check     .and.  &
+                  ene_info%error_check_coord)             &
+                call error_msg('Check_Atom_Coord> Contact distance too '//&
+		               'small: please use nonb_limiter')
             end if
           end do
         end do
@@ -4878,13 +5501,14 @@ contains
           dr(3) = dir(3) - trans2(iy,3,i)
           rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
           if (rr < EPS) &
-            call error_msg('Check_Atom_Coord_Pio> coordinates are too close')
+            call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
+	                   'coordinates are too close')
 
           if (rr < enefunc%minimum_contact .and. &
               mass(ix,i)*mass(iy,i) > EPS) then
             !$omp critical
             write(MsgOut,'(A,I10,I10,F10.5)') &
-            'WARNING: too small distances:',id_l2g(ix,i), id_l2g(iy, i), &
+            'WARNING: Too small distances:',id_l2g(ix,i), id_l2g(iy, i), &
                                             sqrt(rr)
             !$omp end critical
           end if
@@ -4908,13 +5532,13 @@ contains
             dr(3) = dir(3) - trans2(iy,3,j)+ tr(3)
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
-            call error_msg('Check_Atom_Coord_Pio> coordinates are too '//&
-            'close near')
+            call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
+            'coordinates are too close')
 
             if (rr < enefunc%minimum_contact) then
               !$omp critical
               write(MsgOut,'(A,I10,I10,F10.5)') &
-              'WARNING: too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
+              'WARNING: Too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
                                               sqrt(rr)
               !$omp end critical
             end if
@@ -4936,12 +5560,13 @@ contains
             dr(3) = dir(3) - trans2(iy,3,j)
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
-              call error_msg('Check_Atom_Coord_Pio> coordinates are too close')
+              call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
+	      'coordinates are too close')
 
             if (rr < enefunc%minimum_contact) then
               !$omp critical
               write(MsgOut,'(A,I10,I10,F10.5)') &
-              'WARNING: too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
+              'WARNING: Too small distances:',id_l2g(ix,i), id_l2g(iy, j), &
                                               sqrt(rr)
               !$omp end critical
             end if
@@ -5047,6 +5672,16 @@ contains
       domain%pairlist_kernel = PLK_Fugaku
       domain%nonbond_kernel  = NBK_Fugaku
 
+    case (NBK_Spica)
+
+      domain%pairlist_kernel = PLK_Spica
+      domain%nonbond_kernel  = NBK_Spica
+
+    case (NBK_PSpica)
+
+      domain%pairlist_kernel = PLK_PSpica
+      domain%nonbond_kernel  = NBK_PSpica
+
     end select
 
     if (ene_info%nonb_limiter) then
@@ -5054,6 +5689,18 @@ contains
       domain%pairlist_kernel = PLK_Generic
       domain%nonbond_kernel  = NBK_Generic
 
+    end if
+
+    if (ene_info%forcefield == ForcefieldSpica .and. &
+        domain%nonbond_kernel /= NBK_PSpica) then
+      domain%pairlist_kernel = PLK_Spica
+      domain%nonbond_kernel  = NBK_Spica
+      if (boundary%num_domain(1) == 1 .or. &
+          boundary%num_domain(2) == 1 .or. &
+          boundary%num_domain(3) == 1) then
+          call error_msg( &
+           'Read_Ctrl_Energy> SPICA kernel requires domain_x,y,z > 1')
+      end if
     end if
 
     if (ene_info%electrostatic == ElectrostaticCutoff) then
@@ -5069,19 +5716,38 @@ contains
       domain%nonbond_kernel  = NBK_Generic
     end if
 
+    if (ene_info%forcefield == ForcefieldSpica) then
+      domain%pairlist_kernel = PLK_Spica
+      domain%nonbond_kernel  = NBK_Spica
+      if (boundary%num_domain(1) == 1 .or. &
+          boundary%num_domain(2) == 1 .or. &
+          boundary%num_domain(3) == 1) then
+          call error_msg( &
+           'Read_Ctrl_Energy> SPICA kernel requires domain_x,y,z > 1')
+      end if
+    end if
+
+    if ((boundary%num_domain(1) == 1 .or. &
+         boundary%num_domain(2) == 1 .or. &
+         boundary%num_domain(3) == 1) .and. &
+         domain%nonbond_kernel /= NBK_GPU) then
+      domain%pairlist_kernel = PLK_Generic
+      domain%nonbond_kernel  = NBK_Generic
+    end if
+
     if (ene_info%nonbond_kernel == NBK_GPU) then
 
       if (ene_info%electrostatic == ElectrostaticCUTOFF) &
         call error_msg( &
-           'Read_Ctrl_Energy> Electrostatic cutoff is not available with GPU')
+           'Read_Ctrl_Energy> Electrostatic cutoff is not supported on GPU')
 
       if (ene_info%nonb_limiter) &
         call error_msg( &
-           'Read_Ctrl_Energy> nonb_limiter is not available with GPU')
+           'Read_Ctrl_Energy> nonb_limiter is currently unsupported on GPU')
 
       if (ene_info%structure_check /= StructureCheckNone) &
         call error_msg( &
-           'Read_Ctrl_Energy> structure_check is not available with GPU')
+           'Read_Ctrl_Energy> structure_check is currently unsupported on GPU')
 
     end if
 
@@ -5093,7 +5759,7 @@ contains
       write(MsgOut,'(a)')   'Select_kernel> '
       write(MsgOut,'(a,a)') '  Pairlist        = ', PLK_Strings(domain%pairlist_kernel)
       write(MsgOut,'(a,a)') '  Nonbond         = ', NBK_Types(domain%nonbond_kernel)
-      write(MsgOut,'(a)')   ''
+      write(MsgOut,'(a)')   ' '
 
     end if
 
@@ -5241,9 +5907,9 @@ contains
     !
     call check_light_atom_name(con_info%hydrogen_mass_upper_bound, molecule)
 
-    call setup_solute_and_water(molecule, enefunc,       &
-                                constraints%water_model, &
-                                constraints%water_type,  &
+    call setup_solute_and_water(ene_info, molecule, enefunc,  &
+                                constraints%water_model,      &
+                                constraints%water_type,       &
                                 constraints%num_water)
 
     num_solute_all            = enefunc%table%num_solute      &
@@ -5277,25 +5943,25 @@ contains
     !
 
     if (main_rank) then
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_domain_str     ::MaxAtom      : ', MaxAtom
       write(MsgOut,*) 'sp_domain_str     ::MaxWater     : ', MaxWater
       write(MsgOut,*) 'sp_domain_str     ::MaxMove      : ', MaxMove
       write(MsgOut,*) 'sp_domain_str     ::MaxWaterMove : ', MaxWaterMove
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15      : ', MaxNb15
       write(MsgOut,*) 'sp_enefunc_str    ::MaxNb15Water : ', MaxNb15Water
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
       write(MsgOut,*) 'sp_constraints_str::HGroupMax    : ', HGroupMax
       write(MsgOut,*) 'sp_constraints_str::HGrpMaxMove  : ', HGrpMaxMove
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
 
     end if
 #endif
 
     ! assign the interaction cell for each interaction
     !
-    call setup_domain_interaction(boundary, domain)
+    call setup_domain_interaction(ene_info, boundary, domain)
 
     call check_atom_coord(ene_info, boundary, domain)
 
@@ -5315,16 +5981,16 @@ contains
       domain%water%mass(3)        = enefunc%table%mass_H
       domain%water%mass(4)        = enefunc%table%mass_D
     else if (constraints%water_type == TIP2) then
-      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
-      domain%water%atom_cls_no(2) = enefunc%table%atom_cls_no_2
-      domain%water%charge(1)      = enefunc%table%charge_1
-      domain%water%charge(2)      = enefunc%table%charge_2
-      domain%water%mass(1)        = enefunc%table%mass_1
-      domain%water%mass(2)        = enefunc%table%mass_2
+      domain%water%atom_cls_no_tip2(1,1:3) = enefunc%table%atom_cls_no_1(1:3)
+      domain%water%atom_cls_no_tip2(2,1:3) = enefunc%table%atom_cls_no_2(1:3)
+      domain%water%charge_tip2(1,1:3)      = enefunc%table%charge_1(1:3)
+      domain%water%charge_tip2(2,1:3)      = enefunc%table%charge_2(1:3)
+      domain%water%mass_tip2(1,1:3)        = enefunc%table%mass_1(1:3)
+      domain%water%mass_tip2(2,1:3)        = enefunc%table%mass_2(1:3)
     else
-      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1
-      domain%water%charge(1)      = enefunc%table%charge_1
-      domain%water%mass(1)        = enefunc%table%mass_1
+      domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_1(1)
+      domain%water%charge(1)      = enefunc%table%charge_1(1)
+      domain%water%mass(1)        = enefunc%table%mass_1(1)
     end if
 
     return
@@ -5362,7 +6028,8 @@ contains
       end do
 
       if ((molecule%num_atoms_fep(2) > 0) .and. (iA /= iB)) then
-        call error_msg('The number of atoms in singleB is different from that in singleA.')
+        call error_msg('Atom count mismatch: singleB has a different '//&
+                       'number of atoms than singleA.')
       end if
 
     end if

@@ -31,12 +31,14 @@ module sp_pairlist_str_mod
     integer,            allocatable :: num_nb15_calc_solute(:)
     integer,            allocatable :: num_nb15_calc_water(:)
     integer,            allocatable :: num_nb15_calc_water_p(:)
+    integer,            allocatable :: num_nb15_calc_charge(:)
     integer,            allocatable :: num_nb15_calc1(:,:)
     integer,            allocatable :: nb15_calc_list(:,:)
     integer,            allocatable :: nb15_calc_list_fugaku(:,:,:)
     integer,            allocatable :: nb15_calc_list_solute(:,:)
     integer,            allocatable :: nb15_calc_list_water(:,:)
     integer,            allocatable :: nb15_calc_list_water_p(:,:)
+    integer,            allocatable :: nb15_calc_list_charge(:,:)
     integer,            allocatable :: nb15_calc_list1(:,:)
     integer,            allocatable :: nb15_cell(:)
     integer,            allocatable :: nb15_list(:,:)
@@ -77,7 +79,12 @@ module sp_pairlist_str_mod
   integer,        public, parameter :: PairListGPU         = 2
   integer,        public, parameter :: PairListIntelGeneric= 3
   integer,        public, parameter :: PairListFugaku      = 4
-  integer,        public, parameter :: PairListFEP         = 6
+  integer,        public, parameter :: PairListFEP         = 5
+  integer,        public, parameter :: PairListSPICA       = 6
+  integer,        public, parameter :: PairListSPICA1      = 7
+  integer,        public, parameter :: PairListSPICA2      = 8
+  integer,        public, parameter :: PairListPSPICA1     = 9
+  integer,        public, parameter :: PairListPSPICA2     = 10
 
   ! variables for maximum numbers in one cell
   integer,        public            :: MaxNb15        = 15000
@@ -86,6 +93,7 @@ module sp_pairlist_str_mod
   integer,        public            :: MaxNb15_S      = 1000
   integer,        public            :: MaxNb15_W      = 1000
   integer,        public            :: MaxNb15_W_P    = 1000
+  integer,        public            :: MaxNb15_C      = 1000
   ! FEP: MaxNb15_fep will be changed depending on the numbe of perturbed atoms.
   integer,        public            :: MaxNb15_fep    = 15000
 
@@ -129,12 +137,13 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine alloc_pairlist(pairlist, variable, var_size)
+  subroutine alloc_pairlist(pairlist, variable, var_size, var_size1)
 
     ! formal arguments
     type(s_pairlist),        intent(inout) :: pairlist
     integer,                 intent(in)    :: variable
     integer,                 intent(in)    :: var_size
+    integer,  optional,      intent(in)    :: var_size1
 
     ! local variables
     integer                  :: alloc_stat, dealloc_stat
@@ -188,6 +197,83 @@ contains
                  stat = alloc_stat)
 
       pairlist%num_nb15_calc  (1:MaxAtom*var_size,1)   = 0
+
+    case (PairListSPICA1)           
+
+      if (allocated(pairlist%num_nb15_calc_solute)) then
+        if (size(pairlist%num_nb15_calc_solute) /= var_size) &
+          deallocate(pairlist%num_nb15_calc_solute,          &
+                     pairlist%num_nb15_calc_water,           &
+                     pairlist%num_nb15_calc_water_p,         &
+                     pairlist%num_nb15_calc_charge,          &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(pairlist%num_nb15_calc_solute))   &
+        allocate(pairlist%num_nb15_calc_solute (var_size),  &
+                 pairlist%num_nb15_calc_water  (var_size),  &
+                 pairlist%num_nb15_calc_water_p(var_size),  &
+                 pairlist%num_nb15_calc_charge (var_size),  &
+                 stat = alloc_stat)
+
+      pairlist%num_nb15_calc_solute (1:var_size)   = 0
+      pairlist%num_nb15_calc_water  (1:var_size)   = 0
+      pairlist%num_nb15_calc_water_p(1:var_size)   = 0
+      pairlist%num_nb15_calc_charge (1:var_size)   = 0
+
+    case (PairListPSPICA1)
+
+      if (allocated(pairlist%num_nb15_calc_solute)) then
+        if (size(pairlist%num_nb15_calc_solute) /= var_size) &
+          deallocate(pairlist%num_nb15_calc_solute,          &
+                     pairlist%num_nb15_calc_water ,          &
+                     pairlist%num_nb15_calc_water_p ,        &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(pairlist%num_nb15_calc_solute))   &
+        allocate(pairlist%num_nb15_calc_solute (var_size),  &
+                 pairlist%num_nb15_calc_water  (var_size),  &
+                 pairlist%num_nb15_calc_water_p(var_size),  &
+                 stat = alloc_stat)
+
+      pairlist%num_nb15_calc_solute (1:var_size)   = 0
+      pairlist%num_nb15_calc_water  (1:var_size)   = 0
+      pairlist%num_nb15_calc_water_p(1:var_size)   = 0
+
+    case (PairListSPICA2)
+
+      if (allocated(pairlist%nb15_calc_list_solute)) then
+        if (size(pairlist%nb15_calc_list_solute(1,:)) /= var_size) &
+          deallocate(pairlist%nb15_calc_list_solute,         &
+                     pairlist%nb15_calc_list_water,          &
+                     pairlist%nb15_calc_list_water_p,        &
+                     pairlist%nb15_calc_list_charge,         &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(pairlist%nb15_calc_list_solute))              &
+        allocate(pairlist%nb15_calc_list_solute (MaxNb15_S, var_size),  &
+                 pairlist%nb15_calc_list_water  (MaxNb15_W, var_size),  &
+                 pairlist%nb15_calc_list_water_p(MaxNb15_W_P, var_size),&
+                 pairlist%nb15_calc_list_charge (MaxNb15_C, var_size1), &
+                 stat = alloc_stat)
+
+    case (PairListPSPICA2)
+
+      if (allocated(pairlist%nb15_calc_list_solute)) then
+        if (size(pairlist%nb15_calc_list_solute(1,:)) /= var_size) &
+          deallocate(pairlist%nb15_calc_list_solute,         &
+                     pairlist%nb15_calc_list_water,          &
+                     pairlist%nb15_calc_list_water_p,        &
+                     stat = dealloc_stat)
+      end if
+
+      if (.not. allocated(pairlist%nb15_calc_list_solute))              &
+        allocate(pairlist%nb15_calc_list_solute (MaxNb15_S, var_size),  &
+                 pairlist%nb15_calc_list_water  (MaxNb15_W, var_size),  &
+                 pairlist%nb15_calc_list_water_p(MaxNb15_W_P, var_size),&
+                 stat = alloc_stat)
 
     case (PairListIntelGeneric)
 
@@ -324,6 +410,27 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case (PairListSPICA1)
+        
+      if (allocated(pairlist%num_nb15_calc_solute)) then
+        deallocate(pairlist%num_nb15_calc_solute,          &
+                   pairlist%num_nb15_calc_water ,          &
+                   pairlist%num_nb15_calc_water_p ,        &
+                   pairlist%nb15_calc_list_solute,         &    
+                   pairlist%nb15_calc_list_water,          &    
+                   pairlist%nb15_calc_list_water_p,        &
+                   stat = dealloc_stat)
+      end if
+      
+    case (PairListSPICA2)
+
+      if (allocated(pairlist%nb15_calc_list_solute)) then
+        deallocate(pairlist%nb15_calc_list_solute,         &
+                   pairlist%nb15_calc_list_water,          &
+                   pairlist%nb15_calc_list_water_p,        &
+                   stat = dealloc_stat)
+      end if
+
     case (PairListGPU)
 
       if (allocated(pairlist%univ_ij_load)) then
@@ -390,6 +497,8 @@ contains
     call dealloc_pairlist(pairlist, PairListGeneric)
     call dealloc_pairlist(pairlist, PairListIntelGeneric)
     call dealloc_pairlist(pairlist, PairListGPU)
+    call dealloc_pairlist(pairlist, PairListSPICA1)
+    call dealloc_pairlist(pairlist, PairListSPICA2)
     call dealloc_pairlist(pairlist, PairListFEP)
 
     return

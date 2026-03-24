@@ -2718,7 +2718,7 @@ contains
     my_world_rank = local_my_rank
     my_city_rank  = local_my_rank
 
-    call setup_domain_interaction(boundary, domain)
+    call setup_domain_interaction(ene_info, boundary, domain)
 
     if (boundary%type .eq. BoundaryTypePBC) then
       domain%water%atom_cls_no(1) = enefunc%table%atom_cls_no_O

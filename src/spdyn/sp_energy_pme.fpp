@@ -14,6 +14,7 @@
 
 module sp_energy_pme_mod
 
+  use sp_energy_pme_spica_mod
   use sp_energy_pme_opt_1dalltoall_mod
   use sp_energy_pme_noopt_1dalltoall_mod
   use sp_energy_pme_opt_2dalltoall_mod
@@ -106,30 +107,88 @@ contains
     call mpi_comm_rank(grid_commxy, my_xy_rank, ierror)
 #endif
 
-    select case (pme_scheme)
+    if (domain%nonbond_kernel == NBK_Spica) then
 
-    case (FFT_AutoSelect)
-      call select_pme_scheme(domain, boundary, enefunc)
+      select case (pme_scheme)
 
-    case (FFT_opt_1dalltoall)
-      call setup_pme_opt_1dalltoall(domain, boundary, enefunc, calc)
+      case (FFT_AutoSelect)
+        call setup_pme_spica(domain, boundary, enefunc, calc)
 
-    case (FFT_noopt_1dalltoall)
-      call setup_pme_noopt_1dalltoall(domain, boundary, enefunc)
+      case (FFT_opt_1dalltoall)
+        call setup_pme_opt_1dalltoall(domain, boundary, enefunc, calc)
 
-    case (FFT_opt_2dalltoall)
-      call setup_pme_opt_2dalltoall(domain, boundary, enefunc, calc)
+      case (FFT_noopt_1dalltoall)
+        call setup_pme_noopt_1dalltoall(domain, boundary, enefunc)
 
-    case (FFT_noopt_2dalltoall)
-      call setup_pme_noopt_2dalltoall(domain, boundary, enefunc)
+      case (FFT_opt_2dalltoall)
+        call setup_pme_opt_2dalltoall(domain, boundary, enefunc, calc)
 
-    case (FFT_opt_slab)
-      call setup_pme_opt_slab(domain, boundary, enefunc, calc)
+      case (FFT_noopt_2dalltoall)
+        call setup_pme_noopt_2dalltoall(domain, boundary, enefunc)
 
-    case (FFT_noopt_slab)
-      call setup_pme_noopt_slab(domain, boundary, enefunc, calc)
+      case (FFT_opt_slab)
+        call setup_pme_opt_slab(domain, boundary, enefunc, calc)
 
-    end select
+      case (FFT_noopt_slab)
+        call setup_pme_noopt_slab(domain, boundary, enefunc, calc)
+
+      end select
+
+    else if (domain%nonbond_kernel == NBK_PSpica) then
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
+        call setup_pme_opt_1dalltoall(domain, boundary, enefunc, calc)
+
+      case (FFT_opt_1dalltoall)
+        call setup_pme_opt_1dalltoall(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_1dalltoall)
+        call setup_pme_noopt_1dalltoall(domain, boundary, enefunc)
+
+      case (FFT_opt_2dalltoall)
+        call setup_pme_opt_2dalltoall(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_2dalltoall)
+        call setup_pme_noopt_2dalltoall(domain, boundary, enefunc)
+
+      case (FFT_opt_slab)
+        call setup_pme_opt_slab(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_slab)
+        call setup_pme_noopt_slab(domain, boundary, enefunc, calc)
+
+      end select
+
+    else
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
+        call select_pme_scheme(domain, boundary, enefunc)
+
+      case (FFT_opt_1dalltoall)
+        call setup_pme_opt_1dalltoall(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_1dalltoall)
+        call setup_pme_noopt_1dalltoall(domain, boundary, enefunc)
+
+      case (FFT_opt_2dalltoall)
+        call setup_pme_opt_2dalltoall(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_2dalltoall)
+        call setup_pme_noopt_2dalltoall(domain, boundary, enefunc)
+
+      case (FFT_opt_slab)
+        call setup_pme_opt_slab(domain, boundary, enefunc, calc)
+
+      case (FFT_noopt_slab)
+        call setup_pme_noopt_slab(domain, boundary, enefunc, calc)
+
+      end select
+
+    end if
 
     return
 
@@ -144,35 +203,48 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine dealloc_pme(enefunc)
+  subroutine dealloc_pme(domain, enefunc)
 
+    type(s_domain),          intent(in) :: domain
     type(s_enefunc),         intent(in) :: enefunc
 
+    if (domain%nonbond_kernel == NBK_Spica) then
 
-    select case (pme_scheme)
+      call dealloc_pme_spica(enefunc)
 
-    case (FFT_AutoSelect)
-      return
+    else if (domain%nonbond_kernel == NBK_PSpica) then
 
-    case (FFT_opt_1dalltoall)
-      call dealloc_pme_opt_1dalltoall(enefunc)
+!     call dealloc_pme_opt_1dalltoall(enefunc)
+      call dealloc_pme_spica(enefunc)
 
-    case (FFT_noopt_1dalltoall)
-      call dealloc_pme_noopt_1dalltoall(enefunc)
+    else
 
-    case (FFT_opt_2dalltoall)
-      call dealloc_pme_opt_2dalltoall(enefunc)
+      select case (pme_scheme)
 
-    case (FFT_noopt_2dalltoall)
-      call dealloc_pme_noopt_2dalltoall(enefunc)
+      case (FFT_AutoSelect)
+        return
 
-    case (FFT_opt_slab)
-      call dealloc_pme_opt_slab
+      case (FFT_opt_1dalltoall)
+        call dealloc_pme_opt_1dalltoall(enefunc)
 
-    case (FFT_noopt_slab)
-      call dealloc_pme_noopt_slab
+      case (FFT_noopt_1dalltoall)
+        call dealloc_pme_noopt_1dalltoall(enefunc)
 
-    end select
+      case (FFT_opt_2dalltoall)
+        call dealloc_pme_opt_2dalltoall(enefunc)
+
+      case (FFT_noopt_2dalltoall)
+        call dealloc_pme_noopt_2dalltoall(enefunc)
+
+      case (FFT_opt_slab)
+        call dealloc_pme_opt_slab
+
+      case (FFT_noopt_slab)
+        call dealloc_pme_noopt_slab
+
+      end select
+
+    end if
 
     return
 
@@ -195,37 +267,111 @@ contains
     type(s_domain),          intent(in)    :: domain
     type(s_boundary),        intent(in)    :: boundary
 
+    if (domain%nonbond_kernel == NBK_Spica) then
 
-    select case (pme_scheme)
+      select case (pme_scheme)
 
-    case (FFT_AutoSelect)
-      return
+      case (FFT_AutoSelect)
+        call pme_pre_spica(domain, boundary)
+        u_self = u_self_spica
 
-    case (FFT_opt_1dalltoall)
-      call pme_pre_opt_1dalltoall(domain, boundary)
-      u_self = u_self_o1
+      case (FFT_opt_1dalltoall)
+        call pme_pre_opt_1dalltoall(domain, boundary)
+        u_self = u_self_o1
 
-    case (FFT_noopt_1dalltoall)
-      call pme_pre_noopt_1dalltoall(domain, boundary)
-      u_self = u_self_no1
+      case (FFT_noopt_1dalltoall)
+        call pme_pre_noopt_1dalltoall(domain, boundary)
+        u_self = u_self_no1
 
-    case (FFT_opt_2dalltoall)
-      call pme_pre_opt_2dalltoall(domain, boundary)
-      u_self = u_self_o2
+      case (FFT_opt_2dalltoall)
+        call pme_pre_opt_2dalltoall(domain, boundary)
+        u_self = u_self_o2
 
-    case (FFT_noopt_2dalltoall)
-      call pme_pre_noopt_2dalltoall(domain, boundary)
-      u_self = u_self_no2
+      case (FFT_noopt_2dalltoall)
+        call pme_pre_noopt_2dalltoall(domain, boundary)
+        u_self = u_self_no2
 
-    case (FFT_opt_slab)
-      call pme_pre_opt_slab(domain, boundary)
-      u_self = u_self_os
+      case (FFT_opt_slab)
+        call pme_pre_opt_slab(domain, boundary)
+        u_self = u_self_os
 
-    case (FFT_noopt_slab)
-      call pme_pre_noopt_slab(domain, boundary)
-      u_self = u_self_nos
+      case (FFT_noopt_slab)
+        call pme_pre_noopt_slab(domain, boundary)
+        u_self = u_self_nos
 
-    end select
+      end select
+
+      call pme_pre_spica(domain, boundary)
+      u_self = u_self_spica
+
+    else if (domain%nonbond_kernel == NBK_PSpica) then
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
+        call pme_pre_opt_1dalltoall(domain, boundary)
+        u_self = u_self_o1
+
+      case (FFT_opt_1dalltoall)
+        call pme_pre_opt_1dalltoall(domain, boundary)
+        u_self = u_self_o1
+
+      case (FFT_noopt_1dalltoall)
+        call pme_pre_noopt_1dalltoall(domain, boundary)
+        u_self = u_self_no1
+
+      case (FFT_opt_2dalltoall)
+        call pme_pre_opt_2dalltoall(domain, boundary)
+        u_self = u_self_o2
+
+      case (FFT_noopt_2dalltoall)
+        call pme_pre_noopt_2dalltoall(domain, boundary)
+        u_self = u_self_no2
+
+      case (FFT_opt_slab)
+        call pme_pre_opt_slab(domain, boundary)
+        u_self = u_self_os
+
+      case (FFT_noopt_slab)
+        call pme_pre_noopt_slab(domain, boundary)
+        u_self = u_self_nos
+
+      end select
+
+    else
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
+        return
+
+      case (FFT_opt_1dalltoall)
+        call pme_pre_opt_1dalltoall(domain, boundary)
+        u_self = u_self_o1
+
+      case (FFT_noopt_1dalltoall)
+        call pme_pre_noopt_1dalltoall(domain, boundary)
+        u_self = u_self_no1
+
+      case (FFT_opt_2dalltoall)
+        call pme_pre_opt_2dalltoall(domain, boundary)
+        u_self = u_self_o2
+
+      case (FFT_noopt_2dalltoall)
+        call pme_pre_noopt_2dalltoall(domain, boundary)
+        u_self = u_self_no2
+
+      case (FFT_opt_slab)
+        call pme_pre_opt_slab(domain, boundary)
+        u_self = u_self_os
+
+      case (FFT_noopt_slab)
+        call pme_pre_noopt_slab(domain, boundary)
+        u_self = u_self_nos
+
+      end select
+
+    end if
 
     return
 
@@ -307,48 +453,142 @@ contains
     real(dp),                intent(inout) :: eelec(nthread)
 
 
-    select case (pme_scheme)
+    if (domain%nonbond_kernel == NBK_Spica) then
 
-    case (FFT_AutoSelect)
-      return
+      select case (pme_scheme)
 
-    case (FFT_opt_1dalltoall)
-      if (pme_nspline == 4) then
+      case (FFT_AutoSelect)
+        call pme_recip_spica(domain, force, virial, eelec)
+
+      case (FFT_opt_1dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_1dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_1dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then    
+          call pme_recip_opt_1dalltoall_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_1dalltoall)
+        call pme_recip_noopt_1dalltoall(domain, force, virial, eelec)
+
+      case (FFT_opt_2dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_2dalltoall)
+        call pme_recip_noopt_2dalltoall(domain, force, virial, eelec)
+
+      case (FFT_opt_slab)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_slab_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_slab_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_slab_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_slab)
+        call pme_recip_noopt_slab(domain, force, virial, eelec)
+
+      end select
+
+    else if (domain%nonbond_kernel == NBK_PSpica) then
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
         call pme_recip_opt_1dalltoall_4(domain, force, virial, eelec)
-      else if (pme_nspline == 6) then
-        call pme_recip_opt_1dalltoall_6(domain, force, virial, eelec)
-      else if (pme_nspline == 8) then
-        call pme_recip_opt_1dalltoall_8(domain, force, virial, eelec)
-      end if
 
-    case (FFT_noopt_1dalltoall)
-      call pme_recip_noopt_1dalltoall(domain, force, virial, eelec)
+      case (FFT_opt_1dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_1dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_1dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_1dalltoall_8(domain, force, virial, eelec)
+        end if
 
-    case (FFT_opt_2dalltoall)
-      if (pme_nspline == 4) then
-        call pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
-      else if (pme_nspline == 6) then
-        call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
-      else if (pme_nspline == 8) then
-        call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
-      end if
+      case (FFT_noopt_1dalltoall)
+        call pme_recip_noopt_1dalltoall(domain, force, virial, eelec)
 
-    case (FFT_noopt_2dalltoall)
-      call pme_recip_noopt_2dalltoall(domain, force, virial, eelec)
+      case (FFT_opt_2dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
+        end if
 
-    case (FFT_opt_slab)
-      if (pme_nspline == 4) then
-        call pme_recip_opt_slab_4(domain, force, virial, eelec)
-      else if (pme_nspline == 6) then
-        call pme_recip_opt_slab_6(domain, force, virial, eelec)
-      else if (pme_nspline == 8) then
-        call pme_recip_opt_slab_8(domain, force, virial, eelec)
-      end if
+      case (FFT_noopt_2dalltoall)
+        call pme_recip_noopt_2dalltoall(domain, force, virial, eelec)
 
-    case (FFT_noopt_slab)
-      call pme_recip_noopt_slab(domain, force, virial, eelec)
+      case (FFT_opt_slab)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_slab_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_slab_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_slab_8(domain, force, virial, eelec)
+        end if
 
-    end select
+      case (FFT_noopt_slab)
+        call pme_recip_noopt_slab(domain, force, virial, eelec)
+
+      end select
+
+    else
+
+      select case (pme_scheme)
+
+      case (FFT_AutoSelect)
+        return
+
+      case (FFT_opt_1dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_1dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_1dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_1dalltoall_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_1dalltoall)
+        call pme_recip_noopt_1dalltoall(domain, force, virial, eelec)
+
+      case (FFT_opt_2dalltoall)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_2dalltoall_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_2dalltoall_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_2dalltoall_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_2dalltoall)
+        call pme_recip_noopt_2dalltoall(domain, force, virial, eelec)
+
+      case (FFT_opt_slab)
+        if (pme_nspline == 4) then
+          call pme_recip_opt_slab_4(domain, force, virial, eelec)
+        else if (pme_nspline == 6) then
+          call pme_recip_opt_slab_6(domain, force, virial, eelec)
+        else if (pme_nspline == 8) then
+          call pme_recip_opt_slab_8(domain, force, virial, eelec)
+        end if
+
+      case (FFT_noopt_slab)
+        call pme_recip_noopt_slab(domain, force, virial, eelec)
+
+      end select
+
+    end if
 
     return
 
@@ -469,7 +709,7 @@ contains
 
     if (main_rank) then
       write(MsgOut,'(a)') 'Select_FFT_Scheme> Checking performance of long range interaction operation...'
-      write(MsgOut,'(a)') ''
+      write(MsgOut,'(a)') ' '
     end if
 
     ! initialize variables
@@ -745,7 +985,7 @@ contains
 #endif
 
     if (main_rank) then
-      write(MsgOut,'(a)') ''
+      write(MsgOut,'(a)') ' '
       write(MsgOut,'(a,a)') 'Select_FFT_Scheme> selected scheme is ', &
            trim(FFT_Types(pme_scheme))
     end if

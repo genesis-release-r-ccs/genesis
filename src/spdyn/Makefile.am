@@ -46,6 +46,7 @@ spdyn_SOURCES = \
 	sp_parallel_io.fpp \
 	sp_pairlist_generic.fpp \
 	sp_pairlist_fugaku.fpp \
+	sp_pairlist_spica.fpp \
 	sp_pairlist_gpu.fpp \
 	sp_pairlist.fpp \
 	sp_boundary.fpp \
@@ -56,6 +57,7 @@ spdyn_SOURCES = \
 	sp_energy_dihedrals.fpp \
 	sp_energy_nonbond_generic.fpp \
 	sp_energy_nonbond_fugaku.fpp \
+	sp_energy_nonbond_spica.fpp \
 	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
 	sp_energy_nonbond_fep.fpp \
@@ -67,6 +69,7 @@ spdyn_SOURCES = \
 	sp_energy_nonbond_ljpme.fpp \
 	sp_energy_table_linear_bondcorr.fpp \
 	sp_energy_table_cubic.fpp \
+	sp_energy_pme_spica.fpp \
 	sp_energy_pme_opt_1dalltoall.fpp \
 	sp_energy_pme_noopt_1dalltoall.fpp \
 	sp_energy_pme_opt_2dalltoall.fpp \
@@ -85,6 +88,7 @@ spdyn_SOURCES = \
 	sp_enefunc_restraints.fpp \
 	sp_enefunc_localres.fpp \
 	sp_enefunc_charmm.fpp \
+	sp_enefunc_spica.fpp \
 	sp_enefunc_amber.fpp \
 	sp_enefunc_gromacs.fpp \
 	sp_enefunc_gamd.fpp \
@@ -147,6 +151,7 @@ prst_setup_SOURCES = \
 	sp_parallel_io.fpp \
 	sp_pairlist_generic.fpp \
 	sp_pairlist_fugaku.fpp \
+	sp_pairlist_spica.fpp \
 	sp_pairlist_gpu.fpp \
 	sp_pairlist.fpp \
 	sp_boundary.fpp \
@@ -157,6 +162,7 @@ prst_setup_SOURCES = \
 	sp_energy_dihedrals.fpp \
 	sp_energy_nonbond_generic.fpp \
 	sp_energy_nonbond_fugaku.fpp \
+	sp_energy_nonbond_spica.fpp \
 	sp_energy_nonbond_intel.fpp \
 	sp_energy_nonbond_gpu.fpp \
 	sp_energy_nonbond_fep.fpp \
@@ -168,6 +174,7 @@ prst_setup_SOURCES = \
 	sp_energy_nonbond_ljpme.fpp \
 	sp_energy_table_linear_bondcorr.fpp \
 	sp_energy_table_cubic.fpp \
+	sp_energy_pme_spica.fpp \
 	sp_energy_pme_opt_1dalltoall.fpp \
 	sp_energy_pme_noopt_1dalltoall.fpp \
 	sp_energy_pme_opt_2dalltoall.fpp \
@@ -186,6 +193,7 @@ prst_setup_SOURCES = \
 	sp_enefunc_restraints.fpp \
 	sp_enefunc_localres.fpp \
 	sp_enefunc_charmm.fpp \
+	sp_enefunc_spica.fpp \
 	sp_enefunc_amber.fpp \
 	sp_enefunc_gromacs.fpp \
 	sp_enefunc_gamd.fpp \

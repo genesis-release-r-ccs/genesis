@@ -81,7 +81,7 @@ module sp_constraints_mod
   public  :: compute_vv2_group
   public  :: water_force_redistribution
   public  :: decide_dummy
-  public  :: compute_settle_min
+  public  :: compute_rigid_water_min
   public  :: setup_mass_repartitioning
   public  :: setup_mass_repartitioning_back
   private :: setup_fast_water
@@ -195,6 +195,10 @@ contains
     ! fast_water is true if rigid_bond is true
     !
     if (cons_info%rigid_bond) cons_info%fast_water = .true.
+
+    ! rigid_bond is true if fast_water is true
+    !
+    if (cons_info%fast_water) cons_info%rigid_bond = .true.
 
     ! write parameters to MsgOut
     !
@@ -335,17 +339,30 @@ contains
       end if
 
     else if (constraints%fast_water .and. &
-             constraints%water_type == TIP3 .and. &
+             constraints%water_type <= TIP3 .and. &
              enefunc%table%num_water > 0) then
 
       call setup_fast_water(par, prmtop, grotop, &
                             molecule, enefunc, constraints)
 
+      if (constraints%water_type == TIP3) then
+        call update_num_deg_freedom('After setup of SETTLE',    &
+                                    -3*enefunc%table%num_water  &
+                                      *domain%num_duplicate,    &
+                                    molecule%num_deg_freedom)
+      else if (constraints%water_type == TIP2) then
+        call update_num_deg_freedom('After setup of Water constraint',    &
+                                    -enefunc%table%num_water  &
+                                      *domain%num_duplicate,    &
+                                    molecule%num_deg_freedom)
+      end if
+
     else if (constraints%water_type == TIP4 .and. &
              enefunc%table%num_water > 0) then
 
       if (main_rank) &
-      write(MsgOut,'(A)') 'fast_water is defined as yes for TIP4 water model case'
+      write(MsgOut,'(A)') 'fast_water is defined as yes for '//&
+                          'TIP4 water model case'
       call update_num_deg_freedom('After setup of SETTLE',    &
                                   -6*enefunc%table%num_water  &
                                     *domain%num_duplicate,    &
@@ -551,6 +568,7 @@ contains
 
     ! local variables
     integer                  :: i, j, k, i1, i2, list(3), ioffset
+    integer                  :: iwat, itype
     character(6)             :: ci1, ci2, ci3
 
     type(s_grotop_mol), pointer :: gromol
@@ -558,177 +576,183 @@ contains
 
     if (constraints%water_type == TIP2) then
 
-      constraints%water_mass1 = enefunc%table%mass_1
-      constraints%water_mass2 = enefunc%table%mass_2
-      list(1) = enefunc%table%water_list(1,1)
-      list(2) = enefunc%table%water_list(2,1)
+      constraints%water_mass1(1:3) = enefunc%table%mass_1(1:3)
+      constraints%water_mass2(1:3) = enefunc%table%mass_2(1:3)
 
+      do iwat = 1, enefunc%table%num_water
+
+        list(1) = enefunc%table%water_list(1,iwat)
+        list(2) = enefunc%table%water_list(2,iwat)
+        itype   = enefunc%table%water_type(  iwat)
+
+        if (par%num_bonds > 0) then
+          ci1 = molecule%atom_cls_name(list(1))
+          ci2 = molecule%atom_cls_name(list(2))
+          do i = 1, par%num_bonds
+            if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
+                ci2 .eq. par%bond_atom_cls(2,i) .or.  &
+                ci1 .eq. par%bond_atom_cls(2,i) .and. &
+                ci2 .eq. par%bond_atom_cls(1,i) ) then
+              constraints%water_r12(itype) = par%bond_dist_min(i)
+              exit
+            end if
+          end do
+        end if
+
+      end do
+
+    else
+
+      ! mass
+      !
+      constraints%water_massO = enefunc%table%mass_O
+      constraints%water_massH = enefunc%table%mass_H
+
+      ! min distance
+      !
+      list(1:3) = enefunc%table%water_list(1:3,1)
+
+      ! charmm
       if (par%num_bonds > 0) then
+
         ci1 = molecule%atom_cls_name(list(1))
         ci2 = molecule%atom_cls_name(list(2))
+        ci3 = molecule%atom_cls_name(list(3))
+
         do i = 1, par%num_bonds
           if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
               ci2 .eq. par%bond_atom_cls(2,i) .or.  &
               ci1 .eq. par%bond_atom_cls(2,i) .and. &
               ci2 .eq. par%bond_atom_cls(1,i) ) then
-            constraints%water_r12 = par%bond_dist_min(i)
+
+            constraints%water_rOH = par%bond_dist_min(i)
             exit
+
           end if
         end do
+
+        do i = 1, par%num_bonds
+          if (ci2 .eq. par%bond_atom_cls(1,i) .and. &
+              ci3 .eq. par%bond_atom_cls(2,i)) then
+
+            constraints%water_rHH = par%bond_dist_min(i)
+            exit
+
+          end if
+        end do
+
+      ! amber
+      else if (prmtop%num_atoms > 0) then
+
+        do i = 1, prmtop%num_bondh
+
+          i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
+          i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
+
+          if (list(1) == i1 .and. list(2) == i2 .or.  &
+              list(2) == i1 .and. list(1) == i2) then
+
+            constraints%water_rOH = &
+               prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
+            exit
+
+          end if
+
+        end do
+
+        do i = 1, prmtop%num_bondh
+
+          i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
+          i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
+
+          if (list(2) == i1 .and. list(3) == i2 .or. &
+              list(3) == i1 .and. list(2) == i2) then
+
+            constraints%water_rHH = &
+                 prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
+            exit
+
+          end if
+
+        end do
+
+      ! gromacs
+      else if (grotop%num_atomtypes > 0) then
+
+        ioffset = 0
+
+        do i = 1, grotop%num_molss
+          gromol => grotop%molss(i)%moltype%mol
+
+          if (gromol%settles%func == 0) then
+
+            do j = 1, grotop%molss(i)%count
+
+              do k = 1, gromol%num_bonds
+
+                i1 = gromol%bonds(k)%atom_idx1 + ioffset
+                i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+                if (list(1) == i1 .and. list(2) == i2 .or.  &
+                    list(2) == i1 .and. list(1) == i2) then
+
+                  constraints%water_rOH = gromol%bonds(k)%b0 * 10.0_wip
+                  goto 1
+
+                end if
+              end do
+
+              ioffset = ioffset + gromol%num_atoms
+
+            end do
+
+          else
+
+            constraints%water_rOH = gromol%settles%doh * 10.0_wip
+            goto 1
+
+          end if
+
+        end do
+
+1       ioffset = 0
+
+        do i = 1, grotop%num_molss
+          gromol => grotop%molss(i)%moltype%mol
+
+          if (gromol%settles%func == 0) then
+
+            do j = 1, grotop%molss(i)%count
+
+              do k = 1, gromol%num_bonds
+
+                i1 = gromol%bonds(k)%atom_idx1 + ioffset
+                i2 = gromol%bonds(k)%atom_idx2 + ioffset
+
+                if (list(2) == i1 .and. list(3) == i2 .or.  &
+                    list(3) == i1 .and. list(2) == i2) then
+
+                  constraints%water_rHH = gromol%bonds(k)%b0 * 10.0_wip
+                  goto 2
+
+                end if
+              end do
+
+              ioffset = ioffset + gromol%num_atoms
+
+            end do
+
+          else
+
+            constraints%water_rHH = gromol%settles%dhh * 10.0_wip
+            goto 2
+
+          end if
+
+        end do
+2       continue
+
       end if
-
-    else
-
-    ! mass
-    !
-    constraints%water_massO = enefunc%table%mass_O
-    constraints%water_massH = enefunc%table%mass_H
-
-    ! min distance
-    !
-    list(1:3) = enefunc%table%water_list(1:3,1)
-
-    ! charmm
-    if (par%num_bonds > 0) then
-
-      ci1 = molecule%atom_cls_name(list(1))
-      ci2 = molecule%atom_cls_name(list(2))
-      ci3 = molecule%atom_cls_name(list(3))
-
-      do i = 1, par%num_bonds
-        if (ci1 .eq. par%bond_atom_cls(1,i) .and. &
-            ci2 .eq. par%bond_atom_cls(2,i) .or.  &
-            ci1 .eq. par%bond_atom_cls(2,i) .and. &
-            ci2 .eq. par%bond_atom_cls(1,i) ) then
-
-          constraints%water_rOH = par%bond_dist_min(i)
-          exit
-
-        end if
-      end do
-
-      do i = 1, par%num_bonds
-        if (ci2 .eq. par%bond_atom_cls(1,i) .and. &
-            ci3 .eq. par%bond_atom_cls(2,i)) then
-
-          constraints%water_rHH = par%bond_dist_min(i)
-          exit
-
-        end if
-      end do
-
-    ! amber
-    else if (prmtop%num_atoms > 0) then
-
-      do i = 1, prmtop%num_bondh
-
-        i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
-        i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
-
-        if (list(1) == i1 .and. list(2) == i2 .or.  &
-            list(2) == i1 .and. list(1) == i2) then
-
-          constraints%water_rOH = &
-               prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
-          exit
-
-        end if
-
-      end do
-
-      do i = 1, prmtop%num_bondh
-
-        i1 = prmtop%bond_inc_hy(1,i) / 3 + 1
-        i2 = prmtop%bond_inc_hy(2,i) / 3 + 1
-
-        if (list(2) == i1 .and. list(3) == i2 .or. &
-            list(3) == i1 .and. list(2) == i2) then
-
-          constraints%water_rHH = &
-               prmtop%bond_equil_uniq(prmtop%bond_inc_hy(3,i))
-          exit
-
-        end if
-
-      end do
-
-    ! gromacs
-    else if (grotop%num_atomtypes > 0) then
-
-      ioffset = 0
-
-      do i = 1, grotop%num_molss
-        gromol => grotop%molss(i)%moltype%mol
-
-        if (gromol%settles%func == 0) then
-
-          do j = 1, grotop%molss(i)%count
-
-            do k = 1, gromol%num_bonds
-
-              i1 = gromol%bonds(k)%atom_idx1 + ioffset
-              i2 = gromol%bonds(k)%atom_idx2 + ioffset
-
-              if (list(1) == i1 .and. list(2) == i2 .or.  &
-                  list(2) == i1 .and. list(1) == i2) then
-
-                constraints%water_rOH = gromol%bonds(k)%b0 * 10.0_wip
-                goto 1
-
-              end if
-            end do
-
-            ioffset = ioffset + gromol%num_atoms
-
-          end do
-
-        else
-
-          constraints%water_rOH = gromol%settles%doh * 10.0_wip
-          goto 1
-
-        end if
-
-      end do
-
-1     ioffset = 0
-
-      do i = 1, grotop%num_molss
-        gromol => grotop%molss(i)%moltype%mol
-
-        if (gromol%settles%func == 0) then
-
-          do j = 1, grotop%molss(i)%count
-
-            do k = 1, gromol%num_bonds
-
-              i1 = gromol%bonds(k)%atom_idx1 + ioffset
-              i2 = gromol%bonds(k)%atom_idx2 + ioffset
-
-              if (list(2) == i1 .and. list(3) == i2 .or.  &
-                  list(3) == i1 .and. list(2) == i2) then
-
-                constraints%water_rHH = gromol%bonds(k)%b0 * 10.0_wip
-                goto 2
-
-              end if
-            end do
-
-            ioffset = ioffset + gromol%num_atoms
-
-          end do
-
-        else
-
-          constraints%water_rHH = gromol%settles%dhh * 10.0_wip
-          goto 2
-
-        end if
-
-      end do
-2     continue
-
-    end if
 
     end if
 
@@ -746,11 +770,21 @@ contains
         write(MsgOut,'(A)') ' '
       else if (constraints%water_type == TIP2) then
         write(MsgOut,'(A)') 'Setup_Fast_Water> Setup constraints for WATER'
-        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
-             '  r0(1-2)         = ', constraints%water_r12    
-        write(MsgOut,'(A20,F10.4,A20,F10.4)')                &
-             '  mass(1)         = ', constraints%water_mass1,&
-             '  mass(2)         = ', constraints%water_mass2
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  r0(1-2, PWAT)   = ', constraints%water_r12(1)
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  r0(1-2, PCLA)   = ', constraints%water_r12(2)
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  r0(1-2, PSOD)   = ', constraints%water_r12(3)
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  mass(1,PWAT)    = ', constraints%water_mass1(1),&
+             '  mass(2,PWAT)    = ', constraints%water_mass2(1)
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  mass(1,PCLA)    = ', constraints%water_mass1(2),&
+             '  mass(2,PCLA)    = ', constraints%water_mass2(2)
+        write(MsgOut,'(A20,F10.4,A20,F10.4)')                   &
+             '  mass(1,PSOD)    = ', constraints%water_mass1(3),&
+             '  mass(2,PSOD)    = ', constraints%water_mass2(3)
       end if
       write(MsgOut,'(A)') ' '
     end if
@@ -3451,30 +3485,42 @@ contains
 
     ! local variables
     real(dp)                 :: x0(3), x1(3), A, B, C, lambda
-    real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
+    real(dp)                 :: r12(3), mass1(3), mass2(3)
+    real(dp)                 :: imass1(3), imass2(3), imass(3)
     real(dp)                 :: dcoord(3,2), dvel(3,2)
     real(dp)                 :: virial_omp(3,nthread)
     integer                  :: i, ix, list1, list2, id
-
+    integer                  :: itype
+        
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
-
-
+    integer,         pointer :: water_type(:,:)
+        
+        
     nwater     => domain%num_water
     water_list => domain%water_list
+    water_type => domain%water_type
     ncell      => domain%num_cell_local
 
-    r12        =  constraints%water_r12
-    mass1      =  constraints%water_mass1
-    mass2      =  constraints%water_mass2
-    imass1     =  1.0_wp / mass1
-    imass2     =  1.0_wp / mass2
-    imass      = imass1 + imass2
+    r12(1:3)   =  constraints%water_r12(1:3)
+    mass1(1:3) =  constraints%water_mass1(1:3)
+    mass2(1:3) =  constraints%water_mass2(1:3)
+    imass1(1) = 1.0_wp / mass1(1)
+    imass2(1) = 1.0_wp / mass2(1)
+    if (mass1(2) > EPS) imass1(2) = 1.0_wp / mass1(2)
+    if (mass1(2) <= EPS) imass1(2) = 0.0_wp
+    if (mass1(3) > EPS) imass1(3) = 1.0_wp / mass1(3)
+    if (mass1(3) <= EPS) imass1(3) = 0.0_wp
+    if (mass2(2) > EPS) imass2(2) = 1.0_wp / mass2(2)
+    if (mass2(2) <= EPS) imass2(2) = 0.0_wp
+    if (mass2(3) > EPS) imass2(3) = 1.0_wp / mass2(3)
+    if (mass2(3) <= EPS) imass2(3) = 0.0_wp
+    imass(1:3) = imass1(1:3) + imass2(1:3)
 
     virial_omp(1:3,1:nthread) = 0.0_dp
 
     !$omp parallel default(shared)                                             &
     !$omp private(i, ix, list1, list2, x0, x1, A, B, C, lambda, dcoord, dvel,  &
-    !$omp         id)
+    !$omp         id, itype)
     !
 #ifdef OMP
     id = omp_get_thread_num()
@@ -3489,16 +3535,17 @@ contains
 
         list1 = water_list(1,ix,i)
         list2 = water_list(2,ix,i)
+        itype = water_type(  ix,i)
         x0(1:3) = coord_old(1:3,list1,i) - coord_old(1:3,list2,i)
         x1(1:3) = coord(1:3,list1,i) - coord(1:3,list2,i)
-        A = imass*imass*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
-        B = imass      *(x0(1)*x1(1)+x0(2)*x1(2)+x0(3)*x1(3))
-        C = x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3) - r12*r12
+        A = imass(itype)*imass(itype)*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
+        B = imass(itype)      *(x0(1)*x1(1)+x0(2)*x1(2)+x0(3)*x1(3))
+        C = x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3) - r12(itype)*r12(itype)
         lambda = -B + sqrt(B*B-A*C)
         lambda = lambda / A
 
-        dcoord(1:3,1) = lambda*x0(1:3)*imass1
-        dcoord(1:3,2) = lambda*x0(1:3)*imass2 
+        dcoord(1:3,1) = lambda*x0(1:3)*imass1(itype)
+        dcoord(1:3,2) = lambda*x0(1:3)*imass2(itype)
         dvel  (1:3,1) = dcoord(1:3,1) / real(dt,dp)
         dvel  (1:3,2) = dcoord(1:3,2) / real(dt,dp)
         coord(1:3,list1,i) = coord(1:3,list1,i) + dcoord(1:3,1)
@@ -3549,23 +3596,34 @@ contains
 
     ! local variables
     real(dp)                 :: x0(3), x1(3), A, B, lambda
-    real(dp)                 :: r12, mass1, mass2, imass1, imass2, imass
+    real(dp)                 :: r12(3), mass1(3), mass2(3)
+    real(dp)                 :: imass1(3), imass2(3), imass(3)
     real(dp)                 :: dcoord(3,2), dvel(3,2)
     real(dp)                 :: virial_omp(3,nthread)
-    integer                  :: i, ix, list1, list2, id
+    integer                  :: i, ix, list1, list2, id, itype
 
     integer,         pointer :: nwater(:), water_list(:,:,:), ncell
+    integer,         pointer :: water_type(:,:)                 
 
 
     nwater     => domain%num_water
     water_list => domain%water_list
+    water_type => domain%water_type
     ncell      => domain%num_cell_local
 
-    mass1      =  constraints%water_mass1
-    mass2      =  constraints%water_mass2
-    imass1     =  1.0_wp / mass1
-    imass2     =  1.0_wp / mass2
-    imass      = imass1 + imass2
+    mass1(1:3)   =  constraints%water_mass1(1:3)
+    mass2(1:3)   =  constraints%water_mass2(1:3)
+    imass1(1) = 1.0_wp / mass1(1)
+    imass2(1) = 1.0_wp / mass2(1)
+    if (mass1(2) > EPS) imass1(2) = 1.0_wp / mass1(2)
+    if (mass1(2) <= EPS) imass1(2) = 0.0_wp
+    if (mass1(3) > EPS) imass1(3) = 1.0_wp / mass1(3)
+    if (mass1(3) <= EPS) imass1(3) = 0.0_wp
+    if (mass2(2) > EPS) imass2(2) = 1.0_wp / mass2(2)
+    if (mass2(2) <= EPS) imass2(2) = 0.0_wp
+    if (mass2(3) > EPS) imass2(3) = 1.0_wp / mass2(3)
+    if (mass2(3) <= EPS) imass2(3) = 0.0_wp
+    imass(1:3) = imass1(1:3) + imass2(1:3)
 
     virial_omp(1:3,1:nthread) = 0.0_dp
 
@@ -3586,14 +3644,15 @@ contains
 
         list1 = water_list(1,ix,i)
         list2 = water_list(2,ix,i)
+        itype = water_type(  ix,i)
         x0(1:3) = coord(1:3,list1,i) - coord(1:3,list2,i)
         x1(1:3) = vel  (1:3,list1,i) - vel  (1:3,list2,i)
         A = x0(1)*x1(1) + x0(2)*x1(2) + x0(3)*x1(3)
-        B = imass*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
+        B = imass(itype)*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
         lambda = -A/B
 
-        dvel(1:3,1) =  lambda*x0(1:3)*imass1
-        dvel(1:3,2) =  lambda*x0(1:3)*imass2
+        dvel(1:3,1) =  lambda*x0(1:3)*imass1(itype)
+        dvel(1:3,2) =  lambda*x0(1:3)*imass2(itype)
 
         vel(1:3,list1,i) = vel(1:3,list1,i) + dvel(1:3,1)
         vel(1:3,list2,i) = vel(1:3,list2,i) - dvel(1:3,2)
@@ -3606,6 +3665,37 @@ contains
     return
 
   end subroutine compute_settle_TIP2_vv2
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_rigid_water_min
+  !> @brief        SETTLE for minimiation (only coordinaets)
+  !! @authors      JJ
+  !! @param[in]    coord_old   : reference coordinates
+  !! @param[in]    domain      : domain information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] coord       : coordinates
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_rigid_water_min(coord_old, domain, constraints, coord)
+
+    ! formal arguments
+    real(wip),               intent(in)    :: coord_old(:,:,:)
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_constraints),     intent(inout) :: constraints
+    real(wip),               intent(inout) :: coord(:,:,:)
+
+    if (constraints%water_type >= TIP3) then
+      if (constraints%num_water > 0) &
+        call compute_settle_min(coord_old, domain, constraints, coord)
+    else if (constraints%water_type == TIP2) then
+      call compute_settle_min_tip2(coord_old, domain, constraints, coord)
+    end if
+
+    return
+
+  end subroutine compute_rigid_water_min
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -3817,6 +3907,89 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    compute_settle_min_tip2
+  !> @brief        bond constraints for two-site water (minimization)
+  !! @authors      JJ
+  !! @param[in]    coord_old   : reference coordinates
+  !! @param[in]    domain      : domain information
+  !! @param[inout] constraints : constraints information
+  !! @param[inout] coord       : coordinates
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_settle_min_tip2(coord_old, domain, constraints, coord)
+
+    ! formal arguments
+    real(wip),               intent(in)    :: coord_old(:,:,:)
+    type(s_domain),  target, intent(in)    :: domain
+    type(s_constraints),     intent(inout) :: constraints
+    real(wip),               intent(inout) :: coord(:,:,:)
+
+    ! local variables
+    real(dp)                 :: x0(3), x1(3), A, B, C, lambda
+    real(dp)                 :: r12(3), mass1(3), mass2(3)
+    real(dp)                 :: imass1(3), imass2(3), imass(3)
+    real(dp)                 :: dcoord(3,2)
+    integer                  :: i, ix, list1, list2, id, omp_get_thread_num
+    integer                  :: itype
+
+    integer,         pointer :: nwater(:), water_list(:,:,:), ncell
+    integer,         pointer :: water_type(:,:)
+
+    nwater     => domain%num_water
+    water_list => domain%water_list
+    water_type => domain%water_type
+    ncell      => domain%num_cell_local
+
+    r12(1:3)   =  constraints%water_r12(1:3)
+    mass1(1:3) =  constraints%water_mass1(1:3)
+    mass2(1:3) =  constraints%water_mass2(1:3)
+    imass1(1:3)=  1.0_wp / mass1(1:3)
+    imass2(1:3)=  1.0_wp / mass2(1:3)
+    imass(1:3) = imass1 + imass2(1:3)
+
+    !$omp parallel default(shared)                                          &
+    !$omp private(i, ix, list1, list2, x0, x1, A, B, C, lambda, dcoord, id, &
+    !$omp         itype)
+    !
+#ifdef OMP
+    id = omp_get_thread_num()
+#else 
+    id = 0
+#endif
+
+    do i = id+1, ncell, nthread
+
+!ocl nosimd
+      do ix = 1, nwater(i)
+
+        list1 = water_list(1,ix,i)
+        list2 = water_list(2,ix,i)
+        itype = water_type(  ix,i)
+        x0(1:3) = coord_old(1:3,list1,i) - coord_old(1:3,list2,i)
+        x1(1:3) = coord(1:3,list1,i) - coord(1:3,list2,i)
+        A = imass(itype)*imass(itype)*(x0(1)*x0(1)+x0(2)*x0(2)+x0(3)*x0(3))
+        B = imass(itype)      *(x0(1)*x1(1)+x0(2)*x1(2)+x0(3)*x1(3))
+        C = x1(1)*x1(1)+x1(2)*x1(2)+x1(3)*x1(3) - r12(itype)*r12(itype)
+        lambda = -B + sqrt(B*B-A*C)
+        lambda = lambda / A
+
+        dcoord(1:3,1) = lambda*x0(1:3)*imass1(itype)
+        dcoord(1:3,2) = lambda*x0(1:3)*imass2(itype)
+        coord(1:3,list1,i) = coord(1:3,list1,i) + dcoord(1:3,1)
+        coord(1:3,list2,i) = coord(1:3,list2,i) - dcoord(1:3,2)
+
+      end do
+    end do
+
+    !$omp end parallel
+
+    return
+
+  end subroutine compute_settle_min_tip2
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    compute_shake
   !> @brief        SHAKE for rigid bonds
   !! @authors      JJ
@@ -3992,7 +4165,7 @@ contains
             write(MsgOut, '(A,8i10)') &
               'Compute_Shake> SHAKE algorithm failed to converge: indexes', &
               domain%id_l2g(iatm(1:j+1), icel)
-            call error_msg('')
+            call error_msg(' ')
           end if
 
           coord(1:3,iatm(1:j+1),icel) = &
@@ -4444,7 +4617,7 @@ contains
             write(MsgOut, '(A,8i10)') &
               'Compute_Rattle_VV1> SHAKE algorithm failed to converge: '//&
               'indexes',domain%id_l2g(iatm(1:j+1), icel)
-            call error_msg('')
+            call error_msg(' ')
           end if
 
         end do
@@ -4722,7 +4895,7 @@ contains
             write(MsgOut, '(A,8i10)') &
               'Compute_Rattle_VV2> SHAKE algorithm failed to converge: '//&
               'indexes',domain%id_l2g(iatm(1:j+1), icel)
-            call error_msg('')
+            call error_msg(' ')
           end if
 
         end do

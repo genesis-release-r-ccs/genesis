@@ -445,6 +445,11 @@ contains
         values(ifm) = dynvars%energy%urey_bradley
         ifm = ifm+1
       end if
+      if (enefunc%forcefield == ForcefieldSPICA) then
+        write(category(ifm),frmt) 'ANGLE_LJ9-6'
+        values(ifm) = dynvars%energy%urey_bradley
+        ifm = ifm+1
+      end if           
 
     end if
 

@@ -28,9 +28,11 @@ module sp_migration_mod
   ! subroutines
   public :: update_outgoing_atom
   public :: update_outgoing_water
+  public :: update_outgoing_water_tip2
   public :: update_outgoing_HGr
   public :: update_incoming_atom
   public :: update_incoming_water
+  public :: update_incoming_water_tip2
   public :: update_incoming_HGr
   public :: update_enefunc_enm
   public :: update_outgoing_enefunc_bond
@@ -398,6 +400,176 @@ contains
     return
 
   end subroutine update_outgoing_water
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_outgoing_water_tip2
+  !> @brief        check water particles going/remaining cells (TIP2 case)
+  !! @authors      JJ
+  !! @param[in]    water_atom : number of water atoms
+  !! @param[in]    boundary   : boundary condition information
+  !! @param[inout] domain     : domain information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_outgoing_water_tip2(water_atom, boundary, domain)
+
+    ! formal arguments
+    integer,                  intent(in)    :: water_atom
+    type(s_boundary), target, intent(in)    :: boundary
+    type(s_domain),   target, intent(inout) :: domain
+
+    ! local variable
+    real(wip)                 :: x_shift, y_shift, z_shift
+    real(wip)                 :: move(3)
+    integer                   :: i, k, iwater, list, ix, ia, ib
+    integer                   :: icx, icy, icz, icel, ncel
+    integer                   :: icel_local, icel_bd
+
+    real(wip),        pointer :: bsize_x, bsize_y, bsize_z
+    real(wip),        pointer :: csize_x, csize_y, csize_z
+    real(wip),        pointer :: coord(:,:,:), velocity(:,:,:)
+    real(wip),        pointer :: water_move_real(:,:,:), water_stay_real(:,:,:)
+    integer,          pointer :: ncel_x, ncel_y, ncel_z, ncel_local, ncel_bd
+    integer,          pointer :: nwater(:), water_list(:,:,:), water_type(:,:)
+    integer,          pointer :: id_l2g(:,:)
+    integer(int2),    pointer :: cell_g2l(:), cell_g2b(:)
+    integer,          pointer :: water_move(:), water_stay(:)
+    integer,          pointer :: water_move_int(:,:,:), water_stay_int(:,:,:)
+
+
+    bsize_x         => boundary%box_size_x
+    bsize_y         => boundary%box_size_y
+    bsize_z         => boundary%box_size_z
+    ncel_x          => boundary%num_cells_x
+    ncel_y          => boundary%num_cells_y
+    ncel_z          => boundary%num_cells_z
+    csize_x         => boundary%cell_size_x
+    csize_y         => boundary%cell_size_y
+    csize_z         => boundary%cell_size_z
+
+    ncel_local      => domain%num_cell_local
+    ncel_bd         => domain%num_cell_boundary
+    nwater          => domain%num_water
+    water_list      => domain%water_list
+    water_type      => domain%water_type
+    cell_g2l        => domain%cell_g2l
+    cell_g2b        => domain%cell_g2b
+    coord           => domain%coord
+    velocity        => domain%velocity
+    id_l2g          => domain%id_l2g
+    water_move      => domain%water%move
+    water_stay      => domain%water%stay
+    water_move_real => domain%water%move_real
+    water_stay_real => domain%water%stay_real
+    water_move_int  => domain%water%move_integer
+    water_stay_int  => domain%water%stay_integer
+
+
+    ! initializaiton
+    !
+    ncel = ncel_local + ncel_bd
+    water_stay(1:ncel_local) = 0
+    water_move(1:ncel) = 0
+
+    ! Check outgoing particles
+    !
+    do i = 1, ncel_local
+
+      k = 0
+      do iwater = 1, nwater(i)
+
+        ix = water_list(1,iwater,i)
+        x_shift = coord(1,ix,i) - boundary%origin_x
+        y_shift = coord(2,ix,i) - boundary%origin_y
+        z_shift = coord(3,ix,i) - boundary%origin_z
+
+        !coordinate shifted to the first quadrant and set into the boundary box
+        move(1) = bsize_x*0.5_wip - bsize_x*anint(x_shift/bsize_x)
+        move(2) = bsize_y*0.5_wip - bsize_y*anint(y_shift/bsize_y)
+        move(3) = bsize_z*0.5_wip - bsize_z*anint(z_shift/bsize_z)
+
+        x_shift = x_shift + move(1)
+        y_shift = y_shift + move(2)
+        z_shift = z_shift + move(3)
+
+        !assign which cell
+        icx = int(x_shift/csize_x)
+        icy = int(y_shift/csize_y)
+        icz = int(z_shift/csize_z)
+        if (icx == ncel_x) icx = icx - 1
+        if (icy == ncel_y) icy = icy - 1
+        if (icz == ncel_z) icz = icz - 1
+        icel = 1 + icx + icy*ncel_x + icz*ncel_x*ncel_y
+        icel_local = cell_g2l(icel)
+        icel_bd    = cell_g2b(icel)
+
+        ! atom index
+        if (icel_local /= i) then
+
+          if (icel_local /= 0) then
+
+            water_move(icel_local) = water_move(icel_local) + 1
+            ia = water_move(icel_local)
+            water_move_int(1,ia,icel_local) = water_type(iwater,i)
+
+            do list = 1, 2
+              ix = water_list(list,iwater,i)
+              ib = 6*(list-1)
+              water_move_real(ib+1,ia,icel_local) = coord(1,ix,i)
+              water_move_real(ib+2,ia,icel_local) = coord(2,ix,i)
+              water_move_real(ib+3,ia,icel_local) = coord(3,ix,i)
+              water_move_real(ib+4,ia,icel_local) = velocity(1,ix,i)
+              water_move_real(ib+5,ia,icel_local) = velocity(2,ix,i)
+              water_move_real(ib+6,ia,icel_local) = velocity(3,ix,i)
+              water_move_int(list+1,ia,icel_local) = id_l2g(ix,i)
+            end do
+
+          else if (icel_bd /= 0) then
+
+            icel_bd = icel_bd + ncel_local
+            water_move(icel_bd) = water_move(icel_bd) + 1
+            ia = water_move(icel_bd)
+            water_move_int(1,ia,icel_bd) = water_type(iwater,i)
+
+            do list = 1, 2
+              ix = water_list(list,iwater,i)
+              ib = 6*(list-1)
+              water_move_real(ib+1,ia,icel_bd) = coord(1,ix,i)
+              water_move_real(ib+2,ia,icel_bd) = coord(2,ix,i)
+              water_move_real(ib+3,ia,icel_bd) = coord(3,ix,i)
+              water_move_real(ib+4,ia,icel_bd) = velocity(1,ix,i)
+              water_move_real(ib+5,ia,icel_bd) = velocity(2,ix,i)
+              water_move_real(ib+6,ia,icel_bd) = velocity(3,ix,i)
+              water_move_int(list+1,ia,icel_bd) = id_l2g(ix,i)
+            end do
+          end if
+
+        else
+
+          water_stay(i) = water_stay(i) + 1
+          ia = water_stay(i)
+          water_stay_int(1,ia,i) = water_type(iwater,i)
+
+          do list = 1, water_atom
+            ix = water_list(list,iwater,i)
+            ib = 6*(list-1)
+            water_stay_real(ib+1,ia,i) = coord(1,ix,i)
+            water_stay_real(ib+2,ia,i) = coord(2,ix,i)
+            water_stay_real(ib+3,ia,i) = coord(3,ix,i)
+            water_stay_real(ib+4,ia,i) = velocity(1,ix,i)
+            water_stay_real(ib+5,ia,i) = velocity(2,ix,i)
+            water_stay_real(ib+6,ia,i) = velocity(3,ix,i)
+            water_stay_int(list+1,ia,i) = id_l2g(ix,i)
+          end do
+        end if
+
+      end do
+    end do
+
+    return
+
+  end subroutine update_outgoing_water_tip2
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -870,6 +1042,130 @@ contains
     return
 
   end subroutine update_incoming_water
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !   
+  !  Subroutine    update_incoming_water_tip2
+  !> @brief        check water particles incoming cells (TIP2 case)
+  !! @authors      JJ
+  !! @param[in]    water_atom : number of water atoms
+  !! @param[inout] domain     : domain information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_incoming_water_tip2(water_atom, constraints, domain)
+
+    ! formal arguments
+    integer,                     intent(in)    :: water_atom
+    type(s_constraints), target, intent(inout) :: constraints
+    type(s_domain),      target, intent(inout) :: domain
+
+    ! local variable
+    integer                  :: i, k, iwater, jwater, ix, ia, itype
+
+    real(wip),       pointer :: coord(:,:,:), velocity(:,:,:)
+    real(wip),       pointer :: water_move_real(:,:,:), water_stay_real(:,:,:)
+    real(wp),        pointer :: water_charge(:,:), water_mass(:,:)
+    real(wp),        pointer :: charge(:,:)
+    real(wip),       pointer :: mass(:,:)
+    integer,         pointer :: ncel_local
+    integer,         pointer :: nsolute(:), natom(:), nwater(:)
+    integer,         pointer :: No_HGr(:)
+    integer,         pointer :: water_list(:,:,:), water_type(:,:)
+    integer,         pointer :: id_l2g(:,:)
+    integer(int2),   pointer :: id_g2l(:,:)
+    integer,         pointer :: water_move(:), water_stay(:)
+    integer,         pointer :: water_move_int(:,:,:), water_stay_int(:,:,:)
+    integer,         pointer :: water_atmcls(:,:), atmcls(:,:)
+
+
+    ncel_local      => domain%num_cell_local
+    nsolute         => domain%num_solute
+    nwater          => domain%num_water
+    natom           => domain%num_atom
+    water_list      => domain%water_list
+    water_type      => domain%water_type
+    coord           => domain%coord
+    velocity        => domain%velocity
+    charge          => domain%charge
+    mass            => domain%mass
+    atmcls          => domain%atom_cls_no
+    id_l2g          => domain%id_l2g
+    id_g2l          => domain%id_g2l
+    water_atmcls    => domain%water%atom_cls_no_tip2
+    water_charge    => domain%water%charge_tip2
+    water_mass      => domain%water%mass_tip2
+    water_move      => domain%water%move
+    water_stay      => domain%water%stay
+    water_move_real => domain%water%move_real
+    water_stay_real => domain%water%stay_real
+    water_move_int  => domain%water%move_integer
+    water_stay_int  => domain%water%stay_integer
+    No_HGr          => constraints%No_HGr
+
+    do i = 1, ncel_local
+      nsolute(i) = No_HGr(i)
+    end do
+
+    do i = 1, ncel_local
+
+#ifdef DEBUG
+      if (water_stay(i)+water_move(i) > MaxWater) then
+        call error_msg('Debug: Update_Incoming_Water> water is exceed MaxWater')
+      end if
+#endif
+
+      do iwater = 1, water_stay(i)
+
+        water_type(iwater,i) = water_stay_int (1,iwater,i)
+        itype = water_type(iwater,i)
+
+        do k = 1, 2
+          water_list(k,iwater,i) = nsolute(i) + water_atom*(iwater-1) + k
+          ix = water_list(k,iwater,i)
+          ia = 6*(k-1)
+          coord(1,ix,i)          = water_stay_real(ia+1,iwater,i)
+          coord(2,ix,i)          = water_stay_real(ia+2,iwater,i)
+          coord(3,ix,i)          = water_stay_real(ia+3,iwater,i)
+          velocity(1,ix,i)       = water_stay_real(ia+4,iwater,i)
+          velocity(2,ix,i)       = water_stay_real(ia+5,iwater,i)
+          velocity(3,ix,i)       = water_stay_real(ia+6,iwater,i)
+          id_l2g(ix,i)           = water_stay_int (k+1,iwater,i)
+          charge(ix,i)           = water_charge(k,itype)
+          mass(ix,i)             = water_mass(k,itype)
+          atmcls(ix,i)           = water_atmcls(k,itype)
+        end do
+      end do
+
+      do iwater = 1, water_move(i)
+        jwater = iwater + water_stay(i)
+        water_type(jwater,i) = water_move_int(1,iwater,i)
+        itype = water_type(jwater,i)
+
+        do k = 1, 2
+          water_list(k,jwater,i) = nsolute(i) + water_atom*(jwater-1) + k
+          ix = water_list(k,jwater,i)
+          ia = 6*(k-1)
+          coord(1,ix,i)          = water_move_real(ia+1,iwater,i)
+          coord(2,ix,i)          = water_move_real(ia+2,iwater,i)
+          coord(3,ix,i)          = water_move_real(ia+3,iwater,i)
+          velocity(1,ix,i)       = water_move_real(ia+4,iwater,i)
+          velocity(2,ix,i)       = water_move_real(ia+5,iwater,i)
+          velocity(3,ix,i)       = water_move_real(ia+6,iwater,i)
+          id_l2g(ix,i)           = water_move_int (k+1,iwater,i)
+          charge(ix,i)           = water_charge(k,itype)
+          mass(ix,i)             = water_mass(k,itype)
+          atmcls(ix,i)           = water_atmcls(k,itype)
+        end do
+      end do
+
+      nwater(i) = water_stay(i) + water_move(i)
+      natom(i)  = nsolute(i) + water_atom*nwater(i)
+    end do
+
+    return
+
+  end subroutine update_incoming_water_tip2
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

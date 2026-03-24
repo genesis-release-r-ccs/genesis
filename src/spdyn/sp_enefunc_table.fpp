@@ -92,6 +92,8 @@ contains
     cutoff_int     = int(cutoff2*density)
     cutoff_int2    = int(cutoff2_water*density)
     cutoff_int1    = int(cutoff2_water1*density)
+    if (ene_info%forcefield == ForcefieldSPICA) &
+      cutoff_int1  = 5*int(cutoff2)*2*density
 
     if (enefunc%table%table_order == 1) then
 
@@ -192,7 +194,15 @@ contains
     table_decor(1:cutoff_int1)   = 0.0_wp
     table_grad (1:3*cutoff_int1) = 0.0_wp
 
-    if (enefunc%vdw == VDWPME) then
+    if (enefunc%forcefield == ForcefieldSPICA) then
+      
+      enefunc%vdw_no_switch = .true.
+      call table_pme_linear_spica(cutoff_int, cutoff_int1, density,      &
+                                  cutoff2, el_fact, alpha, alpha2sp,     &
+                                  alpha2m, table_ene, table_grad,        &
+                                  table_ecor, table_decor)
+
+    else if (enefunc%vdw == VDWPME) then
 
       call table_pme_linear_pme(cutoff_int, density, cutoff2,              &
                                 el_fact, alpha, alpha2sp, alpha2m,         &

@@ -1,0 +1,50 @@
+# GENESIS input for SPICA lipid bilayer
+[INPUT]
+topfile = ../toppar/top_spica_charmm.rtf
+parfile = ../toppar/par_spica_charmm.prm
+psffile = ../gns_spica.psf
+pdbfile = ../system.CG.pdb
+reffile = ../system.CG.pdb
+rstfile = equ.rst
+
+[OUTPUT]
+rstfile = md1.rst
+dcdfile = md1.dcd
+
+[ENERGY]
+forcefield = SPICA
+electrostatic = PME
+switchdist = 12.0
+cutoffdist = 15.0
+pairlistdist = 18.0 #22.0
+pme_max_spacing = 2
+# pme_ngrid_x = 48 # 20
+# pme_ngrid_y = 48 # 20
+# pme_ngrid_z = 48 # 20
+
+[DYNAMICS]
+integrator = VVER
+timestep = 0.010
+nbupdate_period = 5
+nsteps = 50000000 # 10^5 * 0.01 ~ 1ns, 500ns ~ 5*10^7 * 0.01
+crdout_period = 1000 # 10^3 ~ 10ps
+eneout_period = 100 # 1ps
+rstout_period = 50000000 # nsteps
+
+[CONSTRAINTS]
+rigid_bond = NO
+fast_water = Yes
+shake_tolerance = 1.0E-6
+
+[ENSEMBLE]
+ensemble = NPT
+tpcontrol = BUSSI
+temperature = 303.15
+pressure = 1.0
+isotropy = SEMI-ISO
+
+[BOUNDARY]
+type = PBC
+# domain_x = 
+# domain_y = 
+# domain_z = 

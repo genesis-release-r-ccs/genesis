@@ -32,20 +32,20 @@ module sp_enefunc_str_mod
     logical                       :: water_bond_calc_OH = .false.
     logical                       :: water_bond_calc_HH = .false.
     logical                       :: TIP2_bond_calc     = .false.
-    integer                       :: atom_cls_no_1
-    integer                       :: atom_cls_no_2
+    integer                       :: atom_cls_no_1(3)
+    integer                       :: atom_cls_no_2(3)
     integer                       :: atom_cls_no_O
     integer                       :: atom_cls_no_H
     integer                       :: atom_cls_no_D
     integer                       :: table_order
     real(wp)                      :: density
-    real(wp)                      :: charge_1
-    real(wp)                      :: charge_2
+    real(wp)                      :: charge_1(3)
+    real(wp)                      :: charge_2(3)
     real(wp)                      :: charge_O
     real(wp)                      :: charge_H
     real(wp)                      :: charge_D
-    real(wp)                      :: mass_1
-    real(wp)                      :: mass_2
+    real(wp)                      :: mass_1(3)
+    real(wp)                      :: mass_2(3)
     real(wp)                      :: mass_O
     real(wp)                      :: mass_H
     real(wp)                      :: mass_D
@@ -71,6 +71,7 @@ module sp_enefunc_str_mod
     integer                       :: num_solute
     integer                       :: num_all
     integer,          allocatable :: water_list(:,:)
+    integer,          allocatable :: water_type(:)
     integer,          allocatable :: solute_list(:)
     integer,          allocatable :: solute_list_inv(:)
 
@@ -125,6 +126,7 @@ module sp_enefunc_str_mod
     integer                       :: output_style
     integer                       :: vdw          
     logical                       :: enm_use      
+    logical                       :: flexible_pairlist_update
 
     integer                       :: num_bond_all
     integer                       :: num_enm_all
@@ -499,6 +501,8 @@ module sp_enefunc_str_mod
     logical                       :: bonding_check
     real(wp)                      :: minimum_contact
     real(wp)                      :: err_minimum_contact
+    logical                       :: force_max_assign
+    real(wp)                      :: force_max
     logical                       :: pressure_position
     logical                       :: pressure_rmsd
 
@@ -613,6 +617,7 @@ module sp_enefunc_str_mod
   integer,      public, parameter :: EneFuncNonbFEPList   = 46
   integer,      public, parameter :: EneFuncFEPBonded     = 47
   integer,      public, parameter :: EneFuncBondCell_FEP  = 48
+  integer,      public, parameter :: EneFuncBondCell_FIT  = 49
 
   ! water model type
   integer,      public, parameter :: TIP1                 = 1
@@ -625,10 +630,12 @@ module sp_enefunc_str_mod
   integer,      public, parameter :: ForcefieldAMBER      = 2
   integer,      public, parameter :: ForcefieldGROAMBER   = 3
   integer,      public, parameter :: ForcefieldGROMARTINI = 4
-  character(*), public, parameter :: ForceFieldTypes(4)   = (/'CHARMM    ', &
+  integer,      public, parameter :: ForcefieldSPICA      = 5
+  character(*), public, parameter :: ForceFieldTypes(5)   = (/'CHARMM    ', &
                                                               'AMBER     ', &
                                                               'GROAMBER  ', &
-                                                              'GROMARTINI'/)
+                                                              'GROMARTINI', &
+                                                              'SPICA     '/)
   ! FFT scheme
   integer,      public, parameter :: FFT_AutoSelect       = 1
   integer,      public, parameter :: FFT_opt_1dalltoall   = 2
@@ -671,6 +678,7 @@ module sp_enefunc_str_mod
 
   ! variables for maximum numbers in one cell (these number will be updated)
   integer,      public            :: MaxBond   = 0
+  integer,      public            :: MaxEnm    = 0
   integer,      public            :: MaxAngle  = 0
   integer,      public            :: MaxDihe   = 0
   integer,      public            :: MaxImpr   = 0
@@ -761,7 +769,7 @@ contains
     enefunc%table%charge_H         = 0.0_wp
     enefunc%table%mass_O           = 0.0_wp
     enefunc%table%mass_H           = 0.0_wp
-    enefunc%table%water_model      = ''
+    enefunc%table%water_model      = ' '
     enefunc%table%num_water        = 0
     enefunc%table%num_solute       = 0
 
@@ -839,6 +847,7 @@ contains
       if (allocated(enefunc%num_bond)) then
         if (size(enefunc%num_bond(:)) /= var_size) &
           deallocate(enefunc%num_bond,        &
+                     enefunc%num_enm,         &
                      enefunc%num_angle,       &
                      enefunc%num_dihedral,    &
                      enefunc%num_rb_dihedral, &
@@ -853,6 +862,7 @@ contains
 
       if (.not. allocated(enefunc%num_bond)) &
         allocate(enefunc%num_bond       (var_size), &
+                 enefunc%num_enm        (var_size), &
                  enefunc%num_angle      (var_size), &
                  enefunc%num_dihedral   (var_size), &
                  enefunc%num_rb_dihedral(var_size), &
@@ -866,6 +876,7 @@ contains
                  stat = alloc_stat)
 
       enefunc%num_bond       (1:var_size) = 0
+      enefunc%num_enm        (1:var_size) = 0
       enefunc%num_angle      (1:var_size) = 0
       enefunc%num_dihedral   (1:var_size) = 0
       enefunc%num_rb_dihedral(1:var_size) = 0
@@ -959,23 +970,20 @@ contains
 
     case (EneFuncEnm)
 
-      if (allocated(enefunc%num_enm)) then
-        if (size(enefunc%num_enm(:)) /= var_size) &
-          deallocate(enefunc%num_enm,             &
-                     enefunc%enm_list,            &
+      if (allocated(enefunc%enm_dist_min)) then
+        if (size(enefunc%enm_dist_min(1,:)) /= var_size) &
+          deallocate(enefunc%enm_list,            &
                      enefunc%enm_force_const,     &
                      enefunc%enm_dist_min,        &
                      stat = dealloc_stat)
       end if
 
-      if (.not. allocated(enefunc%num_enm)) &
-        allocate(enefunc%num_enm        (var_size),             &
-                 enefunc%enm_list       (2, MaxBond, var_size), &
+      if (.not. allocated(enefunc%enm_dist_min)) &
+        allocate(enefunc%enm_list       (2, MaxBond, var_size), &
                  enefunc%enm_force_const(MaxBond, var_size),    &
                  enefunc%enm_dist_min   (MaxBond, var_size),    &
                  stat = alloc_stat)
 
-      enefunc%num_enm        (1:var_size)                 = 0
       enefunc%enm_list       (1:2, 1:MaxBond, 1:var_size) = 0
       enefunc%enm_force_const(1:MaxBond, 1:var_size)      = 0.0_wp
       enefunc%enm_dist_min   (1:MaxBond, 1:var_size)      = 0.0_wp
@@ -1604,197 +1612,295 @@ contains
 
     case (EneFuncBondCell)
 
-      if (allocated(enefunc%bond_exit)) then
+      if (allocated(enefunc%bond_exit)) then      
         if (size(enefunc%bond_exit(:)) /= var_size) &
           deallocate(enefunc%bond_exit,             &
                      enefunc%bond_add,              &
-                     enefunc%bond_exit_index,       &
-                     enefunc%buf_bond_integer,      &
-                     enefunc%buf_bond_real,         &
                      enefunc%enm_add,               &
-                     enefunc%buf_enm_integer,       &
-                     enefunc%buf_enm_real,          &
                      enefunc%angle_exit,            &
                      enefunc%angle_add,             &
-                     enefunc%angle_exit_index,      &
-                     enefunc%buf_angle_integer,     &
-                     enefunc%buf_angle_real,        &
                      enefunc%dihed_exit,            &
                      enefunc%dihed_add,             &
-                     enefunc%dihed_exit_index,      &
-                     enefunc%buf_dihed_integer,     &
-                     enefunc%buf_dihed_real,        &
                      enefunc%rb_dihed_exit,         &
                      enefunc%rb_dihed_add,          &
-                     enefunc%rb_dihed_exit_index,   &
-                     enefunc%buf_rb_dihed_integer,  &
-                     enefunc%buf_rb_dihed_real,     &
                      enefunc%impr_exit,             &
                      enefunc%impr_add,              &
-                     enefunc%impr_exit_index,       &
-                     enefunc%buf_impr_integer,      &
-                     enefunc%buf_impr_real,         &
-                     enefunc%cmap_exit,             &
-                     enefunc%cmap_add,              &
-                     enefunc%cmap_exit_index,       &
-                     enefunc%buf_cmap_integer,      &
+                     enefunc%cmap_exit,             &    
+                     enefunc%cmap_add,              &    
                      enefunc%contact_exit,          &
                      enefunc%contact_add,           &
-                     enefunc%contact_exit_index,    &
-                     enefunc%buf_contact_integer,   &
-                     enefunc%buf_contact_real,      &
                      enefunc%restraint_exit,        &
                      enefunc%restraint_add,         &
-                     enefunc%restraint_exit_index,  &
-                     enefunc%buf_restraint_integer, &
-                     enefunc%buf_restraint_real,    &
                      enefunc%fitting_exit,          &
                      enefunc%fitting_add,           &
-                     enefunc%fitting_exit_index,    &
-                     enefunc%buf_fitting_integer,   &
-                     enefunc%buf_fitting_real,      &
                      stat = dealloc_stat)
       end if
 
       if (.not. allocated(enefunc%bond_exit)) &
-        allocate(enefunc%bond_exit            (var_size),               &
-                 enefunc%bond_add             (var_size1),              &
-                 enefunc%bond_exit_index      (BondMove, var_size),     &
-                 enefunc%buf_bond_integer     (4, BondMove, var_size1), &
-                 enefunc%buf_bond_real        (2, BondMove, var_size1), &
-                 enefunc%enm_add              (var_size1),              &
-                 enefunc%buf_enm_integer      (2, MaxBond , var_size1), &
-                 enefunc%buf_enm_real         (2, MaxBond , var_size1), &
-                 enefunc%angle_exit           (var_size),               &
-                 enefunc%angle_add            (var_size1),              &
-                 enefunc%angle_exit_index     (AngleMove, var_size),    &
-                 enefunc%buf_angle_integer    (7, AngleMove, var_size1),&
-                 enefunc%buf_angle_real       (4, AngleMove, var_size1),&
-                 enefunc%dihed_exit           (var_size),               &
-                 enefunc%dihed_add            (var_size1),              &
-                 enefunc%dihed_exit_index     (DiheMove, var_size),     &
-                 enefunc%buf_dihed_integer    (9, DiheMove, var_size1), &
-                 enefunc%buf_dihed_real       (2, DiheMove, var_size1), &
-                 enefunc%rb_dihed_exit        (var_size),               &
-                 enefunc%rb_dihed_add         (var_size1),              &
-                 enefunc%rb_dihed_exit_index  (DiheMove, var_size),     &
-                 enefunc%buf_rb_dihed_integer (7, DiheMove, var_size1), &
-                 enefunc%buf_rb_dihed_real    (6, DiheMove, var_size1), &
-                 enefunc%impr_exit            (var_size),               &
-                 enefunc%impr_add             (var_size1),              &
-                 enefunc%impr_exit_index      (ImprMove, var_size),     &
-                 enefunc%buf_impr_integer     (8, ImprMove, var_size1), &
-                 enefunc%buf_impr_real        (2, ImprMove, var_size1), &
-                 enefunc%cmap_exit            (var_size),               &
-                 enefunc%cmap_add             (var_size1),              &
-                 enefunc%cmap_exit_index      (CmapMove, var_size),     &
-                 enefunc%buf_cmap_integer     (15,CmapMove, var_size1), &
-                 enefunc%contact_exit         (var_size),               &
-                 enefunc%contact_add          (var_size1),              &
-                 enefunc%contact_exit_index   (ContactMove, var_size),  &
-                 enefunc%buf_contact_integer  (2, ContactMove, var_size1), &
-                 enefunc%buf_contact_real     (2, ContactMove, var_size1), &
-                 enefunc%restraint_exit       (var_size),               &
-                 enefunc%restraint_add        (var_size1),              &
-                 enefunc%restraint_exit_index (RestMove, var_size),     &
-                 enefunc%buf_restraint_integer(RestMove, var_size1),    &
-                 enefunc%buf_restraint_real   (7, RestMove, var_size1), &
-                 enefunc%fitting_exit         (var_size),               &
-                 enefunc%fitting_add          (var_size1),              &
-                 enefunc%fitting_exit_index   (RestMove, var_size),     &
-                 enefunc%buf_fitting_integer  (RestMove, var_size1),    &
-                 enefunc%buf_fitting_real     (7, RestMove, var_size1), &
+        allocate(enefunc%bond_exit      (var_size ), &
+                 enefunc%bond_add       (var_size1), &
+                 enefunc%enm_add        (var_size1), &
+                 enefunc%angle_exit     (var_size ), &
+                 enefunc%angle_add      (var_size1), &
+                 enefunc%dihed_exit     (var_size ), &
+                 enefunc%dihed_add      (var_size1), &
+                 enefunc%rb_dihed_exit  (var_size ), &
+                 enefunc%rb_dihed_add   (var_size1), &
+                 enefunc%impr_exit      (var_size ), &
+                 enefunc%impr_add       (var_size1), &
+                 enefunc%cmap_exit      (var_size ), &
+                 enefunc%cmap_add       (var_size1), &
+                 enefunc%contact_exit   (var_size ), &
+                 enefunc%contact_add    (var_size1), &
+                 enefunc%restraint_exit (var_size ), &
+                 enefunc%restraint_add  (var_size1), &
+                 enefunc%fitting_exit   (var_size ), &
+                 enefunc%fitting_add    (var_size1), &
                  stat = alloc_stat)
 
-      enefunc%bond_exit            (1:var_size)                    = 0
-      enefunc%bond_add             (1:var_size1)                   = 0
-      enefunc%bond_exit_index      (1:BondMove, 1:var_size)        = 0
-      enefunc%buf_bond_integer     (1:4, 1:BondMove, 1:var_size1)  = 0
-      enefunc%buf_bond_real        (1:2, 1:BondMove, 1:var_size1)  = 0.0_wp
-      enefunc%enm_add              (1:var_size1)                   = 0
-      enefunc%buf_enm_integer      (1:2, 1:MaxBond , 1:var_size1)  = 0
-      enefunc%buf_enm_real         (1:2, 1:MaxBond , 1:var_size1)  = 0.0_wp
-      enefunc%angle_exit           (1:var_size)                    = 0
-      enefunc%angle_add            (1:var_size1)                   = 0
-      enefunc%angle_exit_index     (1:AngleMove, 1:var_size)       = 0
-      enefunc%buf_angle_integer    (1:7, 1:AngleMove, 1:var_size1) = 0
-      enefunc%buf_angle_real       (1:4, 1:AngleMove, 1:var_size1) = 0.0_wp
-      enefunc%dihed_exit           (1:var_size)                    = 0
-      enefunc%dihed_add            (1:var_size1)                   = 0
-      enefunc%dihed_exit_index     (1:DiheMove, 1:var_size)        = 0
-      enefunc%buf_dihed_integer    (1:9, 1:DiheMove, 1:var_size1)  = 0
-      enefunc%buf_dihed_real       (1:2, 1:DiheMove, 1:var_size1)  = 0.0_wp
-      enefunc%rb_dihed_exit        (1:var_size)                    = 0
-      enefunc%rb_dihed_add         (1:var_size1)                   = 0
-      enefunc%rb_dihed_exit_index  (1:DiheMove, 1:var_size)        = 0
-      enefunc%buf_rb_dihed_integer (1:7, 1:DiheMove, 1:var_size1)  = 0
-      enefunc%buf_rb_dihed_real    (1:6, 1:DiheMove, 1:var_size1)  = 0.0_wp
-      enefunc%impr_exit            (1:var_size)                    = 0
-      enefunc%impr_add             (1:var_size1)                   = 0
-      enefunc%impr_exit_index      (1:ImprMove, 1:var_size)        = 0
-      enefunc%buf_impr_integer     (1:8, 1:ImprMove, 1:var_size1)  = 0
-      enefunc%buf_impr_real        (1:2, 1:ImprMove, 1:var_size1)  = 0.0_wp
-      enefunc%cmap_exit            (1:var_size)                    = 0
-      enefunc%cmap_add             (1:var_size1)                   = 0
-      enefunc%cmap_exit_index      (1:CmapMove, 1:var_size)        = 0
-      enefunc%buf_cmap_integer     (1:9, 1:CmapMove, 1:var_size1)  = 0
-      enefunc%buf_cmap_integer     (1:9, 1:CmapMove, 1:var_size1)  = 0
-      enefunc%contact_exit         (1:var_size)                    = 0
-      enefunc%contact_add          (1:var_size1)                   = 0
-      enefunc%contact_exit_index   (1:ContactMove, 1:var_size)        = 0
-      enefunc%buf_contact_integer  (1:2, 1:ContactMove, 1:var_size1)  = 0
-      enefunc%buf_contact_real     (1:2, 1:ContactMove, 1:var_size1)  = 0.0_wp
-      enefunc%restraint_exit       (1:var_size)                    = 0
-      enefunc%restraint_add        (1:var_size1)                   = 0
-      enefunc%restraint_exit_index (1:RestMove, 1:var_size)        = 0
-      enefunc%buf_restraint_integer(1:RestMove, 1:var_size1)       = 0
-      enefunc%buf_restraint_real   (1:7, RestMove, 1:var_size1)    = 0.0_wp
-      enefunc%fitting_exit         (1:var_size)                    = 0
-      enefunc%fitting_add          (1:var_size1)                   = 0
-      enefunc%fitting_exit_index   (1:RestMove, 1:var_size)        = 0
-      enefunc%buf_fitting_integer  (1:RestMove, 1:var_size1)       = 0
-      enefunc%buf_fitting_real     (1:7, RestMove, 1:var_size1)    = 0.0_wp
+      enefunc%bond_exit      (1:var_size ) = 0
+      enefunc%bond_add       (1:var_size1) = 0
+      enefunc%enm_add        (1:var_size1) = 0
+      enefunc%angle_exit     (1:var_size ) = 0
+      enefunc%angle_add      (1:var_size1) = 0
+      enefunc%dihed_exit     (1:var_size ) = 0
+      enefunc%dihed_add      (1:var_size1) = 0
+      enefunc%rb_dihed_exit  (1:var_size ) = 0
+      enefunc%rb_dihed_add   (1:var_size1) = 0
+      enefunc%impr_exit      (1:var_size ) = 0
+      enefunc%impr_add       (1:var_size1) = 0
+      enefunc%cmap_exit      (1:var_size ) = 0
+      enefunc%cmap_add       (1:var_size1) = 0
+      enefunc%contact_exit   (1:var_size ) = 0
+      enefunc%contact_add    (1:var_size1) = 0
+      enefunc%restraint_exit (1:var_size ) = 0
+      enefunc%restraint_add  (1:var_size1) = 0
+      enefunc%fitting_exit   (1:var_size ) = 0
+      enefunc%fitting_add    (1:var_size1) = 0
 
-    case (EneFuncBondCell_FEP)
-      ! Deallocate bond, angle, dihed, rb_dihed, impr, cmap for FEP
-      if (allocated(enefunc%buf_bond_integer)) then
-        deallocate(enefunc%buf_bond_integer,      &
-                   enefunc%buf_angle_integer,     &
-                   enefunc%buf_dihed_integer,     &
-                   enefunc%buf_rb_dihed_integer,  &
-                   enefunc%buf_impr_integer,      &
-                   enefunc%buf_cmap_integer,      &
-                   stat = dealloc_stat)
+      if (enefunc%num_bond_all > 0) then
+        if (allocated(enefunc%buf_bond_integer)) then
+          if (size(enefunc%buf_bond_integer(1,1,:)) /= var_size1)     &
+            deallocate(enefunc%bond_exit_index,                       &
+                       enefunc%buf_bond_integer,                      &
+                       enefunc%buf_bond_real,                         &
+                       stat = dealloc_stat)
+        end if
+        if (.not. allocated(enefunc%buf_bond_integer))                &
+          allocate(enefunc%bond_exit_index  (   BondMove, var_size ), &
+                   enefunc%buf_bond_integer (4, BondMove, var_size1), &
+                   enefunc%buf_bond_real    (2, BondMove, var_size1), &
+                   stat = alloc_stat)
+        enefunc%bond_exit_index  (     1:BondMove, 1:var_size )  = 0
+        enefunc%buf_bond_integer (1:4, 1:BondMove, 1:var_size1)  = 0
+        enefunc%buf_bond_real    (1:2, 1:BondMove, 1:var_size1)  = 0.0_wp
       end if
 
-      ! Reallocate bond, angle, dihed, rb_dihed, impr, cmap for FEP
-      if (.not. allocated(enefunc%buf_bond_integer)) &
-        allocate(enefunc%buf_bond_integer     (5, BondMove, var_size1), &
-                 enefunc%buf_angle_integer    (8, AngleMove, var_size1),&
-                 enefunc%buf_dihed_integer    (10, DiheMove, var_size1), &
-                 enefunc%buf_rb_dihed_integer (8, DiheMove, var_size1), &
-                 enefunc%buf_impr_integer     (9, ImprMove, var_size1), &
-                 enefunc%buf_cmap_integer     (16,CmapMove, var_size1), &
-                 stat = alloc_stat)
+      if (enefunc%num_enm_all > 0) then
+        if (allocated(enefunc%buf_enm_integer)) then
+          if (size(enefunc%buf_enm_integer(1,1,:)) /= var_size1)      &
+            deallocate(enefunc%buf_enm_integer,                       &
+                       enefunc%buf_enm_real,                          &
+                       stat = dealloc_stat)
+        end if
+        if (.not. allocated(enefunc%buf_enm_integer))                 &
+          allocate(enefunc%buf_enm_integer(2, MaxBond, var_size1),    &
+                   enefunc%buf_enm_real   (2, MaxBond, var_size1),    &
+                   stat = alloc_stat)
+        enefunc%buf_enm_integer(1:2, 1:MaxBond , 1:var_size1) = 0
+        enefunc%buf_enm_real   (1:2, 1:MaxBond , 1:var_size1) = 0.0_wp
+      end if
 
-      enefunc%buf_bond_integer     (1:5, 1:BondMove, 1:var_size1)  = 0
-      enefunc%buf_angle_integer    (1:8, 1:AngleMove, 1:var_size1) = 0
-      enefunc%buf_dihed_integer    (1:10, 1:DiheMove, 1:var_size1)  = 0
-      enefunc%buf_rb_dihed_integer (1:8, 1:DiheMove, 1:var_size1)  = 0
-      enefunc%buf_impr_integer     (1:9, 1:ImprMove, 1:var_size1)  = 0
-      enefunc%buf_cmap_integer     (1:16, 1:CmapMove, 1:var_size1)  = 0
+      if (enefunc%num_angl_all > 0) then
+        if (allocated(enefunc%buf_angle_integer)) then
+          if (size(enefunc%buf_angle_integer(1,1,:)) /= var_size1)    &
+            deallocate(enefunc%buf_angle_integer,                     &
+                       enefunc%buf_angle_real,                        &
+                       enefunc%angle_exit_index,                      &
+                       stat = dealloc_stat)
+        end if
+        if (.not.allocated(enefunc%buf_angle_integer))                &
+          allocate(enefunc%angle_exit_index (   AngleMove, var_size ),&
+                   enefunc%buf_angle_integer(7, AngleMove, var_size1),&
+                   enefunc%buf_angle_real   (4, AngleMove, var_size1),&
+                   stat = alloc_stat)
+        enefunc%angle_exit_index (     1:AngleMove, 1:var_size ) = 0
+        enefunc%buf_angle_integer(1:7, 1:AngleMove, 1:var_size1) = 0
+        enefunc%buf_angle_real   (1:4, 1:AngleMove, 1:var_size1) = 0.0_wp
+      end if
+
+      if (enefunc%num_dihe_all > 0) then
+        if (allocated(enefunc%buf_dihed_integer)) then
+          if (size(enefunc%buf_dihed_integer(1,1,:)) /= var_size1)    &
+            deallocate(enefunc%dihed_exit_index,                      &
+                       enefunc%buf_dihed_integer,                     &
+                       enefunc%buf_dihed_real,                        &
+                       stat = dealloc_stat)
+        end if
+        if (.not.allocated(enefunc%buf_dihed_integer))                &
+          allocate(enefunc%dihed_exit_index (   DiheMove, var_size ), &
+                   enefunc%buf_dihed_integer(9, DiheMove, var_size1), &
+                   enefunc%buf_dihed_real   (2, DiheMove, var_size1), &
+                   stat = alloc_stat)
+        enefunc%dihed_exit_index (     1:DiheMove, 1:var_size ) = 0
+        enefunc%buf_dihed_integer(1:9, 1:DiheMove, 1:var_size1) = 0
+        enefunc%buf_dihed_real   (1:2, 1:DiheMove, 1:var_size1) = 0.0_wp
+      end if
+
+      if (enefunc%num_rb_dihe_all > 0) then
+        if (allocated(enefunc%buf_rb_dihed_integer)) then
+          if (size(enefunc%buf_rb_dihed_integer(1,1,:)) /= var_size1) &
+            deallocate(enefunc%rb_dihed_exit_index,                   &
+                       enefunc%buf_rb_dihed_integer,                  &
+                       enefunc%buf_rb_dihed_real,                     &
+                       stat = dealloc_stat)
+        end if
+        if (.not.allocated(enefunc%buf_rb_dihed_integer))             &
+          allocate(enefunc%rb_dihed_exit_index (   DiheMove, var_size ), &
+                   enefunc%buf_rb_dihed_integer(7, DiheMove, var_size1), &
+                   enefunc%buf_rb_dihed_real   (6, DiheMove, var_size1), &
+                   stat = alloc_stat)
+        enefunc%rb_dihed_exit_index (     1:DiheMove, 1:var_size ) = 0
+        enefunc%buf_rb_dihed_integer(1:7, 1:DiheMove, 1:var_size1) = 0
+        enefunc%buf_rb_dihed_real   (1:6, 1:DiheMove, 1:var_size1) = 0.0_wp
+      end if
+
+      if (enefunc%num_impr_all > 0) then
+        if (allocated(enefunc%buf_impr_integer)) then
+          if (size(enefunc%buf_impr_integer(1,1,:)) /= var_size1)     &
+            deallocate(enefunc%impr_exit_index,                       &
+                       enefunc%buf_impr_integer,                      &
+                       enefunc%buf_impr_real,                         &
+                       stat = dealloc_stat)
+        end if
+        if (.not.allocated(enefunc%buf_impr_integer))                 &
+          allocate(enefunc%impr_exit_index (   ImprMove, var_size ),  &
+                   enefunc%buf_impr_integer(8, ImprMove, var_size1),  &
+                   enefunc%buf_impr_real   (2, ImprMove, var_size1),  &
+                   stat = alloc_stat)
+        enefunc%impr_exit_index (     1:ImprMove, 1:var_size ) = 0
+        enefunc%buf_impr_integer(1:8, 1:ImprMove, 1:var_size1) = 0
+        enefunc%buf_impr_real   (1:2, 1:ImprMove, 1:var_size1) = 0.0_wp
+      end if
+
+      if (enefunc%num_cmap_all > 0) then
+        if (allocated(enefunc%buf_cmap_integer)) then
+          if (size(enefunc%buf_cmap_integer(1,1,:)) /= var_size1)     &
+            deallocate(enefunc%cmap_exit_index,                       &
+                       enefunc%buf_cmap_integer,                      &
+                       stat = dealloc_stat)
+        end if
+        if (.not.allocated(enefunc%buf_cmap_integer))                 &
+          allocate(enefunc%cmap_exit_index (   CmapMove, var_size ),  &
+                   enefunc%buf_cmap_integer(15,CmapMove, var_size1),  &
+                   stat = alloc_stat)
+        enefunc%cmap_exit_index (      1:CmapMove, 1:var_size )  = 0
+        enefunc%buf_cmap_integer(1:15, 1:CmapMove, 1:var_size1)  = 0
+      end if
+
+    case (EneFuncBondCell_FEP)
+
+      ! Deallocate bond, angle, dihed, rb_dihed, impr, cmap for FEP
+      if (allocated(enefunc%buf_bond_integer)) then
+        deallocate(enefunc%buf_bond_integer,                          &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_bond_integer(5, BondMove, var_size1),    &
+                 stat = dealloc_stat)
+        enefunc%buf_bond_integer(1:5, 1:BondMove, 1:var_size1)  = 0
+      end if
+
+      if (allocated(enefunc%buf_angle_integer)) then
+        deallocate(enefunc%buf_angle_integer,                         &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_angle_integer(8, AngleMove, var_size1),  &
+                 stat = dealloc_stat)
+        enefunc%buf_angle_integer(1:8, 1:AngleMove, 1:var_size1) = 0
+      end if
+
+      if (allocated(enefunc%buf_dihed_integer)) then
+        deallocate(enefunc%buf_dihed_integer,                         &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_dihed_integer(10, DiheMove, var_size1),  &
+                 stat = alloc_stat)
+        enefunc%buf_dihed_integer(1:10, 1:DiheMove, 1:var_size1)  = 0
+      end if
+
+      if (allocated(enefunc%buf_rb_dihed_integer)) then
+        deallocate(enefunc%buf_rb_dihed_integer,                      &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_rb_dihed_integer(8,DiheMove, var_size1), &
+                 stat = alloc_stat)
+        enefunc%buf_rb_dihed_integer(1:8, 1:DiheMove, 1:var_size1)  = 0
+      end if
+
+      if (allocated(enefunc%buf_impr_integer)) then
+        deallocate(enefunc%buf_impr_integer,                          &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_impr_integer(9, ImprMove, var_size1),    &
+                 stat = alloc_stat)
+        enefunc%buf_impr_integer(1:9, 1:ImprMove, 1:var_size1)  = 0
+      end if
+
+      if (allocated(enefunc%buf_cmap_integer)) then
+        deallocate(enefunc%buf_cmap_integer,                          &
+                   stat = dealloc_stat)
+        allocate(enefunc%buf_cmap_integer(16,CmapMove, var_size1),    &
+                 stat = alloc_stat)
+        enefunc%buf_cmap_integer(1:16, 1:CmapMove, 1:var_size1)  = 0
+      end if
+
+    case (EneFuncBondCell_FIT)
+
+      if ((enefunc%restraint_posi) .or. (enefunc%restraint_rmsd)) then
+        if (allocated(enefunc%buf_restraint_integer)) then
+          if (size(enefunc%buf_restraint_integer(1,:)) /= var_size1)  &
+            deallocate(enefunc%restraint_exit_index,                  &
+                       enefunc%buf_restraint_integer,                 &
+                       enefunc%buf_restraint_real,                    &
+                       stat = dealloc_stat)
+        end if  
+        if (.not.allocated(enefunc%buf_restraint_integer))            &
+          allocate(enefunc%restraint_exit_index (RestMove, var_size ),&
+                   enefunc%buf_restraint_integer(RestMove, var_size1),&
+                   enefunc%buf_restraint_real(7, RestMove, var_size1),&
+                   stat = alloc_stat)
+        enefunc%restraint_exit_index (     1:RestMove, 1:var_size ) = 0
+        enefunc%buf_restraint_integer(     1:RestMove, 1:var_size1) = 0
+        enefunc%buf_restraint_real   (1:7, 1:RestMove, 1:var_size1) = 0.0_wp
+      end if    
+
+      if (enefunc%do_fitting) then
+        if (allocated(enefunc%buf_fitting_integer)) then      
+          if (size(enefunc%buf_fitting_integer(1,:)) /= var_size1) &
+            deallocate(enefunc%buf_fitting_integer,                &
+                       enefunc%buf_fitting_real,                   &
+                       enefunc%fitting_exit_index,                 &
+                       stat = dealloc_stat)
+        end if  
+        if (.not.allocated(enefunc%buf_fitting_integer))           &
+          allocate(enefunc%fitting_exit_index (   RestMove, var_size ), &
+                   enefunc%buf_fitting_integer(   RestMove, var_size1), &
+                   enefunc%buf_fitting_real   (7, RestMove, var_size1), &
+                   stat = alloc_stat)
+        enefunc%fitting_exit_index (     1:RestMove, 1:var_size ) = 0
+        enefunc%buf_fitting_integer(     1:RestMove, 1:var_size1) = 0
+        enefunc%buf_fitting_real   (1:7, 1:RestMove, 1:var_size1) = 0.0_wp
+      end if
 
     case (EneFuncTableWat)
 
       if (allocated(enefunc%table%water_list)) then
          if (size(enefunc%table%water_list(1,:)) /= var_size) &
-           deallocate(enefunc%table%water_list, stat = dealloc_stat)
-      end if
+           deallocate(enefunc%table%water_list,               &
+                      enefunc%table%water_type, stat = dealloc_stat)
+      end if          
 
-      if (.not. allocated(enefunc%table%water_list)) &
-        allocate(enefunc%table%water_list(4, var_size), stat = alloc_stat)
+      if (.not. allocated(enefunc%table%water_list))          &
+        allocate(enefunc%table%water_list(4, var_size),       &
+                 enefunc%table%water_type(   var_size), stat = alloc_stat)
 
       enefunc%table%water_list(1:4, 1:var_size) = 0
+      enefunc%table%water_type(     1:var_size) = 0
 
     case (EneFuncTableSol)
 
@@ -2036,6 +2142,7 @@ contains
 
       if (allocated(enefunc%num_bond)) then
         deallocate(enefunc%num_bond,        &
+                   enefunc%num_enm,         &
                    enefunc%num_angle,       &
                    enefunc%num_dihedral,    &
                    enefunc%num_rb_dihedral, &
@@ -2082,9 +2189,8 @@ contains
 
     case (EneFuncEnm)
 
-      if (allocated(enefunc%num_enm)) then
-        deallocate(enefunc%num_enm,         &
-                   enefunc%enm_list,        &
+      if (allocated(enefunc%enm_list)) then
+        deallocate(enefunc%enm_list,        &
                    enefunc%enm_force_const, &
                    enefunc%enm_dist_min,    &
                    stat = dealloc_stat)
@@ -2331,56 +2437,91 @@ contains
 
     case (EneFuncBondCell)
 
-      if (allocated(enefunc%bond_exit)) then
-        deallocate(enefunc%bond_exit,             &
-                   enefunc%bond_add,              &
-                   enefunc%bond_exit_index,       &
-                   enefunc%buf_bond_integer,      &
-                   enefunc%buf_bond_real,         &
-                   enefunc%enm_add,               &
-                   enefunc%buf_enm_integer,       &
-                   enefunc%buf_enm_real,          &
-                   enefunc%angle_exit,            &
-                   enefunc%angle_add,             &
-                   enefunc%angle_exit_index,      &
-                   enefunc%buf_angle_integer,     &
-                   enefunc%buf_angle_real,        &
-                   enefunc%dihed_exit,            &
-                   enefunc%dihed_add,             &
-                   enefunc%dihed_exit_index,      &
-                   enefunc%buf_dihed_integer,     &
-                   enefunc%buf_dihed_real,        &
-                   enefunc%rb_dihed_exit,         &
-                   enefunc%rb_dihed_add,          &
-                   enefunc%rb_dihed_exit_index,   &
-                   enefunc%buf_rb_dihed_integer,  &
-                   enefunc%buf_rb_dihed_real,     &
-                   enefunc%impr_exit,             &
-                   enefunc%impr_add,              &
-                   enefunc%impr_exit_index,       &
-                   enefunc%buf_impr_integer,      &
-                   enefunc%buf_impr_real,         &
-                   enefunc%cmap_exit,             &
-                   enefunc%cmap_add,              &
-                   enefunc%cmap_exit_index,       &
-                   enefunc%buf_cmap_integer,      &
-                   enefunc%contact_exit,          & 
-                   enefunc%contact_add,           &
-                   enefunc%contact_exit_index,    &
-                   enefunc%buf_contact_integer,   &
-                   enefunc%buf_contact_real,      &
-                   enefunc%restraint_exit,        &
-                   enefunc%restraint_add,         &
-                   enefunc%restraint_exit_index,  &
-                   enefunc%buf_restraint_integer, &
-                   enefunc%buf_restraint_real,    &
-                   enefunc%fitting_exit,          &
-                   enefunc%fitting_add,           &
-                   enefunc%fitting_exit_index,    &
-                   enefunc%buf_fitting_integer,   &
-                   enefunc%buf_fitting_real,      &
+      if (allocated(enefunc%bond_exit)) then        
+        deallocate(enefunc%bond_exit,            &  
+                   enefunc%bond_add,             &  
+                   enefunc%enm_add,              &  
+                   enefunc%angle_exit,           &
+                   enefunc%angle_add,            &
+                   enefunc%dihed_exit,           &
+                   enefunc%dihed_add,            &
+                   enefunc%rb_dihed_exit,        &
+                   enefunc%rb_dihed_add,         &
+                   enefunc%impr_exit,            &
+                   enefunc%impr_add,             &
+                   enefunc%cmap_exit,            &
+                   enefunc%cmap_add,             &
+                   enefunc%contact_exit,         &
+                   enefunc%contact_add,          &
+                   enefunc%restraint_exit,       &
+                   enefunc%restraint_add,        &
+                   enefunc%fitting_exit,         &
+                   enefunc%fitting_add,          &
                    stat = dealloc_stat)
       end if
+
+      if (allocated(enefunc%buf_bond_integer)) then
+        deallocate(enefunc%bond_exit_index,      &
+                   enefunc%buf_bond_integer,     &
+                   enefunc%buf_bond_real,        &
+                   stat = dealloc_stat)
+      end if
+
+      if (allocated(enefunc%buf_enm_integer)) then
+        deallocate(enefunc%buf_enm_integer,      &
+                   enefunc%buf_enm_real,         &
+                   stat = dealloc_stat)
+      end if
+
+      if (allocated(enefunc%buf_angle_integer)) then
+        deallocate(enefunc%buf_angle_integer,    &
+                   enefunc%buf_angle_real,       &
+                   enefunc%angle_exit_index,     &
+                   stat = dealloc_stat)
+      end if
+
+      if (allocated(enefunc%buf_dihed_integer)) then
+        deallocate(enefunc%dihed_exit_index,     &
+                   enefunc%buf_dihed_integer,    &
+                   enefunc%buf_dihed_real,       &
+                   stat = dealloc_stat)
+      end if
+
+      if (allocated(enefunc%buf_rb_dihed_integer)) then
+        deallocate(enefunc%rb_dihed_exit_index,  &
+                   enefunc%buf_rb_dihed_integer, &
+                   enefunc%buf_rb_dihed_real,    &
+                   stat = dealloc_stat)
+      end if
+
+      if (allocated(enefunc%buf_impr_integer)) then
+        deallocate(enefunc%impr_exit_index,      &
+                   enefunc%buf_impr_integer,     &
+                   enefunc%buf_impr_real,        &
+                   stat = dealloc_stat)
+      end if
+
+      if (enefunc%num_cmap_all > 0) then
+        deallocate(enefunc%cmap_exit_index,      &
+                   enefunc%buf_cmap_integer,     &
+                   stat = dealloc_stat)
+      end if
+
+    case (EneFuncBondCell_FIT)
+
+      if (allocated(enefunc%restraint_exit_index)) then
+        deallocate(enefunc%restraint_exit_index, &
+                   enefunc%buf_restraint_integer,&
+                   enefunc%buf_restraint_real,   &
+                   stat = dealloc_stat)
+      end if           
+                       
+      if (allocated(enefunc%buf_fitting_integer)) then
+        deallocate(enefunc%buf_fitting_integer,  &
+                   enefunc%buf_fitting_real,     &
+                   enefunc%fitting_exit_index,   &
+                   stat = dealloc_stat)
+      end if       
 
     case (EneFuncTableWat)
 
@@ -2518,6 +2659,7 @@ contains
     call dealloc_enefunc(enefunc, EneFuncRefr)
     call dealloc_enefunc(enefunc, EneFuncRest)
     call dealloc_enefunc(enefunc, EneFuncBondCell)
+    call dealloc_enefunc(enefunc, EneFuncBondCell_FIT)
     call dealloc_enefunc(enefunc, EneFuncTableWat)
     call dealloc_enefunc(enefunc, EneFuncTableSol)
     call dealloc_enefunc(enefunc, EneFuncTblWatDomain)

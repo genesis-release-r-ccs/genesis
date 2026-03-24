@@ -96,7 +96,6 @@ contains
     call alloc_enefunc(enefunc, EneFuncDihe,     ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncRBDihe,   ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncImpr,     ncel, ncel)
-    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
     if (.not. constraints%rigid_bond) then
 
@@ -133,6 +132,8 @@ contains
     ! improper
     !
     call setup_enefunc_impr(molecule, grotop, domain, enefunc)
+
+    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
 
     ! nonbonded
     !
@@ -1949,13 +1950,13 @@ contains
         do j = 1, enefunc%restraint_funcgrp(i) 
           write(MsgOut,'(i3,$)') enefunc%restraint_grouplist(j,i)
           if (mod(j,20) == 0 .and. j /= enefunc%restraint_funcgrp(i) )  &
-            write(MsgOut,'(A)') ''
+            write(MsgOut,'(A)') ' '
         end do
-        write(MsgOut,'(A)') ''
+        write(MsgOut,'(A)') ' '
 
       end do
 
-      write(MsgOut,*) ''
+      write(MsgOut,*) ' '
 
     end if
 

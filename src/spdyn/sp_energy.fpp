@@ -91,6 +91,8 @@ module sp_energy_mod
     integer               :: dispersion_corr  = Disp_corr_NONE
     real(wp)              :: minimum_contact  = 0.5_wp
     real(wp)              :: err_minimum_contact = 0.3_wp
+    real(wp)              :: force_max        = 50.0_wp
+    logical               :: force_max_assign = .false.
     logical               :: use_knl_generic  = .false.
     real(wp)              :: scale_pairlist_fugaku  = 1.0_wp
     real(wp)              :: scale_pairlist_generic = 1.0_wp
@@ -100,6 +102,8 @@ module sp_energy_mod
     logical               :: efield_virial = .false.
     logical               :: efield_normal = .false.
     logical               :: vacuum           = .false.
+    logical               :: error_check_coord = .true.
+    logical               :: flexible_pairlist_update = .false.
   end type s_ene_info
 
   ! varibles
@@ -181,14 +185,15 @@ contains
         write(MsgOut,'(A)') '# nonb_limiter    = YES     # avoid failure due to atomic clash'
         write(MsgOut,'(A)') '# minimum_contact = 0.5     # definition of atomic clash distance'
         end if
-        write(MsgOut,'(A)') '# nonbond_kernel  = Generic # Nonbond kernel type &
-                              &[autoselect, generic, kgeneric, intelknl]'
+        write(MsgOut,'(A)') '# nonbond_kernel  = Generic # Nonbond kernel type '//&
+                            '[autoselect, generic, kgeneric, intelknl]'
         write(MsgOut,'(A)') '# efield_x     # external electric field in x direction (V/anstrom)'
         write(MsgOut,'(A)') '# efield_y     # external electric field in y direction (V/anstrom)'
         write(MsgOut,'(A)') '# efield_z     # external electric field in z direction (V/anstrom)'
         write(MsgOut,'(A)') '# efield_virial# calculate virial from electric field in NPT'
         write(MsgOut,'(A)') '# efield_normal# normalized efield magnitue during NPT'
         write(MsgOut,'(A)') '# vacuum = NO               # vacuum option'
+        write(MsgOut,'(A)') '# error_check_coord = YES   # stop for very short pairwise-distance'   
         write(MsgOut,'(A)') ' '
 
       end select
@@ -322,10 +327,27 @@ contains
                                ene_info%nonbond_kernel, NBK_Types)
     call read_ctrlfile_logical(handle, Section, 'vacuum',     &
                                ene_info%vacuum)
+    call read_ctrlfile_logical(handle, Section, 'error_check_coord', &
+                               ene_info%error_check_coord)
+    call read_ctrlfile_real   (handle, Section, 'force_max', &
+                               ene_info%force_max)
+    call read_ctrlfile_logical(handle, Section, 'force_max_assign', &
+                               ene_info%force_max_assign)
+    call read_ctrlfile_logical(handle, Section, 'flexible_pairlist_update', &
+                               ene_info%flexible_pairlist_update)
 
     call end_ctrlfile_section(handle)
 
+
     ! check vacuum
+    ! bigger cell size for spica
+    ! 
+    if (ene_info%forcefield == ForcefieldSPICA) then
+      ene_info%dmin_size_cg = max(ene_info%dmin_size_cg, &
+                                  ene_info%pairlistdist*1.5_wp)
+      ene_info%dsize_cg  = .true.
+    end if
+
     !
     if (ene_info%vacuum) then
       ! Tables are not used.
@@ -825,6 +847,15 @@ contains
 
       end if
 
+    case (ForcefieldSPICA) 
+
+      call compute_energy_spica( &
+                              domain, enefunc, pairlist, boundary, coord,  &
+                              npt, reduce, nonb_ene, merge_force,          &
+                              nonb_limiter, energy, atmcls_pbc,            &
+                              coord_pbc, force, force_long, force_omp,     &
+                              force_pbc, virial_cell, virial, virial_long, &
+                              virial_ext)
 
 
     case (ForcefieldAMBER)
@@ -1014,6 +1045,14 @@ contains
         call error_msg('GROAMBER field is not available in FEP')
 
       call compute_energy_gro_amber_short( &
+                              domain, enefunc, pairlist, boundary, coord, &
+                              npt, energy, atmcls_pbc, coord_pbc,         &
+                              force, force_omp, force_pbc,                &
+                              virial_cell, virial, virial_ext)
+
+    case (ForcefieldSpica) 
+
+      call compute_energy_spica_short( &
                               domain, enefunc, pairlist, boundary, coord, &
                               npt, energy, atmcls_pbc, coord_pbc,         &
                               force, force_omp, force_pbc,                &
@@ -1715,6 +1754,404 @@ contains
     return
 
   end subroutine compute_energy_charmm
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_spica 
+  !> @brief        Computes potential energy with spica force field
+  !! @authors      JJ        
+  !! @param[in]    domain       : domain information
+  !! @param[in]    enefunc      : potential energy functions information
+  !! @param[in]    pairlist     : pair list information
+  !! @param[in]    boundary     : boundary information
+  !! @param[in]    coord        : coordinates of target systems
+  !! @param[in]    npt          : flag for NPT or not
+  !! @param[in]    reduce       : flag for reduce energy and virial
+  !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
+  !! @param[in]    merge_force  : flag for merge force
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
+  !! @param[inout] energy       : energy information
+  !! @param[inout] atmcls_pbc   : atom class number
+  !! @param[input] coord_pbc    : coordinates
+  !! @param[inout] force        : forces of target systems
+  !! @param[inout] force_long   : forces of target systems in long range
+  !! @param[inout] force_omp    : temprary forces of target systems
+  !! @param[inout] force_pbc    : forces
+  !! @param[inout] virial_cell  : virial term of target systems in cell
+  !! @param[inout] virial       : virial term of target systems
+  !! @param[inout] virial_long  : virial term of target systems in long range
+  !! @param[inout] virial_ext   : extern virial term of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_spica(domain, enefunc, pairlist, boundary, coord, &
+                                  npt, reduce, nonb_ene, merge_force,         &
+                                  nonb_limiter, energy, atmcls_pbc,           &
+                                  coord_pbc, force, force_long, force_omp,    &
+                                  force_pbc, virial_cell, virial,             &
+                                  virial_long, virial_ext)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    real(wip),               intent(in)    :: coord(:,:,:)
+    logical,                 intent(in)    :: npt
+    logical,                 intent(in)    :: reduce
+    logical,                 intent(in)    :: nonb_ene
+    logical,                 intent(in)    :: merge_force
+    logical,                 intent(in)    :: nonb_limiter
+    type(s_energy),          intent(inout) :: energy
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wip),               intent(inout) :: force(:,:,:)
+    real(wip),               intent(inout) :: force_long(:,:,:)
+    real(wp),                intent(inout) :: force_omp(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(3,3)
+    real(dp),                intent(inout) :: virial_long(3,3)
+    real(dp),                intent(inout) :: virial_ext(3,3)
+
+    ! local variable
+    real(dp)                 :: virial_omp(3,3,nthread)
+    real(dp)                 :: virial_ext_omp(3,3,nthread)
+    real(dp)                 :: elec_omp   (nthread)
+    real(dp)                 :: evdw_omp   (nthread)
+    real(dp)                 :: ebond_omp  (nthread)
+    real(dp)                 :: eenm_omp   (nthread)
+    real(dp)                 :: eangle_omp (nthread)
+    real(dp)                 :: eurey_omp  (nthread)
+    real(dp)                 :: edihed_omp (nthread)
+    real(dp)                 :: eimprop_omp(nthread)
+    real(dp)                 :: ecmap_omp  (nthread)
+    real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
+    real(wip)                :: trans(1:3)
+    real(wip)                :: force_tmp(1:3)
+    real(wip)                :: force_max
+    logical                  :: force_max_assign
+    integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
+
+    force_max = enefunc%force_max
+    force_max_assign = enefunc%force_max_assign
+
+    ! number of cells and atoms
+    !
+    ncell = domain%num_cell_local + domain%num_cell_boundary
+    natom = domain%max_num_atom
+
+    ! initialization of energy and forces
+    !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
+    call init_energy(energy)
+
+    !$omp parallel do private(i,ix,id)
+    do i = 1, ncell
+      do ix = 1, natom
+        force     (1,ix,i) = 0.0_wip
+        force     (2,ix,i) = 0.0_wip
+        force     (3,ix,i) = 0.0_wip
+        force_long(1,ix,i) = 0.0_wip
+        force_long(2,ix,i) = 0.0_wip
+        force_long(3,ix,i) = 0.0_wip
+      end do
+    end do
+    !$omp end parallel do
+
+    virial     (1:3,1:3)  = 0.0_dp
+    virial_long(1:3,1:3)  = 0.0_dp
+    virial_ext (1:3,1:3)  = 0.0_dp
+
+    !$omp parallel do private(k, id, i, ix)
+    do id = 1, nthread
+      do i = 1, ncell
+        do ix = 1, natom
+          force_omp(1,ix,i,id) = 0.0_wp
+          force_omp(2,ix,i,id) = 0.0_wp
+          force_omp(3,ix,i,id) = 0.0_wp
+        end do
+      end do
+      do i = 1, domain%num_atom_domain
+        force_pbc(1,i,1,id) = 0.0_wp
+        force_pbc(2,i,1,id) = 0.0_wp
+        force_pbc(3,i,1,id) = 0.0_wp
+      end do
+    end do
+    !$omp end parallel do
+
+    virial_omp    (1:3,1:3,1:nthread) = 0.0_dp
+    virial_ext_omp(1:3,1:3,1:nthread) = 0.0_dp
+    virial_cell   (1:3,1:maxcell) = 0.0_dp
+    ebond_omp     (1:nthread) = 0.0_dp
+    eenm_omp      (1:nthread) = 0.0_dp
+    eangle_omp    (1:nthread) = 0.0_dp
+    eurey_omp     (1:nthread) = 0.0_dp
+    edihed_omp    (1:nthread) = 0.0_dp
+    eimprop_omp   (1:nthread) = 0.0_dp
+    ecmap_omp     (1:nthread) = 0.0_dp
+    elec_omp      (1:nthread) = 0.0_dp
+    evdw_omp      (1:nthread) = 0.0_dp
+    eposi_omp     (1:nthread) = 0.0_dp
+    efield_omp    (1:nthread) = 0.0_dp
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
+    ! setup for emfit
+    !
+    if (enefunc%do_emfit) then
+      call emfit_pre(domain, boundary, coord)
+    end if
+
+    ! nonbonded energy
+    !
+    select case (boundary%type)
+
+    case (BoundaryTypePBC)
+
+      if (domain%nonbond_kernel == NBK_Spica) then
+
+        call compute_energy_nonbond_pme_spica( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
+
+      else if (domain%nonbond_kernel == NBK_PSpica) then
+
+        call compute_energy_nonbond_pme_pspica( &
+                              domain, enefunc, pairlist, boundary,   &
+                              npt, nonb_ene, nonb_limiter,           &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_long, force_omp, force_pbc,      &
+                              virial_cell, virial_omp,               &
+                              elec_omp, evdw_omp)
+
+      else
+
+        call error_msg('Compute_Energy_SPICA> Unknown non-bonded energy '//&
+                'condition: Use PME.')
+
+      end if
+
+    case default
+
+      call error_msg('Compute_Energy_SPICA> Unknown boundary condition')
+
+    end select
+
+
+    if (real_calc) then
+
+      ! bond energy
+      !
+      call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
+
+      if (enefunc%enm_use) then
+        call compute_energy_enm( &
+                              domain, enefunc, coord, nonb_limiter,  &
+                              force_omp, virial_omp, eenm_omp,       &
+                              elec_omp, evdw_omp)
+      end if
+
+      ! angle energy
+      !
+      call compute_energy_angle_spica( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
+
+      ! dihedral angle energy
+      !
+      if (enefunc%local_restraint) then
+        call compute_energy_dihed_localres( &
+                            domain, enefunc, coord,                &
+                            force_omp, virial_omp, edihed_omp)
+      else
+        call compute_energy_dihed( &
+                            domain, enefunc, coord, force_omp,     &
+                            virial_omp, edihed_omp)
+      end if
+
+      ! improper energy
+      !
+      call compute_energy_improp( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
+
+      ! 1-4 interaction 
+      !
+      if (enefunc%pme_use) then
+
+        call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
+
+        call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
+
+      end if
+
+      ! external electric field
+      !
+      if (enefunc%use_efield) &
+        call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
+
+      ! restraint energy
+      !
+      if (enefunc%restraint) then
+
+        if (enefunc%gamd_use) then
+
+          if (enefunc%gamd%boost_pot .or. enefunc%gamd%boost_dual) then
+
+            call compute_energy_restraints_gamd( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp, eposi_omp, energy)
+
+          else
+
+            call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd,                           &
+                              energy%restraint_distance,             &
+                              energy%restraint_emfit, energy%emcorr)
+
+          end if
+
+        else
+
+          call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd,                           &
+                              energy%restraint_distance,             &
+                              energy%restraint_emfit, energy%emcorr)
+
+        end if
+
+      end if
+
+    end if
+
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
+    ! gather values
+    !
+    !$omp parallel default(shared) private(id, i, ix, k, ic, force_tmp)
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+    do i = id+1, ncell, nthread
+      k = domain%start_atom(i)
+      do ix = 1, domain%num_atom(i)
+        force_tmp(1) = force_omp(1,ix,i,1)
+        force_tmp(2) = force_omp(2,ix,i,1)
+        force_tmp(3) = force_omp(3,ix,i,1)
+        force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,1)
+        force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,1)
+        force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,1)
+        if (merge_force) then
+          force_tmp(1) = force_tmp(1) + force_long(1,ix,i)
+          force_tmp(2) = force_tmp(2) + force_long(2,ix,i)
+          force_tmp(3) = force_tmp(3) + force_long(3,ix,i)
+        end if
+
+!ocl nosimd
+        do ic = 2, nthread
+          force_tmp(1) = force_tmp(1) + force_omp(1,ix,i,ic)
+          force_tmp(2) = force_tmp(2) + force_omp(2,ix,i,ic)
+          force_tmp(3) = force_tmp(3) + force_omp(3,ix,i,ic)
+          force_tmp(1) = force_tmp(1) + force_pbc(1,k+ix,1,ic)
+          force_tmp(2) = force_tmp(2) + force_pbc(2,k+ix,1,ic)
+          force_tmp(3) = force_tmp(3) + force_pbc(3,k+ix,1,ic)
+        end do
+
+        if (force_max_assign) then
+          force(1,ix,i) = max(force_tmp(1),-force_max)
+          force(2,ix,i) = max(force_tmp(2),-force_max)
+          force(3,ix,i) = max(force_tmp(3),-force_max)
+          force(1,ix,i) = min(force_tmp(1),force_max)
+          force(2,ix,i) = min(force_tmp(2),force_max)
+          force(3,ix,i) = min(force_tmp(3),force_max)
+        else
+          force(1:3,ix,i) = force_tmp(1:3)
+        end if
+
+      end do
+    end do
+    !$omp end parallel
+
+    do id = 1, nthread
+
+      virial    (1,1) = virial    (1,1) + virial_omp    (1,1,id)
+      virial    (2,2) = virial    (2,2) + virial_omp    (2,2,id)
+      virial    (3,3) = virial    (3,3) + virial_omp    (3,3,id)
+      virial_ext(1,1) = virial_ext(1,1) + virial_ext_omp(1,1,id)
+      virial_ext(2,2) = virial_ext(2,2) + virial_ext_omp(2,2,id)
+      virial_ext(3,3) = virial_ext(3,3) + virial_ext_omp(3,3,id)
+
+      energy%bond               = energy%bond               + ebond_omp(id)
+      energy%enm                = energy%enm                + eenm_omp(id)
+      energy%angle              = energy%angle              + eangle_omp(id)
+      energy%urey_bradley       = energy%urey_bradley       + eurey_omp(id)
+      energy%dihedral           = energy%dihedral           + edihed_omp(id)
+      energy%improper           = energy%improper           + eimprop_omp(id)
+      energy%cmap               = energy%cmap               + ecmap_omp(id)
+      energy%electrostatic      = energy%electrostatic      + elec_omp(id)
+      energy%van_der_waals      = energy%van_der_waals      + evdw_omp(id)
+      energy%restraint_position = energy%restraint_position + eposi_omp(id)
+      energy%electric_field     = energy%electric_field     + efield_omp(id)
+
+    end do
+
+
+    ! total energy
+    !
+    energy%total = energy%bond            &
+                 + energy%enm             &
+                 + energy%angle           &
+                 + energy%urey_bradley    &
+                 + energy%dihedral        &
+                 + energy%cmap            &
+                 + energy%improper        &
+                 + energy%electrostatic   &
+                 + energy%van_der_waals   &
+                 + energy%electric_field  &
+                 + energy%restraint_position
+
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+    ! GaMD boost and statistics
+    !
+    if (reduce) &
+      call reduce_ene(energy, virial)
+
+    return
+
+  end subroutine compute_energy_spica
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -3506,6 +3943,314 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
+  !  Subroutine    compute_energy_spica_short 
+  !> @brief        Computes potential energy with spica force field
+  !! @authors      JJ        
+  !! @param[in]    domain      : domain information
+  !! @param[in]    enefunc     : potential energy functions information
+  !! @param[in]    pairlist    : pair list information
+  !! @param[in]    boundary    : boundary information
+  !! @param[in]    coord       : coordinates of target systems
+  !! @param[in]    npt         : flag for NPT or not
+  !! @param[inout] energy      : energy information
+  !! @param[inout] atmcls_pbc  : atom class number
+  !! @param[input] coord_pbc   : pbc coordiante
+  !! @param[inout] force       : forces of target systems
+  !! @param[inout] force_omp   : temprary forces of target systems
+  !! @param[inout] force_pbc   : pfb force 
+  !! @param[inout] virial_cell : pbc correction for virial
+  !! @param[inout] virial      : virial term of target systems
+  !! @param[inout] virial_ext  : extern virial term of target systems
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_spica_short(domain, enefunc, pairlist, boundary, &
+                                        coord, npt, energy,                  &
+                                        atmcls_pbc, coord_pbc,               &
+                                        force, force_omp, force_pbc,         &
+                                        virial_cell, virial, virial_ext)
+
+    ! formal arguments
+    type(s_domain),          intent(in)    :: domain
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    real(wip),               intent(in)    :: coord(:,:,:)
+    logical,                 intent(in)    :: npt
+    type(s_energy),          intent(inout) :: energy
+    integer,                 intent(inout) :: atmcls_pbc(:)
+    real(wp),                intent(inout) :: coord_pbc(:,:,:)
+    real(wip),               intent(inout) :: force(:,:,:)
+    real(wp),                intent(inout) :: force_omp(:,:,:,:)
+    real(wp),                intent(inout) :: force_pbc(:,:,:,:)
+    real(dp),                intent(inout) :: virial_cell(:,:)
+    real(dp),                intent(inout) :: virial(3,3)
+    real(dp),                intent(inout) :: virial_ext(3,3)
+
+    ! local variable
+    real(dp)                 :: virial_omp(3,3,nthread)
+    real(dp)                 :: virial_ext_omp(3,3,nthread)
+    real(dp)                 :: elec_omp   (nthread)
+    real(dp)                 :: evdw_omp   (nthread)
+    real(dp)                 :: ebond_omp  (nthread)
+    real(dp)                 :: eenm_omp   (nthread)
+    real(dp)                 :: eangle_omp (nthread)
+    real(dp)                 :: eurey_omp  (nthread)
+    real(dp)                 :: edihed_omp (nthread)
+    real(dp)                 :: eimprop_omp(nthread)
+    real(dp)                 :: ecmap_omp  (nthread)
+    real(dp)                 :: eposi_omp  (nthread)
+    real(dp)                 :: efield_omp (nthread)
+    real(wip)                :: force_tmp(1:3), force_max
+    logical                  :: force_max_assign
+    integer                  :: ncell, natom, id, i, ix, k, ki, ic, start_i
+
+    force_max_assign = enefunc%force_max_assign
+    force_max = enefunc%force_max
+
+    ! number of cells and atoms
+    !
+    ncell = domain%num_cell_local + domain%num_cell_boundary
+    natom = domain%max_num_atom
+
+    ! initialization of energy and forces
+    !
+#ifdef NVTX
+    call nvtxStartRange("init_energy",1)
+#endif
+    call init_energy(energy)
+
+    virial    (1:3,1:3)             = 0.0_dp
+    virial_ext(1:3,1:3)             = 0.0_dp
+
+    !$omp parallel private(i,ix,id)
+
+    !$omp do
+    do i = 1, ncell
+      do ix = 1, natom
+        force(1,ix,i) = 0.0_wip
+        force(2,ix,i) = 0.0_wip
+        force(3,ix,i) = 0.0_wip
+      end do
+    end do
+    !$omp end do
+
+    !$omp do
+    do id = 1, nthread
+      do i = 1, ncell
+        do ix = 1, natom
+          force_omp(1,ix,i,id) = 0.0_wp
+          force_omp(2,ix,i,id) = 0.0_wp
+          force_omp(3,ix,i,id) = 0.0_wp
+        end do
+      end do
+      do i = 1, domain%num_atom_domain
+        force_pbc(1,i,1,id) = 0.0_wp
+        force_pbc(2,i,1,id) = 0.0_wp
+        force_pbc(3,i,1,id) = 0.0_wp
+      end do
+    end do
+
+    !$omp do
+    do id = 1, nthread
+      virial_omp    (1,1,id) = 0.0_dp
+      virial_omp    (2,2,id) = 0.0_dp
+      virial_omp    (3,3,id) = 0.0_dp
+      virial_ext_omp(1,1,id) = 0.0_dp
+      virial_ext_omp(2,2,id) = 0.0_dp
+      virial_ext_omp(3,3,id) = 0.0_dp
+      ebond_omp     (id) = 0.0_dp
+      eenm_omp      (id) = 0.0_dp
+      eangle_omp    (id) = 0.0_dp
+      eurey_omp     (id) = 0.0_dp
+      edihed_omp    (id) = 0.0_dp
+      eimprop_omp   (id) = 0.0_dp
+      ecmap_omp     (id) = 0.0_dp
+      elec_omp      (id) = 0.0_dp
+      evdw_omp      (id) = 0.0_dp
+      eposi_omp     (id) = 0.0_dp
+      efield_omp    (id) = 0.0_dp
+    end do
+
+    !$omp end parallel
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
+    ! nonbonded energy
+    !
+    select case (boundary%type)
+
+    case (BoundaryTypePBC)
+
+      if (domain%nonbond_kernel == NBK_Spica) then
+
+        call compute_energy_nonbond_pme_spica_short( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp)
+
+      else if (domain%nonbond_kernel == NBK_PSpica) then
+
+        call compute_energy_nonbond_pme_pspica_short( &
+                              domain, enefunc, pairlist, npt,        &
+                              atmcls_pbc, coord_pbc,                 &
+                              force_omp, force_pbc,                  &
+                              virial_cell, virial_omp)
+      else
+
+        call error_msg('Compute_Energy_SPICA_Short> Multi-step is '//&
+                'available only with PME.')
+
+      end if
+
+    case default
+
+      call error_msg('Compute_Energy_SPICA_Short> Unknown boundary condition')
+
+    end select
+
+    ! bond energy
+    !
+    call compute_energy_bond( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, ebond_omp)
+
+    ! enm energy
+    !
+    if (enefunc%enm_use) then
+      call compute_energy_enm( &
+                              domain, enefunc, coord, .false.,       &
+                              force_omp, virial_omp, eenm_omp,       &
+                              elec_omp, evdw_omp)
+    end if
+
+    ! angle energy
+    !
+    call compute_energy_angle_spica( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eangle_omp, eurey_omp)
+
+    ! dihedral energy
+    !
+    if (enefunc%local_restraint) then
+
+      call compute_energy_dihed_localres( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
+
+    else
+
+      call compute_energy_dihed( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, edihed_omp)
+
+    end if
+
+    ! improper energy
+    !
+    call compute_energy_improp( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, eimprop_omp)
+
+    ! 1-4 interaction with linear table
+    !
+    call compute_energy_nonbond14_table_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, elec_omp, evdw_omp)
+
+    call pme_bond_corr_linear( &
+                              domain, enefunc, atmcls_pbc,           &
+                              coord_pbc, force_omp, force_pbc,       &
+                              virial_omp, evdw_omp, elec_omp)
+
+    if (enefunc%use_efield) &
+      call compute_energy_efield( &
+                              domain, enefunc, coord, force_omp,     &
+                              virial_omp, efield_omp)
+
+    ! restraint energy
+    !
+    if (enefunc%restraint) &
+      call compute_energy_restraints( &
+                              .true., .true., domain, boundary,      &
+                              enefunc, coord, force_omp,             &
+                              virial_omp, virial_ext_omp,            &
+                              eposi_omp, energy%restraint_rmsd,      &
+                              energy%rmsd,                           &
+                              energy%restraint_distance,             &
+                              energy%restraint_emfit, energy%emcorr)
+
+    ! finish GPU
+    !
+    if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
+#ifdef USE_GPU
+#ifdef NVTX
+      call nvtxStartRange("gpu_wait_compute",8)
+#endif
+      call cudaDeviceSynchronize()
+#ifdef NVTX
+      call nvtxEndRange
+#endif
+      call timer(TimerPmeReal, TimerOff)
+      call timer(TimerNonBond, TimerOff)
+#endif
+    end if
+
+#ifdef NVTX
+    call nvtxStartRange("collect_virforce",2)
+#endif
+    ! gather values
+    !
+    !$omp parallel default(shared) private(id, i, k, ix, ki, force_tmp, ic)
+#ifdef OMP
+    id = omp_get_thread_num()
+#else
+    id = 0
+#endif
+    do i = id+1, ncell, nthread
+      k = domain%start_atom(i)
+      do ix = 1, domain%num_atom(i)
+
+        ki = k + ix
+        force_tmp(1) = 0.0_wip
+        force_tmp(2) = 0.0_wip
+        force_tmp(3) = 0.0_wip
+!ocl nosimd
+        do ic = 1, nthread
+
+          force_tmp(1) = force_tmp(1) &
+                       + force_omp(1,ix,i,ic)+force_pbc(1,ki,1,ic)
+          force_tmp(2) = force_tmp(2) &
+                       + force_omp(2,ix,i,ic)+force_pbc(2,ki,1,ic)
+          force_tmp(3) = force_tmp(3) &
+                       + force_omp(3,ix,i,ic)+force_pbc(3,ki,1,ic)
+        end do
+        if (force_max_assign) then
+          force(1,ix,i) = max(force_tmp(1),-force_max)
+          force(2,ix,i) = max(force_tmp(2),-force_max)
+          force(3,ix,i) = max(force_tmp(3),-force_max)
+          force(1,ix,i) = min(force_tmp(1),force_max)
+          force(2,ix,i) = min(force_tmp(2),force_max)
+          force(3,ix,i) = min(force_tmp(3),force_max)
+        else 
+          force(1:3,ix,i) = force_tmp(1:3)
+        end if
+      end do
+    end do
+    !$omp end parallel
+#ifdef NVTX
+    call nvtxEndRange
+#endif
+
+    return
+
+  end subroutine compute_energy_spica_short
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
   !  Subroutine    compute_energy_amber_short
   !> @brief        compute potential energy with AMBER99 force field
   !! @authors      JJ
@@ -4470,6 +5215,12 @@ contains
       ifm = ifm+1
     end if
 
+    if (enefunc%enm_use) then
+      write(category(ifm),frmt) 'ENM'
+      values(ifm) = energy%enm
+      ifm = ifm+1
+    endif
+
     if (enefunc%num_angl_all > 0) then
       write(category(ifm),frmt) 'ANGLE'
       values(ifm) = energy%angle
@@ -4477,6 +5228,11 @@ contains
 
       if (enefunc%forcefield == ForcefieldCHARMM) then
         write(category(ifm),frmt) 'UREY-BRADLEY'
+        values(ifm) = energy%urey_bradley
+        ifm = ifm+1
+      end if
+      if (enefunc%forcefield == ForcefieldSPICA) then
+        write(category(ifm),frmt) 'ANGLE_LJ9-6'
         values(ifm) = energy%urey_bradley
         ifm = ifm+1
       end if
@@ -4586,7 +5342,7 @@ contains
       end if
     end do
 
-    write(MsgOut,'(A)') ''
+    write(MsgOut,'(A)') ' '
 
     return
 
@@ -4891,7 +5647,7 @@ contains
 #ifdef HAVE_MPI_GENESIS
 
     ! local variables
-    real(dp)                 :: before_reduce(20), after_reduce(20)
+    real(dp)                 :: before_reduce(21), after_reduce(21)
     integer                  :: i, j, n
 
 
@@ -4906,22 +5662,23 @@ contains
     end do
 
     before_reduce(10) = energy%bond
-    before_reduce(11) = energy%angle
-    before_reduce(12) = energy%urey_bradley
-    before_reduce(13) = energy%dihedral
-    before_reduce(14) = energy%improper
-    before_reduce(15) = energy%cmap
-    before_reduce(16) = energy%electrostatic
-    before_reduce(17) = energy%van_der_waals
-    before_reduce(18) = energy%electric_field
-    before_reduce(19) = energy%restraint_position
-    before_reduce(20) = energy%total
+    before_reduce(11) = energy%enm
+    before_reduce(12) = energy%angle
+    before_reduce(13) = energy%urey_bradley
+    before_reduce(14) = energy%dihedral
+    before_reduce(15) = energy%improper
+    before_reduce(16) = energy%cmap
+    before_reduce(17) = energy%electrostatic
+    before_reduce(18) = energy%van_der_waals
+    before_reduce(19) = energy%electric_field
+    before_reduce(20) = energy%restraint_position
+    before_reduce(21) = energy%total
 
 #ifdef HAVE_MPI_GENESIS
-    call mpi_allreduce(before_reduce, after_reduce, 20, mpi_real8,  &
+    call mpi_allreduce(before_reduce, after_reduce, 21, mpi_real8,  &
                        mpi_sum, mpi_comm_country, ierror)
 #else
-    after_reduce(1:20) = before_reduce(1:20)
+    after_reduce(1:21) = before_reduce(1:21)
 #endif
 
     n = 0
@@ -4933,16 +5690,17 @@ contains
     end do
 
     energy%bond               = after_reduce(10)
-    energy%angle              = after_reduce(11)
-    energy%urey_bradley       = after_reduce(12)
-    energy%dihedral           = after_reduce(13)
-    energy%improper           = after_reduce(14)
-    energy%cmap               = after_reduce(15)
-    energy%electrostatic      = after_reduce(16)
-    energy%van_der_waals      = after_reduce(17)
-    energy%electric_field     = after_reduce(18)
-    energy%restraint_position = after_reduce(19)
-    energy%total              = after_reduce(20)
+    energy%enm                = after_reduce(11)
+    energy%angle              = after_reduce(12)
+    energy%urey_bradley       = after_reduce(13)
+    energy%dihedral           = after_reduce(14)
+    energy%improper           = after_reduce(15)
+    energy%cmap               = after_reduce(16)
+    energy%electrostatic      = after_reduce(17)
+    energy%van_der_waals      = after_reduce(18)
+    energy%electric_field     = after_reduce(19)
+    energy%restraint_position = after_reduce(20)
+    energy%total              = after_reduce(21)
 
 #endif
 

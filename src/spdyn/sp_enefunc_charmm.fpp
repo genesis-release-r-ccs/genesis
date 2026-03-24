@@ -103,10 +103,8 @@ contains
     call alloc_enefunc(enefunc, EneFuncAngl, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncDihe, ncel, ncel)
     call alloc_enefunc(enefunc, EneFuncImpr, ncel, ncel)
-    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
     if (domain%fep_use) then
       ! FEP
-      call alloc_enefunc(enefunc, EneFuncBondCell_FEP, ncel, ncelb)
       call alloc_enefunc(enefunc, EneFuncFEPBonded, ncel, ncel)
     end if
 
@@ -145,6 +143,12 @@ contains
     ! cmap
     !
     call setup_enefunc_cmap(ene_info, par, molecule, domain, enefunc)
+
+    call alloc_enefunc(enefunc, EneFuncBondCell, ncel, ncelb)
+    if (domain%fep_use) then
+      ! FEP
+      call alloc_enefunc(enefunc, EneFuncBondCell_FEP, ncel, ncelb)
+    end if
 
     ! nonbonded
     !
@@ -2244,11 +2248,11 @@ contains
       if (periodic) then
         write(MsgOut,'(A)') &
     'Setup_Enefunc_Cmap> Periodic-boundary spline is used to derive cmap coefs.'
-        write(MsgOut,'(A)') ''
+        write(MsgOut,'(A)') ' '
       else
         write(MsgOut,'(A)') &
             'Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.'
-        write(MsgOut,'(A)') ''
+        write(MsgOut,'(A)') ' '
       end if
     end if
 

@@ -25,8 +25,11 @@ module sp_domain_str_mod
   type, public :: s_domain_water
 
     integer                       :: atom_cls_no(4)
+    integer                       :: atom_cls_no_tip2(2,3)
     real(wp)                      :: charge(4)
     real(wp)                      :: mass(4)
+    real(wp)                      :: charge_tip2(2,3)
+    real(wp)                      :: mass_tip2(2,3)
     integer,          allocatable :: move(:)
     integer,          allocatable :: stay(:)
     integer,          allocatable :: move_integer(:,:,:)
@@ -43,6 +46,8 @@ module sp_domain_str_mod
     integer(iintegers)            :: num_atom_all
     integer(iintegers)            :: num_deg_freedom
     integer                       :: num_atom_domain
+    integer                       :: num_charge_domain_inside
+    integer                       :: num_charge_domain
     integer                       :: num_duplicate
     integer                       :: num_group_freedom
     integer                       :: num_cell_local
@@ -126,11 +131,19 @@ module sp_domain_str_mod
     integer,  allocatable, pinned :: num_atom(:)
     integer,  allocatable, pinned :: start_atom(:)
 #endif
+#ifndef PGICUDA
+    real(dp),          allocatable :: gpu_ene_virial(:)
+#else
+    real(dp),  allocatable, pinned :: gpu_ene_virial(:)
+#endif
+    integer,          allocatable :: charge_list(:)
+    integer,          allocatable :: charge_list_inv(:)
     integer,          allocatable :: num_atom_t0(:)
     integer,          allocatable :: num_solute(:)
     integer,          allocatable :: num_water(:)
     integer,          allocatable :: solute_list(:,:)
     integer,          allocatable :: water_list(:,:,:)
+    integer,          allocatable :: water_type(:,:)
     integer,          allocatable :: ring(:,:)
 #ifndef PGICUDA
     integer,          allocatable :: atom_cls_no(:,:)
@@ -153,6 +166,7 @@ module sp_domain_str_mod
 #endif
     real(wip),        allocatable :: coord_ref(:,:,:)
     real(wip),        allocatable :: coord_old(:,:,:)
+    real(wip),        allocatable :: coord_backup(:,:,:)
     real(wip),        allocatable :: velocity(:,:,:)
     real(wip),        allocatable :: velocity_ref(:,:,:)
     real(wip),        allocatable :: velocity_full(:,:,:)
@@ -240,10 +254,14 @@ module sp_domain_str_mod
   integer,      public, parameter :: PLK_Fugaku           = 2
   integer,      public, parameter :: PLK_Intel            = 3
   integer,      public, parameter :: PLK_GPU              = 4
-  character(*), public, parameter :: PLK_Strings(4)       = (/'GENERIC     ', &
+  integer,      public, parameter :: PLK_SPICA            = 5
+  integer,      public, parameter :: PLK_PSPICA           = 6
+  character(*), public, parameter :: PLK_Strings(6)       = (/'GENERIC     ', &
                                                               'FUGAKU      ', &
                                                               'INTEL       ', &
-                                                              'GPU         '/)
+                                                              'GPU         ', &
+                                                              'SPICA       ', &
+                                                              'PSPICA      '/)
 
   ! Nonbond kernel constants
   integer,      public, parameter :: NBK_AutoSelect       = 1
@@ -251,11 +269,15 @@ module sp_domain_str_mod
   integer,      public, parameter :: NBK_Fugaku           = 3
   integer,      public, parameter :: NBK_Intel            = 4
   integer,      public, parameter :: NBK_GPU              = 5
-  character(*), public, parameter :: NBK_Types(5)         = (/'AUTOSELECT  ', &
+  integer,      public, parameter :: NBK_SPICA            = 6
+  integer,      public, parameter :: NBK_PSPICA           = 7
+  character(*), public, parameter :: NBK_Types(7)         = (/'AUTOSELECT  ', &
                                                               'GENERIC     ', &
                                                               'FUGAKU      ', &
                                                               'INTEL       ', &
-                                                              'GPU         '/)
+                                                              'GPU         ', &
+                                                              'SPICA       ', &
+                                                              'PSPICA      '/)
 
   ! parameters for allocatable variables
   integer,      public, parameter :: DomainCellGlobal       = 1
@@ -277,9 +299,12 @@ module sp_domain_str_mod
   integer,      public, parameter :: DomainPtlMove_FEP      = 18
   integer,      public, parameter :: DomainWaterMove_FEP    = 19
   integer,      public, parameter :: DomainAlchemyMove_FEP  = 20
+  integer,      public, parameter :: DomainCHARGE           = 21
 
   ! variables for maximum numbers in one cell
   integer,      public            :: MaxAtom                = 150
+  integer,      public            :: MaxAtom_domain         = 0
+  integer,      public            :: MaxCharge_domain       = 0
   integer,      public            :: MaxWater               = 50
   integer,      public            :: MaxMove                = 30
   integer,      public            :: MaxWaterMove           = 20
@@ -359,8 +384,8 @@ contains
     type(s_domain),          intent(inout) :: domain
     integer,                 intent(in)    :: variable
     integer,                 intent(in)    :: var_size
-    integer,                 intent(in)    :: var_size1
-    integer,                 intent(in)    :: var_size2
+    integer,   optional,     intent(in)    :: var_size1
+    integer,   optional,     intent(in)    :: var_size2
 
     ! local variables
     integer                  :: alloc_stat
@@ -571,36 +596,41 @@ contains
 #ifdef USE_GPU
           call unset_pinned_memory(domain%num_atom)
           call unset_pinned_memory(domain%start_atom)
+          call unset_pinned_memory(domain%gpu_ene_virial)
 #endif
-          deallocate(domain%num_atom,      &
-                     domain%start_atom,    &
-                     domain%num_atom_t0,   &
-                     domain%num_solute,    &
-                     domain%num_water,     &
-                     domain%random,        &
+          deallocate(domain%num_atom,       &
+                     domain%start_atom,     &
+                     domain%num_atom_t0,    &
+                     domain%num_solute,     &
+                     domain%num_water,      &
+                     domain%random,         &
+                     domain%gpu_ene_virial, &
                      stat = dealloc_stat)
         end if
       end if
 
       if (.not. allocated(domain%num_atom))    then
-        allocate(domain%num_atom   (var_size), &
-                 domain%start_atom (var_size), &
-                 domain%num_atom_t0(var_size), &
-                 domain%num_solute (var_size), &
-                 domain%num_water  (var_size), &
-                 domain%random     (var_size), &
+        allocate(domain%num_atom      (var_size), &
+                 domain%start_atom    (var_size), &
+                 domain%num_atom_t0   (var_size), &
+                 domain%num_solute    (var_size), &
+                 domain%num_water     (var_size), &
+                 domain%random        (var_size), &
+                 domain%gpu_ene_virial(5),        &
                  stat = alloc_stat)
 #ifdef USE_GPU
         call set_pinned_memory(domain%num_atom, var_size*4)
         call set_pinned_memory(domain%start_atom, var_size*4)
+        call set_pinned_memory(domain%gpu_ene_virial, 5*8)
 #endif
       end if
-      domain%num_atom   (1:var_size) = 0
-      domain%start_atom (1:var_size) = 0
-      domain%num_atom_t0(1:var_size) = 0
-      domain%num_solute (1:var_size) = 0
-      domain%num_water  (1:var_size) = 0
-      domain%random     (1:var_size) = 0.0_wp
+      domain%num_atom      (1:var_size) = 0
+      domain%start_atom    (1:var_size) = 0
+      domain%num_atom_t0   (1:var_size) = 0
+      domain%num_solute    (1:var_size) = 0
+      domain%num_water     (1:var_size) = 0
+      domain%random        (1:var_size) = 0.0_wp
+      domain%gpu_ene_virial(1:5)        = 0.0_dp
 
     case (DomainDynvar_pio)
 
@@ -643,16 +673,19 @@ contains
           call unset_pinned_memory(domain%charge)
 #endif
           if (domain%nonbond_kernel /= NBK_Fugaku .and. &
-              domain%nonbond_kernel /= NBK_Intel) then
+              domain%nonbond_kernel /= NBK_Intel  .and. &
+              domain%nonbond_kernel /= NBK_Spica) then
 
             deallocate(domain%id_l2g,        &
                        domain%id_l2g_solute, &
                        domain%solute_list,   &
                        domain%water_list,    &
+                       domain%water_type,    &
                        domain%atom_cls_no,   &
                        domain%coord,         &
                        domain%coord_ref,     &
                        domain%coord_old,     &
+                       domain%coord_backup,  &
                        domain%velocity,      &
                        domain%velocity_ref,  &
                        domain%velocity_full, &
@@ -674,10 +707,12 @@ contains
                        domain%id_l2g_solute, &
                        domain%solute_list,   &
                        domain%water_list,    &
+                       domain%water_type,    &
                        domain%atom_cls_no,   &
                        domain%coord,         &
                        domain%coord_ref,     &
                        domain%coord_old,     &
+                       domain%coord_backup,  &
                        domain%velocity,      &
                        domain%velocity_ref,  &
                        domain%velocity_full, &
@@ -706,10 +741,12 @@ contains
                  domain%id_l2g_solute(MaxAtom, var_size),     &
                  domain%solute_list  (MaxAtom, var_size),     &
                  domain%water_list   (var_size1, MaxWater, var_size), &
+                 domain%water_type   (MaxWater, var_size),    &
                  domain%atom_cls_no  (MaxAtom, var_size),     &
                  domain%coord        (3, MaxAtom, var_size),  &
                  domain%coord_ref    (3, MaxAtom, var_size),  &
                  domain%coord_old    (3, MaxAtom, var_size),  &
+                 domain%coord_backup (3, MaxAtom, var_size),  &
                  domain%velocity     (3, MaxAtom, var_size),  &
                  domain%velocity_ref (3, MaxAtom, var_size),  &
                  domain%velocity_full(3, MaxAtom, var_size),  &
@@ -727,14 +764,18 @@ contains
 
         if (domain%nonbond_kernel /= NBK_Fugaku .and. &
             domain%nonbond_kernel /= NBK_Intel  .and. &
-            domain%nonbond_kernel /= NBK_GPU) then
+            domain%nonbond_kernel /= NBK_GPU    .and. &
+            domain%nonbond_kernel /= NBK_Spica  .and. &
+            domain%nonbond_kernel /= NBK_PSpica) then
 
           allocate(domain%atmcls_pbc   (1),                     &
                    domain%translated   (MaxAtom, 3, var_size),  &
                    domain%force_pbc    (MaxAtom, 3, var_size, nthread), &
                    stat = alloc_stat)
 
-        else if (domain%nonbond_kernel == NBK_Fugaku) then
+        else if (domain%nonbond_kernel == NBK_Fugaku .or. &
+                 domain%nonbond_kernel == NBK_Spica  .or. &
+                 domain%nonbond_kernel == NBK_PSpica) then
 
           allocate(domain%atmcls_pbc   (MaxAtom*var_size),      &
                    domain%translated   (4, MaxAtom*var_size,1), &
@@ -778,10 +819,12 @@ contains
       domain%id_l2g_solute(1:MaxAtom, 1:var_size)        = 0
       domain%solute_list  (1:MaxAtom, 1:var_size)        = 0
       domain%water_list   (1:var_size1, 1:MaxWater, 1:var_size ) = 0
+      domain%water_type   (1:MaxWater, 1:var_size )      = 0
       domain%atom_cls_no  (1:MaxAtom, 1:var_size)        = 0
       domain%coord        (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
       domain%coord_ref    (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
       domain%coord_old    (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
+      domain%coord_backup (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
       domain%velocity     (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
       domain%velocity_ref (1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
       domain%velocity_full(1:3, 1:MaxAtom, 1:var_size)   = 0.0_wip
@@ -791,10 +834,14 @@ contains
 
       if (domain%nonbond_kernel /= NBK_Fugaku .and. &
           domain%nonbond_kernel /= NBK_Intel  .and. &
-          domain%nonbond_kernel /= NBK_GPU) then
+          domain%nonbond_kernel /= NBK_GPU    .and. &
+          domain%nonbond_kernel /= NBK_Spica  .and. &
+          domain%nonbond_kernel /= NBK_PSpica) then
         domain%translated   (1:MaxAtom, 1:3, 1:var_size)   = 0.0_wp
         domain%force_pbc    (1:MaxAtom, 1:3, 1:var_size, 1:nthread) = 0.0_wp
-      else if (domain%nonbond_kernel == NBK_Fugaku) then
+      else if (domain%nonbond_kernel == NBK_Fugaku .or. &
+               domain%nonbond_kernel == NBK_Spica  .or. &
+               domain%nonbond_kernel == NBK_PSpica) then
         domain%translated   (1:4, 1:MaxAtom*var_size, 1)            = 0.0_wp
         domain%coord_pbc    (1:MaxAtom*var_size, 1:3, 1)            = 0.0_wp
         domain%force_pbc    (1:3, 1:MaxAtom*var_size, 1, 1:nthread) = 0.0_wp
@@ -873,7 +920,8 @@ contains
     case (DomainPtlMove) 
 
       if (allocated(domain%buf_real)) then
-        if (size(domain%buf_real(1,1,:)) /= var_size) &
+        if (size(domain%buf_real(1,1,:)) /= var_size .or. &
+            size(domain%buf_real(1,1,:)) /= var_size1)    &
           deallocate(domain%buf_real,       &
                      domain%buf_integer,    &
                      domain%ptl_add,        &
@@ -883,18 +931,18 @@ contains
       end if
 
       if (.not. allocated(domain%buf_real)) &
-        allocate(domain%buf_real      (8, MaxMove, var_size), &
-                 domain%buf_integer   (9, MaxMove, var_size), &
-                 domain%ptl_add       (var_size),             &
-                 domain%ptl_exit      (var_size1),            &
-                 domain%ptl_exit_index(MaxMove, var_size1),   &
+        allocate(domain%buf_real      (9, var_size, var_size1), &
+                 domain%buf_integer   (9, var_size, var_size1), &
+                 domain%ptl_add       (var_size1),              &
+                 domain%ptl_exit      (var_size2),              &
+                 domain%ptl_exit_index(var_size1, var_size2),   &
                  stat = alloc_stat)
 
-      domain%buf_real      (1:8, 1:MaxMove, 1:var_size) = 0.0_wip
-      domain%buf_integer   (1:9, 1:MaxMove, 1:var_size) = 0
-      domain%ptl_add       (1:var_size)                 = 0
-      domain%ptl_exit      (1:var_size1)                = 0
-      domain%ptl_exit_index(1:MaxMove, 1:var_size1)     = 0
+      domain%buf_real      (1:9, 1:var_size, 1:var_size1) = 0.0_wip
+      domain%buf_integer   (1:9, 1:var_size, 1:var_size1) = 0
+      domain%ptl_add       (1:var_size1)                  = 0
+      domain%ptl_exit      (1:var_size2)                  = 0
+      domain%ptl_exit_index(1:var_size1, 1:var_size2)     = 0
 
     case (DomainWaterMove)
 
@@ -908,6 +956,8 @@ contains
                      domain%water%stay_real,    &
                      stat = dealloc_stat )
       end if
+
+      if (var_size2 /= 2) then
 
       if (.not. allocated(domain%water%move)) &
         allocate(domain%water%move        (var_size),                          &
@@ -924,6 +974,26 @@ contains
       domain%water%stay_integer(1:var_size2, 1:MaxWater, 1:var_size1)     = 0
       domain%water%move_real(1:6*var_size2,1:MaxWaterMove,1:var_size) = 0.0_wip
       domain%water%stay_real(1:6*var_size2,1:MaxWater,1:var_size1)    = 0.0_wip
+
+      else
+
+      if (.not. allocated(domain%water%move)) & 
+        allocate(domain%water%move        (var_size),                   &
+                 domain%water%stay        (var_size1),                  &
+                 domain%water%move_integer(3,  MaxWaterMove, var_size), &
+                 domain%water%stay_integer(3,  MaxWater, var_size1),    &
+                 domain%water%move_real   (12, MaxWaterMove, var_size), &
+                 domain%water%stay_real   (12, MaxWater, var_size1),    &
+                 stat = alloc_stat)
+
+      domain%water%move        (1:var_size)                       = 0
+      domain%water%stay        (1:var_size1)                      = 0
+      domain%water%move_integer(1:3, 1:MaxWaterMove, 1:var_size)  = 0
+      domain%water%stay_integer(1:3, 1:MaxWater, 1:var_size1)     = 0
+      domain%water%move_real(1:12,1:MaxWaterMove,1:var_size) = 0.0_wip
+      domain%water%stay_real(1:12,1:MaxWater,1:var_size1)    = 0.0_wip
+
+      end if
 
     case (DomainFEP)
 
@@ -1032,9 +1102,26 @@ contains
       domain%water%move_real(1:6*var_size2,1:MaxWaterMove,1:var_size) = 0.0_wip
       domain%water%stay_real(1:6*var_size2,1:MaxWater,1:var_size1)    = 0.0_wip
 
+    case (DomainCHARGE)
+
+      if (allocated(domain%charge_list_inv)) then
+        if (size(domain%charge_list_inv) /= var_size) &
+          deallocate(domain%charge_list,                   &
+                     domain%charge_list_inv,               &
+                     stat = dealloc_stat)
+      end if          
+
+      if (.not. allocated(domain%charge_list_inv))   &
+        allocate(domain%charge_list     (var_size1), &
+                 domain%charge_list_inv (var_size),  &
+                 stat = alloc_stat)
+
+      domain%charge_list          (1:var_size1)  = 0
+      domain%charge_list_inv      (1:var_size)   = 0
+
     case default
 
-      call error_msg('Alloc_Domain> bad variable')
+      call error_msg('Alloc_Domain> Invalid variable')
 
     end select
 
@@ -1163,71 +1250,79 @@ contains
         call unset_pinned_memory(domain%force_omp)
         call unset_pinned_memory(domain%force_pbc)
         call unset_pinned_memory(domain%charge)
+        call unset_pinned_memory(domain%gpu_ene_virial)
 #endif
         if (domain%nonbond_kernel /= NBK_Fugaku .and. & 
             domain%nonbond_kernel /= NBK_Intel  .and. &
-            domain%nonbond_kernel /= NBK_GPU) then
+            domain%nonbond_kernel /= NBK_GPU    .and. &
+            domain%nonbond_kernel /= NBK_Spica) then
 
-          deallocate(domain%id_l2g,        &
-                     domain%id_l2g_solute, &
-                     domain%num_atom,      &
-                     domain%start_atom,    &
-                     domain%num_atom_t0,   &
-                     domain%num_solute,    &
-                     domain%num_water,     &
-                     domain%solute_list,   &
-                     domain%water_list,    &
-                     domain%atom_cls_no,   &
-                     domain%coord,         &
-                     domain%coord_ref,     &
-                     domain%coord_old,     &
-                     domain%velocity,      &
-                     domain%velocity_ref,  &
-                     domain%velocity_full, &
-                     domain%trans_vec,     &
-                     domain%translated,    &
-                     domain%force,         &
-                     domain%force_short,   &
-                     domain%force_long,    &
-                     domain%force_omp,     &
-                     domain%force_pbc,     &
-                     domain%charge,        &
-                     domain%mass,          &
-                     domain%inv_mass,      &
-                     domain%random,        &
+          deallocate(domain%id_l2g,         &
+                     domain%id_l2g_solute,  &
+                     domain%num_atom,       &
+                     domain%start_atom,     &
+                     domain%num_atom_t0,    &
+                     domain%num_solute,     &
+                     domain%num_water,      &
+                     domain%solute_list,    &
+                     domain%water_list,     &
+                     domain%water_type,     &
+                     domain%atom_cls_no,    &
+                     domain%coord,          &
+                     domain%coord_ref,      &
+                     domain%coord_old,      &
+                     domain%coord_backup,   &
+                     domain%velocity,       &
+                     domain%velocity_ref,   &
+                     domain%velocity_full,  &
+                     domain%trans_vec,      &
+                     domain%translated,     &
+                     domain%force,          &
+                     domain%force_short,    &
+                     domain%force_long,     &
+                     domain%force_omp,      &
+                     domain%force_pbc,      &
+                     domain%charge,         &
+                     domain%mass,           &
+                     domain%inv_mass,       &
+                     domain%random,         &
+                     domain%gpu_ene_virial, &
                      stat = dealloc_stat)
 
         else
 
-          deallocate(domain%id_l2g,        &
-                     domain%id_l2g_solute, &
-                     domain%num_atom,      &
-                     domain%start_atom,    &
-                     domain%num_atom_t0,   &
-                     domain%num_solute,    &
-                     domain%num_water,     &
-                     domain%solute_list,   &
-                     domain%water_list,    &
-                     domain%atom_cls_no,   &
-                     domain%atmcls_pbc,    &
-                     domain%coord,         &
-                     domain%coord_ref,     &
-                     domain%coord_old,     &
-                     domain%velocity,      &
-                     domain%velocity_ref,  &
-                     domain%velocity_full, &
-                     domain%trans_vec,     &
-                     domain%translated,    &
-                     domain%coord_pbc,     &
-                     domain%force,         &
-                     domain%force_short,   &
-                     domain%force_long,    &
-                     domain%force_omp,     &
-                     domain%force_pbc,     &
-                     domain%charge,        &
-                     domain%mass,          &
-                     domain%inv_mass,      &
-                     domain%random,        &
+          deallocate(domain%id_l2g,         &
+                     domain%id_l2g_solute,  &
+                     domain%num_atom,       &
+                     domain%start_atom,     &
+                     domain%num_atom_t0,    &
+                     domain%num_solute,     &
+                     domain%num_water,      &
+                     domain%solute_list,    &
+                     domain%water_list,     &
+                     domain%water_type,     &
+                     domain%atom_cls_no,    &
+                     domain%atmcls_pbc,     &
+                     domain%coord,          &
+                     domain%coord_ref,      &
+                     domain%coord_old,      &
+                     domain%coord_backup,   &
+                     domain%velocity,       &
+                     domain%velocity_ref,   &
+                     domain%velocity_full,  &
+                     domain%trans_vec,      &
+                     domain%translated,     &
+                     domain%coord_pbc,      &
+                     domain%force,          &
+                     domain%force_short,    &
+                     domain%force_long,     &
+                     domain%force_omp,      &
+                     domain%force_pbc,      &
+                     domain%charge,         &
+                     domain%mass,           &
+                     domain%inv_mass,       &
+                     domain%random,         &
+                     domain%gpu_ene_virial, &
                      stat = dealloc_stat)
         end if
 
@@ -1307,9 +1402,17 @@ contains
                    stat = dealloc_stat)
       end if
 
+   case (DomainCHARGE)
+
+      if (allocated(domain%charge_list_inv)) then
+        deallocate(domain%charge_list,                   &
+                   domain%charge_list_inv,               &
+                   stat = dealloc_stat)
+      end if  
+
     case default
 
-      call error_msg('Dealloc_Domain> bad variable')
+      call error_msg('Dealloc_Domain> Invalid variable')
 
     end select
 
@@ -1347,6 +1450,7 @@ contains
     call dealloc_domain(domain, DomainPtlMove)
     call dealloc_domain(domain, DomainWaterMove)
     call dealloc_domain(domain, DomainFEP)
+    call dealloc_domain(domain, DomainCHARGE)
 
     return
 
