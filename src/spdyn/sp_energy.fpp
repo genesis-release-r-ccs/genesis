@@ -4183,22 +4183,6 @@ contains
                               energy%restraint_distance,             &
                               energy%restraint_emfit, energy%emcorr)
 
-    ! finish GPU
-    !
-    if (domain%nonbond_kernel == NBK_GPU .and. enefunc%pme_use) then
-#ifdef USE_GPU
-#ifdef NVTX
-      call nvtxStartRange("gpu_wait_compute",8)
-#endif
-      call cudaDeviceSynchronize()
-#ifdef NVTX
-      call nvtxEndRange
-#endif
-      call timer(TimerPmeReal, TimerOff)
-      call timer(TimerNonBond, TimerOff)
-#endif
-    end if
-
 #ifdef NVTX
     call nvtxStartRange("collect_virforce",2)
 #endif
