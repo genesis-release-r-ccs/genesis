@@ -1921,14 +1921,13 @@ contains
     type(s_dynvars),  target, intent(inout) :: dynvars
 
     ! local variables
-    logical                  :: calc_barostat
     real(wip)                :: dt, inv_dt, press0, d_ndegf
     real(wip)                :: dt_baro
     real(wip)                :: volume, press(3)
     real(wip)                :: pressxy, pressxyz
     real(wip)                :: factor, gr
     real(wip)                :: scale_b(3), vel_change(3)
-    real(wip)                :: vel_scale(3), vel_scale_2(3)
+    real(wip)                :: vel_scale(3), size_scale_2(3)
     real(wip)                :: gamma_t, gamma_p
     real(wip)                :: sigma, grandom(3)
     real(wip)                :: half_dt, size_scale(3)
@@ -2006,8 +2005,6 @@ contains
     half_dt  = 0.5_wip  * dt 
     dt_baro  = dt * real(dynamics%baro_period,wip)
 
-    calc_barostat = mod(istep-1, dynamics%baro_period) == 0 .and. istep > 1
-
     ! pmass and ekin0
     !
     if (istep == 1) then
@@ -2018,30 +2015,6 @@ contains
       pmass  = degree*KBOLTZ*temp0 / (factor*factor)
     end if
 
-    ! Random force for barostat
-    !
-    scale_baro = exp(-gamma_p*dt)
-    factor    = 1.0_wip - scale_baro*scale_baro
-    factor    = factor*KBOLTZ*temp0
-    sigma     = sqrt(factor/pmass)
-    
-    if (ensemble%isotropy == IsotropyISO) then
-      pforce(1) = sigma * real(random_get_gauss(),wip)
-      pforce(2:3) = pforce(1)
-    else if (ensemble%isotropy == IsotropySEMI_ISO) then
-      pforce(1) = sigma * real(random_get_gauss(),wip)
-      pforce(2) = pforce(1)
-      pforce(3) = sigma * real(random_get_gauss(),wip)
-      
-    else if (ensemble%isotropy == IsotropyANISO) then
-      pforce(1) = sigma * real(random_get_gauss(),wip)
-      pforce(2) = sigma * real(random_get_gauss(),wip)
-      pforce(3) = sigma * real(random_get_gauss(),wip)
-    else if (ensemble%isotropy == IsotropyXY_Fixed) then 
-      pforce(1:2) = 0.0_wip
-      pforce(3) = sigma * real(random_get_gauss(),wip)
-    end if
-     
     ! Random force for particle
     !
     scale_vel = exp(-gamma_t*dt)
@@ -2059,110 +2032,88 @@ contains
       end do
     end do
 
-    call copy_coord_vel(ncell, natom, coord, vel, coord_ref, vel_ref)
-
-    if (calc_barostat) then
-
+    if (mod(istep-1, dynamics%eneout_period) == 0) then
+      ! kinetic energy
+      !
       do j = 1, ncell
         do jx = 1, natom(j)
-          vel_half(1,jx,j) = vel_half(1,jx,j) - vel(1,jx,j)
-          vel_half(2,jx,j) = vel_half(2,jx,j) - vel(2,jx,j)
-          vel_half(3,jx,j) = vel_half(3,jx,j) - vel(3,jx,j)
+          factor = half_dt * inv_mass(jx,j)
+          vel_half(1,jx,j) = factor*force(1,jx,j)
+          vel_half(2,jx,j) = factor*force(2,jx,j)
+          vel_half(3,jx,j) = factor*force(3,jx,j)
         end do
       end do
-
-      if (ensemble%group_tp) then
-        call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
-                               vel_half, kin_half, ekin_half)
-        call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
-                               vel, kin_full, ekin_full)
-        viri_group(1:3,1:3) = 0.0_dp
-        call compute_virial_group(constraints, ncell, nwater, water_list, &
-                                  mass, coord_ref, force, viri_group)
-        virial(1:3,1:3) = virial(1:3,1:3) + viri_group(1:3,1:3)
-        virial_sum(1) = virial(1,1)
-        virial_sum(2) = virial(2,2)
-        virial_sum(3) = virial(3,3)
-      else
-        call calc_kinetic(ncell, natom, mass, vel_half, kin_half, ekin_half)
-        call calc_kinetic(ncell, natom, mass, vel, kin_full, ekin_full)
-        virial_sum(1) = virial(1,1)
-        virial_sum(2) = virial(2,2)
-        virial_sum(3) = virial(3,3)
-      end if
-      kin(1:3) = kin_full(1:3) + kin_half(1:3)
+      call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
+                             vel_half, kin_half, ekin_half)
+      call compute_kin_group(constraints, ncell, nwater, water_list, mass, &
+                             vel, kin_full, ekin_full)
       ekin = ekin_full + ekin_half
-#ifdef HAVE_MPI_GENESIS
-      call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
-                         mpi_comm_country, ierror)
-#endif
-      press(1:3) = (kin(1:3) + virial_sum(1:3))/volume
-      pressxyz = (press(1)+press(2)+press(3))/3.0_dp
-      pressxy  = (press(1)+press(2))/2.0_dp
-
-      call update_barostat(ensemble, boundary, press, pressxyz, pressxy,  &
-                           press0, volume, d_ndegf, pmass, dt_baro, ekin, &
-                           bmoment)
-
+      kin(1:3) = kin_full(1:3) + kin_half(1:3)
     end if
 
+    ! reference 
+    !
+    call copy_coord_vel(ncell, natom, coord, vel, coord_ref, vel_ref)
+
+    ! group virial
+    !
+    viri_group(1:3,1:3) = 0.0_dp
+    call compute_virial_group(constraints, ncell, nwater, water_list, &
+                              mass, coord_ref, force, viri_group)
+    virial_sum(1) = virial(1,1) + viri_group(1,1)
+    virial_sum(2) = virial(2,2) + viri_group(2,2)
+    virial_sum(3) = virial(3,3) + viri_group(3,3)
+    virial(1,1) = virial_sum(1)
+    virial(2,2) = virial_sum(2)
+    virial(3,3) = virial_sum(3)
+    call mpi_allreduce(mpi_in_place, virial_sum, 3, mpi_real8, mpi_sum, &
+                       mpi_comm_country, ierror)
+
+    ! pressure
+    !
+    press(1:3) = (kin(1:3) + virial_sum(1:3))/volume
+    pressxyz = (press(1)+press(2)+press(3))/3.0_dp
+    pressxy  = (press(1)+press(2))/2.0_dp
+
+    ! random piston force and barostat update
+    !
+    scale_baro = exp(-gamma_p*dt)
+    factor = 1.0_wip - scale_baro*scale_baro
+    factor = factor*KBOLTZ*temp0
+    sigma  = sqrt(factor/pmass)
+
+    call update_barostat_langevin(ensemble, boundary, press, pressxyz, &
+                              pressxy, press0, volume, degree, pmass,  &
+                              dt, ekin, sigma, pforce, bmoment)
+
+    ! scale factor from barostat momentum
+    !
     size_scale(1:3) = exp(bmoment(1:3)*half_dt)
     gr = bmoment(1) + bmoment(2) + bmoment(3)
     scale_b(1:3) = bmoment(1:3) + gr/degree
     vel_scale(1:3) = exp(-scale_b(1:3)*half_dt)
+    size_scale_2(1:3) = size_scale(1:3)
 
-    call update_vel_vv1_group(constraints, ncell, natom, nwater, water_list, &
-                              mass, inv_mass, force, vel_scale, half_dt, vel)
-
-    call update_coord_vv1_group(constraints, ncell, natom, nwater,  &
-                                water_list, mass, force, coord_ref, &
-                                vel_ref, size_scale, vel_scale, &
-                                dt, half_dt, coord, vel)
+    ! scale coordinate/velocity + BA
+    !
+    call update_vel_vv1_group(constraints, ncell, natom, nwater,        &
+                              water_list, mass, inv_mass, force,        &
+                              vel_scale, half_dt, vel)
+    call update_coord_vv1_group(constraints, ncell, natom, nwater,      &
+                              water_list, mass, force, coord_ref,       &
+                              vel_ref, size_scale, vel_scale, dt,       &
+                              half_dt, coord, vel)
 
     call timer(TimerUpdate, TimerOff)
 
-    ! Constraint
+    ! constraint
     !
-    if (constraints%rigid_bond) then
-      call compute_constraints(ConstraintModeLEAP, .true., half_dt, coord_ref, &
-                               domain, constraints, coord, vel, viri_const)
-    end if
+    if (constraints%rigid_bond) &
+      call compute_constraints(ConstraintModeLEAP, .true., half_dt,       &
+                              coord_ref, domain, constraints, coord, vel, &
+                              viri_const)
 
-    ! thermostat
-    !
-    do j = 1, ncell
-      do jx = 1, natom(j)
-        vel(1,jx,j) = vel(1,jx,j)*scale_vel + random_f(1,jx,j) 
-        vel(2,jx,j) = vel(2,jx,j)*scale_vel + random_f(2,jx,j) 
-        vel(3,jx,j) = vel(3,jx,j)*scale_vel + random_f(3,jx,j) 
-      end do
-    end do
-    bmoment(1:3) = bmoment(1:3)*scale_baro + pforce(1:3)
-
-    ! RATTLE VV2
-    !
-    if (constraints%rigid_bond) then
-      do j = 1, ncell
-        do jx = 1, natom(j)
-          temporary(1:3,jx,j) = vel(1:3,jx,j) + bmoment(1:3)*coord(1:3,jx,j)
-          coord_ref(1:3,jx,j) = temporary(1:3,jx,j)
-        end do
-      end do
-      call compute_constraints(ConstraintModeVVER2, .false., dt, coord_ref,    &
-                               domain, constraints, coord, temporary, &
-                               viri_const)
-      do j = 1, ncell
-        do jx = 1, natom(j)
-          vel_change(1) = temporary(1,jx,j) - coord_ref(1,jx,j)
-          vel_change(2) = temporary(2,jx,j) - coord_ref(2,jx,j)
-          vel_change(3) = temporary(3,jx,j) - coord_ref(3,jx,j)
-          vel(1,jx,j) = vel(1,jx,j) + vel_change(1)
-          vel(2,jx,j) = vel(2,jx,j) + vel_change(2)
-          vel(3,jx,j) = vel(3,jx,j) + vel_change(3)
-        end do
-      end do
-    end if
-
+    call timer(TimerUpdate, TimerOn)
 
     do j = 1, ncell
       do jx = 1, natom(j)
@@ -2172,38 +2123,54 @@ contains
       end do
     end do
 
+    ! O
+    !
+    do j = 1, ncell
+      do jx = 1, natom(j)
+        vel(1,jx,j) = vel(1,jx,j)*scale_vel + random_f(1,jx,j)
+        vel(2,jx,j) = vel(2,jx,j)*scale_vel + random_f(2,jx,j)
+        vel(3,jx,j) = vel(3,jx,j)*scale_vel + random_f(3,jx,j)
+      end do
+    end do
+
+    ! OU of barostat
+    !
+    bmoment(1) = bmoment(1)*scale_baro + pforce(1)
+    bmoment(2) = bmoment(2)*scale_baro + pforce(2)
+    bmoment(3) = bmoment(3)*scale_baro + pforce(3)
+    if (ensemble%isotropy == IsotropyXY_Fixed) then
+      bmoment(1) = 0.0_wip
+      bmoment(2) = 0.0_wip
+    end if
+
+    ! scale factor from barostat momentum
+    !
     size_scale(1:3) = exp(bmoment(1:3)*half_dt)
     gr = bmoment(1) + bmoment(2) + bmoment(3)
     scale_b(1:3) = bmoment(1:3) + gr/degree
     vel_scale(1:3) = exp(-scale_b(1:3)*half_dt)
-    call update_coord_vv2_group(constraints, ncell, natom, nwater,  &
-                                water_list, mass, force, coord_ref, &
-                                vel_ref, size_scale, vel_scale, &
-                                dt, half_dt, coord, vel)
+    size_scale_2(1:3) = size_scale_2(1:3)*size_scale(1:3)
 
-    ! Constraint
+    ! A
     !
-    if (constraints%rigid_bond) then
-      call compute_constraints(ConstraintModeLEAP, .true., half_dt, coord_ref, &
-                               domain, constraints, coord, vel, viri_const)
-    end if
+    call update_coord_vv1_group(constraints, ncell, natom, nwater, &
+                              water_list, mass, force, coord_ref,        &
+                              vel_ref, size_scale, vel_scale, dt,        &
+                              half_dt, coord, vel)
 
-    ! save half time step velocities
-    !
-    do j = 1, ncell
-      do jx = 1, natom(j)
-        vel_half(1,jx,j) = vel(1,jx,j)
-        vel_half(2,jx,j) = vel(2,jx,j)
-        vel_half(3,jx,j) = vel(3,jx,j)
-      end do
-    end do
+    call timer(TimerUpdate, TimerOff)
+
+    if (constraints%rigid_bond) &
+      call compute_constraints(ConstraintModeLEAP, .true., half_dt,     &
+                              coord_ref, domain, constraints, coord, vel, &
+                              viri_const)
 
     call timer(TimerUpdate, TimerOn)
 
     ! compute box size(t+2dt)
     !   size(t+2dt) = exp[eta(t+3/2dt)*dt] * size(t+dt)
     !
-    scale_b(1:3) = exp(bmoment(1:3)*dt)
+    scale_b(1:3) = size_scale_2(1:3)
     boundary%box_size_x = scale_b(1) * boundary%box_size_x_ref
     boundary%box_size_y = scale_b(2) * boundary%box_size_y_ref
     boundary%box_size_z = scale_b(3) * boundary%box_size_z_ref
@@ -2262,48 +2229,29 @@ contains
     type(s_dynvars),  target, intent(inout) :: dynvars
 
     ! local variables
-    real(wip)                :: dt, inv_dt, temp0, press0, d_ndegf
-    real(wip)                :: volume
-    real(wip)                :: factor
-    real(wip)                :: bmoment_ref(3)
+    real(wip)                :: dt, inv_dt
+    real(wip)                :: factor, gr
     real(wip)                :: gamma_t, gamma_p
-    real(wip)                :: sigma
-    real(dp)                 :: virial_constraint(1:3,1:3)
-    real(wip)                :: gr
     real(wip)                :: half_dt, quart_dt
     real(wip)                :: scale_b(3), vel_scale(3)
-    real(wip)                :: dt_therm, half_dt_therm, quart_dt_therm
-    real(wip)                :: half_dt_baro, quart_dt_baro
     real(wip)                :: vel_change(1:3)
-    integer                  :: j, jx, k, l, maxiter
+    integer                  :: j, jx, k, l
     integer(iintegers)       :: i_ndegf
 
-    real(wip),       pointer :: pmass, pforce(:), random_f(:,:,:)
     real(wip),       pointer :: mass(:,:), inv_mass(:,:)
-    real(wip),       pointer :: vel(:,:,:), vel_ref(:,:,:)
-    real(wip),       pointer :: force(:,:,:), force_add(:,:,:)
-    real(wip),       pointer :: temporary(:,:,:), degree
+    real(wip),       pointer :: vel(:,:,:), vel_ref(:,:,:), vel_half(:,:,:)
+    real(wip),       pointer :: force(:,:,:)
+    real(wip),       pointer :: temporary(:,:,:)
     real(wip),       pointer :: coord(:,:,:), coord_ref(:,:,:)
     real(dp),        pointer :: virial(:,:), viri_const(:,:)
-    real(wip),       pointer :: bmoment(:)
+    real(wip),       pointer :: bmoment(:), degree
     integer,         pointer :: ncell
     integer,         pointer :: natom(:), nwater(:), water_list(:,:,:)
 
-
     dt         =  dynamics%timestep/AKMA_PS
     inv_dt     =  1.0_wip/dt
-    temp0      =  ensemble%temperature
-    press0     =  ensemble%pressure * ATMOS_P
-    gamma_t    =  ensemble%gamma_t * AKMA_PS
-    gamma_p    =  ensemble%gamma_p * AKMA_PS
-    pmass      => ensemble%pmass
-    pforce     => ensemble%pforce
-    random_f   => ensemble%random_force
     degree     => ensemble%degree
-    i_ndegf    =  domain%num_deg_freedom
-    d_ndegf    =  real(i_ndegf,wip)
     ncell      => domain%num_cell_local
-
     mass       => domain%mass
     inv_mass   => domain%inv_mass
     natom      => domain%num_atom
@@ -2313,38 +2261,35 @@ contains
     coord_ref  => domain%coord_ref
     vel        => domain%velocity
     vel_ref    => domain%velocity_ref
+    vel_half   => domain%velocity_half
     force      => domain%force
-    force_add  => domain%velocity_full
     temporary  => domain%coord_old
-    virial     => dynvars%virial
-    viri_const => dynvars%virial_const
     bmoment    => dynvars%barostat_momentum
-
-    ! save box size(t+dt) and compute volume(t+dt)
-    !
-    boundary%box_size_x_ref = boundary%box_size_x
-    boundary%box_size_y_ref = boundary%box_size_y
-    boundary%box_size_z_ref = boundary%box_size_z
-    volume = boundary%box_size_x * boundary%box_size_y * boundary%box_size_z
 
     call timer(TimerUpdate, TimerOn)
 
     ! time step
     !
     half_dt =  dt / 2.0_wip
-    quart_dt = dt / 4.0_wip
-    dt_therm = dt * real(dynamics%thermo_period,wip)
-    half_dt_therm  = dt_therm / 2.0_wip
-    quart_dt_therm = half_dt_therm / 2.0_wip
-    half_dt_baro  = dt * real(dynamics%baro_period,wip) / 2.0_wip
-    quart_dt_baro = half_dt_baro / 2.0_wip
+
+    ! save half time-step velocity
+    !
+    do j = 1, ncell
+      do jx = 1, natom(j)
+        vel_half(1,jx,j) = vel(1,jx,j)
+        vel_half(2,jx,j) = vel(2,jx,j)
+        vel_half(3,jx,j) = vel(3,jx,j)
+      end do
+    end do
 
     gr = bmoment(1) + bmoment(2) + bmoment(3)
     scale_b(1:3) = bmoment(1:3) + gr/degree
     vel_scale(1:3) = exp(-scale_b(1:3)*half_dt)
 
-    call update_vel_vv1_group(constraints, ncell, natom, nwater, water_list, &
-                              mass, inv_mass, force, vel_scale, half_dt, vel)
+    ! B
+    !
+    call compute_vv2_group(constraints, ncell, natom, nwater, water_list, &
+                           mass, inv_mass, force, vel_scale, half_dt, vel)
 
     call timer(TimerUpdate, TimerOff)
 
@@ -3484,6 +3429,104 @@ contains
     return
 
   end subroutine update_barostat
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_barostat_langevin
+  !> @brief        update barostat parameter bmoment with langevin piston
+  !! @authors      JJ
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_barostat_langevin(ensemble, boundary, press, pressxyz, &
+                                      pressxy, press0, volume, degree,     &
+                                      pmass, dt, ekin, sigma,              &
+                                      pforce, bmoment)
+
+    ! formal arguments
+    type(s_ensemble),        intent(in)    :: ensemble
+    type(s_boundary),        intent(in)    :: boundary
+    real(wip),               intent(in)    :: press(:)
+    real(wip),               intent(in)    :: pressxyz
+    real(wip),               intent(in)    :: pressxy
+    real(wip),               intent(in)    :: press0
+    real(wip),               intent(in)    :: volume
+    real(wip),               intent(in)    :: degree
+    real(wip),               intent(in)    :: pmass
+    real(wip),               intent(in)    :: dt
+    real(dp),                intent(in)    :: ekin
+    real(wip),               intent(in)    :: sigma
+    real(wip),               intent(inout) :: pforce(:)
+    real(wip),               intent(inout) :: bmoment(:)
+  
+    real(wip)                :: factor(3)
+    real(wip)                :: ekin_real, gamma0, pressxy0
+
+    gamma0    =  ensemble%gamma*ATMOS_P*100.0_wip/1.01325_wip
+    ekin_real = real(ekin,wip)
+
+    if (ensemble%isotropy == IsotropyISO) then
+      pforce(1)  = sigma * random_get_gauss()
+      pforce(2)  = pforce(1)
+      pforce(3)  = pforce(2)
+      factor(1)  = volume*(pressxyz-press0) + 2.0_wip*ekin_real/degree
+      factor(1)  = factor(1) / pmass
+      bmoment(1) = bmoment(1) + dt*factor(1)
+      bmoment(2) = bmoment(1)
+      bmoment(3) = bmoment(1)
+    else if (ensemble%isotropy == IsotropySEMI_ISO) then
+      pforce(1)  = sigma * random_get_gauss()
+      pforce(2)  = pforce(1)
+      pforce(3)  = sigma * random_get_gauss()
+      if (ensemble%ensemble == EnsembleNPT) then
+        factor(1)  = volume*(pressxy-press0) + 2.0_wip*ekin_real/degree
+        factor(1)  = factor(1) / pmass
+        factor(3)  = volume*(press(3)-press0) + 2.0_wip*ekin_real/degree
+        factor(3)  = factor(3) / pmass
+        bmoment(1) = bmoment(1) + dt*factor(1)
+        bmoment(2) = bmoment(1)
+        bmoment(3) = bmoment(3) + dt*factor(3)
+      else if (ensemble%ensemble == EnsembleNPgT) then
+        pressxy0   = press0 - gamma0 / boundary%box_size_z
+        factor(1)  = volume*(pressxy-pressxy0) + 2.0_wip*ekin_real/degree
+        factor(1)  = factor(1) / pmass
+        bmoment(1) = bmoment(1) + dt*factor(1)
+        bmoment(2) = bmoment(1)
+        factor(3)  = volume*(press(3)-press0) + 2.0_wip*ekin_real/degree
+        factor(3)  = factor(3) / pmass
+        bmoment(3) = bmoment(3) + dt*factor(3)
+      end if
+    else if (ensemble%isotropy == IsotropyANISO) then
+      pforce(1) = sigma * random_get_gauss()
+      pforce(2) = sigma * random_get_gauss()
+      pforce(3) = sigma * random_get_gauss()
+      if (ensemble%ensemble == EnsembleNPT) then
+        factor(1:3) = volume*(press(1:3)-press0) + 2.0_wip*ekin_real/degree
+        factor(1:3) = factor(1:3) / pmass
+        bmoment(1:3) = bmoment(1:3) + dt*factor(1:3)
+      else if (ensemble%ensemble == EnsembleNPgT) then
+        pressxy0 = press0 - gamma0 / boundary%box_size_z
+        factor(1:2) = volume*(press(1:2)-pressxy0) + 2.0_wip*ekin_real/degree
+        factor(3)   = volume*(press(3)-press0) + 2.0_wip*ekin_real/degree
+        factor(1:3) = factor(1:3) / pmass
+        bmoment(1:3) = bmoment(1:3) + dt*factor(1:3)
+      end if
+    else if (ensemble%isotropy == IsotropyXY_Fixed) then
+      pforce(1)  = 0.0_wip
+      pforce(2)  = 0.0_wip
+      pforce(3)  = sigma * random_get_gauss()
+      factor(3)  = volume*(press(3)-press0) + 2.0_wip*ekin_real/degree
+      factor(3)  = factor(3) / pmass
+      bmoment(1) = 0.0_wip
+      bmoment(2) = 0.0_wip
+      bmoment(3) = bmoment(3) + dt*factor(3)
+    end if
+
+    call mpi_bcast(pforce, 3, mpi_wip_real, 0, mpi_comm_country, ierror)
+
+    return
+
+  end subroutine update_barostat_langevin
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
