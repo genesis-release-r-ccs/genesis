@@ -124,6 +124,12 @@ spdyn_SOURCES += \
 	gpu_common.h 
 endif
 
+if AMDGPU
+spdyn_SOURCES += \
+	gpu_hip_sp_energy.cu \
+	gpu_hip_common.h
+endif
+
 spdyn_SOURCES += \
 	spdyn.fpp
 
@@ -235,6 +241,11 @@ prst_setup_SOURCES += \
 
 endif
 
+if AMDGPU
+prst_setup_SOURCES += \
+	gpu_hip_sp_energy.cu
+endif
+
 prst_setup_SOURCES += \
 	prst_setup.fpp
 
@@ -283,6 +294,11 @@ endif
 if CUDAGPU
 .cu.o:
 	$(NVCC) $(NVCCFLAG) --ptxas-options=-v -lineinfo $*.cu
+endif
+
+if AMDGPU
+.cu.o:
+	$(HIPCC) $(HIPCCFLAG) -fPIE $*.cu
 endif
 
 spdyn$(EXEEXT) : $(spdyn_ADDLIB) $(spdyn_OBJECTS)

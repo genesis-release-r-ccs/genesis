@@ -778,6 +778,14 @@ if test x"${enable_hmdisk}" = x"yes"; then
   AC_DEFINE(HM_DISK, 1, [defined if HM_DISK is used.])
 fi
 
+## ROCM
+#
+OPT_FC_ROCM=""
+
+AC_ARG_WITH([rocm],
+	[AS_HELP_STRING([--with-rocm@<:@=PATH@:>@],
+	[use rocm (default: no)])],
+	[], [with_rocm=no])
 
 ## CUDA
 #
@@ -803,7 +811,7 @@ AC_ARG_WITH([gpuarch],
 #AC_ARG_VAR([CUDA_LIB_PATH],
 #    [CUDA library path (linker flags, e.g. -L<cuda lib>)])
 
-if test x"${enable_gpu}" = x"yes"; then
+if test x"${enable_gpu}" = x"yes" -a x"${with_rocm}" = x"no"; then
   if test x"${with_cuda}" = x"no"; then
     with_cuda=yes
   fi
@@ -1032,6 +1040,57 @@ if test x"${with_cuda}" != x"no"; then
 fi
 
 AM_CONDITIONAL(CUDAGPU, test x"${with_cuda}" != x"no")
+
+# Setup ROCm paths and libraries
+if test x"${with_rocm}" != x"no"; then
+  # Initialize variables
+  rocm_lib_path=""
+  rocm_path=""
+  HIPCC=no
+
+  # If custom path is available, try to find there the compiler and the libraries
+  if test x"${with_rocm}" != x"yes"; then
+    rocm_path=${with_rocm}
+    AC_CHECK_FILE([${rocm_path}/lib/libamdhip64.so], [rocm_lib_path=${rocm_path}/lib], [])
+    AC_CHECK_FILE([${rocm_path}/bin/hipcc], [HIPCC=${rocm_path}/bin/hipcc], [])
+  fi
+
+  # If no library is found, try cheching this directory
+  if test -z "${rocm_lib_path}"; then
+    AC_CHECK_FILE([/opt/rocm/hip/lib/libamdhip64.so], [rocm_lib_path=/opt/rocm/hip/lib], [])
+  fi
+
+  # If no library is found after all, just give up and stop with an error message
+  if test -z "${rocm_lib_path}"; then
+     AC_MSG_ERROR([AMD HIP libraries were not found, set the correct PATH using '--with-rocm=PATH'])
+  fi
+
+  # Check if amd gpu compiler is available
+  AC_PATH_PROG([HIPCC], [hipcc], [no])
+  if test x"${HIPCC}" = x"no"; then
+    AC_MSG_ERROR([hipcc is not found])
+  fi
+
+  # Define linking flags
+  if test x"${FC_ACT}" = x"ifort" -o \
+          x"${FC_ACT}" = x"ifx" -o \
+	  x"${FC_ACT}" = x"gfortran"; then
+    OPT_LD_AMD+="-L${rocm_lib_path} -lgcc_s -lgcc -lpthread -lm -lrt -lamdhip64"
+  else
+    AC_MSG_ERROR([AMD HIP is not allowed with the ${FC_ACT} fortran compiler])
+  fi
+
+  # Define variable for compilation
+  AC_DEFINE(AMDGPU, 1, [defined if amd_gpu is used.])
+  DEFINED_VARIABLES+=" -DAMDGPU"
+
+  # Define amd gpu compiler flags
+  HIPCCFLAG="-c -g -O3"
+  AC_SUBST(HIPCCFLAG)
+fi
+
+# Define condition
+AM_CONDITIONAL(AMDGPU, test x"${with_rocm}" != x"no")
 
 AC_ARG_ENABLE([package],
     [AS_HELP_STRING(
@@ -1771,6 +1830,7 @@ fi
 # LAPACK is included above
 #LDFLAGS+=" ${OPT_LD_LAPACK}"
 LDFLAGS+=" ${OPT_LD_CUDA}"
+LDFLAGS+=" ${OPT_LD_AMD}"
 LDFLAGS+=" ${OPT_GPROF}"
 
 # PPFLAGS
