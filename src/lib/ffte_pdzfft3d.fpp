@@ -77,10 +77,13 @@
       SUBROUTINE PDZFFT3D0(DA,A,AXYZ,B,BXYZ,CX,CY,CZ,D,WX,WY,WZ,  &
                            NX,NY,NZ,ICOMM,ME,NPU,IOPT)
       USE CONSTANTS_MOD
-      IMPLICIT REAL(WP) (A-H,O-Z)
 #ifdef HAVE_MPI_GENESIS
-      INCLUDE 'mpif.h'
+      USE MPI
 #endif
+      IMPLICIT REAL(WP) (A-H,O-Z)
+!#ifdef HAVE_MPI_GENESIS
+!      INCLUDE 'mpif.h'
+!#endif
       INCLUDE 'ffte_param.h'
       COMPLEX(WP) A(*),AXYZ(NX/2+1,NY,*)
       COMPLEX(WP) B(*),BXYZ(NX/2+1,NY,*)

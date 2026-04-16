@@ -59,10 +59,13 @@
 
       SUBROUTINE PZFFT3DV(A,B,NX,NY,NZ,ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
-      IMPLICIT REAL(WP) (A-H,O-Z)
 #ifdef HAVE_MPI_GENESIS
-      INCLUDE 'mpif.h'
+      USE MPI
 #endif
+      IMPLICIT REAL(WP) (A-H,O-Z)
+!#ifdef HAVE_MPI_GENESIS
+!      INCLUDE 'mpif.h'
+!#endif
       INCLUDE 'ffte_param.h'
       COMPLEX(WP) A(*),B(*)
       COMPLEX(WP) C(NDA3)
@@ -111,10 +114,13 @@
                            BYZX,BYZX2,BZXYP,C,WX,WY,WZ,NX,NY,NZ,         &
                            ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
-      IMPLICIT REAL(WP) (A-H,O-Z)
 #ifdef HAVE_MPI_GENESIS
-      INCLUDE 'mpif.h'
+      USE MPI
 #endif
+      IMPLICIT REAL(WP) (A-H,O-Z)
+!#ifdef HAVE_MPI_GENESIS
+!      INCLUDE 'mpif.h'
+!#endif
       INCLUDE 'ffte_param.h'
       COMPLEX(WP) A(NX,NY/NPUY,*),AXYZP(NX/NPUY,NY/NPUZ,NZ/NPUZ,*),&
                   AXZYP(NX/NPUY,NZ/NPUZ,NY/NPUY,*), &
@@ -287,10 +293,13 @@
                            BYZXP,BZXY,BZXY2,C,WX,WY,WZ,NX,NY,NZ, &
                            ICOMMY,ICOMMZ,NPUY,NPUZ,IOPT)
       USE CONSTANTS_MOD
-      IMPLICIT REAL(WP) (A-H,O-Z)
 #ifdef HAVE_MPI_GENESIS
-      INCLUDE 'mpif.h'
+      USE MPI
 #endif
+      IMPLICIT REAL(WP) (A-H,O-Z)
+!#ifdef HAVE_MPI_GENESIS
+!      INCLUDE 'mpif.h'
+!#endif
       INCLUDE 'ffte_param.h'
       COMPLEX(WP) A(NX/NPUY,NY/NPUZ,*),AXPYZ(NX/NPUY,NPUY,NY/NPUY,*), &
                   AXZYP(NX/NPUY,NZ/NPUZ,NY/NPUZ,*),AYZX(NY,NZ/NPUZ,*),&
