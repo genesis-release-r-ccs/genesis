@@ -203,7 +203,7 @@ contains
       end if
 
 #ifdef HAVE_MPI_GENESIS
-#ifdef QSIMULATE
+#if defined(QSIMULATE) && defined(BLACS)
       call BLACS_Exit(1)
 #endif
       call MPI_Finalize(ierror)

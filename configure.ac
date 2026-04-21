@@ -2149,7 +2149,11 @@ if  test x"${enable_qsimulate}" = x"yes"; then
   AC_CHECK_HEADERS([bagel.h], [], [AC_MSG_ERROR([bagel.h not found or not working, set the include path])], [])
   AC_CHECK_LIB(bagel, main,  [LDFLAGS+=" -lbagel"], [AC_MSG_ERROR("Linking against BAGEL library failed; perhaps add -L/path/to/bagel/lib in LDFLAGS")])
   ## because we changed the linked to CXX
-  LDFLAGS+=" -lmpifort -lgfortran -lstdc++"
+  if test x"${FC_ACT}" = x"flang" -o x"${FC_ACT}" = x"flang-new"; then
+    LDFLAGS+=" -lxc -lgfortran -lstdc++"
+  else
+    LDFLAGS+=" -lmpifort -lgfortran -lstdc++"
+  fi
 
  if test x"${with_msmpi}" = x"yes"; then
     AC_MSG_ERROR([qsimulate is not available with MSMPI])

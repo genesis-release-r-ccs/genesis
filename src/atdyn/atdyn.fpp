@@ -92,7 +92,7 @@ program atdyn
   call mpi_comm_rank(mpi_comm_world, my_world_rank, ierror)
   call mpi_comm_size(mpi_comm_world, nproc_world,   ierror)
   main_rank = (my_world_rank == 0)
-#ifdef QSIMULATE
+#if defined(QSIMULATE) && defined(BLACS)
   nprow = 1
   npcol = nproc_world
   call sl_init(scalapack_context, nprow, npcol)
@@ -127,7 +127,7 @@ program atdyn
   call atomic_decomposition_genesis(ctrl_filename, genesis_run_mode)
 
 #ifdef HAVE_MPI_GENESIS
-#ifdef QSIMULATE
+#if defined(QSIMULATE) && defined(BLACS)
   call blacs_exit(1)
 #endif
   call mpi_finalize(ierror)
