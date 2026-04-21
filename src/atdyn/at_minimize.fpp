@@ -675,10 +675,9 @@ contains
       do i = 1, ngroup
         igroup = group_list(i)
         call select_atom(molecule, sel_info%groups(igroup), selatoms(i))
-!       do j = 1, size(selatoms(i)%idx)
-!         fixatm(selatoms(i)%idx) = .true.
-!       end do
-        fixatm(selatoms(i)%idx) = .true.
+        do j = 1, size(selatoms(i)%idx)
+          fixatm(selatoms(i)%idx(j)) = .true.
+        end do
       end do
       deallocate(group_list, selatoms)
 
