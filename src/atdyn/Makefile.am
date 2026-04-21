@@ -114,16 +114,16 @@ DEPENDS = Makefile.depends
 .fpp.o:
 if USE_NVHPC
 	$(FPP2F90_NVHPC) $*.fpp > $*.f90
-	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(INCLUDE_DIR) $(FCFLAGS) -c $*.f90
 else
 if USEKCOMP
 	cp $*.fpp $*.f90
 	$(FPP2F90) $*.f90
 	mv $*.cpp.f90 $*.f90
-	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(INCLUDE_DIR) $(FCFLAGS) -c $*.f90
 else
 	$(FPP2F90) $*.fpp $*.f90
-	$(F90COMPILE) $(FCFLAGS) -c $*.f90
+	$(F90COMPILE) $(INCLUDE_DIR) $(FCFLAGS) -c $*.f90
 endif
 endif
 
