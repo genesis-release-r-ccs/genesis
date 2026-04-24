@@ -127,17 +127,21 @@ module at_energy_mod
     real(wp)              :: cg_cutoffdist_DNAbp    = 18.0_wp
     real(wp)              :: cg_pairlistdist_ele    = 57.0_wp
     real(wp)              :: cg_pairlistdist_126    = 44.0_wp
+    real(wp)              :: cg_pairlistdist_WF     = 25.0_wp
     real(wp)              :: cg_pairlistdist_PWMcos = 23.0_wp
     real(wp)              :: cg_pairlistdist_DNAbp  = 23.0_wp
     real(wp)              :: cg_pairlistdist_exv    = 15.0_wp
     real(wp)              :: cg_sol_temperature     = 300.0_wp
     real(wp)              :: cg_sol_ionic_strength  = 0.15_wp
     real(wp)              :: cg_pro_DNA_ele_scale_Q = -1.0_wp
+    real(wp)              :: cg_PWMcos_gamma        = 1.0_wp
+    real(wp)              :: cg_PWMcos_epsilon      = 0.0_wp
     real(wp)              :: cg_PWMcos_sigma        = 1.0_wp
     real(wp)              :: cg_PWMcos_phi          = 10.0_wp
     real(wp)              :: cg_PWMcosns_sigma      = 1.0_wp
     real(wp)              :: cg_PWMcosns_phi        = 10.0_wp
     real(wp)              :: cg_IDR_HPS_epsilon     = 0.2_wp
+    real(wp)              :: cg_IDR_MPIPI_cutoff_scale = 3.0_wp
     real(wp)              :: cg_exv_sigma_scaling   = 1.0_wp
     logical               :: cg_infinite_DNA        = .false.
   end type s_ene_info
@@ -446,6 +450,8 @@ contains
         ene_info%cg_pairlistdist_ele)
     call read_ctrlfile_real   (handle, Section, 'cg_pairlistdist_126',    &
         ene_info%cg_pairlistdist_126)
+    call read_ctrlfile_real   (handle, Section, 'cg_pairlistdist_WF', &
+        ene_info%cg_pairlistdist_WF)
     call read_ctrlfile_real   (handle, Section, 'cg_pairlistdist_PWMcos', &
         ene_info%cg_pairlistdist_PWMcos)
     call read_ctrlfile_real   (handle, Section, 'cg_pairlistdist_DNAbp',  &
@@ -462,12 +468,18 @@ contains
         ene_info%cg_PWMcos_sigma)
     call read_ctrlfile_real   (handle, Section, 'cg_PWMcos_phi',          &
         ene_info%cg_PWMcos_phi)
+    call read_ctrlfile_real   (handle, Section, 'cg_PWMcos_gamma',        &
+        ene_info%cg_PWMcos_gamma)
+    call read_ctrlfile_real   (handle, Section, 'cg_PWMcos_epsilon',      &
+        ene_info%cg_PWMcos_epsilon)
     call read_ctrlfile_real   (handle, Section, 'cg_PWMcosns_sigma',      &
         ene_info%cg_PWMcosns_sigma)
     call read_ctrlfile_real   (handle, Section, 'cg_PWMcosns_phi',        &
         ene_info%cg_PWMcosns_phi)
     call read_ctrlfile_real   (handle, Section, 'cg_IDR_HPS_epsilon',     &
         ene_info%cg_IDR_HPS_epsilon)
+    call read_ctrlfile_real   (handle, Section, 'cg_IDR_MPIPI_cutoff_scale', &
+        ene_info%cg_IDR_MPIPI_cutoff_scale)
     call read_ctrlfile_real   (handle, Section, 'cg_exv_sigma_scaling',   &
         ene_info%cg_exv_sigma_scaling)
     call read_ctrlfile_logical(handle, Section, 'cg_infinite_DNA',        &
@@ -1873,6 +1885,12 @@ contains
               coord_pbc, force_omp, virial, energy%cg_IDR_KH)
         end if
 
+        ! ~CG~ protein-IDR: MPIPI model
+        if (enefunc%cg_IDR_MPIPI_calc) then
+          call compute_energy_CG_IDR_MPIPI_pbc(enefunc, boundary, pairlist, &
+              coord_pbc, force_omp, virial, energy%cg_IDR_MPIPI)
+        end if
+
         ! ! ~CG~ protein-protein: KH model
         if (enefunc%cg_KH_calc) then
           call compute_energy_CG_KH_pbc(enefunc, boundary, pairlist, &
@@ -1921,6 +1939,12 @@ contains
         if (enefunc%cg_IDR_KH_calc) then
           call compute_energy_CG_IDR_KH(enefunc, pairlist, coord, &
               force_omp, virial, energy%cg_IDR_KH)
+        end if
+
+        ! ~CG~ protein-IDR: MPIPI model
+        if (enefunc%cg_IDR_MPIPI_calc) then
+          call compute_energy_CG_IDR_MPIPI(enefunc, pairlist, coord, &
+              force_omp, virial, energy%cg_IDR_MPIPI)
         end if
 
         ! ~CG~ protein-protein: KH model
@@ -2146,6 +2170,7 @@ contains
                  + energy%base_stacking + energy%base_pairing          &
                  + energy%cg_DNA_exv                                   &
                  + energy%cg_IDR_HPS + energy%cg_IDR_KH                &
+                 + energy%cg_IDR_MPIPI                                 &
                  + energy%cg_KH_inter_pro + energy%cg_exv              &
                  + energy%cg_WCA                                       &
                  + energy%cg_ISOLF                                     &
@@ -3733,7 +3758,7 @@ contains
           values(ifm) = energy%cg_DNA_exv
           ifm = ifm+1
         end if
-        
+
         if (enefunc%cg_IDR_HPS_calc) then
           write(category(ifm),frmt) 'IDR_HPS'
           values(ifm) = energy%cg_IDR_HPS
@@ -3743,6 +3768,12 @@ contains
         if (enefunc%cg_IDR_KH_calc) then
           write(category(ifm),frmt) 'IDR_KH'
           values(ifm) = energy%cg_IDR_KH
+          ifm = ifm+1
+        end if
+
+        if (enefunc%cg_IDR_MPIPI_calc) then
+          write(category(ifm),frmt) 'IDR_MPIPI'
+          values(ifm) = energy%cg_IDR_MPIPI
           ifm = ifm+1
         end if
 
@@ -4627,6 +4658,8 @@ contains
     before_allreduce(39) = energy%cg_IDR_KH
     before_allreduce(40) = energy%cg_KH_inter_pro
     before_allreduce(41) = energy%cg_exv
+    ! before_allreduce(42) = energy%electric_field
+    before_allreduce(43) = energy%cg_IDR_MPIPI
     before_allreduce(44) = energy%cg_WCA
     before_allreduce(45) = energy%cg_ISOLF
     before_allreduce(46) = energy%cg_LJ
@@ -4673,6 +4706,7 @@ contains
     energy%cg_IDR_KH          = after_allreduce(39)
     energy%cg_KH_inter_pro    = after_allreduce(40)
     energy%cg_exv             = after_allreduce(41)
+    energy%cg_IDR_MPIPI       = after_allreduce(43)
     energy%cg_WCA             = after_allreduce(44)
     energy%cg_ISOLF           = after_allreduce(45)
     energy%cg_LJ              = after_allreduce(46)

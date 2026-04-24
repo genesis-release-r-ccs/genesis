@@ -249,6 +249,13 @@ module fileio_grotop_mod
     integer                        :: grp_end    = 0
   end type s_idr_kh
 
+  ! ~CG~ protein IDR MPIPI region
+  !
+  type, public :: s_idr_mpipi
+    integer                        :: grp_start  = 0
+    integer                        :: grp_end    = 0
+  end type s_idr_mpipi
+
   ! molecule definition data
   type, public :: s_grotop_mol
     integer                        :: num_atoms     = 0
@@ -270,7 +277,8 @@ module fileio_grotop_mod
     integer                        :: num_pwmcos    = 0
     integer                        :: num_pwmcosns  = 0
     integer                        :: num_idr_hps   = 0
-    integer                        :: num_idr_kh   = 0
+    integer                        :: num_idr_kh    = 0
+    integer                        :: num_idr_mpipi = 0
     type(s_atom),      allocatable :: atoms(:)
     type(s_bond),      allocatable :: bonds(:)
     type(s_angl),      allocatable :: angls(:)
@@ -292,6 +300,7 @@ module fileio_grotop_mod
     type(s_pwmcosns),  allocatable :: pwmcosns(:)
     type(s_idr_hps),   allocatable :: idr_hps(:)
     type(s_idr_kh),    allocatable :: idr_kh(:)
+    type(s_idr_mpipi), allocatable :: idr_mpipi(:)
   end type s_grotop_mol
 
 
@@ -553,6 +562,22 @@ module fileio_grotop_mod
     real(wp)                       :: sigma        = 0.0_wp
   end type s_cg_KH_atomtype
 
+  ! ~CG~ protein IDR MPIPI model params
+  !
+  type, public :: s_cg_IDR_MPIPI_atomtype
+    character(6)                   :: type_name    = ''
+    real(wp)                       :: charge       = 0.0_wp
+    real(wp)                       :: mass         = 0.0_wp
+  end type s_cg_IDR_MPIPI_atomtype
+
+  type, public :: s_cg_IDR_MPIPI_pair
+    character(6)                   :: type_name_1  = ''
+    character(6)                   :: type_name_2  = ''
+    real(wp)                       :: epsilon      = 0.0_wp
+    real(wp)                       :: sigma        = 0.0_wp
+    integer                        :: mu           = 1
+  end type s_cg_IDR_MPIPI_pair
+
   ! ~CG~ protein-protein Miyazawa-Jernigan model epsilons
   !
   type, public :: s_cg_pair_MJ_eps
@@ -613,6 +638,8 @@ module fileio_grotop_mod
     integer                               :: num_pwmcosnsmolpairs = 0
     integer                               :: num_cg_IDR_HPS_atomtypes = 0
     integer                               :: num_cg_KH_atomtypes = 0
+    integer                               :: num_cg_IDR_MPIPI_atomtypes = 0
+    integer                               :: num_cg_IDR_MPIPI_pairs = 0
     integer                               :: num_cg_pair_MJ_eps = 0
     integer                               :: num_cg_WCA_parameters = 0
     integer                               :: num_cg_ISOLF_parameters = 0
@@ -641,6 +668,8 @@ module fileio_grotop_mod
     type(s_cg_kh_mol_pair),   allocatable :: cg_kh_mol_pairs(:)
     type(s_cg_IDR_HPS_atomtype),  allocatable :: cg_IDR_HPS_atomtypes(:)
     type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
+    type(s_cg_IDR_MPIPI_atomtype),  allocatable :: cg_IDR_MPIPI_atomtypes(:)
+    type(s_cg_IDR_MPIPI_pair),  allocatable :: cg_IDR_MPIPI_pairs(:)
 
     type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
     type(s_cg_WCA_parameters),   allocatable :: cg_WCA_parameters(:)
@@ -671,6 +700,7 @@ module fileio_grotop_mod
   integer,      public, parameter :: GMGroMolPWMcosns = 118
   integer,      public, parameter :: GMGroMolIDRHPS   = 119
   integer,      public, parameter :: GMGroMolIDRKH    = 120
+  integer,      public, parameter :: GMGroMolIDRMPIPI = 121
 
   ! parameters for TOP structure allocatable variables
   integer,      public, parameter :: GroTopAtomType      = 1
@@ -696,6 +726,8 @@ module fileio_grotop_mod
   integer,      public, parameter :: GroTopCGKHAtomType  = 21
   integer,      public, parameter :: GroTopCGPairMJEpsilon  = 22
   integer,      public, parameter :: GroTopCGKHMolPair   = 23
+  integer,      public, parameter :: GroTopCGIDRMPIPIAtomType = 24
+  integer,      public, parameter :: GroTopCGIDRMPIPIPair  = 25
   integer,      public, parameter :: GroTopCGWCAParameters = 26
   integer,      public, parameter :: GroTopCGISOLFParameters = 27
   integer,      public, parameter :: GroTopCGLJParameters = 28
@@ -755,6 +787,9 @@ module fileio_grotop_mod
   integer,     private, parameter :: DCGIDRKHRegion        = 47
   integer,     private, parameter :: DCGPairMJEpsilon      = 48
   integer,     private, parameter :: DCGKHMolPairs         = 49
+  integer,     private, parameter :: DCGIDRMPIPIAtomTypes  = 50
+  integer,     private, parameter :: DCGIDRMPIPIPairs      = 51
+  integer,     private, parameter :: DCGIDRMPIPIRegion     = 52
   integer,     private, parameter :: DCGWCAParameters      = 53
   integer,     private, parameter :: DCGISOLFParameters    = 54
   integer,     private, parameter :: DCGLJParameters       = 55
@@ -800,6 +835,8 @@ module fileio_grotop_mod
   private :: read_pwmcosns_mol_pairs
   private :: read_cg_IDR_HPS_atom_types
   private :: read_cg_KH_atom_types
+  private :: read_cg_IDR_MPIPI_atom_types
+  private :: read_cg_IDR_MPIPI_pairs
   private :: read_cg_pair_MJ_eps
   private :: read_cg_WCA_parameters
   private :: read_cg_ISOLF_parameters
@@ -832,6 +869,7 @@ module fileio_grotop_mod
   private :: read_pwmcosns
   private :: read_idr_hps
   private :: read_idr_kh
+  private :: read_idr_mpipi
 
   private :: write_grotop
   private :: write_defaults
@@ -849,6 +887,7 @@ module fileio_grotop_mod
   private :: write_base_cross_types
   private :: write_base_exv_types
   private :: write_cg_IDR_HPS_atom_types
+  private :: write_cg_IDR_MPIPI_atom_types
   private :: write_cg_KH_atom_types
   private :: write_cg_WCA_parameters
   private :: write_cg_ISOLF_parameters
@@ -1075,6 +1114,8 @@ contains
     grotop%num_pwmcosmolpairs = 0
     grotop%num_pwmcosnsmolpairs = 0
     grotop%num_cg_IDR_HPS_atomtypes = 0
+    grotop%num_cg_IDR_MPIPI_atomtypes = 0
+    grotop%num_cg_IDR_MPIPI_pairs = 0
     grotop%num_cg_KH_atomtypes= 0
     grotop%num_cg_pair_MJ_eps = 0
     grotop%num_cg_WCA_parameters = 0
@@ -1121,6 +1162,7 @@ contains
     gromol%num_pwmcosns  = 0
     gromol%num_idr_hps   = 0
     gromol%num_idr_kh    = 0
+    gromol%num_idr_mpipi = 0
 
     return
 
@@ -1171,6 +1213,8 @@ contains
     type(s_cg_IDR_HPS_atomtype), allocatable :: cg_IDR_HPS_atomtypes(:)
     type(s_cg_KH_atomtype),   allocatable :: cg_KH_atomtypes(:)
     type(s_cg_pair_MJ_eps),   allocatable :: cg_pair_MJ_eps(:)
+    type(s_cg_IDR_MPIPI_atomtype), allocatable :: cg_IDR_MPIPI_atomtypes(:)
+    type(s_cg_IDR_MPIPI_pair), allocatable :: cg_IDR_MPIPI_pairs(:)
     type(s_cg_WCA_parameters), allocatable :: cg_WCA_parameters(:)
     type(s_cg_ISOLF_parameters), allocatable :: cg_ISOLF_parameters(:)
     type(s_cg_LJ_parameters), allocatable :: cg_LJ_parameters(:)
@@ -1817,6 +1861,67 @@ contains
               call error_msg_alloc
       end if
 
+    case(GroTopCGIDRMPIPIAtomType)
+      if (allocated(grotop%cg_IDR_MPIPI_atomtypes)) then
+
+        old_size = size(grotop%cg_IDR_MPIPI_atomtypes)
+        if (old_size == var_size) &
+              return
+        allocate(cg_IDR_MPIPI_atomtypes(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        cg_IDR_MPIPI_atomtypes(:) = grotop%cg_IDR_MPIPI_atomtypes(:)
+        deallocate(grotop%cg_IDR_MPIPI_atomtypes, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_dealloc
+        allocate(grotop%cg_IDR_MPIPI_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+        if (old_size > var_size) then
+          grotop%cg_IDR_MPIPI_atomtypes(1:var_size) = cg_IDR_MPIPI_atomtypes(1:var_size)
+        else
+          grotop%cg_IDR_MPIPI_atomtypes(1:old_size) = cg_IDR_MPIPI_atomtypes(1:old_size)
+        end if
+        deallocate(cg_IDR_MPIPI_atomtypes, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(grotop%cg_IDR_MPIPI_atomtypes(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+              call error_msg_alloc
+      end if
+
+    case(GroTopCGIDRMPIPIPair)
+      if (allocated(grotop%cg_IDR_MPIPI_pairs)) then
+
+        old_size = size(grotop%cg_IDR_MPIPI_pairs)
+        if (old_size == var_size) return
+
+        allocate(cg_IDR_MPIPI_pairs(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+        cg_IDR_MPIPI_pairs(:) = grotop%cg_IDR_MPIPI_pairs(:)
+
+        deallocate(grotop%cg_IDR_MPIPI_pairs, stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_dealloc
+        allocate(grotop%cg_IDR_MPIPI_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+        if (old_size > var_size) then
+          grotop%cg_IDR_MPIPI_pairs(1:var_size) = cg_IDR_MPIPI_pairs(1:var_size)
+        else
+          grotop%cg_IDR_MPIPI_pairs(1:old_size) = cg_IDR_MPIPI_pairs(1:old_size)
+        end if
+
+        deallocate(cg_IDR_MPIPI_pairs, stat = alloc_stat)
+
+      else
+
+        old_size = 0
+        allocate(grotop%cg_IDR_MPIPI_pairs(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) call error_msg_alloc
+
+      end if
+
+
     case(GroTopCGPairMJEpsilon)
       if (allocated(grotop%cg_pair_MJ_eps)) then
 
@@ -1981,6 +2086,7 @@ contains
     type(s_pwmcosns),        allocatable   :: pwmcosns(:)
     type(s_idr_hps),         allocatable   :: idr_hps(:)
     type(s_idr_kh),          allocatable   :: idr_kh(:)
+    type(s_idr_mpipi),       allocatable   :: idr_mpipi(:)
 
     select case(variable)
 
@@ -2572,6 +2678,35 @@ contains
             call error_msg_alloc
       end if
 
+    case(GMGroMolIDRMPIPI)
+      if (allocated(gromol%idr_mpipi)) then
+
+        old_size = size(gromol%idr_mpipi)
+        if (old_size == var_size) &
+            return
+        allocate(idr_mpipi(old_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+        idr_mpipi(:) = gromol%idr_mpipi(:)
+        deallocate(gromol%idr_mpipi, stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_dealloc
+        allocate(gromol%idr_mpipi(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+        if (old_size > var_size) then
+          gromol%idr_mpipi(1:var_size) = idr_mpipi(1:var_size)
+        else
+          gromol%idr_mpipi(1:old_size) = idr_mpipi(1:old_size)
+        end if
+        deallocate(idr_mpipi, stat = alloc_stat)
+      else
+        old_size = 0
+        allocate(gromol%idr_mpipi(var_size), stat = alloc_stat)
+        if (alloc_stat /= 0) &
+            call error_msg_alloc
+      end if
+
     case default
 
       call error_msg('Realloc_Grotop_Mol> bad variable')
@@ -2731,6 +2866,18 @@ contains
 
     if (allocated(grotop%cg_KH_atomtypes)) then
       deallocate(grotop%cg_KH_atomtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_IDR_MPIPI_atomtypes)) then
+      deallocate(grotop%cg_IDR_MPIPI_atomtypes, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
+    if (allocated(grotop%cg_IDR_MPIPI_pairs)) then
+      deallocate(grotop%cg_IDR_MPIPI_pairs, stat = dealloc_stat)
       if (dealloc_stat /= 0) &
           call error_msg_dealloc
     end if
@@ -2907,6 +3054,12 @@ contains
           call error_msg_dealloc
     end if
 
+    if (allocated(gromol%idr_mpipi)) then
+      deallocate(gromol%idr_mpipi, stat = dealloc_stat)
+      if (dealloc_stat /= 0) &
+          call error_msg_dealloc
+    end if
+
     return
 
   end subroutine dealloc_grotop_mol_all
@@ -3018,6 +3171,15 @@ contains
 
       case (DCGIDRKHRegion)
         call read_idr_kh(file, grotop, gromol)
+
+      case (DCGIDRMPIPIAtomTypes)
+        call read_cg_IDR_MPIPI_atom_types(file, grotop)
+
+      case (DCGIDRMPIPIPairs)
+        call read_cg_IDR_MPIPI_pairs(file, grotop)
+
+      case (DCGIDRMPIPIRegion)
+        call read_idr_mpipi(file, grotop, gromol)
 
       case (DCGPairMJEpsilon)
         call read_cg_pair_MJ_eps(file, grotop)
@@ -3137,6 +3299,8 @@ contains
     grotop%num_pwmcosmolpairs = size_grotop(grotop, GroTopPWMcosMolPair)
     grotop%num_pwmcosnsmolpairs = size_grotop(grotop, GroTopPWMcosnsMolPair)
     grotop%num_cg_IDR_HPS_atomtypes = size_grotop(grotop, GroTopCGIDRHPSAtomType)
+    grotop%num_cg_IDR_MPIPI_atomtypes = size_grotop(grotop, GroTopCGIDRMPIPIAtomType)
+    grotop%num_cg_IDR_MPIPI_pairs = size_grotop(grotop, GroTopCGIDRMPIPIPair)
     grotop%num_cg_KH_atomtypes= size_grotop(grotop, GroTopCGKHAtomType)
     grotop%num_cg_pair_MJ_eps = size_grotop(grotop, GroTopCGPairMJEpsilon)
     grotop%num_cg_WCA_parameters = size_grotop(grotop, GroTopCGWCAParameters)
@@ -3213,6 +3377,8 @@ contains
                'num_IDR_HPS = ', grotop%moltypes(i)%mol%num_idr_hps
           write(MsgOut,'(6X,A14,I10)') &
                'num_IDR_KH  = ', grotop%moltypes(i)%mol%num_idr_kh
+          write(MsgOut,'(6X,A14,I10)') &
+               'num_IDR_MPIPI = ', grotop%moltypes(i)%mol%num_idr_mpipi
         else
           omit = .true.
         end if
@@ -3293,6 +3459,15 @@ contains
       if (grotop%num_cg_KH_atomtypes > 0) then
         write(MsgOut,'(A24,I6)') &
             '  num_cg_KH_atomtypes  = ', grotop%num_cg_KH_atomtypes
+      endif
+      if (grotop%num_cg_IDR_MPIPI_atomtypes > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '  num_cg_IDR_MPIPI_atomtypes  = ', grotop%num_cg_IDR_MPIPI_atomtypes
+      endif
+      write(MsgOut,'(A)') ''
+      if (grotop%num_cg_IDR_MPIPI_pairs > 0) then
+        write(MsgOut,'(A30,I6)') &
+            '    num_cg_IDR_MPIPI_pairs  = ', grotop%num_cg_IDR_MPIPI_pairs
       endif
       write(MsgOut,'(A)') ''
       if (grotop%num_cg_pair_MJ_eps > 0) then
@@ -4544,6 +4719,133 @@ contains
 900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_KH_atomtypes ]')
 
   end subroutine read_cg_KH_atom_types
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_IDR_MPIPI_atomtypes
+  !> @brief        read section [ cg_IDR_MPIPI_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_IDR_MPIPI_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cg_IDR_MPIPI_atomtype), pointer :: mpipi
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGIDRMPIPIAtomType)
+
+    call realloc_grotop(grotop, GroTopCGIDRMPIPIAtomType, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_IDR_MPIPI_atomtypes ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      mpipi => grotop%cg_IDR_MPIPI_atomtypes(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SNN')) then
+        read(line,*)         &
+            mpipi%type_name, &
+            mpipi%mass,      &
+            mpipi%charge
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_MPIPI_atomtypes ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_MPIPI_atomtypes ]')
+
+  end subroutine read_cg_IDR_MPIPI_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_cg_IDR_MPIPI_pairs
+  !> @brief        read section [ cg_IDR_MPIPI_pairs ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_cg_IDR_MPIPI_pairs(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+
+    type(s_cg_IDR_MPIPI_pair), pointer :: mpipi
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop(grotop, GroTopCGIDRMPIPIPair)
+
+    call realloc_grotop(grotop, GroTopCGIDRMPIPIPair, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Grotop> [ cg_IDR_MPIPI_pairs ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      mpipi => grotop%cg_IDR_MPIPI_pairs(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'SSNNN')) then
+        read(line,*)           &
+            mpipi%type_name_1, &
+            mpipi%type_name_2, &
+            mpipi%epsilon,     &
+            mpipi%sigma,       &
+            mpipi%mu
+      else
+        call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_MPIPI_pairs ]')
+      end if
+    end do
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Grotop> read error. [ cg_IDR_MPIPI_pairs ]')
+
+  end subroutine read_cg_IDR_MPIPI_pairs
 
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -7867,6 +8169,72 @@ contains
   end subroutine read_idr_kh
 
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    read_idr_mpipi
+  !> @brief        read section [ idr_mpipi ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[inout] grotop : GROMACS TOP information
+  !! @param[inout] gromol : GROMACS ITP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine read_idr_mpipi(file, grotop, gromol)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),  target, intent(inout) :: grotop
+    type(s_grotop_mol),      pointer       :: gromol
+
+    ! local variables
+    integer                  :: i, cnt, old_cnt
+    character(MaxLine)       :: line
+    character(100)           :: error
+    character(3)             :: chr_tmp
+
+    type(s_idr_mpipi), pointer :: mpipi
+
+
+    ! check count
+    cnt = check_section_count(file)
+
+    ! allocate memory
+    old_cnt = size_grotop_mol(gromol, GMGroMolIDRMPIPI)
+    call realloc_grotop_mol(gromol, GMGroMolIDRMPIPI, old_cnt+cnt)
+
+    if (VerboseOn .and. main_rank) then
+      write(MsgOut,'(" Read_Gromol> [ cg_IDR_MPIPI_region ] proper   :"'// &
+           ',i5," (total:",i5,")")') cnt, old_cnt+cnt
+    end if
+
+    ! read data
+    !
+    do i = 1, cnt
+
+      mpipi => gromol%idr_mpipi(old_cnt+i)
+
+      if (.not. gro_pp_next_line(file, line, error)) &
+        goto 900
+
+      if (match_format(line, 'NN')) then
+        read(line,*) mpipi%grp_start, mpipi%grp_end
+      else if (match_format(line, 'N')) then
+        read(line,*) mpipi%grp_start
+        mpipi%grp_end = mpipi%grp_start
+      else
+        call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_MPIPI_region ]')
+      end if
+    end do
+
+    gromol%num_idr_mpipi = size_grotop_mol(gromol, GMGroMolIDRMPIPI)
+
+    return
+
+900 call error_msg_grotop(file, 'Read_Gromol> read error. [ cg_IDR_MPIPI_region ]')
+
+  end subroutine read_idr_mpipi
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -7923,6 +8291,9 @@ contains
 
     ! cg KH atom type
     call write_cg_KH_atom_types(file, grotop)
+
+    ! cg IDR MPIPI atom type
+    call write_cg_IDR_MPIPI_atom_types(file, grotop)
 
     ! nonbond parameter
     call write_nonbond_parms(file, grotop)
@@ -9249,6 +9620,56 @@ contains
     return
 
   end subroutine write_cg_KH_atom_types
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    write_cg_IDR_MPIPI_atom_types
+  !> @brief        write section [ cg_IDR_MPIPI_atomtypes ]
+  !! @authors      CT
+  !! @param[in]    file   : file unit number
+  !! @param[in]    grotop : GROMACS TOP information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine write_cg_IDR_MPIPI_atom_types(file, grotop)
+
+    ! formal arguments
+    integer,                 intent(in)    :: file
+    type(s_grotop),          intent(in)    :: grotop
+
+    ! local variables
+    integer                  :: i, cnt, func
+    character(20)            :: str
+
+
+    cnt  = size_grotop(grotop, GroTopCGIDRMPIPIAtomType)
+    if (cnt == 0) &
+      return
+
+    func = -1
+
+    write(file, '(a)') '[ cg_IDR_MPIPI_atomtypes ]'
+
+    do i = 1, cnt
+
+      if (func == -1) then
+        write(file,'(a)') ';name      mass  charge '
+        func = 1
+      end if
+
+      write(file,'(a5,f10.3,f8.1,f7.2,i3)')       &
+        grotop%cg_IDR_MPIPI_atomtypes(i)%type_name, &
+        grotop%cg_IDR_MPIPI_atomtypes(i)%mass,      &
+        grotop%cg_IDR_MPIPI_atomtypes(i)%charge
+
+    end do
+
+    write(file, '(a)') ''
+
+    return
+
+  end subroutine write_cg_IDR_MPIPI_atom_types
 
 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -11121,6 +11542,12 @@ contains
       directive = DCGKHAtomTypes
     case ('cg_IDR_KH_region')
       directive = DCGIDRKHRegion
+    case ('cg_IDR_MPIPI_atomtypes')
+      directive = DCGIDRMPIPIAtomTypes
+    case ('cg_IDR_MPIPI_pairs')
+      directive = DCGIDRMPIPIPairs
+    case ('cg_IDR_MPIPI_region')
+      directive = DCGIDRMPIPIRegion
     case ('cg_pair_energy_MJ_96')
       directive = DCGPairMJEpsilon
     case ('pwmcos_chain_pairs')
@@ -11288,6 +11715,14 @@ contains
     case(GroTopCGKHAtomType)
       if (allocated(grotop%cg_KH_atomtypes)) &
           size_grotop = size(grotop%cg_KH_atomtypes)
+
+    case(GroTopCGIDRMPIPIAtomType)
+      if (allocated(grotop%cg_IDR_MPIPI_atomtypes)) &
+          size_grotop = size(grotop%cg_IDR_MPIPI_atomtypes)
+
+    case(GroTopCGIDRMPIPIPair)
+      if (allocated(grotop%cg_IDR_MPIPI_pairs)) &
+          size_grotop = size(grotop%cg_IDR_MPIPI_pairs)
 
     case(GroTopCGPairMJEpsilon)
       if (allocated(grotop%cg_pair_MJ_eps)) &
@@ -11490,6 +11925,13 @@ contains
     case(GMGroMolIDRKH)
       if (allocated(gromol%idr_kh)) then
         size_grotop_mol = size(gromol%idr_kh)
+      else
+        size_grotop_mol = 0
+      end if
+
+    case(GMGroMolIDRMPIPI)
+      if (allocated(gromol%idr_mpipi)) then
+        size_grotop_mol = size(gromol%idr_mpipi)
       else
         size_grotop_mol = 0
       end if
@@ -12132,7 +12574,6 @@ contains
             end if
 
           end if
-
         end if
       end if
 
@@ -12177,7 +12618,7 @@ contains
               icn = icn+1
               icnt(icn) = i
             end if
-      
+
           end if
         end if
         if (icn > MAX_MULTIPLY_NUM) &
@@ -12207,6 +12648,7 @@ contains
               icn = icn+1
               icnt(icn) = i
             end if
+
   
           else if (dt%atom_type1 == 'X' .and. dt%atom_type2 == 'X' .and. &
               .not. four_atoms) then

@@ -56,6 +56,7 @@ module at_enefunc_gromacs_mod
   private :: setup_enefunc_cg_PWMcosns
   private :: setup_enefunc_cg_IDR_HPS
   private :: setup_enefunc_cg_IDR_KH
+  private :: setup_enefunc_cg_IDR_MPIPI
   private :: setup_enefunc_cg_WCA
   private :: setup_enefunc_cg_ISOLF
   private :: setup_enefunc_cg_LJ
@@ -177,6 +178,10 @@ contains
       ! CG IDR: KH model
       !
       call setup_enefunc_cg_IDR_KH(ene_info, grotop, molecule, enefunc)
+
+      ! CG IDR: MPIPI model
+      !
+      call setup_enefunc_cg_IDR_MPIPI(ene_info, grotop, molecule, enefunc)
 
       ! CG exv: WCA
       !
@@ -1157,6 +1162,8 @@ contains
     enefunc%cg_pairlistdist_exv    = ene_info%cg_pairlistdist_exv
     enefunc%cg_ele_sol_T           = ene_info%cg_sol_temperature
     enefunc%cg_ele_sol_IC          = ene_info%cg_sol_ionic_strength
+    enefunc%cg_pairlistdist_WF = ene_info%cg_pairlistdist_WF
+    enefunc%cg_WangFrenkel_cutoff_scale = ene_info%cg_IDR_MPIPI_cutoff_scale
 
     ! ==========================
     ! allocate arrays in enefunc
@@ -2593,8 +2600,10 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
     ! setup PWMcos parameters
     ! -----------------------
     !
-    enefunc%pwmcos_sigma   = ene_info%cg_PWMcos_sigma
-    enefunc%pwmcos_phi     = ene_info%cg_PWMcos_phi * RAD
+    enefunc%pwmcos_sigma          = ene_info%cg_PWMcos_sigma
+    enefunc%pwmcos_phi            = ene_info%cg_PWMcos_phi * RAD
+    enefunc%pwmcos_gamma_global   = ene_info%cg_PWMcos_gamma
+    enefunc%pwmcos_epsilon_global = ene_info%cg_PWMcos_epsilon
 
     ! -----------------------------
     ! setup CG PWMcos mol-mol pairs
@@ -2638,7 +2647,7 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
     if (n_pwmcos > 0) then
       enefunc%cg_pwmcos_calc = .true.
     end if
-    
+
     call alloc_enefunc(enefunc, EneFuncPWMcos, n_pwmcos)
 
     if (allocated(enefunc%pwmcos_involved_resid)) &
@@ -2682,8 +2691,8 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
           enefunc%pwmcos_ene_C         (n_pwmcos) = gromol%pwmcos(k)%ene_C * KBOLTZ * 300.0_wp
           enefunc%pwmcos_ene_G         (n_pwmcos) = gromol%pwmcos(k)%ene_G * KBOLTZ * 300.0_wp
           enefunc%pwmcos_ene_T         (n_pwmcos) = gromol%pwmcos(k)%ene_T * KBOLTZ * 300.0_wp
-          enefunc%pwmcos_gamma         (n_pwmcos) = gromol%pwmcos(k)%gamma
-          enefunc%pwmcos_eps           (n_pwmcos) = gromol%pwmcos(k)%eps_shift
+          enefunc%pwmcos_gamma         (n_pwmcos) = gromol%pwmcos(k)%gamma * enefunc%pwmcos_gamma_global
+          enefunc%pwmcos_eps           (n_pwmcos) = gromol%pwmcos(k)%eps_shift + enefunc%pwmcos_epsilon_global
           enefunc%pwmcos_specificity   (n_pwmcos) = gromol%pwmcos(k)%func
           enefunc%pwmcos_to_pairlist_id(n_pwmcos) = n_pro_resid
 
@@ -3210,6 +3219,195 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
     return
 
   end subroutine setup_enefunc_cg_IDR_KH
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_enefunc_cg_IDR_MPIPI
+  !> @brief        define params for MPIPI-IDR model
+  !! @authors      CT
+  !! @param[in]    ene_info : ENERGY section control parameters
+  !! @param[in]    grotop   : GROMACS parameter topology information
+  !! @param[in]    molecule : molecule information
+  !! @param[inout] enefunc  : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_enefunc_cg_IDR_MPIPI(ene_info, grotop, molecule, enefunc)
+
+    ! formal arguments
+    type(s_ene_info),        intent(in)    :: ene_info
+    type(s_grotop),          intent(in)    :: grotop
+    type(s_molecule),        intent(in)    :: molecule
+    type(s_enefunc),         intent(inout) :: enefunc
+
+    ! local variables
+    integer              :: n_atoms
+    integer              :: n_atomtypes
+    integer              :: n_idr_region
+    integer              :: ioffset
+    integer              :: i, j, k, l
+    integer              :: alloc_stat
+    integer              :: n_idr_particles
+    integer              :: n_charged
+    integer              :: n_pro_charged
+
+    type(s_grotop_mol), pointer :: gromol
+
+
+    ! ------------------------------------
+    ! count IDR MPIPI "regions" in itp files
+    ! ------------------------------------
+    !
+    n_idr_region = 0
+    do i = 1, grotop%num_molss
+      gromol => grotop%molss(i)%moltype%mol
+      do j = 1, grotop%molss(i)%count
+        do k = 1, gromol%num_idr_mpipi
+          n_idr_region = n_idr_region + 1
+        end do
+      end do
+    end do
+
+    ! switch on
+    if (n_idr_region > 0) &
+      enefunc%cg_IDR_MPIPI_calc = .true.
+      ! enefunc%cg_WangFrenkel_cutoff_scale = 3.0
+    ! end if
+
+    ! allocate everything
+    n_atoms = molecule%num_atoms
+    n_atomtypes = grotop%num_atomtypes
+    call alloc_enefunc(enefunc, EneFuncCGIDRMPIPI, n_atoms, n_atomtypes)
+
+    ! -------------------------------
+    ! set pairwise interaction params
+    ! -------------------------------
+    !
+    do i = 1, grotop%num_atomtypes
+      do j = 1, grotop%num_atomtypes
+        do k = 1, grotop%num_cg_IDR_MPIPI_pairs
+          if (grotop%atomtypes(i)%type_name == &
+              grotop%cg_IDR_MPIPI_pairs(k)%type_name_1 .and. &
+              grotop%atomtypes(j)%type_name == &
+              grotop%cg_IDR_MPIPI_pairs(k)%type_name_2 ) then
+            ! i - j
+            enefunc%cg_WangFrenkel_epsilon(i, j) = grotop%cg_IDR_MPIPI_pairs(k)%epsilon
+            enefunc%cg_WangFrenkel_sigma(i, j) = grotop%cg_IDR_MPIPI_pairs(k)%sigma * 10.0_wp
+            enefunc%cg_WangFrenkel_mu(i, j) = grotop%cg_IDR_MPIPI_pairs(k)%mu
+            enefunc%cg_WangFrenkel_nu(i, j) = 1
+            ! j - i
+            enefunc%cg_WangFrenkel_epsilon(j, i) = grotop%cg_IDR_MPIPI_pairs(k)%epsilon
+            enefunc%cg_WangFrenkel_sigma(j, i) = grotop%cg_IDR_MPIPI_pairs(k)%sigma * 10.0_wp
+            enefunc%cg_WangFrenkel_mu(j, i) = grotop%cg_IDR_MPIPI_pairs(k)%mu
+            enefunc%cg_WangFrenkel_nu(j, i) = 1
+          end if
+        end do                  !k
+      end do                    !j
+    end do                      !i
+
+    ! -------------------------------------
+    ! Set IDR regions if specified in input
+    ! -------------------------------------
+    !
+    n_atoms = 0
+    n_idr_particles = 0
+    do i = 1, grotop%num_molss
+      gromol => grotop%molss(i)%moltype%mol
+      do j = 1, grotop%molss(i)%count
+
+        ioffset = n_atoms
+        n_atoms = n_atoms + gromol%num_atoms
+
+        do k = 1, gromol%num_idr_mpipi
+          do l = gromol%idr_mpipi(k)%grp_start, gromol%idr_mpipi(k)%grp_end
+            n_idr_particles = n_idr_particles + 1
+            enefunc%cg_IDR_MPIPI_is_IDR(l + ioffset) = .true.
+          end do                ! l
+        end do                  ! k
+
+      end do                    ! j
+    end do                      ! i
+
+    ! -----------------------------------
+    ! set charge values for each particle
+    ! -----------------------------------
+    !
+    do i = 1, n_atoms
+      if (.not. enefunc%cg_IDR_MPIPI_is_IDR(i)) then
+        cycle
+      end if
+      do j = 1, grotop%num_cg_IDR_MPIPI_atomtypes
+        if (grotop%cg_IDR_MPIPI_atomtypes(j)%type_name .eq. molecule%atom_cls_name(i)) then
+          enefunc%cg_charge(i) = grotop%cg_IDR_MPIPI_atomtypes(j)%charge
+        end if
+      end do
+    end do
+
+    ! -----------------------------------------
+    ! make up a list of all IDR_MPIPI particles
+    ! -----------------------------------------
+    enefunc%num_cg_particle_IDR_MPIPI = n_idr_particles
+
+    if (allocated(enefunc%cg_particle_IDR_MPIPI)) &
+        deallocate(enefunc%cg_particle_IDR_MPIPI)
+    allocate(enefunc%cg_particle_IDR_MPIPI(n_idr_particles), stat=alloc_stat)
+    if (alloc_stat /= 0) call error_msg_alloc
+
+    n_idr_particles = 0
+    do i = 1, n_atoms
+      if (enefunc%cg_IDR_MPIPI_is_IDR(i)) then
+        n_idr_particles = n_idr_particles + 1
+        enefunc%cg_particle_IDR_MPIPI(n_idr_particles) = i
+      end if
+    end do
+
+    ! ----------------------------------------------------------------
+    ! Set up look up tables for pairlist and energy/force calc (begin)
+    ! ----------------------------------------------------------------
+    n_charged = 0
+    n_pro_charged = 0
+    do i = 1, n_atoms
+      if (abs( enefunc%cg_charge(i) ) > EPS) then
+        n_charged = n_charged + 1
+        if (enefunc%NA_base_type(i) == NABaseTypeProtein) then
+          n_pro_charged = n_pro_charged + 1
+        end if
+      end if
+    end do
+    enefunc%num_cg_particle_charged = n_charged
+    enefunc%num_cg_particle_pro_charged = n_pro_charged
+
+    if (allocated(enefunc%cg_particle_charged)) &
+        deallocate(enefunc%cg_particle_charged)
+    allocate(enefunc%cg_particle_charged(n_charged), stat=alloc_stat)
+    if (alloc_stat /= 0) call error_msg_alloc
+
+    if (allocated(enefunc%cg_particle_pro_charged)) &
+        deallocate(enefunc%cg_particle_pro_charged)
+    allocate(enefunc%cg_particle_pro_charged(n_pro_charged), stat=alloc_stat)
+    if (alloc_stat /= 0) call error_msg_alloc
+
+    n_charged = 0
+    n_pro_charged = 0
+    do i = 1, n_atoms
+      if (abs( enefunc%cg_charge(i) ) > EPS) then
+        n_charged = n_charged + 1
+        enefunc%cg_particle_charged(n_charged) = i
+        if (enefunc%NA_base_type(i) == NABaseTypeProtein) then
+          n_pro_charged = n_pro_charged + 1
+          enefunc%cg_particle_pro_charged(n_pro_charged) = i
+        end if
+      end if
+    end do
+    ! --------------------------------------------------------------
+    ! Set up look up tables for pairlist and energy/force calc (end)
+    ! --------------------------------------------------------------
+
+    return
+
+  end subroutine setup_enefunc_cg_IDR_MPIPI
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

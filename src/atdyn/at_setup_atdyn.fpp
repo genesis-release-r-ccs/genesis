@@ -184,6 +184,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &
@@ -380,6 +381,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &
@@ -572,6 +574,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &
@@ -795,6 +798,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &
@@ -999,6 +1003,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &
@@ -1158,6 +1163,7 @@ contains
     if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
           ctrl_data%ene_info%cg_pairlistdist_126, &
+          ctrl_data%ene_info%cg_pairlistdist_WF, &
           ctrl_data%ene_info%cg_pairlistdist_PWMcos, &
           ctrl_data%ene_info%cg_pairlistdist_DNAbp, &
           ctrl_data%ene_info%cg_pairlistdist_exv, &

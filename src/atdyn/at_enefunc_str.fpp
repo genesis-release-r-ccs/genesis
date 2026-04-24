@@ -326,6 +326,7 @@ module at_enefunc_str_mod
     logical                       :: cg_KH_calc
     logical                       :: cg_IDR_HPS_calc
     logical                       :: cg_IDR_KH_calc
+    logical                       :: cg_IDR_MPIPI_calc
     logical                       :: cg_WCA_calc
     logical                       :: cg_ISOLF_calc
     logical                       :: cg_LJ_calc
@@ -334,6 +335,7 @@ module at_enefunc_str_mod
     integer                       :: num_cg_particle_DNA_all
     integer                       :: num_cg_particle_IDR_HPS
     integer                       :: num_cg_particle_IDR_KH
+    integer                       :: num_cg_particle_IDR_MPIPI
     integer                       :: num_cg_particle_KH
     integer                       :: num_cg_particle_charged
     integer                       :: num_cg_particle_pro_charged
@@ -528,6 +530,9 @@ module at_enefunc_str_mod
     real(wp),         allocatable :: cg_IDR_KH_sigma_half(:)
     real(wp),         allocatable :: cg_IDR_KH_epsilon_D(:, :)
 
+    ! ~CG~ : IDR MPIPI model
+    logical,          allocatable :: cg_IDR_MPIPI_is_IDR(:)
+
     ! ~CG~ : iSoLF model
     logical,          allocatable :: cg_uses_WCA(:)
     logical,          allocatable :: cg_uses_ISOLF(:)
@@ -578,6 +583,8 @@ module at_enefunc_str_mod
     ! ~CG~ PWMcos: CG protein-DNA seq-specific
     real(wp)                      :: pwmcos_sigma
     real(wp)                      :: pwmcos_phi
+    real(wp)                      :: pwmcos_gamma_global
+    real(wp)                      :: pwmcos_epsilon_global
     integer,          allocatable :: pwmcos_protein_id(:)
     integer,          allocatable :: pwmcos_protein_id_N(:)
     integer,          allocatable :: pwmcos_protein_id_C(:)
@@ -619,6 +626,7 @@ module at_enefunc_str_mod
     integer,          allocatable :: cg_particle_DNA_all(:)
     integer,          allocatable :: cg_particle_IDR_HPS(:)
     integer,          allocatable :: cg_particle_IDR_KH(:)
+    integer,          allocatable :: cg_particle_IDR_MPIPI(:)
     integer,          allocatable :: cg_particle_KH(:)
     integer,          allocatable :: cg_particle_charged(:)
     integer,          allocatable :: cg_particle_pro_charged(:)
@@ -713,6 +721,7 @@ module at_enefunc_str_mod
     real(wp)                      :: cg_cutoffdist_DNAbp
     real(wp)                      :: cg_pairlistdist_ele
     real(wp)                      :: cg_pairlistdist_126
+    real(wp)                      :: cg_pairlistdist_WF
     real(wp)                      :: cg_pairlistdist_PWMcos
     real(wp)                      :: cg_pairlistdist_DNAbp
     real(wp)                      :: cg_pairlistdist_exv
@@ -961,6 +970,7 @@ module at_enefunc_str_mod
   integer,      public, parameter :: EneFuncCGIDRKH       = 53
   integer,      public, parameter :: EneFuncCGKH          = 54
   integer,      public, parameter :: EneFuncCGKHmol       = 55
+  integer,      public, parameter :: EneFuncCGIDRMPIPI    = 56
 
   integer,      public, parameter :: EneFuncCGWCA         = 57
   integer,      public, parameter :: EneFuncCGISOLF       = 58
@@ -1252,7 +1262,16 @@ contains
     enefunc%cg_DNA_exv_calc         = .false.
     enefunc%cg_IDR_HPS_calc         = .false.
     enefunc%cg_IDR_KH_calc          = .false.
+    enefunc%cg_IDR_MPIPI_calc       = .false.
     enefunc%cg_KH_calc              = .false.
+
+    enefunc%pwmcos_sigma            = 1.0_wp
+    enefunc%pwmcos_phi              = 10.0_wp
+    enefunc%pwmcos_gamma_global     = 1.0_wp
+    enefunc%pwmcos_epsilon_global   = 0.0_wp
+    enefunc%pwmcosns_sigma          = 1.0_wp
+    enefunc%pwmcosns_phi            = 10.0_wp
+
     enefunc%cg_WCA_calc             = .false.
     enefunc%cg_ISOLF_calc           = .false.
     enefunc%cg_LJ_calc              = .false.
@@ -1270,7 +1289,7 @@ contains
     enefunc%imm1_use                = .false.
     enefunc%imic_use                = .false.
     enefunc%gbsa_use                = .false.
-    
+
     enefunc%cg_safe_dih_ene_shift   = 0.0_wp
 
     enefunc%num_cg_particle_DNA_all     = 0
@@ -1278,6 +1297,7 @@ contains
     enefunc%num_cg_particle_DNA_base    = 0
     enefunc%num_cg_particle_IDR_HPS     = 0
     enefunc%num_cg_particle_IDR_KH      = 0
+    enefunc%num_cg_particle_IDR_MPIPI   = 0
     enefunc%num_cg_particle_KH          = 0
     enefunc%num_cg_particle_WCA         = 0
     enefunc%num_cg_particle_ISOLF       = 0
@@ -1911,6 +1931,36 @@ contains
       enefunc%cg_IDR_KH_is_IDR    (1:var_size)               = .false.
       enefunc%cg_IDR_KH_sigma_half(1:var_size)               = 0.0
       enefunc%cg_IDR_KH_epsilon_D (1:var_size2, 1:var_size2) = 0.0
+
+    case(EneFuncCGIDRMPIPI)
+      ! ~CG~ protein IDR MPIPI model
+      ! var_size: number of particles
+      ! var_size2: number of residue types
+      if (allocated(enefunc%cg_IDR_MPIPI_is_IDR)) then
+        if (size(enefunc%cg_IDR_MPIPI_is_IDR) == var_size                 &
+            .and. size(enefunc%cg_WangFrenkel_epsilon(1, :)) == var_size2 &
+            .and. size(enefunc%cg_WangFrenkel_epsilon(:, 1)) == var_size2 &
+            ) return
+        deallocate(enefunc%cg_IDR_MPIPI_is_IDR, &
+            enefunc%cg_WangFrenkel_epsilon,     &
+            enefunc%cg_WangFrenkel_sigma,       &
+            enefunc%cg_WangFrenkel_mu,          &
+            enefunc%cg_WangFrenkel_nu,          &
+            stat = dealloc_stat)
+      end if
+
+      allocate(enefunc%cg_IDR_MPIPI_is_IDR(var_size),           &
+          enefunc%cg_WangFrenkel_epsilon(var_size2, var_size2), &
+          enefunc%cg_WangFrenkel_sigma(var_size2, var_size2),   &
+          enefunc%cg_WangFrenkel_mu(var_size2, var_size2),      &
+          enefunc%cg_WangFrenkel_nu(var_size2, var_size2),      &
+          stat = alloc_stat)
+
+      enefunc%cg_IDR_MPIPI_is_IDR    (1:var_size)               = .false.
+      enefunc%cg_WangFrenkel_sigma   (1:var_size2, 1:var_size2) = 0.0
+      enefunc%cg_WangFrenkel_epsilon (1:var_size2, 1:var_size2) = 0.0
+      enefunc%cg_WangFrenkel_mu      (1:var_size2, 1:var_size2) = 1
+      enefunc%cg_WangFrenkel_nu      (1:var_size2, 1:var_size2) = 1
 
     case(EneFuncCGWCA)
       ! ~CG~ WCA exa
@@ -3121,6 +3171,24 @@ contains
             stat = dealloc_stat)
       end if
 
+    case(EneFuncCGIDRMPIPI)
+
+      if (allocated(enefunc%cg_IDR_MPIPI_is_IDR)) then
+        deallocate(enefunc%cg_IDR_MPIPI_is_IDR,  &
+            stat = dealloc_stat)
+      end if
+      if (allocated(enefunc%cg_WangFrenkel_sigma)) then
+        deallocate(enefunc%cg_WangFrenkel_sigma, &
+            enefunc%cg_WangFrenkel_epsilon,      &
+            enefunc%cg_WangFrenkel_mu,           &
+            enefunc%cg_WangFrenkel_nu,           &
+            stat = dealloc_stat)
+      end if
+      if (allocated(enefunc%cg_particle_IDR_MPIPI)) then
+        deallocate(enefunc%cg_particle_IDR_MPIPI, &
+            stat = dealloc_stat)
+      end if
+
     case(EneFuncCGWCA)
 
       if (allocated(enefunc%cg_WCA_type)) deallocate(enefunc%cg_WCA_type)
@@ -3617,6 +3685,7 @@ contains
     call dealloc_enefunc(enefunc, EneFuncGamdRest)
     call dealloc_enefunc(enefunc, EneFuncCGIDRHPS)
     call dealloc_enefunc(enefunc, EneFuncCGIDRKH)
+    call dealloc_enefunc(enefunc, EneFuncCGIDRMPIPI)
 
     return
 

@@ -50,6 +50,7 @@ module at_energy_str_mod
     ! ~CG~ IDR models
     real(wp)              :: cg_IDR_HPS
     real(wp)              :: cg_IDR_KH
+    real(wp)              :: cg_IDR_MPIPI
     ! ~CG~ protein-protein KH model
     real(wp)              :: cg_KH_inter_pro
     ! ~CG~ protein-DNA sequence-specific
@@ -158,6 +159,7 @@ contains
     energy%cg_DNA_exv         = 0.0_wp
     energy%cg_IDR_HPS         = 0.0_wp
     energy%cg_IDR_KH          = 0.0_wp
+    energy%cg_IDR_MPIPI       = 0.0_wp
     energy%cg_KH_inter_pro    = 0.0_wp
     energy%PWMcos             = 0.0_wp
     energy%PWMcosns           = 0.0_wp

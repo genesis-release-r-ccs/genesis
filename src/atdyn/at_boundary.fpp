@@ -1200,6 +1200,7 @@ contains
   !! @authors      CT
   !! @param[in]    pairlistdist_ele    : cg electrostatics pairlist distance
   !! @param[in]    pairlistdist_126    : cg 12-6 type potential pairlist distance
+  !! @param[in]    pairlistdist_WF     : cg Wang-Frenkel type pairlist distance
   !! @param[in]    pairlistdist_PWMcos : cg PWMcos pairlist distance
   !! @param[in]    pairlistdist_DNAbp  : cg DNA basepairing pairlist distance
   !! @param[in]    pairlistdist_exv    : cg excluded volume pairlist distance
@@ -1208,11 +1209,13 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine update_boundary_cg(pairlistdist_ele, pairlistdist_126, &
-      pairlistdist_PWMcos, pairlistdist_DNAbp, pairlistdist_exv, boundary)
+      pairlistdist_WF, pairlistdist_PWMcos, pairlistdist_DNAbp, &
+      pairlistdist_exv, boundary)
 
     ! formal arguments
     real(wp),         intent(in)    :: pairlistdist_ele
     real(wp),         intent(in)    :: pairlistdist_126
+    real(wp),         intent(in)    :: pairlistdist_WF
     real(wp),         intent(in)    :: pairlistdist_PWMcos
     real(wp),         intent(in)    :: pairlistdist_DNAbp
     real(wp),         intent(in)    :: pairlistdist_exv
@@ -1228,7 +1231,8 @@ contains
     case (BoundaryTypePBC)
 
       call update_boundary_pbc_cg(pairlistdist_ele, pairlistdist_126, &
-          pairlistdist_PWMcos, pairlistdist_DNAbp, pairlistdist_exv, boundary)
+          pairlistdist_WF, pairlistdist_PWMcos, pairlistdist_DNAbp, &
+          pairlistdist_exv, boundary)
 
     end select
 
@@ -1243,6 +1247,7 @@ contains
   !! @authors      CT
   !! @param[in]    pairlistdist_ele    : cg electrostatics pairlist distance
   !! @param[in]    pairlistdist_126    : cg 12-6 type potential pairlist distance
+  !! @param[in]    pairlistdist_WF     : cg WangFrenkel type pairlist distance
   !! @param[in]    pairlistdist_PWMcos : cg PWMcos pairlist distance
   !! @param[in]    pairlistdist_DNAbp  : cg DNA basepairing pairlist distance
   !! @param[in]    pairlistdist_exv    : cg excluded volume pairlist distance
@@ -1251,11 +1256,13 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine update_boundary_pbc_cg(pairlistdist_ele, pairlistdist_126, &
-      pairlistdist_PWMcos, pairlistdist_DNAbp, pairlistdist_exv, boundary)
+      pairlistdist_WF, pairlistdist_PWMcos, pairlistdist_DNAbp, &
+      pairlistdist_exv, boundary)
 
     ! formal arguments
     real(wp),         intent(in)    :: pairlistdist_ele
     real(wp),         intent(in)    :: pairlistdist_126
+    real(wp),         intent(in)    :: pairlistdist_WF
     real(wp),         intent(in)    :: pairlistdist_PWMcos
     real(wp),         intent(in)    :: pairlistdist_DNAbp
     real(wp),         intent(in)    :: pairlistdist_exv
@@ -1266,13 +1273,14 @@ contains
     real(wp)                        :: csize_x, csize_y, csize_z
     integer                         :: i, j, k
     integer                         :: inb, jnb, knb, inbs, jnbs, knbs, lc, lcnb
-    integer                         :: l_ele, l_126, l_PWMcos, l_DNAbp, l_exv
+    integer                         :: l_ele, l_126, l_WF, l_PWMcos, l_DNAbp, l_exv
     integer                         :: ncell_x, ncell_y, ncell_z, ncell
     integer                         :: ncell_x_check, ncell_y_check, ncell_z_check
 
     ! for small cell division
     real(wp)                        :: pairlistdist_short, pairlistdist_long
     real(wp)                        :: pairdist_ele_sqr, pairdist_126_sqr
+    real(wp)                        :: pairdist_WF_sqr
     real(wp)                        :: pairdist_PWMcos_sqr, pairdist_DNAbp_sqr
     real(wp)                        :: pairdist_exv_sqr
     real(wp)                        :: pairdist_check
@@ -1290,10 +1298,10 @@ contains
     ! find out the shortest and longest pairlist dist
     ! -----------------------------------------------
     ! 
-    pairlistdist_long  = max(pairlistdist_ele, pairlistdist_126, &
+    pairlistdist_long  = max(pairlistdist_ele, pairlistdist_126, pairlistdist_WF, &
         pairlistdist_PWMcos, pairlistdist_DNAbp, pairlistdist_exv)
     ! 
-    pairlistdist_short = min(pairlistdist_ele, pairlistdist_126, &
+    pairlistdist_short = min(pairlistdist_ele, pairlistdist_126, pairlistdist_WF, &
         pairlistdist_PWMcos, pairlistdist_DNAbp, pairlistdist_exv)
 
     ! -------------------------------
@@ -1354,6 +1362,7 @@ contains
     ! 
     pairdist_ele_sqr    = pairlistdist_ele    * pairlistdist_ele
     pairdist_126_sqr    = pairlistdist_126    * pairlistdist_126
+    pairdist_WF_sqr     = pairlistdist_WF     * pairlistdist_WF
     pairdist_PWMcos_sqr = pairlistdist_PWMcos * pairlistdist_PWMcos
     pairdist_DNAbp_sqr  = pairlistdist_DNAbp  * pairlistdist_DNAbp
     pairdist_exv_sqr    = pairlistdist_exv    * pairlistdist_exv
@@ -1363,6 +1372,7 @@ contains
     cellpair_max_z = int(pairlistdist_long / csize_z) + 1
     boundary%num_neighbor_cells_CG_ele    = 0
     boundary%num_neighbor_cells_CG_126    = 0
+    boundary%num_neighbor_cells_CG_WF     = 0
     boundary%num_neighbor_cells_CG_PWMcos = 0
     boundary%num_neighbor_cells_CG_DNAbp  = 0
     boundary%num_neighbor_cells_CG_exv    = 0
@@ -1388,6 +1398,9 @@ contains
           if ((ci + cj + ck) < pairdist_126_sqr) then
             boundary%num_neighbor_cells_CG_126 = boundary%num_neighbor_cells_CG_126 + 1
           end if
+          if ((ci + cj + ck) < pairdist_WF_sqr) then
+            boundary%num_neighbor_cells_CG_WF = boundary%num_neighbor_cells_CG_WF + 1
+          end if
           if ((ci + cj + ck) < pairdist_PWMcos_sqr) then
             boundary%num_neighbor_cells_CG_PWMcos = boundary%num_neighbor_cells_CG_PWMcos + 1
           end if
@@ -1404,6 +1417,7 @@ contains
 
     call alloc_boundary(boundary, BoundaryCellsCGele,    ncell)
     call alloc_boundary(boundary, BoundaryCellsCG126,    ncell)
+    call alloc_boundary(boundary, BoundaryCellsCGWF,     ncell)
     call alloc_boundary(boundary, BoundaryCellsCGPWMcos, ncell)
     call alloc_boundary(boundary, BoundaryCellsCGDNAbp,  ncell)
     call alloc_boundary(boundary, BoundaryCellsCGexv,    ncell)
@@ -1414,6 +1428,7 @@ contains
     ! 
     l_ele    = 0
     l_126    = 0
+    l_WF     = 0
     l_PWMcos = 0
     l_DNAbp  = 0
     l_exv    = 0
@@ -1445,6 +1460,13 @@ contains
             boundary%neighbor_cell_common_x_126(l_126) = i
             boundary%neighbor_cell_common_y_126(l_126) = j
             boundary%neighbor_cell_common_z_126(l_126) = k
+          end if
+
+          if ((ci + cj + ck) < pairdist_WF_sqr) then
+            l_WF = l_WF + 1
+            boundary%neighbor_cell_common_x_WF(l_WF) = i
+            boundary%neighbor_cell_common_y_WF(l_WF) = j
+            boundary%neighbor_cell_common_z_WF(l_WF) = k
           end if
 
           if ((ci + cj + ck) < pairdist_PWMcos_sqr) then
@@ -1559,6 +1581,44 @@ contains
             boundary%neighbor_cells_CG_126(l_126,lc) = lcnb
 
           end do                ! l_126
+
+          ! ---
+          ! WF
+          ! ---
+          ! 
+          do l_WF = 1, boundary%num_neighbor_cells_CG_WF
+
+            inb = i + boundary%neighbor_cell_common_x_WF(l_WF)
+            if (inb < 0) then
+              inbs = ncell_x + inb
+            else if (inb >= ncell_x) then
+              inbs = inb - ncell_x
+            else
+              inbs = inb
+            end if
+
+            jnb = j + boundary%neighbor_cell_common_y_WF(l_WF)
+            if (jnb < 0) then
+              jnbs = ncell_y + jnb
+            else if (jnb >= ncell_y) then
+              jnbs = jnb - ncell_y
+            else
+              jnbs = jnb
+            end if
+
+            knb = k + boundary%neighbor_cell_common_z_WF(l_WF)
+            if (knb < 0) then
+              knbs = ncell_z + knb
+            else if (knb >= ncell_z) then
+              knbs = knb - ncell_z
+            else
+              knbs = knb
+            end if
+
+            lcnb = 1 + inbs + jnbs*ncell_x + knbs*ncell_x*ncell_y
+            boundary%neighbor_cells_CG_WF(l_WF,lc) = lcnb
+
+          end do                ! l_WF
 
           ! ---
           ! PWMcos

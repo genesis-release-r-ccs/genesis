@@ -1406,6 +1406,7 @@ contains
     if (enefunc%forcefield == ForcefieldRESIDCG) then
       call update_boundary_cg(enefunc%cg_pairlistdist_ele, &
           enefunc%cg_pairlistdist_126,                     &
+          enefunc%cg_pairlistdist_WF,             &
           enefunc%cg_pairlistdist_PWMcos,                  &
           enefunc%cg_pairlistdist_DNAbp,                   &
           enefunc%cg_pairlistdist_exv,                     &

@@ -73,11 +73,13 @@ module at_boundary_str_mod
     ! CG: neighbor cell lists
     integer                       :: num_neighbor_cells_CG_ele
     integer                       :: num_neighbor_cells_CG_126
+    integer                       :: num_neighbor_cells_CG_WF
     integer                       :: num_neighbor_cells_CG_PWMcos
     integer                       :: num_neighbor_cells_CG_DNAbp
     integer                       :: num_neighbor_cells_CG_exv
     integer, allocatable          :: neighbor_cells_CG_ele(:,:)
     integer, allocatable          :: neighbor_cells_CG_126(:,:)
+    integer, allocatable          :: neighbor_cells_CG_WF(:,:)
     integer, allocatable          :: neighbor_cells_CG_PWMcos(:,:)
     integer, allocatable          :: neighbor_cells_CG_DNAbp(:,:)
     integer, allocatable          :: neighbor_cells_CG_exv(:,:)
@@ -87,6 +89,9 @@ module at_boundary_str_mod
     integer, allocatable          :: neighbor_cell_common_x_126(:)
     integer, allocatable          :: neighbor_cell_common_y_126(:)
     integer, allocatable          :: neighbor_cell_common_z_126(:)
+    integer, allocatable          :: neighbor_cell_common_x_WF(:)
+    integer, allocatable          :: neighbor_cell_common_y_WF(:)
+    integer, allocatable          :: neighbor_cell_common_z_WF(:)
     integer, allocatable          :: neighbor_cell_common_x_PWMcos(:)
     integer, allocatable          :: neighbor_cell_common_y_PWMcos(:)
     integer, allocatable          :: neighbor_cell_common_z_PWMcos(:)
@@ -108,6 +113,7 @@ module at_boundary_str_mod
   integer,      public, parameter :: BoundaryCellsCGPWMcos = 5
   integer,      public, parameter :: BoundaryCellsCGDNAbp  = 6
   integer,      public, parameter :: BoundaryCellsCGexv    = 7
+  integer,      public, parameter :: BoundaryCellsCGWF     = 8
 
   ! parameters
   integer,      public, parameter :: BoundaryTypeNOBC     = 1
@@ -345,6 +351,53 @@ contains
       boundary%neighbor_cell_common_x_126(1:boundary%num_neighbor_cells_CG_126)        = 0
       boundary%neighbor_cell_common_y_126(1:boundary%num_neighbor_cells_CG_126)        = 0
       boundary%neighbor_cell_common_z_126(1:boundary%num_neighbor_cells_CG_126)        = 0
+
+    case(BoundaryCellsCGWF)
+
+      ! ======
+      ! CG WF
+      ! ======
+      ! 
+      if (allocated(boundary%neighbor_cell_common_x_WF)) then
+
+        if (size(boundary%neighbor_cell_common_x_WF) <   &
+            boundary%num_neighbor_cells_CG_WF ) then
+          deallocate(boundary%neighbor_cells_CG_WF,  &
+                     boundary%neighbor_cell_common_x_WF, &
+                     boundary%neighbor_cell_common_y_WF, &
+                     boundary%neighbor_cell_common_z_WF, &
+                     stat = dealloc_stat)
+        end if
+      end if
+
+      if (allocated(boundary%neighbor_cells_CG_WF)) then
+
+        if (size(boundary%neighbor_cells_CG_WF(1,:)) < var_size) then
+          deallocate(boundary%neighbor_cells_CG_WF,  &
+                     stat = dealloc_stat)
+          if (dealloc_stat /= 0) call error_msg_dealloc
+        end if
+      end if
+
+      if (.not. allocated(boundary%neighbor_cells_CG_WF)) then
+
+        allocate(boundary%neighbor_cells_CG_WF(boundary%num_neighbor_cells_CG_WF,var_size),&
+                 stat = alloc_stat)
+        if (alloc_stat /= 0)   call error_msg_alloc
+      end if
+
+      if (.not. allocated(boundary%neighbor_cell_common_x_WF)) then
+
+        allocate(boundary%neighbor_cell_common_x_WF(boundary%num_neighbor_cells_CG_WF), &
+                 boundary%neighbor_cell_common_y_WF(boundary%num_neighbor_cells_CG_WF), &
+                 boundary%neighbor_cell_common_z_WF(boundary%num_neighbor_cells_CG_WF), &
+                 stat = alloc_stat)
+      end if
+
+      boundary%neighbor_cells_CG_WF(1: boundary%num_neighbor_cells_CG_WF,1:var_size) = 0
+      boundary%neighbor_cell_common_x_WF(1:boundary%num_neighbor_cells_CG_WF)        = 0
+      boundary%neighbor_cell_common_y_WF(1:boundary%num_neighbor_cells_CG_WF)        = 0
+      boundary%neighbor_cell_common_z_WF(1:boundary%num_neighbor_cells_CG_WF)        = 0
 
     case(BoundaryCellsCGPWMcos)
 

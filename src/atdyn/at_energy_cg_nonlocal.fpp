@@ -44,6 +44,8 @@ module at_energy_cg_nonlocal_mod
   public  :: compute_energy_CG_IDR_HPS_pbc
   public  :: compute_energy_CG_IDR_KH
   public  :: compute_energy_CG_IDR_KH_pbc
+  public  :: compute_energy_CG_IDR_MPIPI
+  public  :: compute_energy_CG_IDR_MPIPI_pbc
   public  :: compute_energy_CG_KH
   public  :: compute_energy_CG_KH_pbc
   public  :: compute_energy_CG_WCA_pbc
@@ -3979,6 +3981,7 @@ contains
 
   end subroutine compute_energy_CG_IDR_KH_pbc
 
+
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_CG_WCA_pbc
@@ -4702,6 +4705,430 @@ contains
     return
 
   end subroutine compute_energy_CG_LJ_pbc
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_CG_IDR_MPIPI
+  !> @brief        calculate IDR interaction in the MPIPI model (NOBC)
+  !! @authors      CT
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    pairlist : pairlist information
+  !! @param[in]    coord    : coordinates of target systems
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial of target systems
+  !! @param[inout] empipi      : energy of IDR MPIPI interactions
+  !! @note         IDR MPIPI model
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_CG_IDR_MPIPI(enefunc, pairlist, coord, force, virial, empipi)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_pairlist), target, intent(in)    :: pairlist
+    real(wp),                 intent(in)    :: coord(:,:)
+    real(wp),                 intent(inout) :: force(:,:,:)
+    real(wp),                 intent(inout) :: virial(3,3)
+    real(wp),                 intent(inout) :: empipi
+
+    ! local variables
+    integer                   :: my_id, id
+    integer                   :: natom
+    integer                   :: num_mpipi, ini_mpipi, fin_mpipi
+    integer                   :: i, j, k, l
+    integer                   :: mu, mu2
+    real(wp)                  :: sigma, sigma_sqr
+    real(wp)                  :: epsilon
+    real(wp)                  :: alpha
+    real(wp)                  :: cutoff_scale
+    real(wp)                  :: cutoff_scale_sqr
+    real(wp)                  :: cutoff, cutoff_sqr
+    real(wp)                  :: dij(3), rij_sqr
+    real(wp)                  :: inv_rij_sqr
+    real(wp)                  :: sig_over_rij_sqr
+    real(wp)                  :: sig_over_rij_2muth
+    real(wp)                  :: three_2muth
+    real(wp)                  :: tmp_val1, tmp_val2
+    real(wp)                  :: grad_coef_mpipi, grad(3)
+    real(wp)                  :: empipi_tmp
+
+    integer,  pointer         :: mpipi_list(:,:)
+    integer,  pointer         :: num_mpipi_calc(:,:)
+
+    integer,  pointer         :: atom_type(:)
+    real(wp), pointer         :: mpipi_epsilon(:, :)
+    real(wp), pointer         :: mpipi_sigma(:, :)
+    integer,  pointer         :: mpipi_mu(:, :)
+    integer,  pointer         :: mpipi_nu(:, :)
+
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerCGIDRMPIPI, TimerOn)
+
+    natom          = size(coord(1,:))
+
+    mpipi_list     => pairlist%cg_IDR_MPIPI_list
+    num_mpipi_calc => pairlist%num_cg_IDR_MPIPI_calc
+
+    atom_type      => enefunc%atom_cls
+    mpipi_sigma    => enefunc%cg_WangFrenkel_sigma
+    mpipi_epsilon  => enefunc%cg_WangFrenkel_epsilon
+    mpipi_mu       => enefunc%cg_WangFrenkel_mu
+    mpipi_nu       => enefunc%cg_WangFrenkel_nu
+
+    cutoff_scale   = enefunc%cg_WangFrenkel_cutoff_scale
+    cutoff_scale_sqr = cutoff_scale * cutoff_scale
+
+    num_mpipi        = 0
+
+    ! calculate energy and gradient
+    !
+    !$omp parallel default(none)                        &
+    !$omp firstprivate(num_mpipi)                       &
+    !$omp private(my_id, id,                            &
+    !$omp         ini_mpipi, fin_mpipi,                 &
+    !$omp         i, k, j, l,                           &
+    !$omp         mu, mu2,                              &
+    !$omp         sigma, sigma_sqr,                     &
+    !$omp         epsilon, alpha,                       &
+    !$omp         cutoff, cutoff_sqr,                   &
+    !$omp         dij, rij_sqr,                         &
+    !$omp         inv_rij_sqr, three_2muth,             &
+    !$omp         sig_over_rij_sqr, sig_over_rij_2muth, &
+    !$omp         tmp_val1, tmp_val2,                   &
+    !$omp         grad_coef_mpipi, grad, empipi_tmp     &
+    !$omp         )                                     &
+    !$omp shared(coord, my_city_rank, nproc_city,       &
+    !$omp        nthread, natom,                        &
+    !$omp        cutoff_scale, cutoff_scale_sqr,        &
+    !$omp        mpipi_list, num_mpipi_calc, atom_type, &
+    !$omp        mpipi_sigma, mpipi_epsilon,            &
+    !$omp        mpipi_mu, mpipi_nu,                    &
+    !$omp        force)                                 &
+    !$omp reduction(+:virial) reduction(+:empipi)
+    !
+#ifdef OMP
+    id      = omp_get_thread_num()
+#else
+    id      = 0
+#endif
+    my_id   = my_city_rank * nthread + id
+    id = id + 1
+
+
+    do i = 1, natom-1
+
+      ini_mpipi = num_mpipi + 1
+      fin_mpipi = num_mpipi + num_mpipi_calc(i,id)
+      num_mpipi = fin_mpipi
+
+      do k = ini_mpipi, fin_mpipi
+
+        j = mpipi_list(k,id)
+
+        sigma      = mpipi_sigma(atom_type(i), atom_type(j))
+        sigma_sqr  = sigma * sigma
+        cutoff_sqr = sigma_sqr * cutoff_scale_sqr
+
+        dij(1:3)   = coord(1:3,j) - coord(1:3,i)
+        rij_sqr    = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+        if (rij_sqr > cutoff_sqr) cycle
+
+        epsilon     = mpipi_epsilon(atom_type(i), atom_type(j))
+        mu          = mpipi_mu(atom_type(i), atom_type(j))
+        mu2         = mu + mu
+        three_2muth = 3.0_wp**mu2
+        alpha       = 2.0_wp * three_2muth * (1.5_wp / (three_2muth - 1))**3.0_wp
+
+        inv_rij_sqr        = 1.0_wp / rij_sqr
+        sig_over_rij_sqr   = sigma_sqr * inv_rij_sqr
+        sig_over_rij_2muth = sig_over_rij_sqr**mu
+
+        tmp_val1   = three_2muth * sig_over_rij_2muth - 1.0_wp
+        empipi_tmp = epsilon * alpha * (sig_over_rij_2muth - 1) * tmp_val1 * tmp_val1
+
+        empipi = empipi + empipi_tmp
+
+        grad_coef_mpipi = mu2 * epsilon * alpha * &
+            sig_over_rij_2muth * inv_rij_sqr * tmp_val1 * &
+            (3.0_wp * tmp_val1 + 2.0_wp - 2.0_wp * three_2muth)
+
+        ! gradient
+        !
+        grad(1:3)     = grad_coef_mpipi * dij(1:3)
+
+        ! store force
+        !
+        force(1:3,i,id)  = force(1:3,i,id) - grad(1:3)
+        force(1:3,j,id)  = force(1:3,j,id) + grad(1:3)
+
+        ! virial
+        !
+        do l = 1, 3
+          virial(1:3, l) = virial(1:3, l) - dij(1:3) * grad(l)
+        end do
+
+      end do
+    end do
+    !$omp end parallel
+
+    call timer(TimerCGIDRMPIPI, TimerOff)
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_CG_IDR_MPIPI
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_CG_IDR_MPIPI_pbc
+  !> @brief        calculate IDR interaction in the MPIPI model (PBC)
+  !! @authors      CT
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[in]    boundary : information of boundary condition
+  !! @param[in]    pairlist : pairlist information
+  !! @param[in]    coord    : coordinates of target systems
+  !! @param[inout] force    : forces of target systems
+  !! @param[inout] virial   : virial of target systems
+  !! @param[inout] empipi     : energy of IDR MPIPI interactions
+  !! @note         IDR MPIPI model
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_CG_IDR_MPIPI_pbc(enefunc, boundary, pairlist, &
+      coord, force, virial, empipi)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    type(s_pairlist), target, intent(in)    :: pairlist
+    real(wp),                 intent(in)    :: coord(:,:)
+    real(wp),                 intent(inout) :: force(:,:,:)
+    real(wp),                 intent(inout) :: virial(3,3)
+    real(wp),                 intent(inout) :: empipi
+
+    ! local variables
+    integer           :: my_id, id
+    integer           :: n_idr, i_idr
+    integer           :: num_mpipi, ini_mpipi, fin_mpipi
+    integer           :: i, j, k, l, m
+    integer           :: i1, i2, i3, k_pbc
+    integer           :: atomtype_i, atomtype_j
+    integer           :: mu, mu2
+    real(wp)          :: coor_i(3)
+    real(wp)          :: sigma, sigma_sqr
+    real(wp)          :: epsilon, alpha
+    real(wp)          :: cutoff_scale
+    real(wp)          :: cutoff_scale_sqr
+    real(wp)          :: cutoff, cutoff_sqr
+    real(wp)          :: dij(3), rij_sqr
+    real(wp)          :: inv_rij_sqr
+    real(wp)          :: sig_over_rij_sqr
+    real(wp)          :: sig_over_rij_2muth
+    real(wp)          :: three_2muth
+    real(wp)          :: tmp_val1, tmp_val2
+    real(wp)          :: grad_coef_mpipi, grad(3)
+    real(wp)          :: empipi_tmp
+    !
+    real(wp)          :: bsize(3), inv_bsize(3)
+    !
+    real(wp)          :: force_tmp(3), factor
+    real(wp)          :: virial_tmp(3,3)
+    real(wp)          :: virial_omp(3,3,nthread)
+    real(wp)          :: empipi_omp(nthread), empipi_omp_tmp
+    !
+    integer,  pointer :: cg_list_idr(:)
+    integer,  pointer :: mpipi_list(:,:)
+    integer,  pointer :: num_mpipi_calc(:,:)
+    !
+    integer,  pointer :: atom_type(:)
+    real(wp), pointer :: mpipi_epsilon(:, :)
+    real(wp), pointer :: mpipi_sigma(:, :)
+    integer,  pointer :: mpipi_mu(:, :)
+    integer,  pointer :: mpipi_nu(:, :)
+
+
+    call timer(TimerNonBond, TimerOn)
+    call timer(TimerCGIDRMPIPI, TimerOn)
+
+    n_idr          =  enefunc%num_cg_particle_IDR_MPIPI
+    cg_list_idr    => enefunc%cg_particle_IDR_MPIPI
+
+    mpipi_list     => pairlist%cg_IDR_MPIPI_list
+    num_mpipi_calc => pairlist%num_cg_IDR_MPIPI_calc
+
+    atom_type      => enefunc%atom_cls
+    mpipi_sigma    => enefunc%cg_WangFrenkel_sigma
+    mpipi_epsilon  => enefunc%cg_WangFrenkel_epsilon
+    mpipi_mu       => enefunc%cg_WangFrenkel_mu
+    mpipi_nu       => enefunc%cg_WangFrenkel_nu
+
+    cutoff_scale   = enefunc%cg_WangFrenkel_cutoff_scale
+    cutoff_scale_sqr = cutoff_scale * cutoff_scale
+
+
+    bsize(1)       =  boundary%box_size_x
+    bsize(2)       =  boundary%box_size_y
+    bsize(3)       =  boundary%box_size_z
+    inv_bsize(1:3) = 1.0_wp/bsize(1:3)
+
+    num_mpipi      = 0
+
+    empipi_omp(1:nthread) = 0.0_wp
+    virial_omp(1:3,1:3,1:nthread) = 0.0_wp
+
+    ! calculate energy and gradient
+    !
+    !$omp parallel default(none)                        &
+    !$omp firstprivate(num_mpipi)                       &
+    !$omp private(my_id, id,                            &
+    !$omp         ini_mpipi, fin_mpipi,                 &
+    !$omp         i, k, j, l, m,                        &
+    !$omp         i1, i2, i3, k_pbc,                    &
+    !$omp         atomtype_i, atomtype_j,               &
+    !$omp         mu, mu2,                              &
+    !$omp         sigma, sigma_sqr,                     &
+    !$omp         epsilon, alpha,                       &
+    !$omp         dij, rij_sqr, coor_i,                 &
+    !$omp         cutoff, cutoff_sqr,                   &
+    !$omp         inv_rij_sqr, sig_over_rij_sqr,        &
+    !$omp         sig_over_rij_2muth, three_2muth,      &
+    !$omp         tmp_val1, tmp_val2,                   &
+    !$omp         force_tmp, factor,                    &
+    !$omp         virial_tmp, empipi_omp_tmp,           &
+    !$omp         grad_coef_mpipi, grad, empipi_tmp     &
+    !$omp         )                                     &
+    !$omp shared(coord, my_city_rank, nproc_city,       &
+    !$omp        nthread, n_idr,                        &
+    !$omp        cutoff_scale, cutoff_scale_sqr,        &
+    !$omp        mpipi_list, num_mpipi_calc, atom_type, &
+    !$omp        mpipi_sigma, mpipi_epsilon,            &
+    !$omp        mpipi_mu, mpipi_nu,                    &
+    !$omp        cg_list_idr, bsize, inv_bsize,         &
+    !$omp        virial_omp, empipi_omp,                &
+    !$omp        force)                                 &
+    !$omp reduction(+:virial) reduction(+:empipi)
+    !
+#ifdef OMP
+    id      = omp_get_thread_num()
+#else
+    id      = 0
+#endif
+    my_id   = my_city_rank * nthread + id
+    id = id + 1
+
+
+    do i_idr = 1, n_idr - 1
+
+      ini_mpipi = num_mpipi + 1
+      fin_mpipi = num_mpipi + num_mpipi_calc(i_idr, id)
+      num_mpipi = fin_mpipi
+
+      if (fin_mpipi >= ini_mpipi) then
+
+        i = cg_list_idr(i_idr)
+
+        coor_i(1:3)         = coord(1:3, i)
+        atomtype_i          = atom_type(i)
+        force_tmp(1:3)      = 0.0_wp
+        virial_tmp(1:3,1:3) = 0.0_wp
+        empipi_omp_tmp      = 0.0_wp
+
+        do k = ini_mpipi, fin_mpipi
+
+          k_pbc = mpipi_list(k,id)
+          j = k_pbc / 27
+          k_pbc = k_pbc - j*27
+          i3 = k_pbc / 9
+          k_pbc = k_pbc - i3*9
+          i2 = k_pbc / 3
+          i1 = k_pbc - i2*3
+          i1 = i1 - 1
+          i2 = i2 - 1
+          i3 = i3 - 1
+
+          atomtype_j = atom_type(j)
+          sigma      = mpipi_sigma(atomtype_i, atomtype_j)
+          sigma_sqr  = sigma * sigma
+          cutoff_sqr = sigma_sqr * cutoff_scale_sqr
+
+          dij(1)  = coord(1,j) - coor_i(1) + bsize(1) * real(i1, wp)
+          dij(2)  = coord(2,j) - coor_i(2) + bsize(2) * real(i2, wp)
+          dij(3)  = coord(3,j) - coor_i(3) + bsize(3) * real(i3, wp)
+          rij_sqr = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+          if (rij_sqr > cutoff_sqr) cycle
+
+          epsilon     = mpipi_epsilon(atom_type(i), atom_type(j))
+          mu          = mpipi_mu(atom_type(i), atom_type(j))
+          mu2         = mu + mu
+          three_2muth = 3.0_wp**mu2
+          alpha       = 2.0_wp * three_2muth * (1.5_wp / (three_2muth - 1))**3.0_wp
+
+          inv_rij_sqr       = 1.0_wp / rij_sqr
+          sig_over_rij_sqr  = sigma_sqr * inv_rij_sqr
+          sig_over_rij_2muth = sig_over_rij_sqr**mu
+
+          tmp_val1   = three_2muth * sig_over_rij_2muth - 1.0_wp
+          empipi_tmp = epsilon * alpha * (sig_over_rij_2muth - 1) * tmp_val1 * tmp_val1
+
+          empipi_omp_tmp = empipi_omp_tmp + empipi_tmp
+
+          grad_coef_mpipi = mu2 * epsilon * alpha * &
+              sig_over_rij_2muth * inv_rij_sqr * tmp_val1 * &
+              (3.0_wp * tmp_val1 + 2.0_wp - 2.0_wp * three_2muth)
+
+          ! gradient
+          !
+          grad(1) = grad_coef_mpipi * dij(1)
+          grad(2) = grad_coef_mpipi * dij(2)
+          grad(3) = grad_coef_mpipi * dij(3)
+
+          ! store force
+          !
+          force_tmp(1) = force_tmp(1) - grad(1)
+          force_tmp(2) = force_tmp(2) - grad(2)
+          force_tmp(3) = force_tmp(3) - grad(3)
+          force(1,j,id) = force(1,j,id) + grad(1)
+          force(2,j,id) = force(2,j,id) + grad(2)
+          force(3,j,id) = force(3,j,id) + grad(3)
+
+          ! virial
+          !
+          virial_tmp(1,1) = virial_tmp(1,1) - dij(1)*grad(1)
+          virial_tmp(2,1) = virial_tmp(2,1) - dij(2)*grad(1)
+          virial_tmp(3,1) = virial_tmp(3,1) - dij(3)*grad(1)
+          virial_tmp(1,2) = virial_tmp(1,2) - dij(1)*grad(2)
+          virial_tmp(2,2) = virial_tmp(2,2) - dij(2)*grad(2)
+          virial_tmp(3,2) = virial_tmp(3,2) - dij(3)*grad(2)
+          virial_tmp(1,3) = virial_tmp(1,3) - dij(1)*grad(3)
+          virial_tmp(2,3) = virial_tmp(2,3) - dij(2)*grad(3)
+          virial_tmp(3,3) = virial_tmp(3,3) - dij(3)*grad(3)
+
+        end do                  ! k
+
+        force(1:3,i,id) = force(1:3,i,id) + force_tmp(1:3)
+        empipi_omp(id) = empipi_omp(id) + empipi_omp_tmp
+        virial_omp(1:3,1:3,id) = virial_omp(1:3,1:3,id) + virial_tmp(1:3,1:3)
+
+      end if
+
+    end do
+    !$omp end parallel
+
+    do i = 1, nthread
+      empipi = empipi + empipi_omp(i)
+      virial(1:3,1:3) = virial(1:3,1:3) + virial_omp(1:3,1:3,i)
+    end do
+
+    call timer(TimerCGIDRMPIPI, TimerOff)
+    call timer(TimerNonBond, TimerOff)
+
+    return
+
+  end subroutine compute_energy_CG_IDR_MPIPI_pbc
 
 
   !======1=========2=========3=========4=========5=========6=========7=========8

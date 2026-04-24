@@ -44,6 +44,7 @@ module at_pairlist_mod
   private :: update_pairlist_nobc_cg_pwmcosns
   private :: update_pairlist_nobc_cg_IDR_HPS
   private :: update_pairlist_nobc_cg_IDR_KH
+  private :: update_pairlist_nobc_cg_IDR_MPIPI
   private :: update_pairlist_pbc_cg_general
   private :: update_pairlist_pbc_cg_exv
   private :: update_pairlist_pbc_cg_ele
@@ -53,6 +54,7 @@ module at_pairlist_mod
   private :: update_pairlist_pbc_cg_pwmcosns
   private :: update_pairlist_pbc_cg_IDR_HPS
   private :: update_pairlist_pbc_cg_IDR_KH
+  private :: update_pairlist_pbc_cg_IDR_MPIPI
   private :: update_pairlist_pbc_cg_KH
   private :: update_pairlist_pbc_cg_WCA
   private :: update_pairlist_pbc_cg_ISOLF
@@ -96,6 +98,7 @@ contains
     integer                  :: n_cg_charged, n_cg_pro_charged
     integer                  :: n_cg_IDR_HPS
     integer                  :: n_cg_IDR_KH
+    integer                  :: n_cg_IDR_MPIPI
     integer                  :: n_cg_KH
     integer                  :: n_cg_PWMcos
     integer                  :: n_cg_PWMcosns
@@ -122,6 +125,7 @@ contains
     ! CG
     pairlist%cg_pairlistdist_ele    = enefunc%cg_pairlistdist_ele
     pairlist%cg_pairlistdist_126    = enefunc%cg_pairlistdist_126
+    pairlist%cg_pairlistdist_WF = enefunc%cg_pairlistdist_WF
     pairlist%cg_pairlistdist_PWMcos = enefunc%cg_pairlistdist_PWMcos
     pairlist%cg_pairlistdist_DNAbp  = enefunc%cg_pairlistdist_DNAbp
     pairlist%cg_pairlistdist_exv    = enefunc%cg_pairlistdist_exv
@@ -172,6 +176,7 @@ contains
         n_cg_DNA_base    = enefunc%num_cg_particle_DNA_base
         n_cg_IDR_HPS     = enefunc%num_cg_particle_IDR_HPS
         n_cg_IDR_KH      = enefunc%num_cg_particle_IDR_KH
+        n_cg_IDR_MPIPI   = enefunc%num_cg_particle_IDR_MPIPI
         n_cg_KH          = enefunc%num_cg_particle_KH
         n_cg_charged     = enefunc%num_cg_particle_charged
         n_cg_pro_charged = enefunc%num_cg_particle_pro_charged
@@ -190,6 +195,7 @@ contains
         call alloc_pairlist(pairlist, PairListAtomPbcCGPWMcosns, n_cg_PWMcosns)
         call alloc_pairlist(pairlist, PairListAtomPbcCGIDRHPS, n_cg_IDR_HPS)
         call alloc_pairlist(pairlist, PairListAtomPbcCGIDRKH, n_cg_IDR_KH)
+        call alloc_pairlist(pairlist, PairListAtomPbcCGIDRMPIPI, n_cg_IDR_MPIPI)
         call alloc_pairlist(pairlist, PairListAtomPbcCGKH, n_cg_KH)
         call alloc_pairlist(pairlist, PairListCellsPbcCG, n_cg_cells)
         call alloc_pairlist(pairlist, PairListAtomPbcCGWCA, n_cg_WCA)
@@ -249,6 +255,7 @@ contains
       pairlist%allocate_nobc_cg_pwmcosns= .true.
       pairlist%allocate_nobc_cg_IDR_HPS = .true.
       pairlist%allocate_nobc_cg_IDR_KH  = .true.
+      pairlist%allocate_nobc_cg_IDR_MPIPI = .true.
       pairlist%allocate_pbc_cg_exv      = .true.
       pairlist%allocate_pbc_cg_ele      = .true.
       pairlist%allocate_pbc_cg_DNA_bp   = .true.
@@ -257,6 +264,7 @@ contains
       pairlist%allocate_pbc_cg_pwmcosns = .true.
       pairlist%allocate_pbc_cg_IDR_HPS  = .true.
       pairlist%allocate_pbc_cg_IDR_KH   = .true.
+      pairlist%allocate_pbc_cg_IDR_MPIPI = .true.
       pairlist%allocate_pbc_cg_KH       = .true.
       pairlist%allocate_pbc_cg_WCA      = .true.
       pairlist%allocate_pbc_cg_ISOLF    = .true.
@@ -282,6 +290,9 @@ contains
         end if
         if (enefunc%cg_IDR_KH_calc) then
           call update_pairlist_nobc_cg_IDR_KH(enefunc, coord, pairlist)
+        end if
+        if (enefunc%cg_IDR_MPIPI_calc) then
+          call update_pairlist_nobc_cg_IDR_MPIPI(enefunc, coord, pairlist)
         end if
       else
         call update_pairlist_nobc     (enefunc, coord, pairlist)
@@ -328,6 +339,9 @@ contains
         end if
         if (enefunc%cg_IDR_KH_calc) then
           call update_pairlist_pbc_cg_IDR_KH   (enefunc, boundary, coord_pbc, pairlist)
+        end if
+        if (enefunc%cg_IDR_MPIPI_calc) then
+          call update_pairlist_pbc_cg_IDR_MPIPI(enefunc, boundary, coord_pbc, pairlist)
         end if
         if (enefunc%cg_KH_calc) then
           call update_pairlist_pbc_cg_KH       (enefunc, boundary, coord_pbc, pairlist)
@@ -730,6 +744,7 @@ contains
     ! local variables
     real(wp)                 :: pairdist2_ele
     real(wp)                 :: pairdist2_126
+    real(wp)                 :: pairdist2_WF
     real(wp)                 :: pairdist2_PWMcos
     real(wp)                 :: pairdist2_DNAbp
     real(wp)                 :: pairdist2_exv
@@ -779,12 +794,14 @@ contains
 
     pairdist2_ele    = pairlist%cg_pairlistdist_ele    * pairlist%cg_pairlistdist_ele
     pairdist2_126    = pairlist%cg_pairlistdist_126    * pairlist%cg_pairlistdist_126
+    pairdist2_WF     = pairlist%cg_pairlistdist_WF    * pairlist%cg_pairlistdist_WF
     pairdist2_PWMcos = pairlist%cg_pairlistdist_PWMcos * pairlist%cg_pairlistdist_PWMcos
     pairdist2_DNAbp  = pairlist%cg_pairlistdist_DNAbp  * pairlist%cg_pairlistdist_DNAbp
     pairdist2_exv    = pairlist%cg_pairlistdist_exv    * pairlist%cg_pairlistdist_exv
 
     pairdist_longest = max(pairlist%cg_pairlistdist_ele,    &
                            pairlist%cg_pairlistdist_126,    &
+                           pairlist%cg_pairlistdist_WF, &
                            pairlist%cg_pairlistdist_PWMcos, &
                            pairlist%cg_pairlistdist_DNAbp,  &
                            pairlist%cg_pairlistdist_exv)
@@ -864,7 +881,7 @@ contains
 
           i_base_type = enefunc%NA_base_type(i)
           i_chain_id  = enefunc%mol_chain_id(i)
-          i_is_idr    = enefunc%cg_IDR_HPS_is_IDR(i) .or. enefunc%cg_IDR_KH_is_IDR(i)
+          i_is_idr    = enefunc%cg_IDR_HPS_is_IDR(i) .or. enefunc%cg_IDR_KH_is_IDR(i) .or. enefunc%cg_IDR_MPIPI_is_IDR(i)
           i_is_DNA    = i_base_type <= NABaseTypeDBMAX .or. i_base_type == NABaseTypeDP .or. i_base_type == NABaseTypeDS
 
           do j = i + 1, natom
@@ -892,7 +909,7 @@ contains
 
             j_base_type = enefunc%NA_base_type(j)
             j_chain_id  = enefunc%mol_chain_id(j)
-            j_is_idr    = enefunc%cg_IDR_HPS_is_IDR(j) .or. enefunc%cg_IDR_KH_is_IDR(j)
+            j_is_idr    = enefunc%cg_IDR_HPS_is_IDR(j) .or. enefunc%cg_IDR_KH_is_IDR(j) .or. enefunc%cg_IDR_MPIPI_is_IDR(j)
             j_is_DNA    = j_base_type <= NABaseTypeDBMAX .or. j_base_type == NABaseTypeDP .or. j_base_type == NABaseTypeDS
 
             ! ----------------------------
@@ -910,11 +927,11 @@ contains
                 ij_is_KH_pair = .true.
               end if
             end if
-            
+
             ! =============
             ! exv (general)
             ! =============
-            ! 
+            !
             if (rij2 < pairdist2_exv) then
               if (i_is_DNA .and. j_is_DNA) then
                 ! go to DNA-DNA and do nothing here
@@ -1455,10 +1472,12 @@ contains
     ! local variables
     real(wp)                 :: pairdist2_126
     real(wp)                 :: dij(1:3), rij2
-    integer                  :: i, j, natom, n, nloops
+    integer                  :: i, j, k, natom, n, nloops
     integer                  :: i_chain_id, j_chain_id
     integer                  :: num_IDR_HPS_max
+    integer                  :: num_excl, ini_excl, fin_excl
     integer                  :: id, my_id, nthread
+    logical                  :: nb15_calc
     logical                  :: proceed, do_allocate
 
     integer,     pointer     :: num_IDR_HPS_pre(:), num_IDR_HPS(:)
@@ -1490,6 +1509,7 @@ contains
     
     do n = 1, nloops
 
+      num_excl                     = 0
       num_IDR_HPS(1:nthread)       = 0
 
       if (.not. do_allocate) then
@@ -1497,11 +1517,13 @@ contains
       end if
 
       !$omp parallel                    &
-      !$omp private(id, my_id, i, j,    &
+      !$omp private(id, my_id, i, j, k, &
       !$omp         i_chain_id,         &
       !$omp         j_chain_id,         &
+      !$omp         nb15_calc,          &
+      !$omp         ini_excl, fin_excl, &
       !$omp         proceed, dij, rij2) &
-      !$omp firstprivate(do_allocate)
+      !$omp firstprivate(do_allocate, num_excl)
       !
 #ifdef OMP
       id = omp_get_thread_num()
@@ -1512,6 +1534,10 @@ contains
       id = id + 1
 
       do i = 1, natom-1
+
+        ini_excl = num_excl + 1
+        fin_excl = num_excl + enefunc%num_nonb_excl(i)
+        num_excl = fin_excl
 
         proceed = .true.
         if (mod(i, nproc_city*nthread) /= my_id) proceed = .false.
@@ -1527,9 +1553,18 @@ contains
 
             j_chain_id  = enefunc%mol_chain_id(j)
             ! 
-            if (i_chain_id == j_chain_id .and. i == j - 1) then
-              cycle
-            end if
+            ! if (i_chain_id == j_chain_id .and. i == j - 1) then
+              ! cycle
+            ! end if
+            nb15_calc = .true.
+            !
+            do k = ini_excl, fin_excl
+              if (j == enefunc%nonb_excl_list(k)) then
+                nb15_calc = .false.
+                exit
+              end if
+            end do
+            if (.not. nb15_calc) cycle
 
             dij(1:3) = coord(1:3,i) - coord(1:3,j)
             rij2     = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
@@ -1731,6 +1766,178 @@ contains
     return
 
   end subroutine update_pairlist_nobc_cg_IDR_KH
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_pairlist_nobc_cg_IDR_MPIPI
+  !> @brief        update pairlist for nobc in IDR MPIPI model
+  !! @authors      CT
+  !! @param[in]    enefunc  : information of potential energy function
+  !! @param[in]    coord    : atomic coordinate
+  !! @param[inout] pairlist : information of pairlist
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_pairlist_nobc_cg_IDR_MPIPI(enefunc, coord, pairlist)
+  
+    ! formal arguments
+    type(s_enefunc),          intent(in)    :: enefunc
+    real(wp),                 intent(in)    :: coord(:,:)
+    type(s_pairlist), target, intent(inout) :: pairlist
+
+    ! local variables
+    real(wp)                 :: pairdist2_WF
+    real(wp)                 :: dij(1:3), rij2
+    integer                  :: i, j, k, natom, n, nloops
+    integer                  :: i_chain_id, j_chain_id
+    integer                  :: num_IDR_MPIPI_max
+    integer                  :: num_excl, ini_excl, fin_excl
+    integer                  :: id, my_id, nthread
+#ifdef OMP
+    integer                  :: omp_get_thread_num, omp_get_max_threads
+#endif
+    logical                  :: nb15_calc
+    logical                  :: proceed, do_allocate
+
+    integer,     pointer     :: num_IDR_MPIPI_pre(:), num_IDR_MPIPI(:)
+
+
+    num_IDR_MPIPI_pre => pairlist%num_cg_IDR_MPIPI_pre
+    num_IDR_MPIPI     => pairlist%num_cg_IDR_MPIPI
+
+    pairdist2_WF = pairlist%cg_pairlistdist_WF  &
+        * pairlist%cg_pairlistdist_WF
+    natom         =  size(coord(1,:))
+
+    ! initialize
+    !
+#ifdef OMP
+    nthread = omp_get_max_threads()
+#else
+    nthread = 1
+#endif
+    pairlist%num_cg_IDR_MPIPI_calc(1:natom,1:nthread) = 0
+
+    if (pairlist%allocate_nobc_cg_IDR_MPIPI) then
+      nloops      = 2
+      do_allocate = .true.
+    else
+      nloops      = 1
+      do_allocate = .false.
+    end if
+    
+    do n = 1, nloops
+
+      num_excl                     = 0
+      num_IDR_MPIPI(1:nthread)       = 0
+
+      if (.not. do_allocate) then
+        num_IDR_MPIPI_pre(1:nthread) = 0
+      end if
+
+      !$omp parallel                    &
+      !$omp private(id, my_id, i, j, k, &
+      !$omp         i_chain_id,         &
+      !$omp         j_chain_id,         &
+      !$omp         nb15_calc,          &
+      !$omp         ini_excl, fin_excl, &
+      !$omp         proceed, dij, rij2) &
+      !$omp firstprivate(do_allocate, num_excl)
+      !
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      my_id = my_city_rank * nthread + id
+      id = id + 1
+
+      do i = 1, natom-1
+
+        ini_excl = num_excl + 1
+        fin_excl = num_excl + enefunc%num_nonb_excl(i)
+        num_excl = fin_excl
+
+        proceed = .true.
+        if (mod(i, nproc_city*nthread) /= my_id) proceed = .false.
+        if (.not. enefunc%cg_IDR_MPIPI_is_IDR(i))  proceed = .false.
+
+        if (proceed) then
+
+          i_chain_id  = enefunc%mol_chain_id(i)
+
+          do j = i + 1, natom
+
+            if (.not. enefunc%cg_IDR_MPIPI_is_IDR(j)) cycle
+
+            j_chain_id  = enefunc%mol_chain_id(j)
+            ! 
+            ! if (i_chain_id == j_chain_id .and. i == j - 1) then
+              ! cycle
+            ! end if
+            nb15_calc = .true.
+            !
+            do k = ini_excl, fin_excl
+              if (j == enefunc%nonb_excl_list(k)) then
+                nb15_calc = .false.
+                exit
+              end if
+            end do
+            if (.not. nb15_calc) cycle
+
+            dij(1:3) = coord(1:3,i) - coord(1:3,j)
+            rij2     = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
+
+            ! store interaction table
+            !
+            if (rij2 < pairdist2_WF) then
+              num_IDR_MPIPI(id) = num_IDR_MPIPI(id) + 1
+              if (.not. do_allocate) then
+                pairlist%cg_IDR_MPIPI_list(num_IDR_MPIPI(id), id) = j
+              end if
+            end if
+
+          end do
+
+        end if
+
+        if (.not. do_allocate) then
+          pairlist%num_cg_IDR_MPIPI_calc(i,id) = num_IDR_MPIPI(id) - num_IDR_MPIPI_pre(id)
+          num_IDR_MPIPI_pre(id)                = num_IDR_MPIPI(id)
+        end if
+
+      end do
+      !$omp end parallel
+
+      ! allocate memory of pairlist
+      !
+      if (do_allocate) then
+        num_IDR_MPIPI_max     = 0
+        do i = 1, nthread
+          num_IDR_MPIPI_max = max(num_IDR_MPIPI_max, num_IDR_MPIPI(i))
+        end do
+
+        num_IDR_MPIPI_max = int(real(num_IDR_MPIPI_max,wp)*FactNumNb15)
+
+        call alloc_pairlist (pairlist, PairListCGIDRMPIPI, num_IDR_MPIPI_max)
+
+        pairlist%num_cg_IDR_MPIPI_max      = num_IDR_MPIPI_max
+
+        do_allocate = .false.
+      end if
+
+    end do
+
+    ! check memory size
+    !
+    call check_pairlist_memory_size(num_IDR_MPIPI, pairlist%num_cg_IDR_MPIPI_max, &
+        pairlist%allocate_nobc_cg_IDR_MPIPI)
+
+    return
+
+  end subroutine update_pairlist_nobc_cg_IDR_MPIPI
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2647,6 +2854,7 @@ contains
     integer          :: num_dna, num_base, num_phos
     integer          :: num_pro_idr_hps
     integer          :: num_pro_idr_kh
+    integer          :: num_pro_idr_mpipi
     integer          :: num_pro_kh
     integer          :: num_charged
     integer          :: num_WCA
@@ -2657,6 +2865,7 @@ contains
     integer          :: i_dna, i_base, i_phos
     integer          :: i_pro_idr_hps
     integer          :: i_pro_idr_kh
+    integer          :: i_pro_idr_mpipi
     integer          :: i_pro_kh
     integer          :: i_charged
     integer          :: i_WCA
@@ -2680,6 +2889,7 @@ contains
     integer, pointer :: cell_list_DNA_phos(:), cell_head_DNA_phos(:)
     integer, pointer :: cell_list_IDR_HPS(:), cell_head_IDR_HPS(:)
     integer, pointer :: cell_list_IDR_KH(:), cell_head_IDR_KH(:)
+    integer, pointer :: cell_list_IDR_MPIPI(:), cell_head_IDR_MPIPI(:)
     integer, pointer :: cell_list_KH(:), cell_head_KH(:)
     integer, pointer :: cell_list_charged(:), cell_head_charged(:)
     integer, pointer :: cell_list_WCA(:), cell_head_WCA(:)
@@ -2695,6 +2905,7 @@ contains
     num_phos           = enefunc%num_cg_particle_DNA_phos
     num_pro_idr_hps    = enefunc%num_cg_particle_IDR_HPS
     num_pro_idr_kh     = enefunc%num_cg_particle_IDR_KH 
+    num_pro_idr_mpipi  = enefunc%num_cg_particle_IDR_MPIPI
     num_pro_kh         = enefunc%num_cg_particle_KH 
     num_charged        = enefunc%num_cg_particle_charged
     num_WCA            = enefunc%num_cg_particle_WCA
@@ -2729,6 +2940,8 @@ contains
     cell_head_IDR_HPS  => pairlist%cell_head_index_cg_IDR_HPS
     cell_list_IDR_KH   => pairlist%cell_linked_list_cg_IDR_KH
     cell_head_IDR_KH   => pairlist%cell_head_index_cg_IDR_KH
+    cell_list_IDR_MPIPI => pairlist%cell_linked_list_cg_IDR_MPIPI
+    cell_head_IDR_MPIPI => pairlist%cell_head_index_cg_IDR_MPIPI
     cell_list_KH       => pairlist%cell_linked_list_cg_KH
     cell_head_KH       => pairlist%cell_head_index_cg_KH
     cell_list_charged  => pairlist%cell_linked_list_cg_charged
@@ -2843,6 +3056,18 @@ contains
       icell_index = icell_atom(i_atom)
       cell_list_IDR_KH(i_pro_idr_kh) = cell_head_IDR_KH(icell_index)
       cell_head_IDR_KH(icell_index) = i_pro_idr_kh
+    end do
+
+    ! =================================
+    ! Make cell linked list for IDR MPIPI
+    ! =================================
+    ! 
+    cell_head_IDR_MPIPI(1:num_cell_all) = 0
+    do i_pro_idr_mpipi = 1, num_pro_idr_mpipi
+      i_atom = enefunc%cg_particle_IDR_MPIPI(i_pro_idr_mpipi)
+      icell_index = icell_atom(i_atom)
+      cell_list_IDR_MPIPI(i_pro_idr_mpipi) = cell_head_IDR_MPIPI(icell_index)
+      cell_head_IDR_MPIPI(icell_index) = i_pro_idr_mpipi
     end do
 
     ! =============================
@@ -3058,7 +3283,8 @@ contains
           else
             is_dna_i = .false.
           end if
-          if (enefunc%cg_IDR_HPS_is_IDR(i_atom) .or. enefunc%cg_IDR_KH_is_IDR(i_atom)) then
+          if (enefunc%cg_IDR_HPS_is_IDR(i_atom) .or. enefunc%cg_IDR_KH_is_IDR(i_atom) &
+              .or. enefunc%cg_IDR_MPIPI_is_IDR(i_atom)) then
             is_idr_i = .true.
           else
             is_idr_i = .false.
@@ -3092,7 +3318,8 @@ contains
               ! exclude IDR-IDR interactions
               ! 
               if (enefunc%cg_IDR_HPS_is_IDR(j_atom) .or. &
-                  enefunc%cg_IDR_KH_is_IDR(j_atom)) then
+                  enefunc%cg_IDR_KH_is_IDR(j_atom) .or. &
+                  enefunc%cg_IDR_MPIPI_is_IDR(j_atom)) then
                 is_idr_j = .true.
               else
                 is_idr_j = .false.
@@ -4086,12 +4313,24 @@ contains
               ! get j properties
               ! 
               j_chain_id  = enefunc%mol_chain_id(j_atom)
-              
+
               do_calc = .true.
               ! 
-              if (i_chain_id == j_chain_id .and. i_atom == j_atom - 1) then
-                do_calc = .false.
-              end if
+              ! if (i_chain_id == j_chain_id .and. i_atom == j_atom - 1) then
+              !   do_calc = .false.
+              ! end if
+              !
+              ! exclude interactions in exclusion list
+              !
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do k = ini_excl, fin_excl
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+
               ! 
               if (.not. do_calc) then
                 j_idr = cell_list_idr(j_idr)
@@ -4105,7 +4344,7 @@ contains
               call check_pbc(box_size, dij, pbc_int)
 
               rij_sqr      = dij(1) * dij(1) + dij(2) * dij(2) + dij(3) * dij(3)
-              
+
               ! --------------------
               ! core: count and fill
               ! --------------------
@@ -4144,7 +4383,7 @@ contains
 
         do_allocate = .false.
       end if
-      
+
     end do                      ! nloops
 
     ! check memory size
@@ -4267,7 +4506,7 @@ contains
 #endif
       my_id = my_city_rank * nthread + id
       id    = id + 1
-      
+
       do i_idr = 1, num_pro_idr - 1
 
         if (mod(i_idr - 1, nproc_city * nthread) == my_id) then
@@ -4370,6 +4609,222 @@ contains
     return
 
   end subroutine update_pairlist_pbc_cg_IDR_KH
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_pairlist_pbc_cg_IDR_MPIPI
+  !> @brief        update pairlist for CG protein MPIPI IDR model
+  !! @authors      CT
+  !! @param[in]    enefunc   : potential energy functions information
+  !! @param[in]    boundary  : boundary conditions information
+  !! @param[in]    coord_pbc : PBC coordinates
+  !! @param[inout] pairlist  : pairlist information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine update_pairlist_pbc_cg_IDR_MPIPI(enefunc, boundary, coord_pbc, &
+                                           pairlist)
+
+    ! formal arguments
+    type(s_enefunc),  target, intent(in)    :: enefunc
+    type(s_boundary), target, intent(in)    :: boundary
+    real(wp),                 intent(in)    :: coord_pbc(:,:)
+    type(s_pairlist), target, intent(inout) :: pairlist
+
+    ! local variables
+    integer          :: num_pro_idr
+    ! 
+    integer          :: i, j, k, n, nloops
+    integer          :: i_idr, j_idr
+    integer          :: i_atom, j_atom
+    integer          :: i_cell, j_cell
+    integer          :: i_nbcell
+    integer          :: i_chain_id, j_chain_id
+    integer          :: pbc_int
+    ! 
+    integer          :: ini_excl, fin_excl
+    integer          :: num_idr_max
+    ! 
+    real(wp)         :: dij(1:3)
+    real(wp)         :: dij_pbc(1:3)
+    real(wp)         :: rij_sqr
+    real(wp)         :: pairdist_WF
+    real(wp)         :: pairdist_WF_sqr
+    ! 
+    real(wp)         :: box_size(1:3), half_box_size(1:3)
+    ! 
+    integer, pointer :: cg_list_idr(:)
+    integer, pointer :: icell_atom(:)
+    integer, pointer :: cell_list_idr(:), cell_head_idr(:)
+    integer, pointer :: num_idr_pre(:), num_idr(:)
+    ! 
+    logical          :: do_allocate
+    logical          :: do_calc
+    ! 
+    integer          :: id, my_id, nthread
+#ifdef OMP
+    integer          :: omp_get_max_threads, omp_get_thread_num
+#endif
+
+    num_pro_idr        = enefunc%num_cg_particle_IDR_MPIPI
+
+    box_size(1)        = boundary%box_size_x
+    box_size(2)        = boundary%box_size_y
+    box_size(3)        = boundary%box_size_z
+    half_box_size(1:3) = box_size(1:3) * 0.5_wp
+
+    pairdist_WF        = pairlist%cg_pairlistdist_WF
+    pairdist_WF_sqr    = pairdist_WF * pairdist_WF
+
+    icell_atom         => pairlist%cell_index_cg_all
+    cell_list_idr      => pairlist%cell_linked_list_cg_IDR_MPIPI
+    cell_head_idr      => pairlist%cell_head_index_cg_IDR_MPIPI
+    num_idr_pre        => pairlist%num_cg_IDR_MPIPI_pre
+    num_idr            => pairlist%num_cg_IDR_MPIPI
+    cg_list_idr        => enefunc%cg_particle_IDR_MPIPI
+
+#ifdef OMP
+    nthread = omp_get_max_threads()
+#else
+    nthread = 1
+#endif
+
+    pairlist%num_cg_IDR_MPIPI_calc(1:num_pro_idr,1:nthread) = 0
+
+    if (pairlist%allocate_pbc_cg_IDR_MPIPI) then
+      nloops      = 2
+      do_allocate = .true.
+    else
+      nloops      = 1
+      do_allocate = .false.
+    end if
+
+    do n = 1, nloops
+
+      num_idr(1:nthread) = 0
+
+      if (.not. do_allocate) num_idr_pre(1:nthread) = 0
+
+      !$omp parallel                        &
+      !$omp private(id, my_id, i, j, k,     &
+      !$omp         pbc_int,                &
+      !$omp         i_idr, j_idr,           &
+      !$omp         i_atom, j_atom,         &
+      !$omp         i_cell, j_cell,         &
+      !$omp         i_nbcell, do_calc,      &
+      !$omp         ini_excl, fin_excl,     &
+      !$omp         dij, dij_pbc, rij_sqr,  &
+      !$omp         i_chain_id, j_chain_id) &
+      !$omp firstprivate(do_allocate)
+      !
+#ifdef OMP
+      id = omp_get_thread_num()
+#else
+      id = 0
+#endif
+      my_id = my_city_rank * nthread + id
+      id    = id + 1
+
+      do i_idr = 1, num_pro_idr - 1
+
+        if (mod(i_idr - 1, nproc_city * nthread) == my_id) then
+
+          i_atom = cg_list_idr(i_idr)
+          i_cell      = icell_atom(i_atom)
+          i_chain_id  = enefunc%mol_chain_id(i_atom)
+
+          do i_nbcell = 1, boundary%num_neighbor_cells_CG_WF
+
+            j_cell = boundary%neighbor_cells_CG_WF(i_nbcell, i_cell)
+            j_idr = cell_head_idr(j_cell)
+
+            do while (j_idr > i_idr)
+
+              j_atom = cg_list_idr(j_idr)
+
+              !
+              ! get j properties
+              !
+              j_chain_id  = enefunc%mol_chain_id(j_atom)
+
+              do_calc = .true.
+              !
+              ! if (i_chain_id == j_chain_id .and. i_atom == j_atom - 1) then
+                ! do_calc = .false.
+              ! end if
+              ini_excl = enefunc%cg_istart_nonb_excl(i_atom)
+              fin_excl = ini_excl + enefunc%num_nonb_excl(i_atom) - 1
+              do k = ini_excl, fin_excl
+                if (j_atom == enefunc%nonb_excl_list(k)) then
+                  do_calc = .false.
+                  exit
+                end if
+              end do
+              !
+              if (.not. do_calc) then
+                j_idr = cell_list_idr(j_idr)
+                cycle
+              end if
+
+              !
+              ! distance within pairlistdist?
+              !
+              dij(1:3) = coord_pbc(1:3,j_atom) - coord_pbc(1:3,i_atom)
+              call check_pbc(box_size, dij, pbc_int)
+
+              rij_sqr  = dij(1) * dij(1) + dij(2) * dij(2) + dij(3) * dij(3)
+
+              ! --------------------
+              ! core: count and fill
+              ! --------------------
+              !
+              if (rij_sqr < pairdist_WF_sqr) then
+                num_idr(id) = num_idr(id) + 1
+                if (.not. do_allocate) then
+                  pairlist%cg_IDR_MPIPI_list(num_idr(id), id) = j_atom * 27 + pbc_int
+                end if
+              end if
+
+              j_idr = cell_list_idr(j_idr)
+            end do              ! j_atom
+
+          end do                ! i_nbcell
+
+        end if                  ! compute on the current thread
+
+        if (.not. do_allocate) then
+          pairlist%num_cg_IDR_MPIPI_calc(i_idr,id) = num_idr(id) - num_idr_pre(id)
+          num_idr_pre(id) = num_idr(id)
+        end if
+
+      end do                    ! icharge = 1 to num_charge
+      !$omp end parallel
+
+      ! allocate memory of pairlist
+      !
+      if (do_allocate) then
+        num_idr_max = max(1, maxval(num_idr(1:nthread)))
+        num_idr_max = int(real(num_idr_max,wp) * FactNumNb15)
+
+        call alloc_pairlist(pairlist, PairListPbcCGIDRMPIPI, num_idr_max)
+
+        pairlist%num_cg_IDR_MPIPI_max = num_idr_max
+
+        do_allocate = .false.
+      end if
+
+    end do                      ! nloops
+
+    ! check memory size
+    !
+    call check_pairlist_memory_size(num_idr, pairlist%num_cg_IDR_MPIPI_max, &
+        pairlist%allocate_pbc_cg_IDR_MPIPI)
+
+    return
+
+  end subroutine update_pairlist_pbc_cg_IDR_MPIPI
+
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -4499,7 +4954,10 @@ contains
           ! get i properties
           ! 
           i_chain_id  = enefunc%mol_chain_id(i_atom)
-          if (enefunc%cg_IDR_HPS_is_IDR(i_atom) .or. enefunc%cg_IDR_KH_is_IDR(i_atom)) then
+          if (enefunc%cg_IDR_HPS_is_IDR(i_atom) .or. &
+              enefunc%cg_IDR_KH_is_IDR(i_atom) .or. &
+              enefunc%cg_IDR_MPIPI_is_IDR(i_atom) &
+              ) then
             is_idr_i = .true.
           else
             is_idr_i = .false.
@@ -4518,7 +4976,10 @@ contains
               ! get j properties
               ! 
               j_chain_id  = enefunc%mol_chain_id(j_atom)
-              if (enefunc%cg_IDR_HPS_is_IDR(j_atom) .or. enefunc%cg_IDR_KH_is_IDR(j_atom)) then
+              if (enefunc%cg_IDR_HPS_is_IDR(j_atom) .or. &
+                  enefunc%cg_IDR_KH_is_IDR(j_atom) .or. &
+                  enefunc%cg_IDR_MPIPI_is_IDR(j_atom) &
+                  ) then
                 is_idr_j = .true.
               else
                 is_idr_j = .false.

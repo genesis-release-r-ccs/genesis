@@ -71,6 +71,7 @@ module at_pairlist_str_mod
     logical                       :: allocate_nobc_cg_pwmcosns
     logical                       :: allocate_nobc_cg_IDR_HPS
     logical                       :: allocate_nobc_cg_IDR_KH
+    logical                       :: allocate_nobc_cg_IDR_MPIPI
     ! 
     integer,          allocatable :: cg_DNA_basepair_list(:,:)
     integer,          allocatable :: cg_DNA_exv_list(:,:)
@@ -81,6 +82,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: cg_pwmcosns_list(:,:)
     integer,          allocatable :: cg_IDR_HPS_list(:,:)
     integer,          allocatable :: cg_IDR_KH_list(:,:)
+    integer,          allocatable :: cg_IDR_MPIPI_list(:,:)
     integer,          allocatable :: cg_KH_list(:,:)
     integer,          allocatable :: cg_KH_model_list(:,:)
     integer,          allocatable :: cg_WCA_list(:,:)
@@ -95,6 +97,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: num_cg_pwmcosns_calc(:,:)
     integer,          allocatable :: num_cg_IDR_HPS_calc(:,:)
     integer,          allocatable :: num_cg_IDR_KH_calc(:,:)
+    integer,          allocatable :: num_cg_IDR_MPIPI_calc(:,:)
     integer,          allocatable :: num_cg_KH_calc(:,:)
     integer,          allocatable :: num_cg_WCA_calc(:,:)
     integer,          allocatable :: num_cg_ISOLF_calc(:,:)
@@ -108,6 +111,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: num_cg_pwmcosns_pre(:)
     integer,          allocatable :: num_cg_IDR_HPS_pre(:)
     integer,          allocatable :: num_cg_IDR_KH_pre(:)
+    integer,          allocatable :: num_cg_IDR_MPIPI_pre(:)
     integer,          allocatable :: num_cg_KH_pre(:)
     integer,          allocatable :: num_cg_WCA_pre(:)
     integer,          allocatable :: num_cg_ISOLF_pre(:)
@@ -121,6 +125,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: num_cg_pwmcosns(:)
     integer,          allocatable :: num_cg_IDR_HPS(:)
     integer,          allocatable :: num_cg_IDR_KH(:)
+    integer,          allocatable :: num_cg_IDR_MPIPI(:)
     integer,          allocatable :: num_cg_KH(:)
     integer,          allocatable :: num_cg_WCA(:)
     integer,          allocatable :: num_cg_ISOLF(:)
@@ -134,6 +139,7 @@ module at_pairlist_str_mod
     integer                       :: num_cg_pwmcosns_max
     integer                       :: num_cg_IDR_HPS_max
     integer                       :: num_cg_IDR_KH_max
+    integer                       :: num_cg_IDR_MPIPI_max
     integer                       :: num_cg_KH_max
     integer                       :: num_cg_WCA_max
     integer                       :: num_cg_ISOLF_max
@@ -146,6 +152,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: cell_linked_list_cg_DNA_base(:)
     integer,          allocatable :: cell_linked_list_cg_IDR_HPS(:)
     integer,          allocatable :: cell_linked_list_cg_IDR_KH(:)
+    integer,          allocatable :: cell_linked_list_cg_IDR_MPIPI(:)
     integer,          allocatable :: cell_linked_list_cg_KH(:)
     integer,          allocatable :: cell_linked_list_cg_charged(:)
     integer,          allocatable :: cell_linked_list_cg_WCA(:)
@@ -157,6 +164,7 @@ module at_pairlist_str_mod
     integer,          allocatable :: cell_head_index_cg_DNA_base(:)
     integer,          allocatable :: cell_head_index_cg_IDR_HPS(:)
     integer,          allocatable :: cell_head_index_cg_IDR_KH(:)
+    integer,          allocatable :: cell_head_index_cg_IDR_MPIPI(:)
     integer,          allocatable :: cell_head_index_cg_KH(:)
     integer,          allocatable :: cell_head_index_cg_charged(:)
     integer,          allocatable :: cell_head_index_cg_WCA(:)
@@ -171,6 +179,7 @@ module at_pairlist_str_mod
     logical                       :: allocate_pbc_cg_pwmcosns
     logical                       :: allocate_pbc_cg_IDR_HPS
     logical                       :: allocate_pbc_cg_IDR_KH
+    logical                       :: allocate_pbc_cg_IDR_MPIPI
     logical                       :: allocate_pbc_cg_KH
     logical                       :: allocate_pbc_cg_WCA
     logical                       :: allocate_pbc_cg_ISOLF
@@ -179,6 +188,7 @@ module at_pairlist_str_mod
     ! 
     real(wp)                      :: cg_pairlistdist_ele
     real(wp)                      :: cg_pairlistdist_126
+    real(wp)                      :: cg_pairlistdist_WF
     real(wp)                      :: cg_pairlistdist_PWMcos
     real(wp)                      :: cg_pairlistdist_DNAbp
     real(wp)                      :: cg_pairlistdist_exv
@@ -210,9 +220,10 @@ module at_pairlist_str_mod
   integer,      public, parameter :: PairListCGPWMcosns      = 20
   integer,      public, parameter :: PairListCGIDRHPS        = 21
   integer,      public, parameter :: PairListCGIDRKH         = 22
-  integer,      public, parameter :: PairListCGKH            = 23
-  integer,      public, parameter :: PairListNthCGPWMcos     = 24
-  integer,      public, parameter :: PairListNthCGPWMcosns   = 25
+  integer,      public, parameter :: PairListCGIDRMPIPI      = 23
+  integer,      public, parameter :: PairListCGKH            = 24
+  integer,      public, parameter :: PairListNthCGPWMcos     = 25
+  integer,      public, parameter :: PairListNthCGPWMcosns   = 26
   ! 
   integer,      public, parameter :: PairListNthreadsPbcCG   = 30
   integer,      public, parameter :: PairListAtomPbcCGexv    = 31
@@ -223,7 +234,8 @@ module at_pairlist_str_mod
   integer,      public, parameter :: PairListAtomPbcCGPWMcosns = 36
   integer,      public, parameter :: PairListAtomPbcCGIDRHPS = 37
   integer,      public, parameter :: PairListAtomPbcCGIDRKH  = 38
-  integer,      public, parameter :: PairListAtomPbcCGKH     = 39
+  integer,      public, parameter :: PairListAtomPbcCGIDRMPIPI = 39
+  integer,      public, parameter :: PairListAtomPbcCGKH     = 40
   integer,      public, parameter :: PairListAtomPbcCGWCA    = 41
   integer,      public, parameter :: PairListAtomPbcCGISOLF  = 42
   integer,      public, parameter :: PairListAtomPbcCGLJ     = 43
@@ -237,7 +249,8 @@ module at_pairlist_str_mod
   integer,      public, parameter :: PairListPbcCGPWMcosns   = 56
   integer,      public, parameter :: PairListPbcCGIDRHPS     = 57
   integer,      public, parameter :: PairListPbcCGIDRKH      = 58
-  integer,      public, parameter :: PairListPbcCGKH         = 59
+  integer,      public, parameter :: PairListPbcCGIDRMPIPI   = 59
+  integer,      public, parameter :: PairListPbcCGKH         = 60
   integer,      public, parameter :: PairListPbcCGWCA        = 61
   integer,      public, parameter :: PairListPbcCGISOLF      = 62
   integer,      public, parameter :: PairListPbcCGLJ         = 63
@@ -280,6 +293,7 @@ contains
     pairlist%allocate_nobc_cg_pwmcosns   = .true.
     pairlist%allocate_nobc_cg_IDR_HPS    = .true.
     pairlist%allocate_nobc_cg_IDR_KH     = .true.
+    pairlist%allocate_nobc_cg_IDR_MPIPI  = .true.
     pairlist%allocate_pbc_cg_exv         = .true.
     pairlist%allocate_pbc_cg_ele         = .true.
     pairlist%allocate_pbc_cg_DNA_bp      = .true.
@@ -288,6 +302,7 @@ contains
     pairlist%allocate_pbc_cg_pwmcosns    = .true.
     pairlist%allocate_pbc_cg_IDR_HPS     = .true.
     pairlist%allocate_pbc_cg_IDR_KH      = .true.
+    pairlist%allocate_pbc_cg_IDR_MPIPI   = .true.
     pairlist%allocate_pbc_cg_KH          = .true.
     pairlist%allocate_pbc_cg_WCA         = .true.
     pairlist%allocate_pbc_cg_ISOLF       = .true.
@@ -300,11 +315,13 @@ contains
     pairlist%num_cg_pwmcosns_max         = 0
     pairlist%num_cg_IDR_HPS_max          = 0
     pairlist%num_cg_IDR_KH_max           = 0
+    pairlist%num_cg_IDR_MPIPI_max        = 0
     pairlist%num_cg_KH_max               = 0
     pairlist%num_nb15_max                = 0
     pairlist%pairlistdist                = 0.0_wp
     pairlist%cg_pairlistdist_ele         = 0.0_wp
     pairlist%cg_pairlistdist_126         = 0.0_wp
+    pairlist%cg_pairlistdist_WF          = 0.0_wp
     pairlist%cg_pairlistdist_PWMcos      = 0.0_wp
     pairlist%cg_pairlistdist_DNAbp       = 0.0_wp
     pairlist%cg_pairlistdist_exv         = 0.0_wp
@@ -385,6 +402,7 @@ contains
             pairlist%num_cg_exv_calc,                 &
             pairlist%num_cg_IDR_HPS_calc,             &
             pairlist%num_cg_IDR_KH_calc,              &
+            pairlist%num_cg_IDR_MPIPI_calc,           &
             pairlist%num_cg_KH_calc,                  &
             stat = dealloc_stat)
       end if
@@ -395,6 +413,7 @@ contains
           pairlist%num_cg_exv_calc(var_size,nthread),               &
           pairlist%num_cg_IDR_HPS_calc(var_size,nthread),           &
           pairlist%num_cg_IDR_KH_calc(var_size,nthread),            &
+          pairlist%num_cg_IDR_MPIPI_calc(var_size,nthread),         &
           pairlist%num_cg_KH_calc(var_size,nthread),                &
           stat = alloc_stat)
 
@@ -465,6 +484,15 @@ contains
       end if
 
       allocate(pairlist%cg_IDR_KH_list(var_size,nthread), &
+          stat = alloc_stat)
+
+    case (PairListCGIDRMPIPI)
+      if (allocated(pairlist%cg_IDR_MPIPI_list)) then
+        if (size(pairlist%cg_IDR_MPIPI_list) == var_size*nthread) return
+        deallocate (pairlist%cg_IDR_MPIPI_list, &
+            stat = dealloc_stat)
+      end if
+      allocate(pairlist%cg_IDR_MPIPI_list(var_size,nthread), &
           stat = alloc_stat)
 
     case (PairListCGexv)
@@ -634,6 +662,16 @@ contains
       end if
       allocate(pairlist%num_cg_IDR_KH_pre (nthread),      &
           pairlist%num_cg_IDR_KH          (nthread),      &
+          stat = alloc_stat)
+
+      if (allocated(pairlist%num_cg_IDR_MPIPI_pre)) then
+        if (size(pairlist%num_cg_IDR_MPIPI_pre) == nthread) return
+        deallocate(pairlist%num_cg_IDR_MPIPI_pre,            &
+            pairlist%num_cg_IDR_MPIPI,                       &
+            stat = dealloc_stat)
+      end if
+      allocate(pairlist%num_cg_IDR_MPIPI_pre (nthread),      &
+          pairlist%num_cg_IDR_MPIPI          (nthread),      &
           stat = alloc_stat)
 
       if (allocated(pairlist%num_cg_exv_pre)) then
@@ -812,6 +850,18 @@ contains
           pairlist%cell_linked_list_cg_IDR_KH(var_size),           &
           stat = alloc_stat)
 
+    case (PairListAtomPbcCGIDRMPIPI)
+
+      if (allocated(pairlist%num_cg_IDR_MPIPI_calc)) then
+        if (size(pairlist%num_cg_IDR_MPIPI_calc) == var_size*nthread) return
+        deallocate(pairlist%num_cg_IDR_MPIPI_calc,                    &
+            pairlist%cell_linked_list_cg_IDR_MPIPI,                   &
+            stat = dealloc_stat)
+      end if
+      allocate(pairlist%num_cg_IDR_MPIPI_calc(var_size,nthread),      &
+          pairlist%cell_linked_list_cg_IDR_MPIPI(var_size),           &
+          stat = alloc_stat)
+
     case (PairListAtomPbcCGKH)
 
       if (allocated(pairlist%num_cg_KH_calc)) then
@@ -878,6 +928,8 @@ contains
             pairlist%num_cg_IDR_HPS,                       &
             pairlist%num_cg_IDR_KH_pre,                    &
             pairlist%num_cg_IDR_KH,                        &
+            pairlist%num_cg_IDR_MPIPI_pre,                 &
+            pairlist%num_cg_IDR_MPIPI,                     &
             pairlist%num_cg_KH_pre,                        &
             pairlist%num_cg_KH,                            &
             pairlist%num_cg_exv_pre,                       &
@@ -898,6 +950,8 @@ contains
           pairlist%num_cg_IDR_HPS               (nthread), &
           pairlist%num_cg_IDR_KH_pre            (nthread), &
           pairlist%num_cg_IDR_KH                (nthread), &
+          pairlist%num_cg_IDR_MPIPI_pre         (nthread), &
+          pairlist%num_cg_IDR_MPIPI             (nthread), &
           pairlist%num_cg_KH_pre                (nthread), &
           pairlist%num_cg_KH                    (nthread), &
           pairlist%num_cg_exv_pre               (nthread), &
@@ -959,6 +1013,15 @@ contains
       end if
 
       allocate(pairlist%cg_IDR_KH_list(var_size,nthread), stat = alloc_stat)
+
+    case (PairListPbcCGIDRMPIPI)
+
+      if (allocated(pairlist%cg_IDR_MPIPI_list)) then
+        if (size(pairlist%cg_IDR_MPIPI_list) == var_size*nthread) return
+        deallocate (pairlist%cg_IDR_MPIPI_list, stat = dealloc_stat)
+      end if
+
+      allocate(pairlist%cg_IDR_MPIPI_list(var_size,nthread), stat = alloc_stat)
 
     case (PairListPbcCGKH)
 
@@ -1034,6 +1097,7 @@ contains
             pairlist%cell_head_index_cg_DNA_base,         &
             pairlist%cell_head_index_cg_IDR_HPS,          &
             pairlist%cell_head_index_cg_IDR_KH,           &
+            pairlist%cell_head_index_cg_IDR_MPIPI,        &
             pairlist%cell_head_index_cg_KH,               &
             pairlist%cell_head_index_cg_charged,          &
             pairlist%cell_head_index_cg_WCA,              &
@@ -1048,6 +1112,7 @@ contains
           pairlist%cell_head_index_cg_DNA_base(var_size), &
           pairlist%cell_head_index_cg_IDR_HPS(var_size),  &
           pairlist%cell_head_index_cg_IDR_KH(var_size),   &
+          pairlist%cell_head_index_cg_IDR_MPIPI(var_size),&
           pairlist%cell_head_index_cg_KH(var_size),       &
           pairlist%cell_head_index_cg_charged(var_size),  &
           pairlist%cell_head_index_cg_WCA(var_size),      &
@@ -1230,6 +1295,13 @@ contains
             stat = dealloc_stat)
       end if
 
+    case (PairListCGIDRMPIPI)
+
+      if (allocated(pairlist%cg_IDR_MPIPI_list)) then
+        deallocate (pairlist%cg_IDR_MPIPI_list, &
+            stat = dealloc_stat)
+      end if
+
     case (PairListCGKH)
 
       if (allocated(pairlist%cg_KH_list)) then
@@ -1344,6 +1416,7 @@ contains
             pairlist%num_cg_exv_calc,                 &
             pairlist%num_cg_IDR_HPS_calc,             &
             pairlist%num_cg_IDR_KH_calc,              &
+            pairlist%num_cg_IDR_MPIPI_calc,           &
             pairlist%num_cg_KH_calc,                  &
             stat = dealloc_stat)
       end if
@@ -1373,6 +1446,11 @@ contains
       if (allocated(pairlist%num_cg_IDR_KH_pre))      then
         deallocate (pairlist%num_cg_IDR_KH_pre,      &
             pairlist%num_cg_IDR_KH,                  &
+            stat = dealloc_stat)
+      end if
+      if (allocated(pairlist%num_cg_IDR_MPIPI_pre))      then
+        deallocate (pairlist%num_cg_IDR_MPIPI_pre,      &
+            pairlist%num_cg_IDR_MPIPI,                  &
             stat = dealloc_stat)
       end if
       if (allocated(pairlist%num_cg_KH_pre))          then
@@ -1464,6 +1542,14 @@ contains
             stat = dealloc_stat)
       end if
 
+    case (PairListAtomPbcCGIDRMPIPI)
+
+      if (allocated(pairlist%num_cg_IDR_MPIPI_calc)) then
+        deallocate(pairlist%num_cg_IDR_MPIPI_calc,      &
+            pairlist%cell_linked_list_cg_IDR_MPIPI,     &
+            stat = dealloc_stat)
+      end if
+
     case (PairListAtomPbcCGKH)
 
       if (allocated(pairlist%num_cg_KH_calc)) then
@@ -1501,6 +1587,12 @@ contains
       if (allocated(pairlist%num_cg_IDR_KH_pre)) then
         deallocate(pairlist%num_cg_IDR_KH_pre,       &
             pairlist%num_cg_IDR_KH,                  &
+            stat = dealloc_stat)
+      end if
+
+      if (allocated(pairlist%num_cg_IDR_MPIPI_pre)) then
+        deallocate(pairlist%num_cg_IDR_MPIPI_pre,       &
+            pairlist%num_cg_IDR_MPIPI,                  &
             stat = dealloc_stat)
       end if
 
@@ -1564,6 +1656,12 @@ contains
         deallocate (pairlist%cg_IDR_KH_list, stat = dealloc_stat)
       end if
 
+    case (PairListPbcCGIDRMPIPI)
+
+      if (allocated(pairlist%cg_IDR_MPIPI_list)) then
+        deallocate (pairlist%cg_IDR_MPIPI_list, stat = dealloc_stat)
+      end if
+
     case (PairListPbcCGKH)
 
       if (allocated(pairlist%cg_KH_list)) then
@@ -1614,6 +1712,7 @@ contains
             pairlist%cell_head_index_cg_DNA_base,   &
             pairlist%cell_head_index_cg_IDR_HPS,    &
             pairlist%cell_head_index_cg_IDR_KH,     &
+            pairlist%cell_head_index_cg_IDR_MPIPI,  &
             pairlist%cell_head_index_cg_KH,         &
             pairlist%cell_head_index_cg_charged,    &
             stat = dealloc_stat)
@@ -1668,6 +1767,7 @@ contains
     call dealloc_pairlist(pairlist, PairListCGPWMcosns)
     call dealloc_pairlist(pairlist, PairListCGIDRHPS)
     call dealloc_pairlist(pairlist, PairListCGIDRKH)
+    call dealloc_pairlist(pairlist, PairListCGIDRMPIPI)
     call dealloc_pairlist(pairlist, PairListCGKH)
     call dealloc_pairlist(pairlist, PairListNthCGPWMcos)
     call dealloc_pairlist(pairlist, PairListNthCGPWMcosns)
@@ -1680,6 +1780,7 @@ contains
     call dealloc_pairlist(pairlist, PairListAtomPbcCGPWMcosns)
     call dealloc_pairlist(pairlist, PairListAtomPbcCGIDRHPS)
     call dealloc_pairlist(pairlist, PairListAtomPbcCGIDRKH)
+    call dealloc_pairlist(pairlist, PairListAtomPbcCGIDRMPIPI)
     call dealloc_pairlist(pairlist, PairListAtomPbcCGKH)
     call dealloc_pairlist(pairlist, PairListNthreadsPbcCG)
     call dealloc_pairlist(pairlist, PairListPbcCGDNAbp)
@@ -1690,6 +1791,7 @@ contains
     call dealloc_pairlist(pairlist, PairListPbcCGPWMcosns)
     call dealloc_pairlist(pairlist, PairListPbcCGIDRHPS)
     call dealloc_pairlist(pairlist, PairListPbcCGIDRKH)
+    call dealloc_pairlist(pairlist, PairListPbcCGIDRMPIPI)
     call dealloc_pairlist(pairlist, PairListPbcCGKH)
     call dealloc_pairlist(pairlist, PairListCellsPbcCG)
     call dealloc_pairlist(pairlist, PairListPbcCGWCA)

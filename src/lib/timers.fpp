@@ -84,6 +84,7 @@ module timers_mod
   integer, public, parameter :: TimerCGIDRHPS   = 46
   integer, public, parameter :: TimerCGIDRKH    = 47
   integer, public, parameter :: TimerCGKH       = 48
+  integer, public, parameter :: TimerCGIDRMPIPI = 49
   integer, public, parameter :: TimerCGWCA      = 50
   integer, public, parameter :: TimerCGISOLF    = 51
   integer, public, parameter :: TimerCGLJ       = 52
@@ -233,6 +234,7 @@ contains
       avetime(TimerCGIDRHPS)   = sumtime(TimerCGIDRHPS)   / num_realnodes
       avetime(TimerCGIDRKH)    = sumtime(TimerCGIDRKH)    / num_realnodes
       avetime(TimerCGKH)       = sumtime(TimerCGKH)       / num_realnodes
+      avetime(TimerCGIDRMPIPI) = sumtime(TimerCGIDRMPIPI) / num_realnodes
       avetime(TimerCGWCA)      = sumtime(TimerCGWCA)      / num_realnodes
       avetime(TimerCGISOLF)    = sumtime(TimerCGISOLF)    / num_realnodes
       avetime(TimerCGLJ)       = sumtime(TimerCGLJ)       / num_realnodes
@@ -346,6 +348,10 @@ contains
                                 '      CG KH       =',avetime(TimerCGKH),      &
                                 ' (',mintime(TimerCGKH),',',                   &
                                 maxtime(TimerCGKH),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    CG IDR-MPIPI  =',avetime(TimerCGIDRMPIPI),&
+                                ' (',mintime(TimerCGIDRMPIPI),',',             &
+                                maxtime(TimerCGIDRMPIPI),')'
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '      CG WCA      =',avetime(TimerCGWCA),     &
                                 ' (',mintime(TimerCGWCA),',',                  &

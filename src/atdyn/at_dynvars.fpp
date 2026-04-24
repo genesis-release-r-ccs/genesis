@@ -360,6 +360,7 @@ contains
                dynvars%energy%cg_IDR_HPS         + &
                dynvars%energy%cg_IDR_KH          + &
                dynvars%energy%cg_KH_inter_pro    + &
+               dynvars%energy%cg_IDR_MPIPI       + &
                dynvars%energy%cg_exv             + &
                dynvars%energy%PWMcos             + &
                dynvars%energy%PWMcosns           + &
@@ -675,6 +676,11 @@ contains
       if ( enefunc%cg_IDR_KH_calc ) then
         write(category(ifm),frmt) 'IDR_KH'
         values(ifm) = dynvars%energy%cg_IDR_KH
+        ifm = ifm+1
+      end if
+      if (enefunc%cg_IDR_MPIPI_calc) then
+        write(category(ifm),frmt) 'IDR_MPIPI'
+        values(ifm) = dynvars%energy%cg_IDR_MPIPI
         ifm = ifm+1
       end if
       if (enefunc%cg_KH_calc) then
@@ -1000,6 +1006,7 @@ contains
     real(wp),        pointer :: cg_DNA_exv
     real(wp),        pointer :: cg_IDR_HPS
     real(wp),        pointer :: cg_IDR_KH
+    real(wp),        pointer :: cg_IDR_MPIPI
     real(wp),        pointer :: cg_KH
     real(wp),        pointer :: cg_exv
     real(wp),        pointer :: PWMcos
@@ -1071,6 +1078,7 @@ contains
     cg_exv     => dynvars%energy%cg_exv
     PWMcos     => dynvars%energy%PWMcos
     PWMcosns   => dynvars%energy%PWMcosns
+    cg_IDR_MPIPI => dynvars%energy%cg_IDR_MPIPI
     elec       => dynvars%energy%electrostatic
     vdwaals    => dynvars%energy%van_der_waals
     cmaps      => dynvars%energy%cmap
@@ -1129,6 +1137,9 @@ contains
       end if
       if (enefunc%cg_IDR_KH_calc) then
         write(DynvarsOut,'(A79)') 'DYNA IDR:                KH                                                    '
+      end if
+      if (enefunc%cg_IDR_MPIPI_calc) then
+        write(DynvarsOut,'(A79)') 'DYNA IDR:             MPIPI                                                    '
       end if
       if (enefunc%cg_KH_calc) then
         write(DynvarsOut,'(A79)') 'DYNA pro-pro:            KH                                                    '
@@ -1190,6 +1201,9 @@ contains
     end if
     if (enefunc%cg_IDR_KH_calc) then
       write(DynvarsOut,'(A14,F13.5)')    'DYNA IDR>     ', cg_IDR_KH
+    end if
+    if (enefunc%cg_IDR_MPIPI_calc) then
+      write(DynvarsOut,'(A14,F13.5)')    'DYNA IDR>     ', cg_IDR_MPIPI
     end if
     if (enefunc%cg_KH_calc) then
       write(DynvarsOut,'(A14,F13.5)')    'DYNA pro-pro> ', cg_KH
@@ -1260,6 +1274,7 @@ contains
     real(wp),        pointer :: ecg_DNA_exv
     real(wp),        pointer :: ecg_IDR_HPS
     real(wp),        pointer :: ecg_IDR_KH
+    real(wp),        pointer :: ecg_IDR_MPIPI
     real(wp),        pointer :: ecg_KH
     real(wp),        pointer :: ecg_exv
     real(wp),        pointer :: ePWMcos
@@ -1301,6 +1316,7 @@ contains
     ecg_DNA_exv => dynvars%energy%cg_DNA_exv
     ecg_IDR_HPS => dynvars%energy%cg_IDR_HPS
     ecg_IDR_KH  => dynvars%energy%cg_IDR_KH
+    ecg_IDR_MPIPI => dynvars%energy%cg_IDR_MPIPI
     ecg_KH      => dynvars%energy%cg_KH_inter_pro
     ecg_exv     => dynvars%energy%cg_exv
     ePWMcos     => dynvars%energy%PWMcos
@@ -1318,7 +1334,7 @@ contains
       write(DynvarsOut,'(A)') ' '
       write(DynvarsOut,'(A75)') 'ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP'
       write(DynvarsOut,'(A75)') '  BASE_STACKING   BASE_PAIRING        DNA_EXV         PWMCOS       PWMcosns'
-      write(DynvarsOut,'(A75)') '        IDR_HPS         IDR_KH     PRO_PRO_KH            EXV               '
+      write(DynvarsOut,'(A75)') '        IDR_HPS         IDR_KH     PRO_PRO_KH            EXV      IDR_MPIPI'
       write(DynvarsOut,'(A75)') '          ELECT            VDW       BOUNDARY           MISC        KINETIC'
       write(DynvarsOut,'(A75)') '          TOTAL           TEMP         TOTAL2         TOTAL3        TEMPAVG'
       write(DynvarsOut,'(A75)') '       PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG'
@@ -1331,7 +1347,7 @@ contains
     !
     write(DynvarsOut,'(A7,I8,4F15.4)')'ENERGY:', nstep, ebond, eangle, edihed, eimprp
     write(DynvarsOut,'(5F15.4)') ebase_stack, ebase_pair, ecg_DNA_exv, ePWMcos, ePWMcosns
-    write(DynvarsOut,'(4F15.4)') ecg_IDR_HPS, ecg_IDR_KH, ecg_KH, ecg_exv
+    write(DynvarsOut,'(4F15.4)') ecg_IDR_HPS, ecg_IDR_KH, ecg_KH, ecg_exv, ecg_IDR_MPIPI
     write(DynvarsOut,'(5F15.4)') eelect, evdw, eboundary, misc, kinetic
     write(DynvarsOut,'(5F15.4)') total, temp, total2, total3, tempavg
     write(DynvarsOut,'(5F15.4)') pressure, gpressure, volume, pressavg, gpressavg
@@ -1371,6 +1387,7 @@ contains
     real(wp)                 :: cg_DNA_exv
     real(wp)                 :: cg_IDR_HPS
     real(wp)                 :: cg_IDR_KH
+    real(wp)                 :: cg_IDR_MPIPI
     real(wp)                 :: cg_KH
     real(wp)                 :: cg_exv
     real(wp)                 :: PWMcos
@@ -1394,6 +1411,7 @@ contains
     cg_DNA_exv  = dynvars%energy%cg_DNA_exv    * CAL2JOU
     cg_IDR_HPS  = dynvars%energy%cg_IDR_HPS    * CAL2JOU
     cg_IDR_KH   = dynvars%energy%cg_IDR_KH     * CAL2JOU
+    cg_IDR_MPIPI= dynvars%energy%cg_IDR_MPIPI  * CAL2JOU
     cg_KH       = dynvars%energy%cg_KH_inter_pro * CAL2JOU
     cg_exv      = dynvars%energy%cg_exv        * CAL2JOU
     PWMcos      = dynvars%energy%PWMcos        * CAL2JOU
@@ -1473,6 +1491,10 @@ contains
       if (enefunc%cg_KH_calc) then
         write(DynvarsOut,'(A15)') 'pro-pro KH'
         write(DynvarsOut,'(1ES15.5E2)') cg_KH
+      end if
+      if (enefunc%cg_IDR_MPIPI_calc) then
+        write(DynvarsOut,'(A15)') 'IDR MPIPI'
+        write(DynvarsOut,'(1ES15.5E2)') cg_IDR_MPIPI
       end if
       if (enefunc%cg_pwmcos_calc) then
         write(DynvarsOut,'(A15)') 'PWMcos'
