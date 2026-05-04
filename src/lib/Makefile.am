@@ -44,6 +44,7 @@ lib_a_SOURCES = \
 	fft3d_1dalltoall.fpp \
 	fft3d_2dalltoall.fpp \
 	fft3d_slab.fpp \
+	bspline.fpp \
 	fileio.fpp \
 	fileio_control.fpp \
 	fileio_data.fpp \
@@ -64,6 +65,8 @@ lib_a_SOURCES = \
 	fileio_mode.fpp \
 	fileio_eef1.fpp \
 	fileio_sit.fpp \
+	fileio_abmd.fpp \
+	fileio_spline.fpp \
 	fileio_mrc.fpp \
 	fileio_localres.fpp \
 	fileio_rstmep.fpp \
@@ -101,6 +104,7 @@ lib_a_SOURCES = \
 	fitting.fpp \
 	fileio_minfo.fpp \
 	structure_check.fpp \
+	biweight.fpp \
 	ffte_param.h
 
 EXTRA_DIST = \

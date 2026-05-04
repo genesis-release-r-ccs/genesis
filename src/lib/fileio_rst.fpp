@@ -61,6 +61,12 @@ module fileio_rst_mod
     logical, allocatable          :: fixatm(:)
     ! QMMM
     real(wp), allocatable         :: qm_charge(:)
+    ! ABMD
+    integer                       :: abmd_nreac_coord      = 0
+    integer                       :: abmd_nreac_coord_comb = 0
+    integer, allocatable          :: abmd_nxi(:)
+    real(wp), allocatable         :: abmd_dxi(:)
+    real(dp), allocatable         :: abmd_ubuf(:)
   end type s_rst
 
   ! parameters for allocatable variables
@@ -70,6 +76,7 @@ module fileio_rst_mod
   integer,      public, parameter :: RestartRpath     = 4
   integer,      public, parameter :: RestartSpot      = 5
   integer,      public, parameter :: RestartQMMM      = 6
+  integer,      public, parameter :: RestartABMD      = 7
 
   ! parameters
   integer,      public, parameter :: RstfileTypeUndef = 0
@@ -223,6 +230,8 @@ contains
     rst%iseed_rpath          = 0
     rst%dimension            = 0
     rst%nreplicas            = 0
+    rst%abmd_nreac_coord      = 0
+    rst%abmd_nreac_coord_comb = 0
 
     return
 
@@ -362,6 +371,28 @@ contains
 
       rst%qm_charge (1:var_size1) = 0.0_wp
 
+    case (RestartABMD)
+
+      if (allocated(rst%abmd_nxi)) then
+        if (size(rst%abmd_nxi) == var_size1 .and. &
+            size(rst%abmd_ubuf) == var_size2) return
+        deallocate(rst%abmd_nxi,  &
+                   rst%abmd_dxi,  &
+                   rst%abmd_ubuf, &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(rst%abmd_nxi(var_size1),  &
+               rst%abmd_dxi(var_size1),  &
+               rst%abmd_ubuf(var_size2), &
+               stat = alloc_stat)
+
+      rst%abmd_nreac_coord      = var_size1
+      rst%abmd_nreac_coord_comb = var_size2
+      rst%abmd_nxi (1:var_size1) = 0
+      rst%abmd_dxi (1:var_size1) = 0.0_wp
+      rst%abmd_ubuf(1:var_size2) = 0.0_dp
+
     case default
 
       call error_msg('Alloc_Rst> bad variable')
@@ -451,6 +482,15 @@ contains
                    stat = dealloc_stat)
       end if
 
+    case (RestartABMD)
+
+      if (allocated(rst%abmd_nxi)) then
+        deallocate(rst%abmd_nxi,  &
+                   rst%abmd_dxi,  &
+                   rst%abmd_ubuf, &
+                   stat = dealloc_stat)
+      end if
+
     case default
       call error_msg('Dealloc_Restart> bad variable')
 
@@ -483,6 +523,7 @@ contains
     call dealloc_rst(rst, RestartRpath)
     call dealloc_rst(rst, RestartSpot)
     call dealloc_rst(rst, RestartQMMM)
+    call dealloc_rst(rst, RestartABMD)
 
     return
 
@@ -681,6 +722,21 @@ contains
         call alloc_rst(rst, RestartQMMM, qm_size)
         call read_data_real_wp_array &
           (file, 'qm_charge', (/qm_size/), rst%qm_charge(1:qm_size))
+      end if
+    end if
+
+    if (find_tag(file, 'abmd_nreac_coord')) then
+      call read_data_integer(file, 'abmd_nreac_coord', rst%abmd_nreac_coord)
+      call read_data_integer(file, 'abmd_nreac_coord_comb', rst%abmd_nreac_coord_comb)
+      if (rst%abmd_nreac_coord > 0 .and. rst%abmd_nreac_coord_comb > 0) then
+        call alloc_rst(rst, RestartABMD, rst%abmd_nreac_coord, &
+                       rst%abmd_nreac_coord_comb)
+        call read_data_integer_array &
+          (file, 'abmd_nxi', (/rst%abmd_nreac_coord/), rst%abmd_nxi)
+        call read_data_real_wp_array &
+          (file, 'abmd_dxi', (/rst%abmd_nreac_coord/), rst%abmd_dxi)
+        call read_data_real_dp_array &
+          (file, 'abmd_ubuf', (/rst%abmd_nreac_coord_comb/), rst%abmd_ubuf)
       end if
     end if
 
@@ -1051,6 +1107,21 @@ contains
            '  num_of_qm_charge  = ', size(rst%qm_charge)
     end if
 
+    read(file,'(a)', end=999) tag
+    read(file,*,end=50) rst%abmd_nreac_coord
+50  if (rst%abmd_nreac_coord > 0) then
+      read(file,'(a)') tag
+      read(file,*) rst%abmd_nreac_coord_comb
+      call alloc_rst(rst, RestartABMD, rst%abmd_nreac_coord, &
+                     rst%abmd_nreac_coord_comb)
+      read(file,'(a)') tag
+      read(file,*) rst%abmd_nxi
+      read(file,'(a)') tag
+      read(file,*) rst%abmd_dxi
+      read(file,'(a)') tag
+      read(file,*) rst%abmd_ubuf
+    end if
+
 999 continue
 
     return
@@ -1176,6 +1247,15 @@ contains
                                  rst%qm_charge)
     !else
     !  call write_data_real_wp_array(file, 'qm_charge', (/0/), rst%qm_charge)
+    end if
+
+    if (allocated(rst%abmd_nxi)) then
+      call write_data_integer(file, 'abmd_nreac_coord', rst%abmd_nreac_coord)
+      call write_data_integer(file, 'abmd_nreac_coord_comb', rst%abmd_nreac_coord_comb)
+      call write_data_integer_array(file, 'abmd_nxi', (/rst%abmd_nreac_coord/), rst%abmd_nxi)
+      call write_data_real_wp_array(file, 'abmd_dxi', (/rst%abmd_nreac_coord/), rst%abmd_dxi)
+      call write_data_real_dp_array(file, 'abmd_ubuf', (/rst%abmd_nreac_coord_comb/), &
+                                    rst%abmd_ubuf)
     end if
 
     return
@@ -1391,6 +1471,21 @@ contains
     if (allocated(rst%qm_charge)) then
       write(file,*) size(rst%qm_charge)
       write(file,*) rst%qm_charge
+    else
+      write(file,*) 0
+    end if
+
+    write(file,*) '# abmd_nreac_coord'
+    if (allocated(rst%abmd_nxi)) then
+      write(file,*) rst%abmd_nreac_coord
+      write(file,*) '# abmd_nreac_coord_comb'
+      write(file,*) rst%abmd_nreac_coord_comb
+      write(file,*) '# abmd_nxi'
+      write(file,*) rst%abmd_nxi
+      write(file,*) '# abmd_dxi'
+      write(file,*) rst%abmd_dxi
+      write(file,*) '# abmd_ubuf'
+      write(file,*) rst%abmd_ubuf
     else
       write(file,*) 0
     end if
