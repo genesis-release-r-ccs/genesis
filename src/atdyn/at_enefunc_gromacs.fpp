@@ -2,7 +2,7 @@
 !
 !  Module   at_enefunc_gromacs_mod
 !> @brief   define potential energy functions
-!! @authors Norio Takase (NT), Cheng Tan (CT)
+!! @authors Norio Takase (NT), Cheng Tan (CT), Shingo Ito (SI)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -15,11 +15,13 @@
 module at_enefunc_gromacs_mod
 
   use at_enefunc_restraints_mod
+  use at_enefunc_reac_coord_mod   
   use at_enefunc_table_mod
   use at_enefunc_pme_mod
   use at_energy_mod
   use at_boundary_str_mod
   use at_restraints_str_mod
+  use at_reac_coord_str_mod   
   use at_enefunc_str_mod
   use at_energy_str_mod
   use nbond_list_mod
@@ -83,7 +85,7 @@ contains
   !
   !  Subroutine    define_enefunc_gromacs
   !> @brief        a driver subroutine for defining potential energy functions
-  !! @authors      NT
+  !! @authors      NT, SI
   !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    boundary   : boundary condition
   !! @param[in]    grotop     : GROMACS parameter topology information
@@ -91,20 +93,22 @@ contains
   !! @param[in]    molecule   : molecule information
   !! @param[in]    restraints : restraints information
   !! @param[inout] enefunc    : potential energy functions information
+  !! @param[in]    reac_coord  : reaction coordinate information (optional)  
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc_gromacs(ene_info, boundary, grotop, table, &
-                                    molecule, restraints, enefunc)
+                                    molecule, restraints, enefunc, reac_coord)
 
     ! formal arguments
-    type(s_ene_info),        intent(in)    :: ene_info
-    type(s_boundary),        intent(in)    :: boundary
-    type(s_grotop),          intent(in)    :: grotop
-    type(s_table),           intent(in)    :: table
-    type(s_molecule),        intent(in)    :: molecule
-    type(s_restraints),      intent(in)    :: restraints
-    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_ene_info),             intent(in)    :: ene_info
+    type(s_boundary),             intent(in)    :: boundary
+    type(s_grotop),               intent(in)    :: grotop
+    type(s_table),                intent(in)    :: table
+    type(s_molecule),             intent(in)    :: molecule
+    type(s_restraints),           intent(in)    :: restraints
+    type(s_enefunc),              intent(inout) :: enefunc
+    type(s_reac_coord), optional, intent(in)    :: reac_coord   
 
     ! local variables
     integer                  :: alloc_stat
@@ -229,6 +233,11 @@ contains
     ! restraints
     !
     call setup_enefunc_restraints(molecule, restraints, enefunc)
+
+    ! reaction coordinate
+    !
+    if(present(reac_coord)) &
+    call setup_enefunc_reac_coord(molecule, reac_coord, enefunc)  
 
     ! restraints (gromacs)
     !

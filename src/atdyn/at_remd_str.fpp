@@ -102,6 +102,7 @@ module at_remd_str_mod
     integer                           :: iseed
     logical                           :: equilibration_only
     logical                           :: rest_mixed_three_atoms
+    logical                           :: reduce_bias_potential    
     integer,              allocatable :: types(:)
     integer,              allocatable :: nreplicas(:)
     integer,              allocatable :: repid2parmsetid(:)
@@ -111,6 +112,7 @@ module at_remd_str_mod
     integer,              allocatable :: num_criteria(:,:,:)
     integer,              allocatable :: num_exchanges(:,:,:)
     integer,              allocatable :: rest_function(:)
+    integer,              allocatable :: reac_function(:)    
     integer,              allocatable :: umbrid2funcid(:)
     integer,              allocatable :: iparameters(:,:)
     integer,              allocatable :: umbrid2numfuncs(:)
@@ -213,6 +215,7 @@ contains
                    remd%iparameters,         &
                    remd%dparameters,         &
                    remd%rest_function,       &
+                   remd%reac_function,       &    
                    remd%potential_energy,    &
                    remd%restraint_energy_0,  &
                    remd%restraint_energy_1,  &
@@ -237,6 +240,7 @@ contains
                remd%iparameters(var_size1,var_size3),     &
                remd%dparameters(var_size1,var_size3),     &
                remd%rest_function(var_size1),             &
+               remd%reac_function(var_size1),             &
                remd%potential_energy(var_size2),          &
                remd%restraint_energy_0(var_size2),        &
                remd%restraint_energy_1(var_size2),        &
@@ -260,6 +264,7 @@ contains
       remd%iparameters(1:var_size1,1:var_size3)       = 0
       remd%dparameters(1:var_size1,1:var_size3)       = 0.0_wp
       remd%rest_function(1:var_size1)                 = 0
+      remd%reac_function(1:var_size1)                 = 0
 
     case(RemdUmbrellas)
 
@@ -344,6 +349,7 @@ contains
                    remd%iparameters,         &
                    remd%dparameters,         &
                    remd%rest_function,       &
+                   remd%reac_function,       &
                    remd%potential_energy,    &
                    remd%restraint_energy_0,  &
                    remd%restraint_energy_1,  &

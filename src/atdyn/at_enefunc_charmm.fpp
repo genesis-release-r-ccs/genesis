@@ -4,7 +4,7 @@
 !> @brief   define potential energy functions
 !! @authors Takaharu Mori (TM), Yuji Sugita (YS), Takao Yoda (TY), 
 !!          Takashi Imai (TI), Jaewoon Jung (JJ), Chigusa Kobayashi (CK)
-!!          Norio Takase (NT), Kiyoshi Yagi (KY)
+!!          Norio Takase (NT), Kiyoshi Yagi (KY), Shingo Ito (SI)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -17,12 +17,14 @@
 module at_enefunc_charmm_mod
 
   use at_enefunc_restraints_mod
+  use at_enefunc_reac_coord_mod
   use at_enefunc_table_mod
   use at_enefunc_pme_mod
   use at_enefunc_gbsa_mod
   use at_energy_mod
   use at_boundary_str_mod
   use at_restraints_str_mod
+  use at_reac_coord_str_mod   
   use at_enefunc_str_mod
   use math_libs_mod
   use nbond_list_mod
@@ -61,7 +63,7 @@ contains
   !
   !  Subroutine    define_enefunc_charmm
   !> @brief        a driver subroutine for defining potential energy function
-  !! @authors      YS, TI, JJ, CK
+  !! @authors      YS, TI, JJ, CK, SI
   !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    boundary   : boundary conditions information
   !! @param[in]    par        : CHARMM PAR information
@@ -69,21 +71,23 @@ contains
   !! @param[in]    molecule   : molecule information
   !! @param[in]    restraints : restraints information
   !! @param[inout] enefunc    : potential energy functions information
+  !! @param[in]    reac_coord  : reaction coordinate information (optional)  
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc_charmm(ene_info, boundary, par, eelf1, table, &
-                                   molecule, restraints, enefunc)
+                                   molecule, restraints, enefunc, reac_coord)
 
     ! formal arguments
-    type(s_ene_info),        intent(in)    :: ene_info 
-    type(s_boundary),        intent(in)    :: boundary
-    type(s_par),             intent(in)    :: par
-    type(s_eef1),            intent(in)    :: eelf1
-    type(s_table),           intent(in)    :: table
-    type(s_molecule),        intent(in)    :: molecule
-    type(s_restraints),      intent(in)    :: restraints
-    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_ene_info),             intent(in)    :: ene_info 
+    type(s_boundary),             intent(in)    :: boundary
+    type(s_par),                  intent(in)    :: par
+    type(s_eef1),                 intent(in)    :: eelf1
+    type(s_table),                intent(in)    :: table
+    type(s_molecule),             intent(in)    :: molecule
+    type(s_restraints),           intent(in)    :: restraints
+    type(s_enefunc),              intent(inout) :: enefunc
+    type(s_reac_coord), optional, intent(in)    :: reac_coord
 
     ! local variables
     integer                  :: alloc_stat
@@ -132,6 +136,11 @@ contains
     !
     call setup_enefunc_restraints(molecule, restraints, enefunc)
 
+    ! reaction coordinate
+    !
+    if(present(reac_coord)) &
+    call setup_enefunc_reac_coord(molecule, reac_coord, enefunc)
+   
     ! allocate working array
     !
     nwork = max(molecule%num_atoms, &

@@ -4,7 +4,7 @@
 !> @brief   compute energy
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Takashi Imai (TI),
 !!          Chigusa Kobayashi (CK), Jaewoon Jung (JJ), Norio Takase (NT),
-!!          Yoshinobu Akinaga (YA), Kiyoshi Yagi (KY)
+!!          Yoshinobu Akinaga (YA), Kiyoshi Yagi (KY), Shingo Ito (SI)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -23,6 +23,7 @@ module at_energy_mod
   use at_energy_gbsa_mod
   use at_energy_morph_mod
   use at_energy_restraints_mod
+  use at_energy_reac_coord_mod  
   use at_energy_nonbonds_mod
   use at_energy_cg_nonlocal_mod
   use at_energy_dihedrals_mod
@@ -38,6 +39,7 @@ module at_energy_mod
   use at_constraints_mod
   use at_qmmm_mod
   use at_energy_gamd_mod
+  use at_energy_abmd_mod  
   use molecules_str_mod
   use fileio_mod
   use fileio_control_mod
@@ -1236,7 +1238,7 @@ contains
   !
   !  Subroutine    compute_energy_charmm
   !> @brief        compute CHARMM potential energy
-  !! @authors      YS, TI, JJ, TM, CK
+  !! @authors      YS, TI, JJ, TM, CK, SI
   !! @param[in]    molecule     : information of molecules
   !! @param[inout] enefunc      : information of potential functions
   !! @param[in]    pairlist     : information of nonbonded pair list
@@ -1275,6 +1277,7 @@ contains
     ! local variables
     real(wp)                 :: resene
     real(wp)                 :: drms(1:2)
+    real(dp)                 :: sumu
     integer                  :: i, j, k, natom
     integer                  :: dimno_i, dimno_j
     integer                  :: atom_i, atom_j
@@ -1340,6 +1343,15 @@ contains
         end if
 
       end if
+
+      ! ABMD CV
+      !
+      if (enefunc%reac_coord%reac_coord_flag) then
+
+        call compute_energy_reac_coord(.true., .true., boundary, &
+                      enefunc, coord, force, virial)
+
+      endif
 
       if (enefunc%morph_flag .and. .not. enefunc%morph_restraint_flag) then
         call compute_energy_morph(enefunc, coord, force_omp, virial, energy%morph, drms)
@@ -1443,6 +1455,12 @@ contains
     if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
+
+    ! ABMD bias potential
+    !
+    if (enefunc%abmd_use) then
+      call compute_bias_potential_abmd(enefunc, energy, force, virial, sumu)
+    endif
 
     return
 
@@ -1641,6 +1659,7 @@ contains
     ! local variables
     real(wp)                 :: resene
     real(wp)                 :: drms(1:2)
+    real(dp)                 :: sumu    
     integer                  :: i, j, natom
 
 
@@ -2137,6 +2156,15 @@ contains
 
     end if
 
+    ! ABMD CV
+    !
+    if (enefunc%reac_coord%reac_coord_flag) then
+
+      call compute_energy_reac_coord(.true., .true., boundary, &
+                      enefunc, coord, force, virial)
+
+    endif
+
     !$omp parallel do private(j,i)
     do i = 1, natom
       do j = 1, nthread
@@ -2189,6 +2217,12 @@ contains
     if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
+
+    ! ABMD bias potential
+    !
+    if (enefunc%abmd_use) then
+      call compute_bias_potential_abmd(enefunc, energy, force, virial, sumu)
+    endif
 
     return
 
@@ -2399,7 +2433,7 @@ contains
   !
   !  Subroutine    compute_energy_amber
   !> @brief        compute AMBER99 potential energy
-  !! @authors      NT
+  !! @authors      NT, SI
   !! @param[in]    molecule   : information of molecules
   !! @param[inout] enefunc    : information of potential functions
   !! @param[in]    pairlist   : information of nonbonded pair list
@@ -2438,6 +2472,7 @@ contains
     ! local variables
     integer                  :: i, j, natom
     real(wp)                 :: resene
+    real(dp)                 :: sumu
 
 
     if (.not. enefunc%pme_use .and. boundary%type == BoundaryTypePBC) then
@@ -2503,6 +2538,16 @@ contains
     end if
 
 
+    ! ABMD CV
+    !
+    if (enefunc%reac_coord%reac_coord_flag) then
+
+      call compute_energy_reac_coord(.true., .true., boundary, &
+                                     enefunc, coord, force, virial)
+
+    endif
+    
+    
     ! nonbonded energy
     !
     select case (boundary%type)
@@ -2586,6 +2631,12 @@ contains
     if (enefunc%gamd_use) then
       call boost_gamd(enefunc, natom, energy, temporary, force, virial)
     end if
+
+    ! ABMD bias potential
+    !
+    if (enefunc%abmd_use) then
+      call compute_bias_potential_abmd(enefunc, energy, force, virial, sumu)
+    endif
 
     return
 
@@ -3943,6 +3994,12 @@ contains
       end if
     end if
 
+    if (enefunc%abmd_use) then
+      write(category(ifm),frmt) 'ABMD_BIAS'
+      values(ifm) = energy%bias_abmd
+      ifm = ifm+1
+    end if
+        
     if (etitle) then
 
       write(MsgOut,'(A,$)') title

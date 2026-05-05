@@ -21,6 +21,7 @@ module at_enefunc_mod
   use at_enefunc_go_mod
   use at_energy_mod
   use at_restraints_str_mod
+  use at_reac_coord_str_mod  
   use at_enefunc_str_mod
   use at_energy_str_mod
   use at_boundary_str_mod
@@ -72,7 +73,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc(ene_info, boundary, par, gpr, prmtop, grotop, eef1,&
-                            table, molecule, restraints, enefunc)
+                            table, molecule, restraints, enefunc, reac_coord)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info 
@@ -86,6 +87,7 @@ contains
     type(s_molecule),        intent(in)    :: molecule
     type(s_restraints),      intent(in)    :: restraints
     type(s_enefunc),         intent(inout) :: enefunc
+    type(s_reac_coord), optional, intent(in)    :: reac_coord
 
 
     call init_enefunc(enefunc)
@@ -114,7 +116,7 @@ contains
 
       call define_enefunc_charmm &
                          (ene_info, boundary, par, eef1, table, molecule, &
-                          restraints, enefunc)
+                          restraints, enefunc, reac_coord)
 
     else if (gpr%num_bonds > 0) then
       if (ene_info%forcefield /= ForcefieldAAGO .and.         &
@@ -123,7 +125,7 @@ contains
         call error_msg('Define_Enefunc> ERROR: Bad combination between the input files and force field type (see Chapter "INPUT SECTION" in the user manual).')
 
       call define_enefunc_go &
-                         (ene_info, gpr, molecule, restraints, enefunc)
+                         (ene_info, gpr, molecule, restraints, enefunc, reac_coord)
 
     else if (prmtop%num_atoms > 0) then
       if (ene_info%forcefield /= ForcefieldAMBER) &
@@ -131,7 +133,7 @@ contains
 
       call define_enefunc_amber &
                           (ene_info, boundary, prmtop, table, molecule, &
-                           restraints, enefunc)
+                           restraints, enefunc, reac_coord)
 
     else if (grotop%num_atomtypes > 0) then
       if (ene_info%forcefield /= ForcefieldGROAMBER .and.      &
@@ -145,7 +147,7 @@ contains
 
       call define_enefunc_gromacs &
                           (ene_info, boundary, grotop, table, molecule, &
-                           restraints, enefunc)
+                           restraints, enefunc, reac_coord)
 
     end if
 

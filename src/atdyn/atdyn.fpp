@@ -19,6 +19,7 @@ program atdyn
 
   use at_setup_mpi_mod
   use at_remd_mod
+  use at_bias_mod
   use at_rpath_mod
   use at_morph_mod
   use at_minimize_mod
@@ -36,6 +37,7 @@ program atdyn
   use at_ensemble_str_mod
   use at_output_str_mod
   use at_remd_str_mod
+  use at_bias_str_mod
   use at_morph_str_mod
   use at_rpath_str_mod
   use at_constraints_str_mod
@@ -67,6 +69,7 @@ program atdyn
   integer, parameter  :: GenesisVIB   = 5
   integer, parameter  :: GenesisBD    = 6
   integer, parameter  :: GenesisMORPH = 7
+  integer, parameter  :: GenesisBIAS  = 8
 
   ! local variables
   character(MaxFilename)      :: ctrl_filename
@@ -82,6 +85,7 @@ program atdyn
   type(s_minimize)            :: minimize
   type(s_output)              :: output
   type(s_remd)                :: remd
+  type(s_bias)                :: bias
   type(s_rpath)               :: rpath
   type(s_vibration)           :: vibration
   type(s_morph)               :: morph
@@ -158,6 +162,9 @@ contains
 
     if (find_ctrlfile_section(ctrl_filename, 'REMD')) then
       genesis_run_mode = GenesisREMD
+
+    else if (find_ctrlfile_section(ctrl_filename, 'BIAS')) then
+      genesis_run_mode = GenesisBIAS
 
     else if (find_ctrlfile_section(ctrl_filename, 'RPATH')) then
       genesis_run_mode = GenesisRPATH
@@ -240,6 +247,10 @@ contains
 
       call control_remd(ctrl_filename, ctrl_data)
 
+    case (GenesisBIAS)
+
+      call control_bias(ctrl_filename, ctrl_data)
+
     case (GenesisRPATH)
 
       call control_rpath(ctrl_filename, ctrl_data)
@@ -270,6 +281,10 @@ contains
     case (GenesisREMD)
 
       call setup_mpi_remd(ctrl_data%ene_info, ctrl_data%rep_info)
+
+    case (GenesisBIAS)
+
+      call setup_mpi_bias(ctrl_data%ene_info, ctrl_data%bias_info)
 
     case (GenesisRPATH)
 
@@ -307,12 +322,17 @@ contains
                             pairlist, dynvars, dynamics, constraints, &
                             ensemble, boundary, remd)
 
+    case (GenesisBIAS)
+
+      call setup_atdyn_bias(ctrl_data, output, molecule, enefunc,     &
+                            pairlist, dynvars, dynamics, constraints, &
+                            ensemble, boundary, bias)
+
     case (GenesisRPATH)
 
       call setup_atdyn_rpath(ctrl_data, output, molecule, enefunc,    &
                             pairlist, dynvars, dynamics, constraints, &
                             ensemble, boundary, rpath, minimize)
-
 
     case (GenesisVIB)
 
@@ -431,6 +451,18 @@ contains
 
       call run_remd(output, molecule, enefunc, dynvars, dynamics, &
                     pairlist, boundary, constraints, ensemble, remd)
+
+    case (GenesisBIAS)
+
+      if (main_rank) then
+        write(MsgOut,'(A)') '[STEP5] Perform Bias-Exchange ABMD Simulation'
+        write(MsgOut,'(A)') ' '
+      end if
+ 
+      !return
+
+      call run_bias(output, molecule, enefunc, dynvars, dynamics,  &
+                    pairlist, boundary, constraints, ensemble, bias)
 
     case (GenesisRPATH)
 

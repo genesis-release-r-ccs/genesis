@@ -93,6 +93,9 @@ module at_energy_str_mod
     real(wp)         :: total_gamd
     real(wp)         :: dihedral_gamd
 
+    ! ABMD
+    real(dp)         :: bias_abmd
+
   end type s_energy
 
   ! parameters
@@ -185,6 +188,9 @@ contains
     energy%total_gamd         = 0.0_wp
     energy%dihedral_gamd      = 0.0_wp
 
+    ! ABMD
+    energy%bias_abmd          = 0.0_dp
+        
     return
 
   end subroutine init_energy

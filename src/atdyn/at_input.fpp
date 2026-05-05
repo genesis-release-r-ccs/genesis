@@ -3,7 +3,8 @@
 !  Module   at_input_mod
 !> @brief   read parameters and data for md simulation
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Chigusa Kobayashi (CK), 
-!!          Jaewoon Jung (JJ), Norio Takase (NT), Kiyoshi Yagi (KY)
+!!          Jaewoon Jung (JJ), Norio Takase (NT), Kiyoshi Yagi (KY),
+!!          Shingo Ito (SI)
 ! 
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -16,6 +17,7 @@
 module at_input_mod
 
   use at_remd_str_mod
+  use at_bias_str_mod  
   use at_rpath_str_mod
   use fileio_table_mod
   use fileio_mode_mod
@@ -32,6 +34,7 @@ module at_input_mod
   use fileio_crd_mod
   use fileio_pdb_mod
   use fileio_mode_mod
+  use fileio_spline_mod  
   use fileio_eef1_mod
   use fileio_morph_mod
   use fileio_spot_mod
@@ -68,7 +71,8 @@ module at_input_mod
     character(MaxFilename)     :: tablefile  = ''
     character(MaxFilename)     :: morphfile  = ''
     character(MaxFilename)     :: spotfile   = ''
-    character(MaxFilename)     :: minfofile   = ''
+    character(MaxFilename)     :: minfofile  = ''
+    character(MaxFilename)     :: splinefile = ''     
   end type s_inp_info
 
   ! subroutines
@@ -77,6 +81,7 @@ module at_input_mod
   public  :: input_md
   public  :: input_min
   public  :: input_remd
+  public  :: input_bias
   public  :: input_rpath
   public  :: input_bd
   public  :: input_morph
@@ -353,6 +358,7 @@ contains
     call read_ctrlfile_string(handle, Section, 'Morphfile', inp_info%morphfile)
     call read_ctrlfile_string(handle, Section, 'Spotfile',  inp_info%spotfile)
     call read_ctrlfile_string(handle, Section, 'minfofile', inp_info%minfofile)
+    call read_ctrlfile_string(handle, Section, 'Splinefile',inp_info%splinefile)
 
     call end_ctrlfile_section(handle)
 
@@ -453,6 +459,10 @@ contains
         write(MsgOut,*) ' minfofile = ', trim(inp_info%minfofile)
       end if
 
+      if (inp_info%splinefile /= '') then
+        write(MsgOut,*) ' splinefile = ', trim(inp_info%splinefile)
+      end if
+
       write(MsgOut,'(A)') ' '
 
     end if
@@ -489,7 +499,7 @@ contains
 
   subroutine input_md(inp_info, top, par, gpr, psf, prmtop, grotop,       &
                       pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                      mode, eef1, table, morph_in, spot)
+                      mode, eef1, table, morph_in, spot, spline)
 
     ! formal arguments
     type(s_inp_info),        intent(in)    :: inp_info
@@ -512,6 +522,7 @@ contains
     type(s_table),           intent(inout) :: table
     type(s_morph_in),        intent(inout) :: morph_in
     type(s_spot),            intent(inout) :: spot
+    type(s_spline), optional, intent(inout) :: spline    
 
 
     call init_top(top)
@@ -795,29 +806,30 @@ contains
 
   subroutine input_remd(inp_info, top, par, gpr, psf, prmtop, grotop, pdb, &
                         crd, ambcrd, grocrd, rst, ref, ambref, groref,     &
-                        mode, eef1, table, morph_in, spot)
+                        mode, eef1, table, morph_in, spot, spline)
 
     ! formal arguments
-    type(s_inp_info),        intent(in)    :: inp_info
-    type(s_top),             intent(inout) :: top
-    type(s_par),             intent(inout) :: par
-    type(s_gpr),             intent(inout) :: gpr
-    type(s_psf),             intent(inout) :: psf
-    type(s_prmtop),          intent(inout) :: prmtop
-    type(s_grotop),          intent(inout) :: grotop
-    type(s_pdb),             intent(inout) :: pdb
-    type(s_crd),             intent(inout) :: crd
-    type(s_ambcrd),          intent(inout) :: ambcrd
-    type(s_grocrd),          intent(inout) :: grocrd
-    type(s_rst),             intent(inout) :: rst
-    type(s_pdb),             intent(inout) :: ref
-    type(s_ambcrd),          intent(inout) :: ambref
-    type(s_grocrd),          intent(inout) :: groref
-    type(s_mode),            intent(inout) :: mode
-    type(s_eef1),            intent(inout) :: eef1
-    type(s_table),           intent(inout) :: table
-    type(s_morph_in),        intent(inout) :: morph_in
-    type(s_spot),            intent(inout) :: spot
+    type(s_inp_info),         intent(in)    :: inp_info
+    type(s_top),              intent(inout) :: top
+    type(s_par),              intent(inout) :: par
+    type(s_gpr),              intent(inout) :: gpr
+    type(s_psf),              intent(inout) :: psf
+    type(s_prmtop),           intent(inout) :: prmtop
+    type(s_grotop),           intent(inout) :: grotop
+    type(s_pdb),              intent(inout) :: pdb
+    type(s_crd),              intent(inout) :: crd
+    type(s_ambcrd),           intent(inout) :: ambcrd
+    type(s_grocrd),           intent(inout) :: grocrd
+    type(s_rst),              intent(inout) :: rst
+    type(s_pdb),              intent(inout) :: ref
+    type(s_ambcrd),           intent(inout) :: ambref
+    type(s_grocrd),           intent(inout) :: groref
+    type(s_mode),             intent(inout) :: mode
+    type(s_eef1),             intent(inout) :: eef1
+    type(s_table),            intent(inout) :: table
+    type(s_morph_in),         intent(inout) :: morph_in
+    type(s_spot),             intent(inout) :: spot
+    type(s_spline), optional, intent(inout) :: spline
 
     ! local variables
     character(MaxMultiFilename)            :: filename
@@ -944,6 +956,185 @@ contains
     return
 
   end subroutine input_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    input_bias
+  !> @brief        read input data from files
+  !! @authors      SI
+  !! @param[in]    inp_info : information of INPUT section control parameters
+  !! @param[out]   top      : information of CHARMM topology data
+  !! @param[out]   par      : information of CHARMM force field parameters
+  !! @param[out]   gpr      : information of GENESIS Go model parameters
+  !! @param[out]   psf      : information of Protein structure data
+  !! @param[out]   prmtop   : information of AMBER parameter topology data
+  !! @param[out]   grotop   : information of GROMACS parameter topology data
+  !! @param[out]   pdb      : information of coordinate data
+  !! @param[out]   crd      : information of coordinate data
+  !! @param[out]   ambcrd   : information of AMBER coordinate data
+  !! @param[out]   grocrd   : information of GROMACS coordinate data
+  !! @param[out]   rst      : information of restart data
+  !! @param[out]   ref      : information of reference coordinate data
+  !! @param[out]   ambref   : information of refernece AMBER coordinate data
+  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   mode     : information of principal component vector
+  !! @param[out]   table    : information of lookup table data
+  !! @param[out]   spot     : information of spherical potential
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine input_bias(inp_info, top, par, gpr, psf, prmtop, grotop, pdb, &
+                        crd, ambcrd, grocrd, rst, ref, ambref, groref,     &
+                        mode, eef1, table, morph_in, spot, spline)
+  
+    ! formal arguments
+    type(s_inp_info),         intent(in)    :: inp_info
+    type(s_top),              intent(inout) :: top
+    type(s_par),              intent(inout) :: par
+    type(s_gpr),              intent(inout) :: gpr
+    type(s_psf),              intent(inout) :: psf
+    type(s_prmtop),           intent(inout) :: prmtop
+    type(s_grotop),           intent(inout) :: grotop
+    type(s_pdb),              intent(inout) :: pdb
+    type(s_crd),              intent(inout) :: crd
+    type(s_ambcrd),           intent(inout) :: ambcrd
+    type(s_grocrd),           intent(inout) :: grocrd
+    type(s_rst),              intent(inout) :: rst
+    type(s_pdb),              intent(inout) :: ref
+    type(s_ambcrd),           intent(inout) :: ambref
+    type(s_grocrd),           intent(inout) :: groref
+    type(s_mode),             intent(inout) :: mode
+    type(s_eef1),             intent(inout) :: eef1
+    type(s_table),            intent(inout) :: table
+    type(s_morph_in),         intent(inout) :: morph_in
+    type(s_spot),             intent(inout) :: spot
+    type(s_spline), optional, intent(inout) :: spline    
+
+    ! local variables
+    character(MaxMultiFilename)            :: filename
+    character(MaxFilenameLong)             :: filename_long
+
+
+    call init_top(top)
+    call init_par(par)
+    call init_gpr(gpr)
+    call init_psf(psf)
+    call init_prmtop(prmtop)
+    call init_grotop(grotop)
+    call init_pdb(pdb)
+    call init_crd(crd)
+    call init_ambcrd(ambcrd)
+    call init_grocrd(grocrd)
+    call init_rst(rst)
+    call init_pdb(ref)
+    call init_ambcrd(ambref)
+    call init_grocrd(groref)
+    call init_morph_in(morph_in)
+
+    if (inp_info%topfile .ne. '') then
+      filename_long = inp_info%topfile
+      call input_top(filename_long, top)
+    end if
+
+    if (inp_info%parfile .ne. '') then
+      filename_long = inp_info%parfile
+      call input_par(filename_long, par, top)
+    end if
+
+    if (inp_info%strfile .ne. '') then
+      filename_long = inp_info%strfile
+      call input_str(filename_long, top, par)
+    end if
+
+    if (inp_info%gprfile .ne. '') then
+      filename = inp_info%gprfile
+      call input_gpr(filename, gpr)
+    end if
+
+    if (inp_info%psffile .ne. '') then
+      filename = inp_info%psffile
+      call input_psf(filename, psf)
+    end if
+
+    if (inp_info%prmtopfile .ne. '') then
+      call input_prmtop(inp_info%prmtopfile, prmtop)
+    end if
+
+    if (inp_info%grotopfile .ne. '') then
+      call input_grotop(inp_info%grotopfile, grotop)
+    end if
+
+    if (inp_info%reffile .ne. '') then
+      filename = inp_info%reffile
+      call include_id_to_filename(filename)
+      call input_pdb(filename, ref)
+    end if
+
+    if (inp_info%ambreffile .ne. '') then
+      filename = inp_info%ambreffile
+      call input_ambcrd(filename, ambref)
+    end if
+
+    if (inp_info%groreffile .ne. '') then
+      filename = inp_info%groreffile
+      call input_grocrd(filename, groref)
+    end if
+
+    if (inp_info%crdfile .ne. '') then
+      filename = inp_info%crdfile
+      call include_id_to_filename(filename)
+      call input_crd(filename, crd)
+    end if
+
+    if (inp_info%pdbfile .ne. '') then
+      filename = inp_info%pdbfile
+      call include_id_to_filename(filename)
+      call input_pdb(filename, pdb)
+    end if
+
+    if (inp_info%ambcrdfile .ne. '') then
+      filename = inp_info%ambcrdfile
+      call include_id_to_filename(filename)
+      call input_ambcrd(filename, ambcrd)
+    end if
+
+    if (inp_info%grocrdfile .ne. '') then
+      filename = inp_info%grocrdfile
+      call include_id_to_filename(filename)
+      call input_grocrd(filename, grocrd)
+    end if
+
+    rst%rstfile_type = RstfileTypeUndef
+    if (inp_info%rstfile .ne. '') then
+      filename = inp_info%rstfile
+      call include_id_to_filename(filename)
+      call input_rst(filename, rst)
+    end if
+
+    if (inp_info%modefile .ne. '') then
+      filename = inp_info%modefile
+      call input_mode(filename, mode)
+    end if
+
+    if (inp_info%eef1file .ne. '') then
+      call input_eef1(inp_info%eef1file, eef1)
+    end if
+
+    if (inp_info%tablefile .ne. '') then
+      call input_table(inp_info%tablefile, table)
+    end if
+
+    if (inp_info%morphfile .ne. '') then
+      call input_morph_in(inp_info%morphfile, morph_in)
+    end if
+
+    if (inp_info%spotfile .ne. '') then
+      call input_spot(inp_info%spotfile, spot)
+    end if
+
+    return
+
+  end subroutine input_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

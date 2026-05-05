@@ -3,7 +3,7 @@
 !  Module   at_md_leapfrog_mod
 !> @brief   perform molecular dynamics simulation with leapfrog method algorithm
 !! @authors Takaharu Mori (TM), Jaewoon Jung (JJ), Chigusa Kobayashi (CK)
-!!          Kiyoshi Yagi (KY)
+!!          Kiyoshi Yagi (KY), Shingo Ito (SI)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -27,12 +27,16 @@ module at_md_leapfrog_mod
   use at_dynamics_str_mod
   use at_dynvars_str_mod
   use at_ensemble_str_mod
+  use at_remd_str_mod
+  use at_bias_str_mod    
   use at_constraints_str_mod
   use at_boundary_str_mod
   use at_pairlist_str_mod
   use at_enefunc_str_mod
   use at_enefunc_gbsa_mod
   use at_enefunc_gamd_mod
+  use at_enefunc_abmd_mod
+  use at_enefunc_reac_coord_mod   
   use molecules_str_mod
   use fileio_rst_mod
   use fileio_pdb_mod
@@ -62,7 +66,7 @@ contains
   !
   !  Subroutine    leapfrog_dynamics
   !> @brief        leapfrog integrator
-  !! @authors      TM, CK, JJ, KY
+  !! @authors      TM, CK, JJ, KY, SI
   !! @param[inout] output      : output information
   !! @param[inout] molecule    : molecule information
   !! @param[inout] enefunc     : potential energy functions information
@@ -76,7 +80,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine leapfrog_dynamics(output, molecule, enefunc, dynvars, dynamics, &
-                               pairlist, boundary, constraints, ensemble)
+                               pairlist, boundary, constraints, ensemble, &
+                               remd, bias)
 
     ! formal arguments
     type(s_output),           intent(inout) :: output
@@ -88,6 +93,8 @@ contains
     type(s_boundary),         intent(inout) :: boundary
     type(s_constraints),      intent(inout) :: constraints
     type(s_ensemble),         intent(inout) :: ensemble
+    type(s_remd),   optional, intent(in)    :: remd
+    type(s_bias),   optional, intent(in)    :: bias    
 
     ! local variables
     real(wp)                  :: simtim, dt, inv_dt, factor
@@ -378,6 +385,21 @@ contains
         end if
       end if
 
+      ! output ABMD reaction coordinates
+      !
+      if (enefunc%abmd_use) then
+        if(present(remd)) then
+          call output_reac(dynvars%step, output, dynvars, enefunc, remd=remd)
+          call update_abmd_leapfrog(molecule, dynvars, dynamics, ensemble, enefunc, output, remd=remd)
+        else if(present(bias)) then
+          call output_reac(dynvars%step, output, dynvars, enefunc, bias=bias)
+          call update_abmd_leapfrog(molecule, dynvars, dynamics, ensemble, enefunc, output, bias=bias)
+        else
+          call output_reac(dynvars%step, output, dynvars, enefunc)
+          call update_abmd_leapfrog(molecule, dynvars, dynamics, ensemble, enefunc, output)
+        end if
+      endif
+
       ! Update QM charge for ESP-MM
       !
       if (dynamics%esp_mm .and. dynamics%calc_qm_period > 0) then
@@ -395,6 +417,13 @@ contains
       !
       call output_md(output, molecule, enefunc, dynamics, boundary, &
                      ensemble, dynvars)
+
+      if (enefunc%abmd_use .and. &
+          enefunc%abmd%stop_when_out_of_range) then
+          if(reac_coords_are_out_of_range(enefunc, remd)) then
+            exit
+          endif
+      endif
 
 
     end do
@@ -1828,6 +1857,65 @@ contains
 
   end subroutine update_gamd_leapfrog
 
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_abmd_leapfrog
+  !> @brief        update ABMD parameters
+  !! @authors      JK, SI
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    domain      : domain information
+  !! @param[in]    remd        : REMD information
+  !! @param[inout] enefunc     : energy information
+  !! @param[inout] output      : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+ 
+  subroutine update_abmd_leapfrog(molecule, dynvars, dynamics, ensemble, &
+                                  enefunc, output, remd, bias)
+    ! formal arguments
+    type(s_molecule), target,   intent(inout) :: molecule    
+    type(s_dynamics),           intent(in)    :: dynamics
+    type(s_dynvars),  target,   intent(in)    :: dynvars
+    type(s_ensemble),           intent(in)    :: ensemble
+    type(s_remd),     optional, intent(in)    :: remd
+    type(s_bias),     optional, intent(in)    :: bias
+    type(s_enefunc),  target,   intent(inout) :: enefunc
+    type(s_output),             intent(inout) :: output
+
+    ! local variables
+    type(s_enefunc_abmd), pointer    :: abmd
+    integer                          :: num_degree
+    real(dp)                         :: kbT
+
+    abmd => enefunc%abmd
+
+    ! output the bias potential
+    call output_abmd(dynvars, enefunc, output)
+
+    ! output spline coefficients
+    if ( (.not. present (remd)) .and. (.not. present (bias))) &
+     call output_spline(dynvars, enefunc, output)
+
+    ! update abmd bias potential
+    kbT = ensemble%temperature * KBOLTZ
+
+    if  (mod(dynvars%step,enefunc%abmd%update_period) == 0) then
+      if (present(remd)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, remd=remd)
+      else if (present(bias)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, bias=bias)
+      else
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc)
+      endif
+    end if
+
+    return
+
+  end subroutine update_abmd_leapfrog
+    
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    update_qm_charge_leapfrog

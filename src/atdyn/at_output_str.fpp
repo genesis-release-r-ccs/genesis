@@ -31,6 +31,9 @@ module at_output_str_mod
     integer                :: rpathunit
     integer                :: rstmepunit
     integer                :: gamdunit
+    integer                :: reacunit
+    integer                :: abmdunit
+    integer                :: splineunit     
     integer                :: rpathlogunit
 
     character(MaxFilename) :: logfile
@@ -42,10 +45,15 @@ module at_output_str_mod
     character(MaxFilename) :: rpathfile
     character(MaxFilename) :: rstmepfile
     character(MaxFilename) :: gamdfile
+    character(MaxFilename) :: reacfile
+    character(MaxFilename) :: abmdfile
+    character(MaxFilename) :: splinefile     
     character(MaxFilename) :: rpathlogfile
 
     logical                :: out_dcd_header    = .true.
     logical                :: out_dcdvel_header = .true.
+    logical                :: out_abmd_header   = .true.
+    logical                :: out_spline_header = .true.     
 
     logical                :: logout     = .false.
     logical                :: dcdout     = .false.
@@ -56,6 +64,10 @@ module at_output_str_mod
     logical                :: rpathout   = .false.
     logical                :: rstmepout  = .false.
     logical                :: gamdout    = .false.
+    logical                :: abmdout    = .false.
+    logical                :: splineout  = .false.
+    logical                :: reduce_bp  = .false.
+    logical                :: reacout    = .false.     
     logical                :: rpathlogout= .false.
 
     logical                :: replica    = .false.

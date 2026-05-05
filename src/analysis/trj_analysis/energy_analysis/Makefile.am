@@ -37,17 +37,20 @@ endif
 energy_analysis_ADDLIBANA = $(top_builddir)/src/analysis/libana/libana.a
 optional_base = at_input.o at_boundary.o at_boundary_str.o \
 	at_dynvars.o at_dynvars_str.o at_restraints.o \
-	at_restraints_str.o at_remd.o at_remd_str.o \
+	at_restraints_str.o at_reac_coord.o at_reac_coord_str.o \
+	at_remd.o at_remd_str.o at_bias.o at_bias_str.o at_abmd.o \
 	at_energy.o at_energy_angles.o at_energy_bonds.o \
 	at_energy_dihedrals.o at_energy_go.o at_energy_nonbonds.o \
 	at_energy_pme.o at_energy_eef1.o at_energy_gbsa.o at_energy_restraints.o \
+	at_energy_reac_coord.o at_energy_abmd.o \
 	at_energy_morph.o at_energy_soft.o at_energy_cg_nonlocal.o \
 	at_energy_str.o at_energy_table_cubic.o \
 	at_energy_gamd.o \
 	at_energy_table_linear.o at_energy_table_linear_bondcorr.o \
 	at_enefunc.o at_enefunc_amber.o at_enefunc_charmm.o \
 	at_enefunc_go.o at_enefunc_gromacs.o at_enefunc_pme.o \
-	at_enefunc_restraints.o at_enefunc_str.o at_enefunc_gbsa.o at_enefunc_table.o \
+	at_enefunc_restraints.o at_enefunc_reac_coord.o at_enefunc_abmd.o \
+	at_enefunc_str.o at_enefunc_gbsa.o at_enefunc_table.o \
 	at_enefunc_gamd.o \
 	at_experiments_str.o at_experiments.o \
 	at_pairlist.o at_pairlist_str.o at_setup_mpi.o \

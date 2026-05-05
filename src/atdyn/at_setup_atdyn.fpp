@@ -18,6 +18,7 @@ module at_setup_atdyn_mod
   use at_output_mod
   use at_input_mod
   use at_remd_mod
+  use at_bias_mod 
   use at_rpath_mod
   use at_morph_mod
   use at_minimize_mod
@@ -27,6 +28,7 @@ module at_setup_atdyn_mod
   use at_ensemble_mod
   use at_enefunc_table_mod
   use at_restraints_mod
+  use at_reac_coord_mod
   use at_constraints_mod
   use at_boundary_mod
   use at_pairlist_mod
@@ -39,9 +41,11 @@ module at_setup_atdyn_mod
   use at_dynvars_str_mod
   use at_ensemble_str_mod
   use at_remd_str_mod
+  use at_bias_str_mod
   use at_rpath_str_mod
   use at_morph_str_mod
   use at_restraints_str_mod
+  use at_reac_coord_str_mod
   use at_constraints_str_mod
   use at_boundary_str_mod
   use at_pairlist_str_mod
@@ -53,6 +57,7 @@ module at_setup_atdyn_mod
   use fitting_mod
   use fitting_str_mod
   use at_gamd_mod
+  use at_abmd_mod  
   use molecules_mod
   use molecules_str_mod
   use fileio_morph_mod
@@ -68,6 +73,7 @@ module at_setup_atdyn_mod
   use fileio_crd_mod
   use fileio_pdb_mod
   use fileio_mode_mod
+  use fileio_spline_mod  
   use fileio_rstmep_mod
   use fileio_eef1_mod
   use fileio_table_mod
@@ -83,6 +89,7 @@ module at_setup_atdyn_mod
   public  :: setup_atdyn_md
   public  :: setup_atdyn_min
   public  :: setup_atdyn_remd
+  public  :: setup_atdyn_bias  
   public  :: setup_atdyn_rpath
   public  :: setup_atdyn_vib
   public  :: setup_atdyn_morph
@@ -124,6 +131,7 @@ contains
 
     ! local variables
     type(s_restraints)       :: restraints
+    type(s_reac_coord)       :: reac_coord
     type(s_top)              :: top
     type(s_par)              :: par
     type(s_gpr)              :: gpr
@@ -144,13 +152,14 @@ contains
     type(s_table)            :: table
     type(s_morph_in)         :: morph_in
     type(s_spot)             :: spot
+    type(s_spline)           :: spline
 
 
     ! input md
     !
     call input_md(ctrl_data%inp_info, top, par, gpr, psf, prmtop, grotop, &
                   pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                  mode, eef1, table, morph_in, spot)
+                  mode, eef1, table, morph_in, spot, spline)
 
     ! define molecules
     !
@@ -205,6 +214,12 @@ contains
     call setup_restraints(ctrl_data%res_info, ctrl_data%sel_info, &
                           molecule, restraints)
 
+   ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)
+
     ! setup energy
     !
     call setup_energy(restraints, ctrl_data%ene_info, dynvars%energy)
@@ -222,7 +237,7 @@ contains
     call define_enefunc(ctrl_data%ene_info, &
                         boundary, &
                         par, gpr, prmtop, grotop, eef1, table, &
-                        molecule, restraints, enefunc)
+                        molecule, restraints, enefunc, reac_coord)
 
     call setup_enefunc_morph_in(morph_in, enefunc)
 
@@ -234,6 +249,7 @@ contains
     call dealloc_prmtop_all(prmtop)
     call dealloc_grotop_all(grotop)
     call dealloc_eef1(eef1)
+    call dealloc_reac_coord_all(reac_coord)
 
     if (main_rank .and. ((enefunc%target_function == 0 .and. dynamics%target_md) .or. &
        (enefunc%steered_function == 0 .and. dynamics%steered_md))) then
@@ -276,6 +292,11 @@ contains
     ! set gamd
     !
     call setup_gamd(ctrl_data%gamd_info, dynamics, molecule, enefunc)
+
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, enefunc)
+    call dealloc_rst_all(rst)
 
     ! setup output
     !
@@ -327,6 +348,7 @@ contains
 
     ! local variables
     type(s_restraints)       :: restraints
+    type(s_reac_coord)       :: reac_coord
     type(s_top)              :: top
     type(s_par)              :: par
     type(s_gpr)              :: gpr
@@ -430,7 +452,7 @@ contains
     call define_enefunc(ctrl_data%ene_info, &
                         boundary, &
                         par, gpr, prmtop, grotop, eef1, table, &
-                        molecule, restraints, enefunc)
+                        molecule, restraints, enefunc, reac_coord)
 
     call setup_enefunc_morph_in(morph_in, enefunc)
 
@@ -516,6 +538,7 @@ contains
     integer                     :: i
     integer                     :: replicaid, parmsetid
     type(s_restraints)          :: restraints
+    type(s_reac_coord)          :: reac_coord    
     type(s_top)                 :: top
     type(s_par)                 :: par
     type(s_gpr)                 :: gpr
@@ -536,13 +559,14 @@ contains
     type(s_table)               :: table
     type(s_morph_in)            :: morph_in
     type(s_spot)                :: spot
+    type(s_spline)              :: spline
 
 
     ! input remd
     !
     call input_remd(ctrl_data%inp_info, top, par, gpr, psf, prmtop, grotop, &
                     pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                    mode, eef1, table, morph_in, spot)
+                    mode, eef1, table, morph_in, spot, spline)
 
     ! define molecule
     !
@@ -595,6 +619,12 @@ contains
     call setup_restraints(ctrl_data%res_info, ctrl_data%sel_info, &
                           molecule, restraints)
 
+    ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)
+
     ! setup REST (evacuation of water mols)
     !
     call setup_solute_tempering(ctrl_data%rep_info, &
@@ -616,7 +646,7 @@ contains
     call define_enefunc(ctrl_data%ene_info, &
                         boundary, &
                         par, gpr, prmtop, grotop, eef1, table, &
-                        molecule, restraints, enefunc)
+                        molecule, restraints, enefunc, reac_coord)
 
     call setup_enefunc_morph_in(morph_in, enefunc)
 
@@ -628,6 +658,7 @@ contains
     call dealloc_prmtop_all(prmtop)
     call dealloc_grotop_all(grotop)
     call dealloc_eef1(eef1)
+    call dealloc_reac_coord_all(reac_coord)
 
 
     ! setup ensemble
@@ -666,6 +697,11 @@ contains
     !
     call setup_gamd(ctrl_data%gamd_info, dynamics, molecule, enefunc, remd)
 
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, enefunc, remd=remd)
+    call dealloc_rst_all(rst)
+
     ! set output
     !
     call setup_output_remd(ctrl_data%out_info, dynamics, remd, output)
@@ -684,6 +720,228 @@ contains
     return
 
   end subroutine setup_atdyn_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_atdyn_bias
+  !> @brief        setup variables and structures in Bias-Exchange simulation
+  !! @authors      SI
+  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[out]   output      : information of output
+  !! @param[out]   molecule    : information of molecules
+  !! @param[out]   enefunc     : information of energy function
+  !! @param[out]   pairlist    : information of nonbonded pairlist
+  !! @param[out]   dynvars     : information of dynamic variables
+  !! @param[out]   dynamics    : information of molecular dynamics
+  !! @param[out]   constraints : information of constraints
+  !! @param[out]   ensemble    : information of ensemble
+  !! @param[out]   boundary    : information of boundary condition
+  !! @param[out]   bias        : information of remd
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_atdyn_bias(ctrl_data, output, molecule, enefunc, pairlist, &
+                              dynvars, dynamics, constraints, ensemble,       &
+                              boundary, bias)
+
+    ! formal arguments
+    type(s_ctrl_data),       intent(in)    :: ctrl_data
+    type(s_output),          intent(inout) :: output
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_pairlist),        intent(inout) :: pairlist
+    type(s_dynvars),         intent(inout) :: dynvars
+    type(s_dynamics),        intent(inout) :: dynamics
+    type(s_constraints),     intent(inout) :: constraints
+    type(s_ensemble),        intent(inout) :: ensemble
+    type(s_boundary),        intent(inout) :: boundary
+    type(s_bias),            intent(inout) :: bias
+
+    ! local variables
+    integer                     :: i
+    integer                     :: replicaid, parmsetid
+    type(s_restraints)          :: restraints
+    type(s_reac_coord)          :: reac_coord    
+    type(s_top)                 :: top
+    type(s_par)                 :: par
+    type(s_gpr)                 :: gpr
+    type(s_psf)                 :: psf
+    type(s_prmtop)              :: prmtop
+    type(s_grotop)              :: grotop
+    type(s_pdb)                 :: ref
+    type(s_pdb)                 :: fit
+    type(s_pdb)                 :: pdb
+    type(s_crd)                 :: crd
+    type(s_ambcrd)              :: ambcrd
+    type(s_grocrd)              :: grocrd
+    type(s_ambcrd)              :: ambref
+    type(s_grocrd)              :: groref
+    type(s_rst)                 :: rst
+    type(s_mode)                :: mode
+    type(s_eef1)                :: eef1
+    type(s_table)               :: table
+    type(s_morph_in)            :: morph_in
+    type(s_spot)                :: spot
+!    type(s_abmd)             :: abmd    
+    type(s_spline)              :: spline
+
+
+    ! input bias
+    !
+    call input_bias(ctrl_data%inp_info, top, par, gpr, psf, prmtop, grotop, &
+                    pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref,     &
+                    mode, eef1, table, morph_in, spot, spline)
+
+
+    ! define molecule
+    !
+    call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
+                          mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
+    call dealloc_top_all(top)
+    call dealloc_pdb_all(pdb)
+    call dealloc_crd_all(crd)
+    call dealloc_pdb_all(ref)
+    call dealloc_pdb_all(fit)
+    call dealloc_ambcrd_all(ambref)
+    call dealloc_grocrd_all(groref)
+    call dealloc_mode(mode)
+
+    ! setup dynamics
+    !
+    call setup_dynamics(ctrl_data%dyn_info, ctrl_data%bound_info,          &
+                        ctrl_data%res_info, ctrl_data%out_info,            &
+                        rst, molecule, dynamics)
+
+    ! setup boundary conditions
+    !
+    call setup_boundary(ctrl_data%bound_info, ctrl_data%ene_info%table,    &
+                        ctrl_data%ene_info%pairlistdist,                   &
+                        ctrl_data%sel_info,                             &
+                        molecule, rst, spot, boundary)
+    call dealloc_spot(spot)
+    
+    if (ctrl_data%ene_info%forcefield == ForcefieldRESIDCG) then
+      call update_boundary_cg(ctrl_data%ene_info%cg_pairlistdist_ele, &
+          ctrl_data%ene_info%cg_pairlistdist_126,                     &
+          ctrl_data%ene_info%cg_pairlistdist_WF,                      &
+          ctrl_data%ene_info%cg_pairlistdist_PWMcos,                  &
+          ctrl_data%ene_info%cg_pairlistdist_DNAbp,                   &
+          ctrl_data%ene_info%cg_pairlistdist_exv,                     &
+          boundary)
+    else
+      call update_boundary(ctrl_data%ene_info%table,                     &
+          ctrl_data%ene_info%pairlistdist,                               &
+          boundary)
+    end if
+
+    ! setup dynamic variables
+    !
+    call setup_dynvars(molecule, rst, dynvars, dynamics,                   &
+                       ctrl_data%ens_info%tpcontrol)
+    
+    ! setup restraints
+    !
+    call setup_restraints(ctrl_data%res_info, ctrl_data%sel_info,          &
+                          molecule, restraints)
+
+    ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)
+
+    ! setup REST (evacuation of water mols)
+    !
+    !call setup_solute_tempering(ctrl_data%rep_info,                        &
+    !                            molecule, restraints, ctrl_data%cons_info)
+
+    ! setup energy
+    !
+    call setup_energy(restraints, ctrl_data%ene_info, dynvars%energy)
+
+    ! setup qmmm
+    !
+    call setup_qmmm(ctrl_data%qmmm_info, ctrl_data%sel_info, boundary,  &
+                    psf, rst, ctrl_data%ene_info%forcefield, molecule, enefunc%qmmm)
+    call dealloc_psf_all(psf)
+
+    ! define enefunc
+    !
+    call define_enefunc(ctrl_data%ene_info,             &
+                        boundary,                       &
+                        par, gpr, prmtop, grotop, eef1, table, &
+                        molecule, restraints, enefunc, reac_coord)
+
+    call setup_enefunc_morph_in(morph_in, enefunc)
+
+    call setup_fitting_atdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
+                             molecule, enefunc)
+
+    call dealloc_par_all(par)
+    call dealloc_gpr_all(gpr)
+    call dealloc_prmtop_all(prmtop)
+    call dealloc_grotop_all(grotop)
+    call dealloc_eef1(eef1)
+    call dealloc_reac_coord_all(reac_coord)    
+
+
+    ! setup ensemble
+    !
+    call setup_ensemble(ctrl_data%ens_info, boundary, enefunc, ensemble)
+
+    ! setup constraints
+    !
+    call setup_constraints(ctrl_data%cons_info, ctrl_data%sel_info, &
+                           dynamics, boundary, molecule, &
+                           enefunc, constraints)
+
+    ! dispersion correction
+    !
+    call setup_enefunc_dispcorr(ctrl_data%ene_info, molecule, constraints, &
+                                enefunc)
+    ! setup bias
+    !
+    call setup_bias(ctrl_data%bias_info, rst, boundary, dynamics,           &
+                    molecule, restraints, ensemble, enefunc, bias=bias)
+
+    ! setup pairlist
+    !
+    call setup_pairlist(enefunc, boundary, dynvars%coord, dynvars%trans, &
+                        dynvars%coord_pbc, pairlist)
+
+    ! setup experiments
+    !
+    call setup_experiments(ctrl_data%exp_info, molecule, restraints, &
+                           enefunc)
+    call dealloc_restraints_all(restraints)
+
+    ! set gamd
+    !
+    !call setup_gamd(ctrl_data%gamd_info, dynamics, molecule, enefunc, remd)
+
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, enefunc, bias=bias)
+    call dealloc_rst_all(rst)
+    
+    ! set output
+    !
+    call setup_output_bias(ctrl_data%out_info, dynamics, output, bias)
+
+    if (enefunc%nonb_limiter .and. main_rank) then
+      write(MsgOut,'(A,F12.8)')  &
+        'Setup_Atdyn_Bias> nonb_limiter : minimum distance= ', &
+          sqrt(enefunc%minimum_contact)
+      write(MsgOut,'(A)') 
+    endif
+
+    ! ESP/MM-MD is not available for REMD
+    if (dynamics%esp_mm .and. main_rank) &
+      call error_msg('Setup_Atdyn_Bias> ESP/MM is not available for BE-ABMD.')
+
+    return
+
+  end subroutine setup_atdyn_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

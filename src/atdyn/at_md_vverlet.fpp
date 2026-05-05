@@ -3,7 +3,7 @@
 !  Module   at_md_vverlet_mod
 !> @brief   perform molecular dynamics simulation with velocity verlet algorithm
 !! @authors Jaewoon Jung (JJ), Takaharu Mori (TM), Chigusa Kobayashi (CK),
-!           Tadashi Ando (TA), Kiyoshi Yagi (KY)
+!           Tadashi Ando (TA), Kiyoshi Yagi (KY), Shingo Ito (SI)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -28,6 +28,7 @@ module at_md_vverlet_mod
   use at_dynvars_str_mod
   use at_ensemble_str_mod
   use at_remd_str_mod
+  use at_bias_str_mod
   use at_rpath_str_mod
   use at_constraints_str_mod
   use at_boundary_str_mod
@@ -35,6 +36,8 @@ module at_md_vverlet_mod
   use at_enefunc_str_mod
   use at_enefunc_gbsa_mod
   use at_enefunc_gamd_mod
+  use at_enefunc_abmd_mod
+  use at_enefunc_reac_coord_mod   
   use molecules_str_mod
   use fileio_rst_mod
   use fileio_pdb_mod
@@ -67,6 +70,7 @@ module at_md_vverlet_mod
   private :: bussi_barostat_vv2
   private :: simulated_annealing_vverlet
   private :: update_qm_charge_vverlet
+  private :: update_abmd_vverlet
 
 
 contains
@@ -75,7 +79,7 @@ contains
   !
   !  Subroutine    vverlet_dynamics
   !> @brief        velocity verlet integrator
-  !! @authors      JJ, TM, CK, TA, KY
+  !! @authors      JJ, TM, CK, TA, KY, SI
   !! @param[inout] output      : output information
   !! @param[inout] molecule    : molecule information
   !! @param[inout] enefunc     : potential energy functions information
@@ -89,7 +93,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine vverlet_dynamics(output, molecule, enefunc, dynvars, dynamics, &
-                              pairlist, boundary, constraints, ensemble)
+                              pairlist, boundary, constraints, ensemble, &
+                              remd, bias)
 
     ! formal arguments
     type(s_output),           intent(inout) :: output
@@ -101,6 +106,8 @@ contains
     type(s_boundary),         intent(inout) :: boundary
     type(s_constraints),      intent(inout) :: constraints
     type(s_ensemble),         intent(inout) :: ensemble
+    type(s_remd),   optional, intent(in)    :: remd
+    type(s_bias),   optional, intent(in)    :: bias    
 
     ! local variables
     real(wp)                  :: simtim, dt
@@ -424,6 +431,21 @@ contains
           call update_gamd_vverlet(output, enefunc, dynvars)
         end if
       end if
+
+      ! output ABMD reaction coordinates
+      !
+      if (enefunc%abmd_use) then
+        if(present(remd)) then
+          call output_reac(dynvars%step, output, dynvars, enefunc, remd=remd)
+          call update_abmd_vverlet(molecule, dynvars, dynamics, ensemble, enefunc, output, remd=remd)
+        else if(present(bias)) then
+          call output_reac(dynvars%step, output, dynvars, enefunc, bias=bias)
+          call update_abmd_vverlet(molecule, dynvars, dynamics, ensemble, enefunc, output, bias=bias)
+        else
+          call output_reac(dynvars%step, output, dynvars, enefunc)
+          call update_abmd_vverlet(molecule, dynvars, dynamics, ensemble, enefunc, output)
+        end if
+      endif
 
       ! Update QM charge for ESP-MM
       !
@@ -2973,6 +2995,72 @@ contains
     return
 
   end subroutine update_gamd_vverlet
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_abmd_vverlet
+  !> @brief        update ABMD parameters
+  !! @authors      HO
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    domain      : domain information
+  !! @param[in]    remd        : REMD information
+  !! @param[inout] enefunc     : energy information
+  !! @param[inout] output      : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+ 
+  subroutine update_abmd_vverlet(molecule, dynvars, dynamics, ensemble, &
+                                 enefunc, output, remd, bias)
+    ! formal arguments
+    type(s_molecule), target, intent(inout) :: molecule
+    type(s_dynvars),  target, intent(in)    :: dynvars
+    type(s_dynamics),         intent(in)    :: dynamics
+    type(s_ensemble),         intent(in)    :: ensemble
+    type(s_enefunc),  target, intent(inout) :: enefunc
+    type(s_output),           intent(inout) :: output
+    type(s_remd),   optional, intent(in)    :: remd
+    type(s_bias),   optional, intent(in)    :: bias
+
+    ! local variables
+    type(s_enefunc_abmd), pointer    :: abmd
+    integer                          :: num_degree
+    real(dp)                         :: kbT
+
+    abmd => enefunc%abmd
+
+    ! output the bias potential
+    !if (present(remd)) then
+    !  call output_abmd(dynvars, enefunc, output, remd=remd)
+    !else if (present(bias)) then
+    !  call output_abmd(dynvars, enefunc, output, bias=bias)
+    !else
+    !  call output_abmd(dynvars, enefunc, output)
+    !end if
+
+    call output_abmd(dynvars, enefunc, output)
+
+    ! output spline coefficients
+    if ( (.not. present (remd)) .and. (.not. present (bias))) &
+     call output_spline(dynvars, enefunc, output)
+
+    ! update abmd bias potential
+    kbT = ensemble%temperature * KBOLTZ
+
+    if  (mod(dynvars%step,enefunc%abmd%update_period) == 0) then
+      if (present(remd)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, remd=remd)
+      else if (present(bias)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, bias=bias)
+      else
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc)
+      endif
+    end if
+
+    return
+
+  end subroutine update_abmd_vverlet
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

@@ -26,6 +26,7 @@ atdyn_SOURCES = \
 	at_constraints_str.fpp \
 	at_experiments_str.fpp \
 	at_restraints_str.fpp \
+	at_reac_coord_str.fpp \
 	at_ensemble_str.fpp \
 	at_dynvars_str.fpp \
 	at_dynamics_str.fpp \
@@ -33,6 +34,7 @@ atdyn_SOURCES = \
 	at_vibration_str.fpp \
 	at_output_str.fpp \
 	at_remd_str.fpp \
+	at_bias_str.fpp \
 	at_morph_str.fpp \
 	at_rpath_str.fpp \
 	at_qmmm.fpp \
@@ -52,12 +54,16 @@ atdyn_SOURCES = \
 	at_energy_gbsa.fpp \
 	at_energy_nonbonds.fpp \
 	at_energy_restraints.fpp \
+	at_energy_reac_coord.fpp \
 	at_energy_go.fpp \
 	at_energy_soft.fpp \
 	at_energy_gamd.fpp \
+	at_energy_abmd.fpp \
 	at_energy.fpp \
 	at_enefunc_restraints.fpp \
+	at_enefunc_reac_coord.fpp \
 	at_enefunc_gamd.fpp \
+	at_enefunc_abmd.fpp \
 	at_enefunc_gbsa.fpp \
 	at_enefunc_table.fpp \
 	at_enefunc_pme.fpp \
@@ -68,6 +74,7 @@ atdyn_SOURCES = \
 	at_enefunc.fpp \
 	at_constraints.fpp \
 	at_restraints.fpp \
+	at_reac_coord.fpp \
 	at_ensemble.fpp \
 	at_dynvars.fpp \
 	at_input.fpp \
@@ -78,11 +85,13 @@ atdyn_SOURCES = \
 	at_minimize.fpp \
 	at_vibration.fpp \
 	at_remd.fpp \
+	at_bias.fpp \
 	at_rpath_mep.fpp \
 	at_rpath_fep.fpp \
 	at_rpath.fpp \
 	at_morph.fpp \
 	at_gamd.fpp \
+	at_abmd.fpp \
 	at_dynamics.fpp \
 	at_control.fpp \
 	at_setup_atdyn.fpp \

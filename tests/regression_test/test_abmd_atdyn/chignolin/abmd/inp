@@ -1,0 +1,65 @@
+[INPUT]
+prmtopfile  = prmtop
+ambcrdfile  = inpcrd
+ambreffile  = inpcrd
+rstfile     = rst
+
+[OUTPUT]
+rstfile    = testrst
+reacfile   = testrc
+abmdfile   = testbp
+splinefile = testsp
+
+[ENERGY]
+forcefield        = AMBER     # AMBER force field
+electrostatic     = PME       # [CUTOFF,PME]
+switchdist        = 8.0       # switch distance
+cutoffdist        = 8.0       # cutoff distance
+pairlistdist      = 9.5       # pair-list distance
+pme_alpha         = auto
+dispersion_corr   = EPRESS
+
+[DYNAMICS]
+integrator        =     VVER   # [LEAP,VVER,VRES]
+nsteps            =       20   # number of MD steps (50ps)
+timestep          =   0.0020   # timestep (2.0fs)
+rstout_period     =       20
+eneout_period     =        1
+nbupdate_period   =       10   # nonbond update period
+iseed             =     3939
+
+[CONSTRAINTS]
+rigid_bond        = YES
+water_model       = WAT
+
+[ENSEMBLE]
+ensemble          = NVT
+tpcontrol         = BUSSI
+temperature       = 300.00
+
+[BOUNDARY]
+type              = PBC
+
+[SELECTION]
+group1 = rnam:GLY and rno:1  and an:CA
+group2 = rnam:GLY and rno:10 and an:CA
+
+[ABMD]
+tau                    = 0.01
+wt_temperature         = 10000.0
+monitor_period         = 1
+monitor_period_spline  = 1
+stop_when_out_of_range = NO
+
+[ReacCoord]
+nreac_coord      = 1
+monitor_period   = 1
+
+function1        = DIST
+select_index1    = 1 2
+nxi1             = 51
+ximin1           = 3.0
+ximax1           = 18.0
+uboundary1       = 0.0
+periodicity1     = NO
+
