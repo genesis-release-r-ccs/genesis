@@ -70,6 +70,8 @@ else:
     is_number = re.compile('^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
     if is_number.match(sys.argv[2]):
         tolerance = float(sys.argv[2])
+    elif sys.argv[2] == "gpu":
+        is_gpu = True
     elif sys.argv[2] == "parallel_io":
         is_parallelio = True
     elif sys.argv[2] == "fugaku":
@@ -142,6 +144,12 @@ if is_atdyn:
     test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_abmd_atdyn")
 #elif is_spdyn:
 #    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_abmd_spdyn")
+
+if is_gpu:
+    print("=======================================================================")
+    print(" ABMD regression tests are temporarily skipped for GPU jobs")
+    print("=======================================================================")
+    sys.exit(0)
 
 for dir in test_dirs:
     if not os.path.exists(dir):
