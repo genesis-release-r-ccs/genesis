@@ -52,7 +52,7 @@ module at_rpath_mep_mod
   private
 
   ! local variables
-  logical,                private :: vervose = .true.
+  logical,                private :: verbose = .true.
 
   ! subroutines
   public  :: setup_rpath_mep
@@ -139,7 +139,7 @@ contains
 
       if (minimize%macro) then
         ! Since the QM region is included in the MEP region,
-        ! opt_micro is set to true when miminize%macro is true.
+        ! opt_micro is set to true when minimize%macro is true.
         rpath%opt_micro = .true.
         qmmm%qm_get_esp = .true.
         minimize%nsteps_micro = minimize%nsteps
@@ -186,7 +186,7 @@ contains
 
     ! write the summary of setup
     !
-    if (main_rank .and. vervose) then
+    if (main_rank .and. verbose) then
       write(MsgOut,'(A)') 'Setup_Rpath_MEP> Rpath information'
       write(MsgOut,'(A)') ''
       write(MsgOut,'(A20,I10)') '  dimension       = ', rpath%dimension
@@ -207,10 +207,10 @@ contains
       end do
       write(MsgOut,'(a,i0)') "  number of atoms in MEP search = ", rpath%mep_natoms
       write(MsgOut, '(a)') ' '
-      vervose = .false.
+      verbose = .false.
     end if
 
-    ! supress output of minimize
+    ! suppress output of minimize
     minimize%eneout_short = .true.
     if (rpath%eneout_period == 0) then
       minimize%eneout_period = 0
@@ -352,7 +352,7 @@ contains
 
     ! write the summary of setup
     !
-    if (main_rank .and. vervose) then
+    if (main_rank .and. verbose) then
       write(MsgOut,'(A)') 'Setup_Rpath_MEP> Rpath information'
       write(MsgOut,'(A)') ''
       write(MsgOut,'(A20,I10)') '  dimension       = ', rpath%dimension
@@ -373,7 +373,7 @@ contains
       end do
       write(MsgOut,'(a,i0)') "  number of atoms in MEP search = ", rpath%mep_natoms
       write(MsgOut, '(a)') ' '
-      vervose = .false.
+      verbose = .false.
     end if
 
     ! Check if MEP atoms are fixed in MD
@@ -601,7 +601,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    printout_mep_replica
-  !> @brief        print out the data when nrepica > nproc
+  !> @brief        print out the data when nreplica > nproc
   !! @authors      SI
   !! @param[inout] output      : output information
   !! @param[inout] molecule    : molecule information
@@ -1335,7 +1335,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    run_rpath_string_replica
-  !> @brief        string method when nreplica is larger than total MPI proccess
+  !> @brief        string method when nreplica is larger than total MPI process
   !! @authors      SI
   !! @param[inout] output      : output information
   !! @param[inout] molecule    : molecule information
@@ -2481,7 +2481,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    trans_mass_weight_coord
+  !  Subroutine    trans_mass_weight_coord_replica
   !> @brief        Transform to mass-weighted Cartesian coordinates
   !! @authors      YA, KY
   !! @param[in]    molecule     : molecular info
@@ -2560,7 +2560,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    backtrans_mass_weight_coord
+  !  Subroutine    backtrans_mass_weight_coord_replica
   !> @brief        
   !! @authors      YA, KY
   !! @param[in]    molecule     : molecular info
@@ -2770,7 +2770,7 @@ contains
     real(wp), allocatable  :: tmp(:)
     integer, parameter     :: start_minimize = 2
 
-    ! local variabels for LBFGS
+    ! local variables for LBFGS
     character(60)          :: csave, task
     logical                :: lsave(4)
     integer                :: no3, ncorr, nwork, dim
@@ -3068,7 +3068,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    run_rpath_neb_glbfgs_replica
-  !> @brief        global LBFGS-NEB if npreplica > nproc
+  !> @brief        global LBFGS-NEB if nreplica > nproc
   !! @authors      SI
   !! @param[inout] output      : output information
   !! @param[inout] molecule    : molecule information
@@ -3118,7 +3118,7 @@ contains
     real(wp), allocatable  :: tmp(:)
     integer, parameter     :: start_minimize = 2
 
-    ! local variabels for LBFGS
+    ! local variables for LBFGS
     integer                :: no3, ncorr, nwork, dim
     integer                :: iprint = -1
     integer, allocatable   :: list_bound(:)
@@ -3539,7 +3539,7 @@ contains
       tau(:,image) = tau(:,image) / sqrt(norm)
     end do
 
-    ! NEB force: perpeudicular component
+    ! NEB force: perpendicular component
     !
     do image = 2, rpath%nreplica - 1
       norm = ddot(rpath%dimension, tau(1,image), 1, rpath%mep_force(1,image),1)
@@ -3687,7 +3687,7 @@ contains
       tau(:,image) = tau(:,image) / sqrt(norm)
     end do
 
-    ! NEB force: perpeudicular component
+    ! NEB force: perpendicular component
     !
     do image = 2, rpath%nreplica - 1
       norm = ddot(rpath%dimension, tau(1,image), 1, rpath%mep_force(1,image),1)

@@ -228,7 +228,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Dynvars> bad variable')
+      call error_msg('Alloc_Dynvars> Invalid variable')
 
     end select
 
@@ -288,7 +288,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Dynvars> bad variable')
+      call error_msg('Dealloc_Dynvars> Invalid variable.')
 
     end select
 

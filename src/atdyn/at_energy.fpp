@@ -122,7 +122,7 @@ module at_energy_mod
     real(wp)              :: gbsa_temperature = 298.15_wp
     real(wp)              :: eef1_temperature = 298.15_wp
 
-    ! ~CG~ 3SPN.2C DNA: cutoff and parilist dist for BP and ele
+    ! ~CG~ 3SPN.2C DNA: cutoff and pairlist dist for BP and ele
     !
     real(wp)              :: cg_cutoffdist_ele      = 52.0_wp
     real(wp)              :: cg_cutoffdist_126      = 39.0_wp
@@ -148,9 +148,9 @@ module at_energy_mod
     logical               :: cg_infinite_DNA        = .false.
   end type s_ene_info
 
-  ! varibles
+  ! variables
   logical, save           :: etitle           = .true.
-  logical, save           :: vervose          = .true.
+  logical, save           :: verbose          = .true.
 
   ! subroutines
   public  :: show_ctrl_energy
@@ -523,21 +523,21 @@ contains
     !
     if (ene_info%switchdist > ene_info%cutoffdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> switchdist must be less than cutoffdist')
+         'Read_Ctrl_Energy> switchdist must be less than cutoffdist.')
     end if
 
     if (ene_info%cutoffdist >= ene_info%pairlistdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist')
+         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist.')
     end if
 
     if (ene_info%pme_nspline < 3 ) then
       call error_msg( &
-         'Read_Ctrl_Energy> "pme_nspline" is too small')
+         'Read_Ctrl_Energy> "pme_nspline" must be at least 3.')
 
     else if (mod(ene_info%pme_nspline,2) == 1) then
       call error_msg( &
-         'Read_Ctrl_Energy> "pme_nspline" should be even (in current version)')
+         'Read_Ctrl_Energy> "pme_nspline" must be even number in this version)')
 
     end if
 
@@ -545,7 +545,7 @@ contains
         ene_info%electrostatic == ElectrostaticCutoff) then
         if (main_rank)      &
         write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy> WARNING: "water_model" is not available'
+          'Read_Ctrl_Energy> WARNING: "water_model" is not supported.'
 
           ene_info%water_model = "NONE"
 
@@ -568,21 +568,24 @@ contains
         if (ene_info%switchdist /= ene_info%cutoffdist) then
           if (main_rank)      &
           write(MsgOut,'(A)') &
-            'Read_Ctrl_Energy> WARNING: switchdist should be equal to cutoffdist if forcefield is AMBER'
+            'Read_Ctrl_Energy> WARNING: switchdist must be equal to '//&
+            'cutoffdist for AMBER forcefield.'
             ene_info%switchdist = ene_info%cutoffdist
         end if
 
         if (ene_info%vdw_force_switch) then
           if (main_rank)      &
           write(MsgOut,'(A)') &
-            'Read_Ctrl_Energy> WARNING: vdW force switch should not be set if forcefield is AMBER and electrostatic is PME'
+            'Read_Ctrl_Energy> WARNING: vdW force switch must not be set '//&
+            'if force field is AMBER and electrostatic is PME.'
             ene_info%vdw_force_switch = .false.
         end if
 
         if (ene_info%dispersion_corr /= Disp_corr_EPress) then
           if (main_rank)      &
           write(MsgOut,'(A)') &
-            'Read_Ctrl_Energy> WARNING: dispersion_corr should be set to EPRESS if forcefield is AMBER and electrostatic is PME'
+            'Read_Ctrl_Energy> WARNING: dispersion_corr must be set to '//&
+            'EPRESS if forcefield is AMBER and electrostatic is PME.'
           ene_info%dispersion_corr = Disp_corr_EPress
         end if
 
@@ -591,7 +594,8 @@ contains
         if (ene_info%dispersion_corr /= Disp_corr_NONE) then
           if (main_rank)      &
           write(MsgOut,'(A)') &
-            'Read_Ctrl_Energy> WARNING: dispersion_corr should not be set if forcefield is AMBER and electrostatic is cutoff'
+            'Read_Ctrl_Energy> WARNING: dispersion_corr must not be set '//&
+            'if forcefield is AMBER and electrostatic is cutoff.'
           ene_info%dispersion_corr = Disp_corr_NONE
         end if
 
@@ -603,7 +607,8 @@ contains
       if (ene_info%dispersion_corr /= Disp_corr_NONE) then
         if (main_rank)      &
         write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy> WARNING: dispersion correction can not be set ene_info%cutoffdist if forcefield is CHARMM'
+          'Read_Ctrl_Energy> WARNING: dispersion correction cannot be set '//&
+          'if forcefield is CHARMM'
           ene_info%dispersion_corr = Disp_corr_NONE
       end if
 
@@ -714,7 +719,7 @@ contains
       if (ene_info%nonb_limiter) then
         if (main_rank) &
           write(MsgOut,'(A)') &
-       'Read_Ctrl_Energy> WARNING: nonb_limiter is only in table'
+       'Read_Ctrl_Energy> WARNING: nonb_limiter is only available with table'
         ene_info%nonb_limiter = .false.
       end if
     end if
@@ -1244,7 +1249,7 @@ contains
   !! @param[in]    pairlist     : information of nonbonded pair list
   !! @param[in]    boundary     : information of boundary
   !! @param[in]    nonb_ene     : flag for calculate nonbonded energy
-  !! @param[in]    nonb_limiter : flag for nonbond limimiter
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
   !! @param[in]    coord        : coordinates of target systems
   !! @param[inout] energy       : energy information
   !! @param[inout] temporary    : temporary coordinates (used for MPI allreduce)
@@ -2439,7 +2444,7 @@ contains
   !! @param[in]    pairlist   : information of nonbonded pair list
   !! @param[in]    boundary   : information of boundary
   !! @param[in]    nonb_ene   : flag for calculate nonbonded energy
-  !! @param[in]    nonb_limiter : flag for nonbond limimiter
+  !! @param[in]    nonb_limiter : flag for nonbond limiter
   !! @param[in]    coord      : coordinates of target systems
   !! @param[inout] energy     : energy information
   !! @param[inout] temporary  : temporary coordinates (used for MPI allreduce)
@@ -4135,9 +4140,9 @@ contains
 
       write(MsgOut,'(A79)') 'DYNA PRESS:            VIRE         VIRI       PRESSE       PRESSI       VOLUme'
       write(MsgOut,'(A79)') ' ----------       ---------    ---------    ---------    ---------    ---------'
-      !if (nrep_per_proc == 1) vervose = .false.
-      !if (.not. vervose) etitle = .false.
-      !vervose = .false.
+      !if (nrep_per_proc == 1) verbose = .false.
+      !if (.not. verbose) etitle = .false.
+      !verbose = .false.
 
     end if
 

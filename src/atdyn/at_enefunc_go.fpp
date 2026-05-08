@@ -50,7 +50,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    define_enefunc_go
-  !> @brief        a driver subroutine for defining potential energy
+  !> @brief        a driver subroutine for defining potential energy functions
   !! @authors      TM, CK, SI
   !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    gpr        : GO model parameter information
@@ -403,7 +403,7 @@ contains
   !! @param[in]    molecule : molecule information
   !! @param[inout] enefunc  : potential energy functions information
   !! 
-  !! @note         do NOT use this subroutine except for "ALL-ATOM" go model
+  !! @note         do NOT use this subroutine except for "ALL-ATOM" Go model
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 

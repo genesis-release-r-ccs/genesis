@@ -136,7 +136,7 @@ contains
         write(MsgOut,'(A)') '# annealing     = NO        # simulated annealing'
         write(MsgOut,'(A)') '# anneal_period = 0         # annealing period'
         write(MsgOut,'(A)') '# dtemperature  = 0.0       # temperature change at annealing (K)'
-        write(MsgOut,'(A)') '# verbose       = NO        # output verbosly'
+        write(MsgOut,'(A)') '# verbose       = NO        # output verbosely'
         write(MsgOut,'(A)') '# target_md     = no        # targeted MD simulation'
         write(MsgOut,'(A)') '# steered_md    = no        # targeted MD simulation'
         write(MsgOut,'(A)') '# initial_rmsd  = 0.0      # initial TMD target RMSD'
@@ -182,7 +182,7 @@ contains
         write(MsgOut,'(A)') '# nbupdate_period = 10      # nonbond update period'
         write(MsgOut,'(A)') '# iseed         = -1        # random number seed '
         write(MsgOut,'(A)') '# initial_time  = 0.0       # initial time (ps)'
-        write(MsgOut,'(A)') '# verbose       = NO        # output verbosly'
+        write(MsgOut,'(A)') '# verbose       = NO        # output verbosely'
         write(MsgOut,'(A)') ' '
 
       end select
@@ -400,90 +400,91 @@ contains
       if (dyn_info%crdout_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%crdout_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, crdout_period) is not ZERO')
+              'nsteps must be a multiple of crdout_period.')
         end if
       end if
 
       if (dyn_info%velout_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%velout_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, velout_period) is not ZERO')
+              'nsteps must be a multiple of velout_period.')
         end if
       end if
 
       if (dyn_info%eneout_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%eneout_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, eneout_period) is not ZERO')
+              'nsteps must be a multiple of eneout_period.')
         end if
       end if
 
       if (dyn_info%rstout_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%rstout_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, rstout_period) is not ZERO')
+              'nsteps must be a multiple of rstout_period.')
         end if
       end if
 
       if (dyn_info%stoptr_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%stoptr_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, stoptr_period) is not ZERO')
+              'nsteps must be a multiple of stoptr_period.')
         end if
       end if
 
       if (dyn_info%nbupdate_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%nbupdate_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, nbupdate_period) is not ZERO')
+              'nsteps must be a multiple of nbupdate_period.')
         end if
       end if
 
       if (dyn_info%anneal_period > 0) then
         if (mod(dyn_info%nsteps, dyn_info%anneal_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(nsteps, anneal_period) is not ZERO')
+              'nsteps must be a multiple of anneal_period.')
         end if
       end if
 
       if (dyn_info%annealing .and. dyn_info%anneal_period <= 0) then
         call error_msg('Read_Ctrl_Dynamics> '//                   &
-            'annealing = YES, but anneal_period is <= ZERO')
+            'anneal_period must be greater than zero when "annealing = YES".')
       end if
 
       if (dyn_info%crdout_period > 0) then
         if (mod(dyn_info%crdout_period,dyn_info%nbupdate_period) /= 0) then
           call error_msg('Read_Ctrl_Dynamics> '//                   &
-              'mod(crdout_period,nbupdate_period) is not ZERO')
+              'crdout_period must be a multiple of nbupdate_period.')
         end if
       end if
       if (dyn_info%shrink_box) then
         if (dyn_info%shrink_period > 0) then
           if (mod(dyn_info%shrink_period, dyn_info%nbupdate_period) /=0) then
             call error_msg('Read_Ctrl_Dynamics> '//                    &
-                           'mod(shrink_period, nbupdate_period) is not ZERO')
+                'shrink_period must be a multiple of nbupdate_period.')
           end if
         end if
 
         if (dyn_info%annealing) then
           call error_msg('Read_Ctrl_Dynamics>'//                    &
-                         'annealing and shrink_md are not set at the same time')
+                         'annealing and shrink_md are mutually exclusive.')
         end if
 
         if (dyn_info%target_md) then
           call error_msg('Read_Ctrl_Dynamics>'//                    &
-                         'target_md and shrink_md are not set at the same time')
+                         'target_md and shrink_md are mutaully exclusive.')
         end if
 
         if (dyn_info%steered_md) then
           call error_msg('Read_Ctrl_Dynamics>'//                    &
-                         'steered_md and shrink_md are not set at the same time')
+                         'steered_md and shrink_md are mutually exclusive.')
         end if
       end if
 
 
       if (dyn_info%steered_md .and. dyn_info%target_md) then
-        call error_msg('Read_Ctrl_Dynamics> steered_md and target_md are not set at the same time')
+        call error_msg('Read_Ctrl_Dynamics> steered_md and target_md are '//&
+                       'mutually exclusive.')
       endif
 
     end if
@@ -664,7 +665,7 @@ contains
   !! @param[inout] enefunc   : potential energy functions
   !! @param[in]    molecule  : information of molecules
   !! @param[in]    pairlist  : information of nonbonded pair list
-  !! @param[in]    dynanmics : dynamics information
+  !! @param[in]    dynamics : dynamics information
   !! @param[inout] dynvars   : information of dynamic variables
   !! @param[inout] qmmm      : qmmm information
   !
@@ -690,7 +691,7 @@ contains
                        'to perform ESP/MM-MD')
     end if
 
-    ! QMMM setings
+    ! QMMM settings
     qmmm%qm_classical = .true.
     qmmm%qm_get_esp   = .true.
     qmmm%ene_only     = .true.

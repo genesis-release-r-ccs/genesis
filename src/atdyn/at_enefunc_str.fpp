@@ -154,7 +154,7 @@ module at_enefunc_str_mod
     real(wp),         allocatable :: table_ene_WW(:,:)
     real(wp),         allocatable :: table_de_WW(:,:)
 
-    ! exclustion list
+    ! exclusion list
     !
     integer,          allocatable :: num_nonb_excl(:)
     integer,          allocatable :: nonb_excl_list(:,:)
@@ -1118,7 +1118,7 @@ module at_enefunc_str_mod
   integer,      public, parameter :: EzMembraneSigmoid    = 1
   integer,      public, parameter :: EzMembraneGaussian   = 2
 
-  ! BaseType for bases are dynamicvally determined from .top files.
+  ! BaseType for bases are dynamically determined from .top files.
   ! 
   integer,      public, parameter :: NABaseTypeDBA        = 1
   integer,      public, parameter :: NABaseTypeDBC        = 2
@@ -2156,7 +2156,7 @@ contains
 
      case(EneFuncCGLJ)
       ! ~CG~ lipid LJ
-      if (.not. present(var_size2)) call error_msg("Alloc_Enefunc> Missing argument var_size2")
+      if (.not. present(var_size2)) call error_msg("Alloc_Enefunc> Missing argument.")
 
       if (allocated(enefunc%cg_LJ_type)) then
         if (size(enefunc%cg_LJ_type, 1) /= var_size) deallocate(enefunc%cg_LJ_type)
@@ -3021,7 +3021,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Enefunc> bad variable')
+      call error_msg('Alloc_Enefunc> Invalid variable.')
 
     end select
 
@@ -3896,7 +3896,7 @@ contains
  
     case default
 
-      call error_msg('Dealloc_Enefunc> bad variable')
+      call error_msg('Dealloc_Enefunc> Invalid variable.')
 
     end select
 

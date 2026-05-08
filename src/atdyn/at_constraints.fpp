@@ -282,7 +282,8 @@ contains
       if (cons_info%fast_bond .and. &
           .not. cons_info%rigid_bond) then
         call error_msg( &
-          'Read_Ctrl_Constraints> rigid_bond must be YES, if fast_bond is YES')
+          'Read_Ctrl_Constraints> "rigid_bond = YES" is required when ' //&
+          '"fast_bond is YES".')
       end if
 
     end if
@@ -354,8 +355,9 @@ contains
 
       if (constraints%hydrogen_type .eq. ConstraintAtomName  &
          .and. molecule%special_hydrogen) &
-      call error_msg('Setup_Constraints> Non ordinary hydrogen name is not'//&
-                         ' allowed. If you want, use hydrogen_type option.')
+      call error_msg('Setup_Constraints> Non-ordinary hydrogen name is ' //&
+                     'detected. Please use the "hydrogen_type" option ' //&
+                     'to define it.')
 
       ! setup SETTLE
       !
@@ -377,8 +379,8 @@ contains
       if (cons_info%fast_bond) then
 
         if (dynamics%integrator == IntegratorVVER) then
-          call error_msg('Setup_Constraints> fast_bond = YES with integrator'//&
-                         ' = VVER is not supported')
+          call error_msg('Setup_Constraints> fast_bond = YES is '//&
+                         'not supported with the VVER integrator.')
         end if
 
         call setup_lincs(molecule, dynamics, constraints)
@@ -968,7 +970,7 @@ contains
     end do
 
     if (mod(nwater, 3) /= 0) &
-      call error_msg('Setup_Settle> # of water is incorrect.')
+      call error_msg('Setup_Settle> Invalid number of water molecules.')
 
     nwater = nwater / 3
     constraints%num_water = nwater
@@ -1059,7 +1061,7 @@ contains
     end do
 
     if (nwater /= constraints%num_water) &
-      call error_msg('Setup_Settle> number of water is incorrect')
+      call error_msg('Setup_Settle> Invalid number of water molecules.')
 
     constraints%water_massO = molecule%mass(constraints%water_list(1,1))
     constraints%water_massH = molecule%mass(constraints%water_list(2,1))
@@ -1106,7 +1108,7 @@ contains
         end if
 
       else
-        call error_msg('Setup_Settle> bond parameter is incorrect.')
+        call error_msg('Setup_Settle> Invalid bond parameters.')
 
       end if
 
@@ -1152,7 +1154,7 @@ contains
         endif
 
       else
-        call error_msg('Setup_Settle> angle parameter is incorrect.')
+        call error_msg('Setup_Settle> Invalid angle parameters.')
 
       end if
 
@@ -1218,7 +1220,7 @@ contains
         constraints%water_massO == 0.0_wp .or.  &
         constraints%water_massH == 0.0_wp) &
       call error_msg( &
-           'Setup_Settle> Error in defining three-site water!')
+           'Setup_Settle> Failed to define the three-site water model.')
 
     return
 
@@ -2409,7 +2411,8 @@ contains
           end if
         end do
       end if
-      call error_msg('Compute_Shake> SHAKE algorithm failed to converge (see "Chapter: Trouble shooting" in the user manual)')
+      call error_msg('Compute_Shake> SHAKE algorithm failed to converge '//&
+                     '(see "Chapter: Trouble shooting" in the user manual.)')
 
     end if
 
@@ -2532,7 +2535,7 @@ contains
     !$omp         inv_massH2O)
     ! 
     ! note:reduction cannot be used for "virial" because of the rounding error, 
-    ! which is very large especialy in the case of langevin NPT.
+    ! which is very large especially in the case of langevin NPT.
     !
 #ifdef OMP
     ! get loop index of each thread

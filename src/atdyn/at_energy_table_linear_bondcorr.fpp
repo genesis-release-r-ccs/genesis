@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_energy_table_linear_bondcorr_mod
-!> @brief   Smooth particle mesh ewald method
+!> @brief   Smooth particle mesh Ewald method
 !! @authors Jaewoon Jung (JJ), Chigusa Kobayashi (CK)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.

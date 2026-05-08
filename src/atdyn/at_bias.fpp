@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_bias_mod
-!> @brief   Bias exhcnage ABMD simulation
+!> @brief   Bias exchange ABMD simulation
 !! @authors Shingo Ito (SI)
 ! 
 !  (c) Copyright 2014 RIKEN. All rights reserved.
@@ -197,7 +197,8 @@ contains
     ! error check
     !
     if (bias_info%nreplicas > BiasMaxNdimensions .or. bias_info%nreplicas == 0) &
-      call error_msg('Read_Ctrl_Bias> Invalid dimension specified in [BIAS] section.')
+      call error_msg('Read_Ctrl_Bias> Invalid dimension specified in '//&
+                     '[BIAS] section.')
 
     ! read allocatable variables
     !
@@ -240,7 +241,8 @@ contains
     ! error check
     !
     if (bias_info%nwalkers == 0) &
-      call error_msg('Read_Ctrl_Bias> Error in nwalkers in [BIAS]')
+      call error_msg('Read_Ctrl_Bias> Invalid nwalkers specified in '//&
+                     '[BIAS] section')
 
 
     call end_ctrlfile_section(handle)
@@ -359,8 +361,8 @@ contains
     do i = 1, bias%nreplicas
       if (bias%cyclic_params(i)) then
         if (mod(bias%nwalkers,2) /= 0) &
-          call error_msg('Setup_Bias> nwalkers must be even,'// &
-                         ' when cyclic_params is specified')
+          call error_msg('Setup_Bias> nwalkers must be even '// &
+                         'when cyclic_params is YES')
       end if
     end do
 
@@ -444,8 +446,8 @@ contains
     end do
     
     if (max_ndata > 4) &
-     call error_msg('Setup_Bias> The number of reaction functions cannot exceed'//&
-                    ' 4')
+     call error_msg('Setup_Bias> The number of reaction functions cannot '//&
+                    'exceed 4')
 
     ! set up enefunc%reac_coord%nreac_func
     !
@@ -1188,7 +1190,7 @@ contains
     if (dockid == repj) then
       do_exchange_bias = .true.
       ! Exchange repj-1 > repi-1
-      ! Synchroniz
+      ! Synchronize
       !
       ! 1-1) nreac_coord
       call mpi_send(nreac_coord,      1, mpi_integer, recvdock-1, 0, &

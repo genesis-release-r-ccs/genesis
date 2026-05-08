@@ -541,11 +541,11 @@ contains
     qmmm%linkbond            = qmmm_info%linkbond
     qmmm%qm_total_charge     = dble(qmmm_info%qm_total_charge)
 
-    ! Set forcefield-specifc parameters
+    ! Set forcefield-specific parameters
     !
     if (forcefield .eq. ForcefieldAMBER) then
       if (qmmm%exclude_charge /= ExcludeChargeAtomAndDistribute) then
-        if (main_rank) write(MsgOut, '(a)') "Setup_QMMM> Warning: Force to exclude_charge = amber for AMBER forcefifeld"
+        if (main_rank) write(MsgOut, '(a)') "Setup_QMMM> Warning: Force to exclude_charge = amber for AMBER forcefield"
         qmmm%exclude_charge = ExcludeChargeAtomAndDistribute
       end if
     end if
@@ -637,7 +637,7 @@ contains
     allocate(selatoms(ngroup), stat = kalloc_stat)
     if (kalloc_stat /= 0) call error_msg_alloc
 
-    ! Avoid segmentation falut due to the lack of [SELECTION]
+    ! Avoid segmentation fault due to the lack of [SELECTION]
     !
     if (size(sel_info%groups) == 0) then
       deallocate(selatoms, stat = kdealloc_stat)
@@ -736,7 +736,7 @@ contains
     if (.not. found_atom .and. main_rank) then
       write(MsgOut,'(a)') '  Error! Unknown atom is detected.'
       write(MsgOut,'(a)') &
-        '  The following MM atoms cannnot be assigned to QM atoms.'
+        '  The following MM atoms cannot be assigned to QM atoms.'
       do i = 1, qmmm%qm_natoms
         if (qmmm%qm_atomic_no(i) < 0) then
           iatom = qmmm%qmatom_id(i)
@@ -778,7 +778,7 @@ contains
       write(MsgOut,'(a,i0)') "  number of QM atoms = ", qmmm%qm_natoms
       write(MsgOut, '(a)') ' '
       if (qmmm%is_qm_charge) &
-         write(MsgOut,'(a)') "  QM charges retreived from rstfile."
+         write(MsgOut,'(a)') "  QM charges retrieved from rstfile."
       write(MsgOut, '(a)') ' '
     end if
 
@@ -1542,7 +1542,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    qm_check_input_dftb+
+  !  Subroutine    qm_check_input_dftbplus
   !> @brief        check template for dftb+ input
   !! @authors      KY
   !! @param[in]    qmmm        : information on QM/MM setting
@@ -5517,7 +5517,7 @@ contains
 
     end if
 
-    ! Save QM reults
+    ! Save QM results
     !
     if (qmmm%savefile) then
 
@@ -5865,7 +5865,7 @@ contains
         total_charge - qmmm%qm_total_charge, " over ", qmmm%mm_natoms, " MM atoms"
       end if
 
-      ! externaly modify MM charges
+      ! externally modify MM charges
       !
       shift_charge = (total_charge - qmmm%qm_total_charge) / dble(qmmm%mm_natoms)
       do i = 1, qmmm%mm_natoms

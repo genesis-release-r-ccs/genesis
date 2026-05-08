@@ -53,7 +53,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_energy_eef1
+  !  Subroutine    compute_energy_nonbond_eef1
   !> @brief        Calculate nonbond energy in no boundary condition
   !! @authors      TM
   !! @note         Shift function is not used in the ELECT term here.
@@ -145,7 +145,7 @@ contains
 
   subroutine compute_energy_reference(enefunc, molecule, coord, force, esolv)
 
-    ! formal argumens
+    ! formal arguments
     type(s_enefunc),  target, intent(in)    :: enefunc
     type(s_molecule), target, intent(in)    :: molecule
     real(wp),                 intent(in)    :: coord(:,:)
@@ -1230,7 +1230,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_ellipsoid_depth
-  !> @brief        calculate minimum distance between a point and ellipsoid
+  !> @brief        calculate minimum distance between a point and an ellipsoid
   !! @authors      TM
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1338,7 +1338,8 @@ contains
             exit
           else
             write(MsgOut,*) x, y, z
-            call error_msg('Compute_Ellipsoid_Depth> Depth calculation failed to converge')
+            call error_msg('Compute_Ellipsoid_Depth> Iteative depth '//&
+                           'calculation failed to converge.')
           end if
         end if
 
@@ -1434,7 +1435,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Function      g
-  !> @brief        calculate distance between a point and ellipsoid
+  !> @brief        calculate distance between a point and an ellipsoid
   !! @authors      TM
   !
   !======1=========2=========3=========4=========5=========6=========7=========8

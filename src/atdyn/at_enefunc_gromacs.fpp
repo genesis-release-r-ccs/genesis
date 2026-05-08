@@ -207,7 +207,7 @@ contains
       !
       call setup_enefunc_cg_exv(ene_info, grotop, molecule, enefunc)
 
-      ! CG : construct nonlocal excusion list
+      ! CG : construct nonlocal exclusion list
       !
       call setup_enefunc_cg_nonlocal_exclusion(ene_info, grotop, molecule, enefunc)
 
@@ -215,8 +215,8 @@ contains
 
       call setup_enefunc_nonb(ene_info, grotop, molecule, enefunc)
       if (enefunc%num_basins > 1 .and. boundary%type /= BoundaryTypeNOBC) then
-        call error_msg( &
-             'Define_Enefunc_Gromacs> multibasin is allowed only in NOBC')
+        call error_msg('Define_Enefunc_Gromacs> multibasin is supported '//&
+                       'only with boundarry=NOBC')
       endif
 
     end if
@@ -656,7 +656,7 @@ contains
 
     else if (nanglflex > 0) then
         call error_msg( &
-             'Setup_Enefunc_Angl> Flexible angle type is not defined')
+             'Setup_Enefunc_Angl> Flexible angle type is not defined.')
     end if
 
     natom = 0
@@ -2054,7 +2054,9 @@ contains
 
       ! No match with current atom names was found
       if (.not. is_present1 .and. .not. is_present2) then
-        call error_msg("unknown atom types: '" // trim(buff1) // "' and '" // trim(buff2) // "'", __FILE__, __LINE__)
+        call error_msg("unknown atom types: '" // &
+                       trim(buff1) // "' and '" // trim(buff2) // &
+                       "'", __FILE__, __LINE__)
       end if
     end do
 
@@ -2074,7 +2076,7 @@ contains
 
     ! Set type-dependent arrays
     !
-    ! Initialize varaiable
+    ! Initialize variable
     cutoff_max = 0.0_wp
     ! Iterate over WCA parameter definitions
     do i = 1, n_names
@@ -2215,7 +2217,7 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "WCA pairlistdist: ", enefunc%cg_pai
               exit
             end if
           end do
-          ! Save the paramters if not already present
+          ! Save the parameters if not already present
           if (save_value) then
             n_paras = n_paras + 1
             parameters(n_paras) = grotop%cg_ISOLF_parameters(j)
@@ -2264,7 +2266,7 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "WCA pairlistdist: ", enefunc%cg_pai
       return
     end if
 
-    ! Initialize varaiable
+    ! Initialize variable
     cutoff_max = 0.0_wp
     ! Iterate over ISOLF parameter definitions
     do i = 1, n_paras
@@ -2498,7 +2500,7 @@ if (main_rank) write(MsgOut, "(a20,f11.6)") "ISOLF pairlistdist: ", enefunc%cg_p
 
     ! Set type-dependent arrays
     !
-    ! Initialize varaiable
+    ! Initialize variable
     cutoff_max = 0.0_wp
     ! Iterate over LJ parameter definitions
     do i = 1, n_names
@@ -3589,7 +3591,8 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
 
             if (enefunc%forcefield == ForcefieldSOFT) then
               call error_msg( &
-                   'Setup_Enefunc_Nonb> combination rule shuld be 2 for SOFT.')
+                   'Setup_Enefunc_Nonb> The combination rule must be 2 '//&
+                   'when using SOFT potential.')
             end if
 
           end if
@@ -3753,7 +3756,8 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
         enefunc%num_basins = ene_info%num_basins
       else
         call error_msg( &
-            'Setup_Enefunc_Nonb> number of basins is not correct.')
+            'Setup_Enefunc_Nonb> The number of basins specified '//&
+            'for the multi-basin potential is invalid.')
       end if
      
       enefunc%mix_temperature = ene_info%mix_temperature
@@ -3850,7 +3854,8 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
           enefunc%excl_level = excl_level
         else if (enefunc%excl_level /= excl_level) then
           call error_msg( &
-               'Setup_Enefunc_Nonb> multiple "exclude_nbon" is not supported.')
+               'Setup_Enefunc_Nonb> multiple "exclude_nbon" entries are '//&
+               'not supported.')
         end if
 
       end do
@@ -4012,7 +4017,8 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
           else
 
             call error_msg( &
-                'Setup_Enefunc_CG > only func = 2 is abailable for AICG2P contact.')
+                'Setup_Enefunc_CG > only func = 2 is supported for AICG2P '//&
+                'contact potential.')
 
           end if
 
@@ -4680,7 +4686,7 @@ if (main_rank) write(MsgOut, "(a18,f11.6)") "LJ pairlistdist: ", enefunc%cg_pair
                 gromol%posress(k-1)%kz /= gromol%posress(k)%kz) then
               write(MsgOut,'(a)') 'Setup_Enefunc_Gro_Restraints> WARNING:'
               write(MsgOut,'(a,a,a)') &
-   '   different restraint constant between foreach atoms is not supported. [',&
+          '   different restraint constant for each atoms is not supported. [',&
    trim(grotop%molss(i)%moltype%name), ']'
               write(MsgOut,'(a)') ' '
             end if

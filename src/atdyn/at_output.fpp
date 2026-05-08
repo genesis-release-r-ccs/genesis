@@ -135,7 +135,7 @@ contains
         write(MsgOut,'(A)') '# dcdvelfile = sample.dcd   # DCD velocity file'
         write(MsgOut,'(A)') '# rstfile    = sample.rst   # restart file'
         write(MsgOut,'(A)') '# pdbfile    = sample.pdb   # PDB file'
-        write(MsgOut,'(A)') '# gamdfile   = sample.gamd  # gamd file'
+        write(MsgOut,'(A)') '# GaMDfile   = sample.gamd  # gamd file'
         write(MsgOut,'(A)') '# reacfile   = sample.reac  # reac file'
         write(MsgOut,'(A)') '# abmdfile   = sample.abmd  # abmd file'
         write(MsgOut,'(A)') '# splinefile = sample.spl   # spline file'          
@@ -739,7 +739,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    setup_output_vib
-  !> @brief        setup output information for minimization
+  !> @brief        setup output information for vibration
   !! @authors      KY
   !! @param[in]    out_info  : OUTPUT section control parameters information
   !! @param[in]    vibration : vibration information
@@ -815,7 +815,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    setup_output_morph
-  !> @brief        setup output information for minimization
+  !> @brief        setup output information for morphing
   !! @authors      CK
   !! @param[in]    out_info : OUTPUT section control parameters information
   !! @param[in]    morph    : morph information
@@ -870,7 +870,7 @@ contains
   !  Subroutine    open_output
   !> @brief        open output file
   !! @authors      TM, SI
-  !! @param[inout] outout : information of output
+  !! @param[inout] output : information of output
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
@@ -1247,7 +1247,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    output_min
-  !> @brief        output trajectory and restart data for miniization
+  !> @brief        output trajectory and restart data for minimization
   !! @authors      TM, NT, KY
   !! @param[inout] output   : output information
   !! @param[in]    molecule : molecule information
@@ -1485,7 +1485,7 @@ contains
     integer            :: repid_i, i, ii, j, k
 
 
-    ! wrire log (main rank only)
+    ! write log (main rank only)
     !
     if (main_rank .and. output%rpathlogout) then
       write(output%rpathlogunit, '(I10,3F15.8)') &
@@ -1637,7 +1637,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    output_vib
-  !> @brief        output trajectory and restart data for miniization
+  !> @brief        output trajectory and restart data for minimization
   !! @authors      KY
   !! @param[inout] output    : output information
   !! @param[in]    molecule  : molecule information
@@ -1895,7 +1895,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    output_morph
-  !> @brief        output restart data for MOPRH
+  !> @brief        output restart data for MORPH
   !! @authors      CK
   !! @param[inout] output   : output information
   !! @param[in]    molecule : molecule information
@@ -2925,7 +2925,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    output_restart_morph
-  !> @brief        output restart data for MOPRH
+  !> @brief        output restart data for MORPH
   !! @authors      CK
   !! @param[in]    output   : output information
   !! @param[in]    molecule : molecule information

@@ -73,7 +73,7 @@ module at_energy_str_mod
     ! drms for morph
     real(wp)              :: drms(1:2)
 
-    ! dipersion correction
+    ! dispersion correction
     real(wp)              :: disp_corr_energy
     real(wp)              :: disp_corr_virial
     ! multi-basin 

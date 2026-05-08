@@ -62,7 +62,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    define_enefunc_charmm
-  !> @brief        a driver subroutine for defining potential energy function
+  !> @brief        a driver subroutine for defining potential energy functions
   !! @authors      YS, TI, JJ, CK, SI
   !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    boundary   : boundary conditions information
@@ -262,7 +262,7 @@ contains
 
     if (found /= nbond) &
       call error_msg('Setup_Enefunc_Bond_Par> '//                    &
-                     'Some Bond Paremeters are missing.')
+                     'Missing bond paremeters.')
 
     ! define bond interaction list for each processor
     !
@@ -379,7 +379,9 @@ contains
             if (k == num_virtual_angle_types + 1) then
               num_virtual_angle_types = num_virtual_angle_types + 1
               if (num_virtual_angle_types >= max_virtual_angle_types) then
-                call error_msg('Setup_Enefunc_Angl_Urey_Par> Too many water like parameter types.')
+                call error_msg('Setup_Enefunc_Angl_Urey_Par> Number of '//&
+                               'water-like parameter types exceeds the '//&
+                               'maximum limit.')
               end if
               ignored_types(1,num_virtual_angle_types) = ci1
               ignored_types(2,num_virtual_angle_types) = ci2
@@ -400,7 +402,7 @@ contains
     end do
 
     if (angl_found /= nangl - num_virtual_angles) &
-      call error_msg('Setup_Enefunc_Angl_Urey_Par> Some Angle Paremeters are missing.')
+      call error_msg('Setup_Enefunc_Angl_Urey_Par> Missing angle parameters.')
 
     do i = 1, num_virtual_angle_types
       if (main_rank) then
@@ -625,8 +627,8 @@ contains
     enefunc%num_dihedrals = found
 
     if (found < ndihe) &
-       call error_msg('Setup_Enefunc_Dihe_Par> Some Dihedral '//            &
-                      'Paremeters are missing.')
+       call error_msg('Setup_Enefunc_Dihe_Par> Missing dihedral '//            &
+                      'angle paremeters.')
 
     ! define dihedral angle interaction list for each processor
     !
@@ -710,7 +712,8 @@ contains
         wc_type(i) = 3
 
       else
-        call error_msg('Setup_Enefunc_Impr_Par> Undefined Wild Card')
+        call error_msg('Setup_Enefunc_Impr_Par> Undefined wildcard '//&
+                       'pattern in improper parameters.')
 
       end if
 
@@ -776,7 +779,8 @@ contains
 
         else
           write(MsgOut,*) i, ci1, ci2, ci3, ci4
-          call error_msg('Setup_Enefunc_Impr_Par> Unknown IMPR type.')
+          call error_msg('Setup_Enefunc_Impr_Par> Unknown improper type '//&
+                         'detected')
 
         end if
 
@@ -887,7 +891,8 @@ contains
       ! Error
       if (.not.used(i)) then
         write(MsgOut,*) i, ci1, ci2, ci3, ci4
-        call error_msg('Setup_Enefunc_Impr_Par> Unknown IMPR type.')
+        call error_msg('Setup_Enefunc_Impr_Par> Unknown improper type '//&
+                       'detected')
       end if
 
     end do
@@ -896,7 +901,7 @@ contains
 
     if (found < nimpr) &
        call error_msg( &
-            'Setup_Enefunc_Impr_Par> Some Improper Paremeters are missing.')
+            'Setup_Enefunc_Impr_Par> Missing improper paremeters.')
 
     ! define improper dihedral angle interaction list for each processor
     !
@@ -959,7 +964,7 @@ contains
     !   then cubic spline with periodic (in dihedral-angle space) boundary 
     !   will be applied.
     ! If 'periodic' is .false., 
-    !   then natural cubic spline without periodic boudnary 
+    !   then natural cubic spline without periodic boundary 
     !   will be applied to expanded cross-term maps. 
     !   This is similar with CHARMM's source code.  
     !
@@ -1045,7 +1050,7 @@ contains
     !
     if (found < ncmap) &
       call error_msg('Setup_Enefunc_Cmap_Par> '//                       &
-                     'Some Cmap Parameters are missing.')
+                     'Missing cmap parameters.')
 
     !  derive cmap coefficients by bicubic interpolation
     !    

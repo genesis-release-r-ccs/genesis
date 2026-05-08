@@ -127,7 +127,7 @@ contains
         write(MsgOut,'(A)') 'spherical_pot = YES       # use sph. pot.    in [NOBC]'
         write(MsgOut,'(A)') 'constant      = 10.0      # force constants  in [NOBC]'
         write(MsgOut,'(A)') 'exponent      = 2         # exponent         in [NOBC]'
-        write(MsgOut,'(A)') 'fixatom       = yes       # fixed atom at bounary  in [NOBC]'
+        write(MsgOut,'(A)') 'fixatom       = yes       # fixed atom at boundary  in [NOBC]'
         write(MsgOut,'(A)') 'fix_layer     = 1.0       # thickness of fix layer in [NOBC]'
         !write(MsgOut,'(A)') 'nospot_select_index = 1   # index for atoms without sph. pot.'
         write(MsgOut,'(A)') 'restart       = yes       # retrieve from rst in [NOBC]'
@@ -261,8 +261,8 @@ contains
           spot_info%read_spot = .true.
 
         if (spot_info%nindex > 0 .and. spot_info%nfunctions > 0)  &
-          call error_msg('Read_Ctrl_Boundary> ERROR: Both nindex and &
-                         &nfunctions are given in ctrl file.')
+          call error_msg('Read_Ctrl_Boundary> nindex and nfunctions ' // &
+                         'are mutually exclusive.')
 
         nfunc = 0
         ierr  = 0
@@ -488,11 +488,14 @@ contains
 
       if (rst%rstfile_type == RstfileTypeUndef) then
         if (abs(bound_info%pbc_info%box_size_x - FakeDefault) < EPS) &
-          call error_msg('Setup_Boundary> box_size_x is not specified in ctrl')
+          call error_msg('Setup_Boundary> box_size_x must be specified in ' //&
+                         'the control input.')
         if (abs(bound_info%pbc_info%box_size_y - FakeDefault) < EPS) &
-          call error_msg('Setup_Boundary> box_size_y is not specified in ctrl')
+          call error_msg('Setup_Boundary> box_size_y must be specified in ' //&
+                         'the control input.')
         if (abs(bound_info%pbc_info%box_size_z - FakeDefault) < EPS) &
-          call error_msg('Setup_Boundary> box_size_z is not specified in ctrl')
+          call error_msg('Setup_Boundary> box_size_z must be specified in ' //&
+                         'the control input.')
 
         boundary%box_size_x = bound_info%pbc_info%box_size_x
         boundary%box_size_y = bound_info%pbc_info%box_size_y
@@ -541,8 +544,8 @@ contains
 
         else
           if (.not. rst%sph_pot) &
-            call error_msg('Setup_Boundary> Information of spherical potential &
-                           &is not found in rstfile.')
+            call error_msg('Setup_Boundary> Sherical potential information '//&
+                           'was not found in the rstfile.')
             
           call alloc_boundary(boundary, BoundarySphericalPot, rst%nfunctions)
           boundary%nfunctions = rst%nfunctions
@@ -661,19 +664,20 @@ contains
 
     if (spot%ncenter > 0) then
       if (bound_info%spot_info%nindex > 0)     &
-        call error_msg('Setup_Boundary> ERROR: Both spotfile and &
-                       &nindex are given in ctrl file.')
+        call error_msg('Setup_Boundary> spotfile and nindex '// &
+                       'are mutually exclusive.')
       if (bound_info%spot_info%nfunctions > 0) &
-        call error_msg('Setup_Boundary> ERROR: Both spotfile and &
-                       &nfunctions are given in ctrl file.')
+        call error_msg('Setup_Boundary> spotfile and nfunctions '// &
+                       'are mutually exclusive.')
     end if
 
     if (bound_info%spot_info%read_spot) then
       ! read from spotfile
 
       if (spot%ncenter == 0) &
-        call error_msg('Setup_Boundary> ERROR: Center of the spherical &
-                       &potential must be specified by one of spotfile, nindex, nfunctions')
+        call error_msg('Setup_Boundary> The spherical potential center '// &
+                       'must be defined using one of the following: '   // &
+                       'spotfile, nindex, nfunctions')
     
       nfunc = spot%ncenter
       boundary%nfunctions  = nfunc
@@ -1047,8 +1051,10 @@ contains
       ncell_z_check = int(bsize_z/pairdist_check)
 
       if (ncell_x_check < 3 .or. ncell_y_check < 3 .or. ncell_z_check < 3) &
-        call error_msg('Update_Boundary_Pbc> too small boxsize/pairdist.'//&
-                       ' larger boxsize or shorter pairdist should be used (see "Chapter: Trouble shooting" in the user manual).')
+        call error_msg('Update_Boundary_Pbc> Box size is too small ' //&
+                       'relative to pairlistdist. Increase the box ' //&
+                       'size or decrease pairlistdist (see "Trouble '//&
+                       'shooting" in the user manual).')
 
     else
 
@@ -1063,8 +1069,10 @@ contains
           boundary%use_cell_linked_list = .false.
           return
         else
-          call error_msg('Update_Boundary_Pbc> too small boxsize/pairdist.'//&
-                         ' larger boxsize or shorter pairdist should be used (see "Chapter: Trouble shooting" in the user manual).')
+          call error_msg('Update_Boundary_Pbc> Box size is too small ' //&
+                         'relative to pairlistdist. Increase the box ' //&
+                         'size or decrease pairlistdist (see "Trouble '//&
+                         'shooting" in the user manual).')
         end if
       end if
 
@@ -1319,8 +1327,10 @@ contains
       !   boundary%use_cell_linked_list = .false.
       !   return
       ! else
-      call error_msg('Update_Boundary_Pbc> too small boxsize/pairdist_long.'//&
-          ' larger boxsize or shorter pairdist should be used.')
+      call error_msg('Update_Boundary_Pbc> Box size is too small ' //&
+                     'relative to pairlistdist. Increase the box ' //&
+                     'size or decrease pairlistdist (see "Trouble '//&
+                     'shooting" in the user manual).')
       ! end if
     end if
 
@@ -1830,7 +1840,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    wrap molecules
+  !  Subroutine    wrap_molecules
   !> @brief        wrap molecules
   !! @authors      TM
   !! @param[in]    molecule : molecule information

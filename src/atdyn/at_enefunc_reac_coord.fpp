@@ -163,7 +163,7 @@ contains
             write(MsgOut,'(A)') ''
           end do
 
-        ! summary for positinal and RMSD reaction coordinate
+        ! summary for positional and RMSD reaction coordinate
         !
         else 
 
@@ -832,7 +832,7 @@ contains
       if(periodicity(ireac)) chk_periodicity = .true.
 
       if(ximax(ireac) < ximin(ireac)) &
-      & call error_msg('Setup_Enefunc_ReacCoord> ximax must be greater than ximin.')
+        call error_msg('Setup_Enefunc_ReacCoord> ximax must be greater than ximin.')
       if(nxi(ireac) > 1) then
         dxi   (ireac) = (ximax(ireac)-ximin(ireac))/real(nxi(ireac)-1,wp)
         invdxi(ireac) = 1.0_wp/dxi(ireac)
@@ -1026,7 +1026,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Enefunc_Reac_Coord> Invalid variable')
+      call error_msg('Alloc_Enefunc_Reac_Coord> Invalid variable.')
 
     end select
 

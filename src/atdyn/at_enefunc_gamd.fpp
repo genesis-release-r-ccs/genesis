@@ -91,7 +91,7 @@ contains
     type(s_molecule), target, intent(inout) :: molecule
     type(s_enefunc),          intent(inout) :: enefunc
 
-    ! local varialbles
+    ! local variables
     integer :: natoms
 
 

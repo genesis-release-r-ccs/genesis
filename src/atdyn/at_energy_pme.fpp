@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_energy_pme_mod
-!> @brief   Smooth particle mesh ewald method
+!> @brief   Smooth particle mesh Ewald method
 !! @authors Takashi Imai (TI), Jaewoon Jung (JJ), Takaharu Mori (TM), 
 !!          Chigusa Kobayashi (CK), Motoshi Kamiya (MK), Yuji Sugita (YS)
 !! @note    TI modified for NPT (2010/11/23)
@@ -108,7 +108,7 @@ contains
     ngrid(1:3) =  enefunc%pme%ngrid(1:3)
     alpha2m    =  enefunc%pme%alpha2m
 
-    ! Prepareing theta = F^-1[theta](h), h shifted
+    ! Preparing theta = F^-1[theta](h), h shifted
     ! Gx, Gy, Gz, and vir_fact=-2(1+G^2/4a)/G^2 are also prepared 
     ! for virial calculation
     !
@@ -390,7 +390,7 @@ contains
     !$omp barrier
     !
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     myqdf(1:ngrid(1),1:ngrid(2),1:ngrid(3),id+1) = 0.0_wp
     do iz = id+1, ngrid(3), nthread
@@ -404,7 +404,7 @@ contains
     !$omp barrier
     !
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     !$omp do
     do i = istart_atom, iend_atom
@@ -467,7 +467,7 @@ contains
     end do
     !$omp barrier
 
-    ! Q-fanction is saved to qdf_send for communication
+    ! Q-function is saved to qdf_send for communication
     !
     do jproc = 0, my_city_rank - 1
       do iz = z_start(jproc)+id, z_end(jproc), nthread
@@ -520,7 +520,7 @@ contains
 
     !$omp barrier
 
-    ! Q-fanction is accumulated to qdf_send for each processor
+    ! Q-function is accumulated to qdf_send for each processor
     !
     do iproc = 0, my_city_rank - 1
       do iz = id+1, z_local(my_city_rank), nthread

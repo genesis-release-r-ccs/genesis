@@ -242,7 +242,7 @@ contains
     type(s_remd),  optional, intent(inout) :: remd
     type(s_bias),  optional, intent(inout) :: bias 
 
-    ! local varialbles
+    ! local variables
     type(s_enefunc_abmd),       pointer :: abmd
     type(s_enefunc_reac_coord), pointer :: reac_coord
     integer                             :: i, j, ixi, inext, max_nwalkers
@@ -383,8 +383,8 @@ contains
         allocated(rst%abmd_ubuf)) then
       ! resolve bspline coeffs on the previous mesh
       if(rst%abmd_nreac_coord /= abmd%nreac_coord) then
-		      call error_msg('Setup_Abmd> Number of reaction coordinates '//&
-			             'does not match the bias file.')
+	 call error_msg('Setup_Abmd> Number of reaction coordinates '//&
+	                'does not match the bias file.')
       endif
       match = rst%abmd_nreac_coord_comb == abmd%nreac_coord_comb
       if(match) then

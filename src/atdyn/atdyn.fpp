@@ -115,7 +115,7 @@ program atdyn
 #endif
 
 #if defined(__PGI) && !defined(__NVCOMPILER)
-   call error_msg('Atdyn> atdyn with PGI is not allowed at this moment')
+   call error_msg('Atdyn> ATDYN with PGI compiler is not supported.')
 #endif
  
   ! show usage
@@ -182,7 +182,8 @@ contains
       genesis_run_mode = GenesisMORPH
 
     else
-      call error_msg('Get_Genesis_Mode> ERROR: Unknown control file format.')
+      call error_msg('Get_Genesis_Mode> Unknown or unsupported control file '//&
+                     'format.')
 
     end if
 

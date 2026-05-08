@@ -44,7 +44,7 @@ contains
   !! @param[in]  coord coordinates of target systems [dble]
   !! @param[out] force forces of target systems [dble]
   !! @param[out] virial of target systems [dble]
-  !! @param[out] morpgh energy of target systems [dble]
+  !! @param[out] morph energy of target systems [dble]
   !! @date       2015/02/06 (CK)
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -100,7 +100,7 @@ contains
   !! @param[in]  coord coordinates of target systems [dble]
   !! @param[out] force forces of target systems [dble]
   !! @param[out] virial of target systems [dble]
-  !! @param[out] morpgh energy of target systems [dble]
+  !! @param[out] morph energy of target systems [dble]
   !! @date       2015/02/06 (CK)
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -303,7 +303,7 @@ contains
   !! @param[in]  coord coordinates of target systems [dble]
   !! @param[out] force forces of target systems [dble]
   !! @param[out] virial of target systems [dble]
-  !! @param[out] morpgh energy of target systems [dble]
+  !! @param[out] morph energy of target systems [dble]
   !! @date       2015/02/06 (CK)
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -435,7 +435,7 @@ contains
   !! @param[in]  coord coordinates of target systems [dble]
   !! @param[out] force forces of target systems [dble]
   !! @param[out] virial of target systems [dble]
-  !! @param[out] morpgh energy of target systems [dble]
+  !! @param[out] morph energy of target systems [dble]
   !! @date       2015/02/06 (CK)
   ! 
   !======1=========2=========3=========4=========5=========6=========7=========8

@@ -677,7 +677,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_energy_SA
+  !  Subroutine    compute_energy_sa
   !> @brief        calculate solvation free energy with the SA model
   !! @authors      TM
   !! @param[in]    enefunc  : potential energy functions information

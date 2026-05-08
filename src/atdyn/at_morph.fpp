@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_morph_mod
-!> @brief   Moprhing simulation
+!> @brief   Morphing simulation
 !! @authors Chigusa Kobayashi (CK)
 ! 
 !  (c) Copyright 2014 RIKEN. All rights reserved.
@@ -149,7 +149,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8 !
   !  Subroutine    read_ctrl_morph
-  !> @brief        read DYNAMICS section in the control file
+  !> @brief        read MORPH section in the control file
   !! @authors      TM, JJ
   !! @param[in]    handle     : unit number of control file
   !! @param[out]   morph_info : MORPH section in control parameters
@@ -295,7 +295,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  setup_morph
+  !  Subroutine setup_morph
   !> @brief        setup morph
   !> @author       CK
   !! @param[in]    morph_info [type]
@@ -429,7 +429,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  setup_enefunc_morph_in
+  !  Subroutine setup_enefunc_morph_in
   !> @brief        setup morph
   !> @author CK
   !! @param[in]    morph_in [type]
@@ -591,13 +591,13 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine : run_morph
+  !  Subroutine run_morph
   !> @brief  entrance of the integrator
   !> @author CK
   !! @param[in] output:     information about output [str]
   !! @param[in] molecule:   information about molecules [str]
   !! @param[in] enefunc:    potential energy function [str]
-  !! @param[in] dynvars:    dynamics varibales [str]
+  !! @param[in] dynvars:    dynamics variables [str]
   !! @param[in] morph:      information about morph [str]
   !! @param[in] boundary:   boundary condition [str]
   !! @param[in] pairlist:   pairlist [str]
@@ -691,14 +691,14 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  morph_minimize_sd
+  !  Subroutine morph_minimize_sd
   !> @brief        entrance of the integrator
   !> @author       CK
   !! @param[in] output:   information about output [str]
   !! @param[in] molecule: information about molecules [str]
   !! @param[in] enefunc:  potential energy function [str]
-  !! @param[in] dynvars:  dynamics varibales [str]
-  !! @param[in] moorph:   information about moorph [str]
+  !! @param[in] dynvars:  dynamics variables [str]
+  !! @param[in] morph:   information about morph [str]
   !! @param[in] boundary: boundary condition [str]
   !! @param[in] pairlist: pairlist [str]
   !! @date   CK: 2012/11/13
@@ -835,14 +835,14 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  morph_minimize_lbfgs
+  !  Subroutine morph_minimize_lbfgs
   !> @brief        entrance of the integrator
   !> @author       CK
   !! @param[in]    output:   information about output [str]
   !! @param[in]    molecule: information about molecules [str]
   !! @param[in]    enefunc:  potential energy function [str]
-  !! @param[in]    dynvars:  dynamics varibales [str]
-  !! @param[in]    moorph:   information about moorph [str]
+  !! @param[in]    dynvars:  dynamics variables [str]
+  !! @param[in]    morph:   information about morph [str]
   !! @param[in]    boundary: boundary condition [str]
   !! @param[in]    pairlist: pairlist [str]
   !! @date   CK: 2012/11/13
@@ -994,14 +994,14 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  morph_minimize_steps
+  !  Subroutine morph_minimize_steps
   !> @brief        entrance of the integrator
   !> @author       CK
   !! @param[in]    output:   information about output [str]
   !! @param[in]    molecule: information about molecules [str]
   !! @param[in]    enefunc:  potential energy function [str]
-  !! @param[in]    dynvars:  dynamics varibales [str]
-  !! @param[in]    moorph:   information about moorph [str]
+  !! @param[in]    dynvars:  dynamics variables [str]
+  !! @param[in]    morph:   information about morph [str]
   !! @param[in]    boundary: boundary condition [str]
   !! @param[in]    pairlist: pairlist [str]
   !
@@ -1166,7 +1166,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  check_morph
+  !  Subroutine check_morph
   !> @brief        check_morph
   !> @author       CK
   !! @param[out]   dynvars [type]
@@ -1247,7 +1247,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  get_morph_in
+  !  Subroutine get_morph_in
   !> @brief        setup morph
   !> @author       CK
   !! @param[in]    morph_in [type]

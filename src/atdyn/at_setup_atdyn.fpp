@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_setup_atdyn_mod
-!> @brief   setup variables and structures in MD simulaton
+!> @brief   setup variables and structures in MD simulation
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Kiyoshi Yagi (KY)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
@@ -304,7 +304,7 @@ contains
 
     if (enefunc%nonb_limiter .and. main_rank) then
       write(MsgOut,'(A,F12.8)') &
-        'Setup_Atdyn_Md> nonb_limiter : minimim distance= ', &
+        'Setup_Atdyn_Md> nonb_limiter : minimum distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
     endif
@@ -489,7 +489,7 @@ contains
 
     if (enefunc%nonb_limiter .and. main_rank) then
       write(MsgOut,'(A,F12.8)') &
-        'Setup_Atdyn_Min> nonb_limiter : minimim distance= ', &
+        'Setup_Atdyn_Min> nonb_limiter : minimum distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
     endif
@@ -708,7 +708,7 @@ contains
 
     if (enefunc%nonb_limiter .and. main_rank) then
       write(MsgOut,'(A,F12.8)') &
-        'Setup_Atdyn_Remd> nonb_limiter : minimim distance= ', &
+        'Setup_Atdyn_Remd> nonb_limiter : minimum distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
     endif
@@ -1166,7 +1166,7 @@ contains
 
     if (enefunc%nonb_limiter .and. main_rank) then
       write(MsgOut,'(A,F12.8)') &
-        'Setup_Atdyn_Rpath> nonb_limiter : minimim distance= ', &
+        'Setup_Atdyn_Rpath> nonb_limiter : minimum distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
     endif
@@ -1329,7 +1329,7 @@ contains
 
     if (enefunc%nonb_limiter .and. main_rank) then
       write(MsgOut,'(A,F12.8)') &
-        'Setup_Atdyn_Vib> nonb_limiter : minimim distance= ', &
+        'Setup_Atdyn_Vib> nonb_limiter : minimum distance= ', &
           sqrt(enefunc%minimum_contact)
       write(MsgOut,'(A)') 
     endif
@@ -1448,7 +1448,7 @@ contains
 
     ! do not qmmm in MORPH
     if (ctrl_data%qmmm_info%do_qmmm) &
-      call error_msg('Setup_Atdyn_Moprh> QM/MM is not allowed in Moprh')
+      call error_msg('Setup_Atdyn_Morph> QM/MM is not allowed in Morph')
     enefunc%qmmm%do_qmmm=.false.
 
     call dealloc_psf_all(psf)

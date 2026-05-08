@@ -138,7 +138,7 @@ contains
         write(MsgOut,'(A)') '# fixatm_select_index = 1 2  # fixed atoms in minimization'
         write(MsgOut,'(A)') '# tol_rmsg        = 3.6D-01  # tolerance for RMS gradient'
         write(MsgOut,'(A)') '# tol_maxg        = 5.4D-01  # tolerance for MAX gradient'
-        write(MsgOut,'(A)') '# verbose         = NO       # output verbosly'
+        write(MsgOut,'(A)') '# verbose         = NO       # output verbosely'
         write(MsgOut,'(A)') '# for SD'
         write(MsgOut,'(A)') '# force_scale_init = 0.01D+00  # initial scaling for SD'
         write(MsgOut,'(A)') '# force_scale_max  = 0.1D+00   # max scaling for SD'
@@ -174,7 +174,7 @@ contains
       case ('min')
 
         write(MsgOut,'(A)') '[MINIMIZE]'
-        write(MsgOut,'(A)') 'method        = LBFGS     # [SD] of [LBFGS]'
+        write(MsgOut,'(A)') 'method        = LBFGS     # [SD] or [LBFGS]'
         write(MsgOut,'(A)') 'nsteps        = 100       # number of minimization steps'
         write(MsgOut,'(A)') ' '
 
@@ -657,7 +657,7 @@ contains
 
     allocate(fixatm(molecule%num_atoms))
 
-    ! Fixed atoms at the bounary
+    ! Fixed atoms at the boundary
     !
     if (boundary%num_fixatm > 0) then
       fixatm = boundary%fixatm
@@ -1223,13 +1223,13 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine :  minimize_lbfgs
-  !> @brief        minimzation with lbfgs
+  !  Subroutine minimize_lbfgs
+  !> @brief        minimization with lbfgs
   !> @author       CK, KY, YA
   !! @param[inout] output:     information about output [str]
   !! @param[inout] molecule:   information about molecules [str]
   !! @param[inout] enefunc:    potential energy function [str]
-  !! @param[inout] dynvars:    dynamics varibales [str]
+  !! @param[inout] dynvars:    dynamics variables [str]
   !! @param[inout] minimize:   information about minimize [str]
   !! @param[inout] pairlist:   pairlist [str]
   !! @param[inout] boundary:   boundary condition [str]

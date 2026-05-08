@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_enefunc_pme_mod
-!> @brief   Smooth particle mesh ewald method
+!> @brief   Smooth particle mesh Ewald method
 !! @authors Takashi Imai (TI), Jaewoon Jung (JJ), Takaharu Mori (TM), 
 !!          Chigusa Kobayashi (CK)
 !! @note    TI modified for NPT (2010/11/23)
@@ -118,7 +118,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    define_enefunc_pme
+  !  Subroutine    setup_pme_grid_number
   !> @brief        Setup for PME
   !! @authors      JJ, TM, CK
   !! @param[in]    ene_info : parameters in [ENERGY] section
@@ -196,7 +196,7 @@ contains
       nz = 16
     else
       call error_msg( &
-           'Setup_PME_FFTE> MPI process number for PME should be'//  &
+           'Setup_PME_FFTE> MPI process number for PME must be'//  &
            ' 1, 2, 4, 8, 16, 32, 64, or 128')
     end if
 #endif
@@ -504,7 +504,7 @@ contains
     end if
 
 
-    ! Prepareing theta = F^-1[theta](h), h shifted
+    ! Preparing theta = F^-1[theta](h), h shifted
     !
     allocate(enefunc%pme%gx(ngrid(1)),                                        &
              enefunc%pme%gy(ngrid(2)),                                        &

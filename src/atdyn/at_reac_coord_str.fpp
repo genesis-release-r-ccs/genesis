@@ -245,7 +245,7 @@ contains
 
      case default
 
-       call error_msg('Alloc_ReacCoord> bad variable')
+       call error_msg('Alloc_ReacCoord> Invalid variable.')
 
      end select
 
@@ -321,7 +321,7 @@ contains
 
     case default
 
-             call error_msg('Dealloc_ReacCoord> bad variable')
+             call error_msg('Dealloc_ReacCoord> Invalid variable.')
     end select
 
     if (dealloc_stat /= 0) call error_msg_dealloc

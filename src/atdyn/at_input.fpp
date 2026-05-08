@@ -489,8 +489,8 @@ contains
   !! @param[out]   grocrd   : information of GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   table    : information of lookup table data
   !! @param[out]   spot     : information of spherical potential
@@ -643,8 +643,8 @@ contains
   !! @param[out]   grocrd   : information of GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   table    : information of lookup table data
   !! @param[out]   spot     : information of spherical potential
@@ -796,8 +796,8 @@ contains
   !! @param[out]   grocrd   : information of GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   table    : information of lookup table data
   !! @param[out]   spot     : information of spherical potential
@@ -975,8 +975,8 @@ contains
   !! @param[out]   grocrd   : information of GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   table    : information of lookup table data
   !! @param[out]   spot     : information of spherical potential
@@ -1155,8 +1155,8 @@ contains
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
   !! @param[out]   fit      : information of fit coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   rstmep   : information of rpath
   !! @param[out]   table    : information of lookup table data
@@ -1349,8 +1349,8 @@ contains
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
   !! @param[out]   fit      : information of fit coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode     : information of principal component vector
   !! @param[out]   rstmep   : information of rpath
   !! @param[out]   spot     : information of spherical potential
@@ -1533,7 +1533,7 @@ contains
   !! @param[in]    inp_info : information of INPUT section control parameters
   !! @param[out]   grotop   : information of GROMACS parameter topology data
   !! @param[out]   grocrd   : information of GROMACS coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   table    : information of lookup table data
   !
@@ -1597,8 +1597,8 @@ contains
   !! @param[out]   grocrd   : information of GROMACS coordinate data
   !! @param[out]   rst      : information of restart data
   !! @param[out]   ref      : information of reference coordinate data
-  !! @param[out]   ambref   : information of refernece AMBER coordinate data
-  !! @param[out]   groref   : information of refernece GROMACS coordinate data
+  !! @param[out]   ambref   : information of reference AMBER coordinate data
+  !! @param[out]   groref   : information of reference GROMACS coordinate data
   !! @param[out]   mode 
   !! @param[out]   morph    : information of morphing file
   !

@@ -66,7 +66,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    setup_enefunc_implicit_solvent_charmm
-  !> @brief        define implicit solvent model with charmm
+  !> @brief        define implicit solvent model with CHARMM
   !! @authors      TM
   !! @param[in]    ene_info : ENERGY section control parameters information
   !! @param[in]    boundary : boundary information
@@ -135,7 +135,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    setup_enefunc_implicit_solvent_amber
-  !> @brief        define implicit solvent model with amber
+  !> @brief        define implicit solvent model with AMBER
   !! @authors      TM
   !! @param[in]    ene_info : ENERGY section control parameters information
   !! @param[in]    boundary : boundary information
@@ -171,7 +171,8 @@ contains
       enefunc%imic_use = .false.
       enefunc%gbsa_use = .true.
     else
-      call error_msg('Setup_Enefunc_Implicit_Solvent_Amber> The specified implicit solvent model is not available in the AMBER force field')
+      call error_msg('Setup_Enefunc_Implicit_Solvent_Amber> The specified '//&
+          'implicit solvent model is not supported wth the AMBER force field')
     end if
 
     if (enefunc%gbsa_use) then
@@ -221,7 +222,8 @@ contains
 
 
     if (boundary%type /= BoundaryTypeNOBC) then
-      call error_msg('Setup_Enefunc_Gbsa> GBSA is available in NOBC currently')
+      call error_msg('Setup_Enefunc_Gbsa> GBSA is currently only supported '//&
+                     'with no boundary condition (boundary=NOBC).')
     end if
 
     if (main_rank) then
@@ -478,7 +480,8 @@ contains
 
       if (enefunc%gbsa%sasa_atom_type(i) == 0) then
         write(MsgOut,'(a,a4)') 'Setup_Enefunc_Gbsa> Could not define the LCPO parameters for atom:', molecule%atom_name(i)
-        call error_msg('Setup_Enefunc_Gbsa> Could not define the LCPO parameters for some atoms.')
+        call error_msg('Setup_Enefunc_Gbsa> FAiled to assign LCPO '//&
+                       'parameters for one or more atoms.')
       end if
 
     end do
@@ -551,7 +554,8 @@ contains
 
 
     if (boundary%type /= BoundaryTypeNOBC) then
-      call error_msg('Setup_Enefunc_Implicit_Solvent> EEF1/IMM1/IMIC is available in NOBC currently')
+      call error_msg('Setup_Enefunc_Implicit_Solvent> EEF1/IMM1/IMIC are '//&
+                     'currently only supported with boundary=NOBC.')
     end if
 
     if (main_rank) then
@@ -621,7 +625,8 @@ contains
 
     end do
 
-    if (setuperr) call error_msg('Setup_Enefunc_Implicit_Solvent> Setup error in EEF1/IMM1')
+    if (setuperr) call error_msg('Setup_Enefunc_Implicit_Solvent> '//&
+                      'Initialization failed for the EEF1/IMM1 solvent model')
 
     call get_loop_index(molecule%num_atoms, enefunc%eef1%istart, enefunc%eef1%iend)
 

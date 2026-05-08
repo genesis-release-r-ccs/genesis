@@ -2242,7 +2242,7 @@ contains
 
             num_nb15_calc(ii) = 0
 
-            ! serch only in the self and neighboring cells 
+            ! search only in the self and neighboring cells 
             !
             do inbc = 1, boundary%num_neighbor_cells
               jj = head(boundary%neighbor_cells(inbc,icel))
@@ -2495,7 +2495,7 @@ contains
 
           if (mod(ii-1,nproc_city*nthread) == my_id) then
 
-            ! serch only in the self and neighboring cells 
+            ! search only in the self and neighboring cells 
             !
             do inbc = 1, boundary%num_neighbor_cells
               jk = headw(boundary%neighbor_cells(inbc,icel))
@@ -2707,7 +2707,7 @@ contains
 
             i = enefunc%table%water_list(1,ii)
 
-            ! serch only in the self and neighboring cells
+            ! search only in the self and neighboring cells
             !
             do inbc = 1, boundary%num_neighbor_cells
 

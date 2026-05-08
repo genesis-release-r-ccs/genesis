@@ -214,7 +214,7 @@ contains
 
       else
 
-        call error_msg('Alloc_Constraints> allocation error for var_size2')
+        call error_msg('Alloc_Constraints> Allocation error.')
 
       end if
 
@@ -246,7 +246,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Constraints> bad variable')
+      call error_msg('Alloc_Constraints> Invalid variable.')
 
     end select
 
@@ -323,7 +323,7 @@ contains
       end if
 
     case default
-      call error_msg('Dealloc_Constraints> bad variable')
+      call error_msg('Dealloc_Constraints> Invalid variable.')
 
     end select
 

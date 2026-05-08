@@ -133,7 +133,7 @@ contains
         write(MsgOut,'(A)') '[VIBRATION]'
         write(MsgOut,'(A)') 'nreplica            = 1           # number of MPI processes' 
         write(MsgOut,'(A)') 'runmode             = HARM        # HARM, QFF, or GRID'
-        write(MsgOut,'(A)') 'vibatm_select_index = 1           # fixed atoms in minimization'
+        write(MsgOut,'(A)') 'vibatm_select_index = 1           # atoms subject to vib analysis'
         write(MsgOut,'(A)') 'output_minfo_atm    = 2           # atoms punched to a minfo file'
         write(MsgOut,'(A)') 'minfo_folder        = minfo.files # a folder where minfo files are created'
         write(MsgOut,'(A)') ' '
@@ -149,7 +149,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    read_ctrl_vibration
-  !> @brief        read VIBRATIOn section in the control file
+  !> @brief        read VIBRATION section in the control file
   !! @authors      KY
   !! @param[in]    handle   : unit number of control file
   !! @param[out]   vib_info : MINIMIZE section in control parameters
@@ -776,7 +776,7 @@ contains
     end do
 
     if (istart0 < 0) then
-      ! all grid points are calcualted
+      ! all grid points are calculated
       goto 1000
     end if
 
@@ -964,7 +964,7 @@ contains
         write(MsgOut,'(4x,40(''=''))')
         write(MsgOut,'(4x,''!! Warning !!'')')
         write(MsgOut,'(4x,''RMSG is too large for the following vibrational '' ,/, &
-                    &  4x,''analysis to be valid. Further miminization until '',/, &
+                    &  4x,''analysis to be valid. Further minimization until '',/, &
                     &  4x,''RMSG < 0.35 is highly recommended.'')')
         write(MsgOut,'(4x,40(''=''))')
       end if
@@ -998,7 +998,7 @@ contains
 
     else
 
-      ! merge the calculataed hessian/dd with the exsiting one
+      ! merge the calculated hessian/dd with the existing one
       do i1 = 1, nat
         if (.not. vibatom_calc(i1)) cycle
 

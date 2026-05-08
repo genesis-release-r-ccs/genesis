@@ -65,7 +65,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    vverlet_dynamics
+  !  Subroutine    vverlet_dynamics_cg
   !> @brief        velocity verlet integrator
   !! @authors      JJ, TM, CK, TA, KY
   !! @param[inout] output      : output information
@@ -267,7 +267,7 @@ contains
           vel(3,j) = vel(3,j) + 0.5_wp*dt*force(3,j)*inv_mass(j)
         end do
 
-        ! Velocty constraint (RATTLE VV2)
+        ! Velocity constraint (RATTLE VV2)
         !   coord     is at t + dt, vel (unconstrained) is at t + dt
         !   coord_ref is at t,      vel_ref             is at t
         !   compute constrained velocities(t+dt)
@@ -884,7 +884,7 @@ contains
     end do
     !$omp end parallel do
 
-    ! termostat
+    ! thermostat
     !
     vel_scale = exp(-gamma_t*h_dt)
     !$omp parallel do default(shared) private(j)
@@ -1334,7 +1334,7 @@ contains
    
     vel_ref(1:3,1:natom) = vel(1:3,1:natom)
 
-    ! iteraction of barostats
+    ! iteration of barostats
     !
     do i = 1, maxiter
 
@@ -1348,7 +1348,7 @@ contains
         vel(1:3,j) = vel(1:3,j) + h_dt*force_add(1:3,j)*inv_mass(j)
       end do
 
-      ! termostat
+      ! thermostat
       ! 
       vel_scale = exp(-gamma_t*q_dt)
       do j = 1, natom
@@ -1380,7 +1380,7 @@ contains
                            pressx, pressy, pressz, pressxyz, pressxy, &
                            volume, ekin, dynvars)
 
-      ! termostat
+      ! thermostat
       !
       do j = 1, natom
         vel(1:3,j) = vel(1:3,j)*vel_scale

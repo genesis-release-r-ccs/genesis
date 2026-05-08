@@ -116,7 +116,7 @@ contains
           do j = 1, enefunc%restraint_numatoms(i) 
             iatm=enefunc%restraint_atomlist(j,i)
             if (iatm <= 0 .or. iatm > molecule%num_atoms) &
-              call error_msg('Setup_Enefunc_Restraint> atom idx is not correct.')
+              call error_msg('Setup_Enefunc_Restraint> Invalid atom index.')
             segname = molecule%segment_name(iatm)
             resname = molecule%residue_name(iatm)
             atname  = molecule%atom_name(iatm)
@@ -252,7 +252,7 @@ contains
             end do
           end do
 
-        ! summary for positinal, RMSD and principal component restraint
+        ! summary for positional, RMSD and principal component restraint
         !
         else 
 
@@ -319,7 +319,8 @@ contains
     !
     do i = 1, enefunc%num_restraintgroups
       if (enefunc%restraint_numatoms(i) == 0) &
-        call error_msg('Setup_Enefunc_Rest_Group> no atom in group')
+        call error_msg('Setup_Enefunc_Rest_Group> No atoms found in '//&
+                       'the specified group')
     end do
 
     ! setup mass_coefficient
@@ -382,26 +383,32 @@ contains
       select case(restraints%function(i))
       case(RestraintsFuncDIST:RestraintsFuncDISTCOM)
         if (ndata <  2 .or. mod(ndata,2) /= 0) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for DIST')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'DIST restraint')
       case(RestraintsFuncANGLE:RestraintsFuncANGLECOM)
         if (ndata /= 3) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for ANGLE')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'ANGLE restraint')
       case(RestraintsFuncDIHED:RestraintsFuncDIHEDCOM)
         if (ndata /= 4) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for DIHE')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'DIHE restraint')
       case(RestraintsFuncPC:RestraintsFuncPCCOM)
         if (ndata == 0) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for PC')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'PC restraint')
       case(RestraintsFuncREPUL:RestraintsFuncREPULCOM)
         if (ndata <  2) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for REPUL')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'REPUL restraint')
       case(RestraintsFuncFB:RestraintsFuncFBCOM)
         if (ndata <  2) &
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for FB')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'FB restraint')
       case default
         if (ndata /= 1) & 
-          call error_msg('Setup_Enefunc_Rest_Func> Error in index for '//  &
-                         'POSI or RMSD or RG')
+          call error_msg('Setup_Enefunc_Rest_Func> Invalid index for '//&
+                         'POSI / RMSD / RG restraint')
       end select
 
       num_indexes(i) = ndata
@@ -523,7 +530,8 @@ contains
       enefunc%steered_function = 0
     else
       if (itmd < 0 .or. itmd > num_funcs) &
-        call error_msg('Setup_Enefunc_Rest_Func> Error in Targeted function')
+        call error_msg('Setup_Enefunc_Rest_Func> Invalid targeted function '//&
+                       'definition')
       if (itmd > 0                                               .and. &
           enefunc%restraint_kind(itmd) /= RestraintsFuncDIST     .and. &
           enefunc%restraint_kind(itmd) /= RestraintsFuncDISTCOM  .and. &
@@ -537,7 +545,8 @@ contains
           enefunc%restraint_kind(itmd) /= RestraintsFuncREPULCOM .and. &
           enefunc%restraint_kind(itmd) /= RestraintsFuncFB       .and. &
           enefunc%restraint_kind(itmd) /= RestraintsFuncFBCOM) then
-        call error_msg('Setup_Enefunc_Rest_Func> Targeted function is not allowed')
+        call error_msg('Setup_Enefunc_Rest_Func> Targeted function is '//&
+                       'not supported for this method.')
       end if
       enefunc%target_function  = restraints%target_function
       enefunc%steered_function = restraints%target_function
@@ -654,7 +663,8 @@ contains
     ndata = split_num(string)
 
     if (ndata == 0) then
-      call error_msg('Setup_Restraint_Constants> constant is not given')
+      call error_msg('Setup_Restraint_Constants> Restraint constant is not '//&
+                     'provided.')
     end if
 
     ndata_max = size(enefunc%restraint_const_replica(:,1))
@@ -724,22 +734,13 @@ contains
 
     if (ndata > 0) then
       if (enefunc%restraint_kind(ifunc) ==  RestraintsFuncPOSI) then
-        call error_msg('Setup_Restraint_Reference> reference of POSI is not needed')
+        call error_msg('Setup_Restraint_Reference> Reference coordinates '//&
+                       'for POSI are not required.')
       end if
       if (enefunc%restraint_kind(ifunc) ==  RestraintsFuncEM) then
-        call error_msg('Setup_Restraint_Reference> reference of EM is not needed')
+        call error_msg('Setup_Restraint_Reference> Reference coordinates '//&
+                       'for EM are not required.')
       end if
-    end if
-
-    if ((ndata > 0) .and. &
-        (enefunc%restraint_kind(ifunc) ==  RestraintsFuncPOSI)) then
-      call error_msg('Setup_Restraint_Reference> reference of POSI is not needed')
-    end if
-
-    if ((ndata == 0) .and. &
-        (enefunc%restraint_kind(ifunc) /=  RestraintsFuncPOSI) .and. &
-        (enefunc%restraint_kind(ifunc) /=  RestraintsFuncEM  )) then
-      call error_msg('Setup_Restraint_Reference> reference is not given')
     end if
 
     ndata_max = size(enefunc%restraint_const_replica(:,1))
@@ -810,7 +811,8 @@ contains
     allocate(idata(1:maxfunc))
     if (ndata > 0) then
       if (ndata /= enefunc%restraint_funcgrp(ifunc)/factor) &
-        call error_msg('Setup_Restraint_Exponent_Dist> Error in exponent_dist')
+        call error_msg('Setup_Restraint_Exponent_Dist> Invalid value for '//&
+                       'exponent_dist')
 
       call split(ndata, maxfunc, string, idata)
       enefunc%restraint_exponent_dist(1:maxfunc,ifunc) = idata(1:maxfunc)
@@ -867,7 +869,8 @@ contains
     allocate(ddata(1:maxfunc))
     if (ndata > 0) then
       if (ndata /= enefunc%restraint_funcgrp(ifunc)/factor) &
-        call error_msg('Setup_Restraint_Weight_Dist> error in weight_dist')
+        call error_msg('Setup_Restraint_Weight_Dist> Invalid value for '//&
+                       'weight_dist')
 
       call split(ndata, maxfunc, string, ddata)
       enefunc%restraint_weight_dist(1:maxfunc,ifunc) = ddata(1:maxfunc)
@@ -1006,7 +1009,8 @@ contains
 
 
     if (size(molecule%atom_refcoord(1,:)) /= molecule%num_atoms) &
-      call error_msg('Setup_Enefunc_Rest_Refcoord> bad reffile in [INPUT]')
+      call error_msg('Setup_Enefunc_Rest_Refcoord> Invalid reffile '//&
+                     'specified in [INPUT]')
 
     enefunc%num_atoms_ref = molecule%num_atoms
 
@@ -1040,7 +1044,8 @@ contains
 
 
     if (size(molecule%pc_mode(:)) /= molecule%num_pc_modes) &
-      call error_msg('Setup_Enefunc_Rest_Modes> bad modefile in [INPUT]')
+      call error_msg('Setup_Enefunc_Rest_Modes> Invalid modefile '//&
+                     'specified in [INPUT]')
 
     enefunc%num_pc_modes = molecule%num_pc_modes
 

@@ -295,7 +295,7 @@ contains
           vel(3,j) = vel(3,j) + 0.5_wp*dt*force(3,j)*inv_mass(j)
         end do
 
-        ! Velocty constraint (RATTLE VV2)
+        ! Velocity constraint (RATTLE VV2)
         !   coord     is at t + dt, vel (unconstrained) is at t + dt
         !   coord_ref is at t,      vel_ref             is at t
         !   compute constrained velocities(t+dt)
@@ -1472,7 +1472,7 @@ contains
                                dt, molecule, dynvars, constraints)
     end if
 
-    ! termostat
+    ! thermostat
     !
     vel_scale = exp(-gamma_t*h_dt)
     do j = 1, natom
@@ -1943,7 +1943,7 @@ contains
    
     vel_ref(1:3,1:natom) = vel(1:3,1:natom)
 
-    ! iteraction of barostats
+    ! iteration of barostats
     !
     do i = 1, maxiter
 
@@ -1984,7 +1984,7 @@ contains
 
       end if
 
-      ! termostat
+      ! thermostat
       ! 
       vel_scale = exp(-gamma_t*q_dt)
       do j = 1, natom
@@ -2016,7 +2016,7 @@ contains
                            pressx, pressy, pressz, pressxyz, pressxy, &
                            volume, ekin, dynvars)
 
-      ! termostat
+      ! thermostat
       !
       do j = 1, natom
         vel(1:3,j) = vel(1:3,j)*vel_scale
@@ -2455,7 +2455,7 @@ contains
               + 2.0_wp*gr*sqrt(ekin0/(ndof0*ekin)*factor*(1.0_wp-factor))
     vel_scale = sqrt(vel_scale)
     !NOTE: Most of the cases, sign(vel_scale) is +.
-    !      For a harmonic osillator case, the value may have -.
+    !      For a harmonic oscillator case, the value may have -.
     vel_scale = sign(vel_scale,                                               &
                      gr+sqrt(factor*ndof0*ekin/((1.0_wp-factor)*ekin0)))
 
@@ -2887,7 +2887,7 @@ contains
               + 2.0_wp*gr*sqrt(ekin0/(ndof0*ekin)*factor*(1.0_wp-factor))
     vel_scale = sqrt(vel_scale)
 !NOTE: Most of the cases, sign(vel_scale) is +.
-!      For a harmonic osillator case, the value may have -.
+!      For a harmonic oscillator case, the value may have -.
     vel_scale = sign(vel_scale,                                               &
                 gr+sqrt(factor*ndof0*ekin/((1.0_wp-factor)*ekin0)))
     do j = 1, natom

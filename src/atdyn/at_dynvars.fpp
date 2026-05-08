@@ -37,7 +37,7 @@ module at_dynvars_mod
   integer, public, save :: DynvarsOut = 6 ! this is necessary for REMD output.
 
   logical,         save :: etitle = .true.
-  logical,         save :: vervose = .true.
+  logical,         save :: verbose = .true.
 
   ! subroutines
   public  :: setup_dynvars
@@ -87,7 +87,7 @@ contains
     if (present(dynamics)) then
       if (dynamics%integrator == IntegratorLEAP .and. &
           tpcontrol           == TpcontrolBUSSI) then
-        call error_msg('Setup_Dynvars> BUSSI is not allowed in Leap-frog')
+        call error_msg('Setup_Dynvars> BUSSI is not supported in Leap-frog')
       end if
     endif
 
@@ -963,9 +963,9 @@ contains
       end do
 
       write(DynvarsOut,'(A80)') ' --------------- --------------- --------------- --------------- ---------------'
-      if (nrep_per_proc == 1) vervose = .false.
-      if (.not. vervose) etitle = .false.
-      vervose = .false.
+      if (nrep_per_proc == 1) verbose = .false.
+      if (.not. verbose) etitle = .false.
+      verbose = .false.
     end if
 
     write(DynvarsOut,'(A5,1x,I10,$)') 'INFO:', dynvars%step
@@ -1182,9 +1182,9 @@ contains
 
       write(DynvarsOut,'(A79)') 'DYNA PRESS:            VIRE         VIRI       PRESSE       PRESSI       VOLUme'
       write(DynvarsOut,'(A79)') ' ----------       ---------    ---------    ---------    ---------    ---------'
-      if (nrep_per_proc == 1) vervose = .false.
-      if (.not. vervose) etitle = .false.
-      vervose = .false.
+      if (nrep_per_proc == 1) verbose = .false.
+      if (.not. verbose) etitle = .false.
+      verbose = .false.
     end if
 
 
@@ -1670,7 +1670,8 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    stop_trans_rotation
-  !> @brief        remove trans and rotational motion about the center of mass
+  !> @brief        Remove translational and rotational motion about 
+  !                the center of mass
   !! @authors      TM, KY
   !! @param[in]    natom      : number of atoms
   !! @param[in]    mass       : atom mass

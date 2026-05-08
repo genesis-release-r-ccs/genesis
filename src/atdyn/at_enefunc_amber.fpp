@@ -57,7 +57,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    define_enefunc_amber
-  !> @brief        a driver subroutine for defining potential energy
+  !> @brief        a driver subroutine for defining potential energy functions
   !! @authors      NT, SI
   !! @param[in]    ene_info   : ENERGY section control parameters information
   !! @param[in]    boundary   : boundary condition
@@ -228,7 +228,7 @@ contains
       allocate(bond_list(2,nbond), bond_force_const(nbond), &
                bond_dist_min(nbond), bond_sele(nbond))
 
-      ! Retreive the original data
+      ! Retrieve the original data
       icnt = 0
       do i = 1, prmtop%num_bondh
 
@@ -358,7 +358,7 @@ contains
       allocate(angl_list(3,nangl), angl_force_const(nangl), &
                angl_theta_min(nangl), angl_sele(nangl))
 
-      ! Retreive the original data
+      ! Retrieve the original data
       icnt = 0
       do i = 1, prmtop%num_anglh
 
@@ -515,7 +515,7 @@ contains
                dihe_scnb(enefunc%num_dihedrals),        &
                dihe_sele(enefunc%num_dihedrals))
 
-      ! Retreive the original data
+      ! Retrieve the original data
       idih = 0
 
       do i = 1, prmtop%num_diheh
@@ -755,7 +755,7 @@ contains
                impr_phase(enefunc%num_impropers),       &
                impr_sele(enefunc%num_impropers))
 
-      ! Retreive the original data
+      ! Retrieve the original data
       iimp = 0
       do i = 1, prmtop%num_diheh
         if (prmtop%dihe_inc_hy(4,i) < 0) then

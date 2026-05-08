@@ -98,7 +98,7 @@ module at_control_mod
     ! data for section restraints
     type(s_exp_info)      :: exp_info
 
-    ! data for section reaccord
+    ! data for section reac_coord
     type(s_reac_info)     :: reac_info
 
     ! data for section fitting

@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   at_remd_mod
-!> @brief   Replica exhcnage molecular dynamics simulation
+!> @brief   Replica exchange molecular dynamics simulation
 !! @authors Takaharu Mori (TM), Norio Takase (NT), Motoshi Kamiya (MK)
 ! 
 !  (c) Copyright 2014 RIKEN. All rights reserved.
@@ -805,7 +805,7 @@ contains
     deallocate(ndigit,parmid)
 
 
-    ! assign itnitial parameters
+    ! assign initial parameters
     !
     replicaid = my_country_no + 1
     parmsetid = remd%repid2parmsetid(replicaid)
@@ -2740,7 +2740,7 @@ contains
           num_exchanges(parmsetid_i,dimno,exptrn) &
             = num_exchanges(parmsetid_i,dimno,exptrn) + 1
 
-          ! scale velocities and themostat & barostat momenta
+          ! scale velocities and thermostat & barostat momenta
           !
           if (i == my_country_no + 1) then
 
@@ -3610,7 +3610,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    assign_condition_solte_tempering
+  !  Subroutine    assign_condition_solute_tempering
   !> @brief        reassign force constant involving REST
   !! @authors      MK
   !! @param[in]    soltemp     : REST information
@@ -3631,7 +3631,7 @@ contains
     type(s_ensemble),        intent(in)    :: ensemble
     type(s_enefunc),         intent(inout) :: enefunc
 
-    ! local vairables
+    ! local variables
     integer  :: i, tgt, num_atom_cls, n, org
     real(wp) :: coeff_full, coeff_half, wgt, u_self, el_fact
 
@@ -3764,7 +3764,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    assign_condition_solte_tempering_lj
+  !  Subroutine    assign_condition_solute_tempering_lj
   !> @brief        reassign force constant involving REST for LJ
   !! @authors      MK
   !! @param[in]    n           : array size of interaction matrix

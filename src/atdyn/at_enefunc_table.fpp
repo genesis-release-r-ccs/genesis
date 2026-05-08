@@ -119,7 +119,8 @@ contains
     if (enefunc%contact_check .or. enefunc%nonb_limiter) then
       if (enefunc%table%table_order .ne. 1) then
         if (main_rank) &
-          write(MsgOut,'(A)') 'Setup_Enefunc_Table> WARNING: concact_check/nonb_limiter is only in table_order = 1'
+          write(MsgOut,'(A)') 'Setup_Enefunc_Table> WARNING: '//&
+                         'concact_check/nonb_limiter is only in table_order = 1'
       else
         mind=cutoff2*enefunc%table%density/real(cutoff_int2,wp)+0.001_wp
         enefunc%minimum_contact=max(mind, enefunc%minimum_contact)
@@ -592,7 +593,7 @@ contains
                      ene_info%table_order,   &
                      ene_info%pme_alpha)) then
       call error_msg('Setup_Table_General_Pme_Linear> '//&
-             'table data has different value from GENESIS settings')
+             'Table data is inconsistent with current GENESIS settings.')
     end if
 
     call get_table(table, &
@@ -601,7 +602,7 @@ contains
                    enefunc%table%table_ecor,     &
                    enefunc%table%table_decor)
     write(MsgOut,'(A)') 'Setup_Table_General_Pme_Linear> '//&
-        'Lookup table was built from user defined table file.'
+        'Lookup table was successfully built from user-defined table file.'
     write(MsgOut,'(A)') ''
 
     return
@@ -640,14 +641,14 @@ contains
                    ene_info%table_order,   &
                    ene_info%pme_alpha)) then
       call error_msg('Setup_Table_General_Pme_Linear> '//&
-           'table data has different value from GENESIS settings')
+           'Table data is inconssistent with current GENESIS settings.')
     end if
 
     call get_table(table, &
                    enefunc%table%table_ene,      &
                    enefunc%table%table_grad)
     write(MsgOut,'(A)') 'Setup_Table_General_Cutoff_Cubic> '//&
-        'Lookup table was built from user defined table file.'
+        'Lookup table was successfully built from user-defined table file.'
     write(MsgOut,'(A)') ''
 
     return
@@ -776,9 +777,11 @@ contains
     end do
 
     if ((natom-nsolute)/4 == nwater .and. nwater > 0) &
-      call error_msg('Setup_Solute_Water_Lists> TIP4P is not avaialble in ATDYN.')
+      call error_msg('Setup_Solute_Water_Lists> TIP4P water model is '//&
+                     'not avaialble in ATDYN.')
     if (mod(nwater, 3) /= 0) &
-      call error_msg('Setup_Solute_Water_Lists> # of water is incorrect.')
+      call error_msg('Setup_Solute_Water_Lists> Number of water molecules '//&
+                     'is incorrect.')
 
     nwater = nwater / 3
     enefunc%table%num_water  = nwater
@@ -856,10 +859,11 @@ contains
     end do
 
     if (nwater /= enefunc%table%num_water) &
-      call error_msg('Setup_Solute_Water_Lists> number of water is incorrect')
+      call error_msg('Setup_Solute_Water_Lists> Number of water molecules '//&
+                     'is incorrect.')
 
     if (nsolute /= enefunc%table%num_solute) &
-      call error_msg('Setup_Solute_Water_Lists> number of solute is incorrect')
+      call error_msg('Setup_Solute_Water_Lists> Number of solutes is incorrect.')
 
     if (nwater > 0) then
       io = enefunc%table%water_list(1,1)

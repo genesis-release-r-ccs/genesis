@@ -205,7 +205,7 @@ contains
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
-  !  Subroutine    compute_force_nonbond_nobc_table
+  !  Subroutine    compute_energy_nonbond_nobc_table
   !> @brief        Calculate nonbonded force with lookup table (NOBC)
   !! @authors      NT, CK
   !! @param[in]    enefunc  : potential energy functions information

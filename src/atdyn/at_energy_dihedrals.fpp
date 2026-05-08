@@ -982,7 +982,7 @@ contains
       sinpha = sin(theta_min(i))
 
       cosdif = cos_dih*cospha + sin_dih*sinpha
-      ! correct definintion (2019/03/27)
+      ! correct definition (2019/03/27)
       sindif = sin_dih*cospha - cos_dih*sinpha
 
       if (cosdif > 1.0E-1_wp) then

@@ -138,7 +138,7 @@ contains
     if (.not. rstmep%restart) &
       call error_msg("Setup_Rpath_FEP> rstmep is needed for FEP.")
     if (rstmep%mep_natoms /= rpath%mep_natoms) &
-      call error_msg("Setup_Rpath_FEP> The number of MEP atoms don't match &
+      call error_msg("Setup_Rpath_FEP> The number of MEP atoms doesn't match &
                      &in the ctrlfile and rstmep.")
     rpath%mep_coord(:,replicaid) = rstmep%mep_coord
 

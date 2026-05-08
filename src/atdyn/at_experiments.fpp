@@ -586,7 +586,7 @@ contains
     coeff_drho = - sigma**2 * pi / 6.0_wp / vol
 
     ! coefficient for rho
-    !   - sign is missing in drho/dq equstions of BJ 2012
+    !   - sign is missing in drho/dq equations of BJ 2012
     coeff_rho = (sigma**2 * pi / 6.0_wp)**(3.0_wp/2.0_wp) / vol
 
     ! calculate which grid each atom is in
@@ -668,7 +668,7 @@ contains
 
     do i = 1, nproc_city - 1
 
-      ! select one domain which constains largest number of particle
+      ! select one domain which contains largest number of particle
       !
       idomain = maxloc(icount(1:i),dim=1)
 

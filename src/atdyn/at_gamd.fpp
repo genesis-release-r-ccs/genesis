@@ -303,7 +303,7 @@ contains
     type(s_enefunc), target, intent(inout) :: enefunc
     type(s_remd),  optional, intent(inout) :: remd
 
-    ! local varialbles
+    ! local variables
     type(s_enefunc_gamd), pointer :: gamd
 
 

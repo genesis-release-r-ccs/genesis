@@ -831,7 +831,7 @@ contains
         call run_rpath_mep(output, molecule, enefunc, dynvars, minimize, &
              dynamics, pairlist, boundary, rpath, conv)
       else
-        ! If nreplica is larger than total MPI proccess        
+        ! If nreplica is larger than total MPI process        
         !
         i = 0          
         do !! Cycle
