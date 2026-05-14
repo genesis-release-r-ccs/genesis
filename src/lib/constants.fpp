@@ -124,8 +124,11 @@ module constants_mod
   real(wp), public, parameter :: HARTREE_WAVENUM  = 2.19474631e+05_wp
   real(wp), public, parameter :: VLIGHT_IN_AU     = 1.3703599918E+02_wp
   real(wp), public, parameter :: AVOGADRO         = 6.02214129e+23_wp
+  real(wp), public, parameter :: AVOGADRO1        = 6.02214129_wp
   real(wp), public, parameter :: ELECTRIC_CONST   = 8.854187813e-12_wp
+  real(wp), public, parameter :: ELECTRIC_CONST1  = 8.854187813_wp
   real(wp), public, parameter :: ELEMENT_CHARGE   = 1.602176634e-19_wp
+  real(wp), public, parameter :: ELEMENT_CHARGE1  = 1.602176634_wp
 
   real(wp), public, save      :: ELECOEF          = ELECOEF_CHARMM
 

@@ -17,12 +17,17 @@ if ANALYSIS
 else
   ANALYSIS_DIR=
 endif
+if CGDYN
+  CGDYN_DIR=cgdyn
+else
+  CGDYN_DIR=
+endif
 if SPDYN
   SPDYN_DIR=spdyn
 else
   SPDYN_DIR=
 endif
-SUBDIRS = lib $(ATDYN_DIR) $(SPDYN_DIR) $(ANALYSIS_DIR)
+SUBDIRS = lib $(ATDYN_DIR) $(SPDYN_DIR) $(CGDYN_DIR) $(ANALYSIS_DIR)
 
 MAINTAINERCLEANFILES = Makefile.in
 

@@ -32,6 +32,7 @@ module molecules_str_mod
     integer           :: num_dihedrals = 0
     integer           :: num_impropers = 0
     integer           :: num_cmaps     = 0
+    integer           :: num_lonepair  = 0
 
     integer           :: num_residues  = 0
     integer           :: num_molecules = 0
@@ -88,6 +89,11 @@ module molecules_str_mod
     ! cmap
     integer,          allocatable :: cmap_list(:,:)
 
+    ! lone pair
+    integer,          allocatable :: lp_atom(:)
+    integer,          allocatable :: lp_list(:)
+    real(wp),         allocatable :: lp_dist(:)
+
     ! molecule
     integer,          allocatable :: molecule_atom_no(:)
     real(wp),         allocatable :: molecule_mass(:)
@@ -113,6 +119,7 @@ module molecules_str_mod
     integer                       :: num_dihedrals_fep(5)
     integer                       :: num_impropers_fep(5)
     integer                       :: num_cmaps_fep(5)
+    integer                       :: num_lonepair_fep(5)
     integer,          allocatable :: bond_list_fep(:,:,:)
     integer,          allocatable :: angl_list_fep(:,:,:)
     integer,          allocatable :: dihe_list_fep(:,:,:)
@@ -140,12 +147,14 @@ module molecules_str_mod
   integer,      public, parameter :: MoleculeMode = 9
   integer,      public, parameter :: MoleculeFitc = 10
   integer,      public, parameter :: MoleculeEnm  = 11
+  integer,      public, parameter :: MoleculeLonePair = 12
 
   ! subroutines
   public :: init_molecules
   public :: alloc_molecules
   public :: dealloc_molecules
   public :: dealloc_molecules_all
+  public :: dealloc_molecules_bond
 
 contains
 
@@ -171,6 +180,7 @@ contains
     molecule%num_dihedrals    = 0
     molecule%num_impropers    = 0
     molecule%num_cmaps        = 0
+    molecule%num_lonepair     = 0
     molecule%num_residues     = 0
     molecule%num_molecules    = 0
     molecule%num_segments     = 0
@@ -192,12 +202,13 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine alloc_molecules(molecule, variable, var_size)
+  subroutine alloc_molecules(molecule, variable, var_size, var_size1)
 
     ! formal arguments
     type(s_molecule),        intent(inout) :: molecule
     integer,                 intent(in)    :: variable
     integer,                 intent(in)    :: var_size
+    integer,   optional,     intent(in)    :: var_size1
 
     ! local variables
     integer                  :: alloc_stat
@@ -374,6 +385,22 @@ contains
 
       molecule%cmap_list(1:8,1:var_size) = 0
 
+    case (MoleculeLonePair)
+
+      if (allocated(molecule%lp_atom)) then
+        if (size(molecule%lp_atom) == var_size) &
+          return
+        deallocate(molecule%lp_atom, &
+                   molecule%lp_list, &
+                   molecule%lp_dist, &
+                   stat = dealloc_stat)
+      end if
+
+      allocate(molecule%lp_atom(var_size ), &
+               molecule%lp_list(var_size1), &
+               molecule%lp_dist(var_size ), &
+               stat = alloc_stat)
+ 
     case (MoleculeMole)
 
       if (allocated(molecule%molecule_atom_no)) then
@@ -546,6 +573,15 @@ contains
                     stat = dealloc_stat)
       end if
 
+    case (MoleculeLonePair)
+
+      if (allocated(molecule%lp_atom)) then
+        deallocate(molecule%lp_atom, &
+                   molecule%lp_list, &
+                   molecule%lp_dist, &
+                   stat = dealloc_stat)
+      end if
+
     case (MoleculeMole)
 
       if (allocated(molecule%molecule_atom_no)) then
@@ -610,6 +646,7 @@ contains
     call dealloc_molecules(molecule, MoleculeDihe)
     call dealloc_molecules(molecule, MoleculeImpr)
     call dealloc_molecules(molecule, MoleculeCmap)
+    call dealloc_molecules(molecule, MoleculeLonePair)
     call dealloc_molecules(molecule, MoleculeMole)
     call dealloc_molecules(molecule, MoleculeRefc)
     call dealloc_molecules(molecule, MoleculeFitc)
@@ -618,5 +655,29 @@ contains
     return
 
   end subroutine dealloc_molecules_all
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    dealloc_molecules_bond
+  !> @brief        deallocate bonded molecule information
+  !! @authors      YS
+  !! @param[inout] molecule : structure of molecule information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine dealloc_molecules_bond(molecule)
+
+    ! formal arguments
+    type(s_molecule),        intent(inout) :: molecule
+
+
+    call dealloc_molecules(molecule, MoleculeBond)
+    call dealloc_molecules(molecule, MoleculeAngl)
+    call dealloc_molecules(molecule, MoleculeDihe)
+    call dealloc_molecules(molecule, MoleculeImpr)
+
+    return
+
+  end subroutine dealloc_molecules_bond
 
 end module molecules_str_mod

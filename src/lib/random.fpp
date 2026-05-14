@@ -29,14 +29,18 @@ module random_mod
   logical               :: g_stock_pushed = .true.
   character,    pointer :: g_dsfmt(:)
   character,    pointer :: g_dsfmt_stock(:)
+  character,    pointer :: g_dsfmt_omp(:,:)
+  character,    pointer :: g_dsfmt_stock_omp(:,:)
   logical               :: legacy_in_use  = .false.
 
   ! subroutines
   public  :: random_init
+  public  :: random_init_omp
   public  :: random_term
 !  public  :: random_seed
   public  :: random_get
   public  :: random_get_gauss
+  public  :: random_get_gauss_omp
   public  :: random_get_legacy
   public  :: random_push_stock
   public  :: random_pull_stock
@@ -63,7 +67,7 @@ contains
     integer,                 intent(in)    :: iseed
 
     ! local variables
-    integer                  :: dsfmt_size
+    integer                  :: dsfmt_size, i
 
 
     if (g_in_use) &
@@ -86,6 +90,48 @@ contains
     return
 
   end subroutine random_init
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    random_init_omp
+  !> @brief        initialize random number system
+  !! @authors      NT
+  !! @param[in]    iseed  : seed number
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine random_init_omp(iseed)
+
+    ! formal arguments
+    integer,                 intent(in)    :: iseed(:)
+
+    ! local variables
+    integer                  :: dsfmt_size, i
+
+
+    if (g_in_use) &
+      return
+
+    call get_size_of_dsfmt_t(dsfmt_size)
+    allocate(g_dsfmt_omp(dsfmt_size,nthread), &
+             g_dsfmt_stock_omp(dsfmt_size,nthread))
+
+    do i = 1, nthread
+      call dsfmt_init_gen_rand(g_dsfmt_omp(1,i), iseed(i))
+    end do
+
+    g_in_use = .true.
+    g_stock_pushed = .false.
+
+    if (main_rank) then
+      write(MsgOut,'(a)')    'Random_Init> Initialize the random number'
+      write(MsgOut,'(a,i0,i0)') '  seed            = ', iseed(1)
+      write(MsgOut,'(a)')    ''
+    end if
+
+    return
+
+  end subroutine random_init_omp
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -186,6 +232,40 @@ contains
     return
 
   end function random_get_gauss
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      random_get_gauss_omp
+  !> @brief        get random number
+  !! @authors      NT
+  !! @return       random number
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function random_get_gauss_omp(id)
+
+    integer,                 intent(in) :: id
+    ! return
+    real(dp)                 :: random_get_gauss_omp
+
+    ! local variables
+    real(dp)                 :: v1, v2, rsq
+
+
+    rsq = 2.0_dp
+    do while (rsq >= 1.0_dp)
+      call dsfmt_genrand_close0_open1(g_dsfmt_omp(1,id), v1)
+      call dsfmt_genrand_close0_open1(g_dsfmt_omp(1,id), v2)
+      v1  = 2.0_dp*v1 - 1.0_dp
+      v2  = 2.0_dp*v2 - 1.0_dp
+      rsq = v1*v1 + v2*v2
+    end do
+    rsq   = sqrt(-2.0_dp * log(rsq) / rsq)
+    random_get_gauss_omp = rsq * v1
+
+    return
+
+  end function random_get_gauss_omp
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

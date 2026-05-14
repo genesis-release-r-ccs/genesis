@@ -89,8 +89,19 @@ module timers_mod
   integer, public, parameter :: TimerCGISOLF    = 51
   integer, public, parameter :: TimerCGLJ       = 52
 
+  integer, public, parameter :: TimerMigration  = 53
+  integer, public, parameter :: TimerMptl       = 54
+  integer, public, parameter :: TimerMbond      = 55
+  integer, public, parameter :: TimerMangl      = 56
+  integer, public, parameter :: TimerMdihe      = 57
+  integer, public, parameter :: TimerMcontact   = 58
+  integer, public, parameter :: TimerMStack     = 59
+  integer, public, parameter :: TimerMPWMcos    = 60
+  integer, public, parameter :: TimerMPWMcosns  = 61
+  integer, public, parameter :: TimerMNonb      = 62
+
   integer,         parameter :: InvalidID       = -1
-  integer,         parameter :: NumTimers       = 52  !< total number of timers
+  integer,         parameter :: NumTimers       = 62  !< total number of timers
   integer,         parameter :: MaxProc         = 100 !< maximum number of processes
 
   ! variables
@@ -271,6 +282,17 @@ contains
       avetime(TimerTest9) = sumtime(TimerTest9) / nproc_world
       avetime(TimerTest10) = sumtime(TimerTest10) / nproc_world
 
+      avetime(TimerMptl ) = sumtime(TimerMptl ) / nproc_world
+      avetime(TimerMbond) = sumtime(TimerMbond) / nproc_world
+      avetime(TimerMangl) = sumtime(TimerMangl) / nproc_world
+      avetime(TimerMdihe) = sumtime(TimerMdihe) / nproc_world
+      avetime(TimerMContact) = sumtime(TimerMContact) / nproc_world
+      avetime(TimerMStack) = sumtime(TimerMStack) / nproc_world
+      avetime(TimerMPWMcos) = sumtime(TimerMPWMcos) / nproc_world
+      avetime(TimerMPWMcosns) = sumtime(TimerMPWMcosns) / nproc_world
+      avetime(TimerMNonb) = sumtime(TimerMNonb) / nproc_world
+      avetime(TimerMigration) = sumtime(TimerMigration) / nproc_world
+
       avetime(TimerMorph)      = sumtime(TimerMorph) / nproc_world
       avetime(TimerRespa)      = sumtime(TimerRespa)      / nproc_world
       avetime(TimerCompBrown)  = sumtime(TimerCompBrown)  / nproc_world
@@ -287,6 +309,7 @@ contains
       write(MsgOut,'(a,f12.3)') '    dynamics      =', avetime(TimerDynamics)
       write(MsgOut,'(a,f12.3)') '      energy      =', avetime(TimerEnergy)
       write(MsgOut,'(a,f12.3)') '      integrator  =', avetime(TimerIntegrator)
+      write(MsgOut,'(a,f12.3)') '      migration   =', avetime(TimerMigration)
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '      pairlist    =',avetime(TimerPairList),  &
                                 ' (',mintime(TimerPairList),',',               &
@@ -426,10 +449,60 @@ contains
                                 ' (',mintime(TimerComm2),',',                  &
                                  maxtime(TimerComm2),')'
       write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '  migration       =',                         &
+                                avetime(TimerMigration),                       &
+                                ' (',mintime(TimerMigration),',',              &
+                                 maxtime(TimerMigration),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
                                 '    comm_migrate  =',                         &
                                 avetime(TimerComm3),                           &
                                 ' (',mintime(TimerComm3),',',                  &
                                  maxtime(TimerComm3),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    ptl_migrate   =',                         &
+                                avetime(TimerMptl),                            &
+                                ' (',mintime(TimerMptl),',',                   &
+                                 maxtime(TimerMptl),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    bond_migrate  =',                         &
+                                avetime(TimerMbond),                           &
+                                ' (',mintime(TimerMbond),',',                  &
+                                 maxtime(TimerMbond),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    angl_migrate  =',                         &
+                                avetime(TimerMangl),                           &
+                                ' (',mintime(TimerMangl),',',                  &
+                                 maxtime(TimerMangl),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    dihe_migrate  =',                         &
+                                avetime(TimerMdihe),                           &
+                                ' (',mintime(TimerMdihe),',',                  &
+                                 maxtime(TimerMdihe),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    contact_migr  =',                         &
+                                avetime(TimerMcontact),                        &
+                                ' (',mintime(TimerMcontact),',',               &
+                                 maxtime(TimerMcontact),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    stack_migrate =',                         &
+                                avetime(TimerMStack),                          &
+                                ' (',mintime(TimerMStack),',',                 &
+                                 maxtime(TimerMStack),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    pwmcos_migrate =',                        &
+                                avetime(TimerMpwmcos),                         &
+                                ' (',mintime(TimerMpwmcos),',',                &
+                                 maxtime(TimerMpwmcos),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    pwmcosns_migr  =',                        &
+                                avetime(TimerMpwmcosns),                       &
+                                ' (',mintime(TimerMpwmcosns),',',              &
+                                 maxtime(TimerMpwmcosns),')'
+      write(MsgOut,'(a,f12.3,a,f12.3,a,f12.3,a)')                              &
+                                '    nonb_update    =',                        &
+                                avetime(TimerMNonb),                           &
+                                ' (',mintime(TimerMNonb),',',                  &
+                                 maxtime(TimerMNonb),')'
       write(MsgOut,'(a)') ''
 
     end if

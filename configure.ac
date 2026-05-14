@@ -118,7 +118,6 @@ if test x"${enable_mpi}" = x"yes"; then
   DEFINED_VARIABLES+=" -DHAVE_MPI_GENESIS"
 fi
 AM_CONDITIONAL(SPDYN, test x"${enable_mpi}" = x"yes")
-AM_CONDITIONAL(CGDYN, test x"${enable_mpi}" = x"yes")
 
 AC_ARG_WITH([msmpi],
 	[AS_HELP_STRING([--with-msmpi],
@@ -1118,6 +1117,24 @@ if test x"${enable_gpu}" = x"yes"; then
   enable_atdyn=no
 fi
 AM_CONDITIONAL(ATDYN, test x"${enable_atdyn}" = x"yes")
+
+
+## CGDYN calculation
+#
+
+enable_cgdyn=yes
+if test x"${enable_mpi}" = x"no"; then
+  enable_cgdyn=no
+fi
+if test x"${FC_ACT}" = x"pgif90" -o \
+        x"${FC_ACT}" = x"pgf90" -o \
+        x"${FC_ACT}" = x"pgfortran"; then
+  enable_cgdyn=no
+fi
+if test x"${enable_gpu}" = x"yes"; then
+  enable_cgdyn=no
+fi
+AM_CONDITIONAL(CGDYN, test x"${enable_cgdyn}" = x"yes")
 
 
 ## ANALSIS calculation
@@ -2169,6 +2186,7 @@ AC_CONFIG_FILES([Makefile
                 src/lib/qsimulate/Makefile
                 src/lib/json-fortran/Makefile])
 AM_COND_IF([SPDYN],[AC_CONFIG_FILES([src/spdyn/Makefile])])
+AM_COND_IF([CGDYN],[AC_CONFIG_FILES([src/cgdyn/Makefile])])
 AM_COND_IF([ATDYN],[AC_CONFIG_FILES([src/atdyn/Makefile])])
 AM_COND_IF([ANALYSIS],[AC_CONFIG_FILES([src/analysis/Makefile
                 src/analysis/libana/Makefile
