@@ -1,0 +1,18 @@
+#include "./param/atom_types.itp" 
+#include "./param/flexible_local_angle.itp" 
+#include "./param/flexible_local_dihedral.itp" 
+#include "./param/pair_energy_MJ_96.itp" 
+#include "./param/pair_energy_mpipi_23.itp"
+
+; Molecule topology 
+#include "./itp/tdp43_hps.itp" 
+
+[ system ] 
+tdp43_ctf 
+
+[ molecules ] 
+tdp43_ctf  100
+
+[ cg_ele_chain_pairs ] 
+ON 1 - 100 : 1 - 100
+

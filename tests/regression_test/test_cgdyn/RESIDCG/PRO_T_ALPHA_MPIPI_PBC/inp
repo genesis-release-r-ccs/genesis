@@ -1,0 +1,36 @@
+[INPUT] 
+grotopfile            = ../../../build/cg_systems/top/proTalpha.top
+grocrdfile            = ../../../build/cg_systems/crd/proTalpha.gro
+
+[ENERGY] 
+forcefield            = RESIDCG
+electrostatic         = CUTOFF
+cg_cutoffdist_ele     = 35.0
+cg_pairlistdist_ele   = 38.0
+cg_pairlistdist_WF    = 25.0
+cg_pairlistdist_126   = 25.0
+cg_sol_ionic_strength = 0.150
+
+[DYNAMICS] 
+integrator            = VVER
+nsteps                = 40
+timestep              = 0.010
+eneout_period         = 4
+nbupdate_period       = 10
+stoptr_period         = 10
+
+[CONSTRAINTS] 
+rigid_bond            = NO
+
+[ENSEMBLE] 
+ensemble              = NVT
+tpcontrol             = LANGEVIN
+temperature           = 0
+gamma_t               = 0.0
+
+[BOUNDARY]
+type                  = PBC
+box_size_x            = 400
+box_size_y            = 400
+box_size_z            = 400
+

@@ -1,0 +1,31 @@
+[INPUT]
+grotopfile      = ../../../build/cg_systems/top/gb1_aicg2p_safe.top
+grocrdfile      = ../../../build/cg_systems/crd/gb1_straight.gro
+
+[ENERGY]
+forcefield      = RESIDCG
+electrostatic   = CUTOFF
+
+[DYNAMICS]
+integrator      = VVER
+nsteps          = 40
+timestep        = 0.020
+eneout_period   = 2
+nbupdate_period = 2
+stoptr_period   = 2
+
+[CONSTRAINTS]
+rigid_bond      = NO
+
+[ENSEMBLE]
+ensemble        = NVT
+tpcontrol       = LANGEVIN
+temperature     = 0
+gamma_t         = 0.0
+
+[BOUNDARY]
+type            = PBC
+box_size_x      = 300.0
+box_size_y      = 300.0
+box_size_z      = 300.0
+local_pbc       = YES

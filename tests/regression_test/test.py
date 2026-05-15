@@ -41,6 +41,7 @@ def getdirs(path):
 
 tolerance = 1.0e-6 # relative energy difference (diff/abs(e))
 tolerance_atdyn = 1.0e-8 # relative energy difference (diff/abs(e))
+tolerance_cgdyn = 3.0e-5 # relative energy difference (diff/abs(e))
 tolerance_tmd = 5.0e-6 # relative energy difference (diff/abs(e))
 tolerance_fujitsu = 5.0e-6 # relative energy difference (diff/abs(e))
 tolerance_gpu_respa = 5.0e-6 # relative energy difference (diff/abs(e))
@@ -57,6 +58,7 @@ itried = 0
 
 is_atdyn = False
 is_spdyn = False
+is_cgdyn = False
 is_parallelio = False
 is_gpu = False
 is_fugaku = False
@@ -107,6 +109,9 @@ if (genesis_command == "-h") or (genesis_command == "--help"):
     # run spdyn tests
     $ ./test.py "mpirun -np 8 /path/to/genesis/bin/spdyn"
 
+    # run cgdyn tests
+    $ ./test.py "mpirun -np 8 /path/to/genesis/bin/cgdyn"
+
     # run parallel IO tests
     $ ./test.py "mpirun -np 8 /path/to/genesis/bin/spdyn" parallel_io
 
@@ -135,6 +140,8 @@ if genesis_command[-5:] == "atdyn":
     is_atdyn = True
 elif genesis_command[-5:] == "spdyn":
     is_spdyn = True
+elif genesis_command[-5:] == "cgdyn":
+    is_cgdyn = True
 
 ###### setup test directories
 
@@ -148,6 +155,8 @@ if len(test_dirs) == 0:
         test_dirs =  getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_spdyn")
     elif is_atdyn:
         test_dirs =  getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_atdyn")
+    elif is_cgdyn:
+        test_dirs =  getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_cgdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
@@ -187,7 +196,7 @@ else:
             sys.exit(3)
 
 ###### run tests
-if (is_atdyn or is_spdyn) and (not is_parallelio):
+if (is_atdyn or is_spdyn or is_cgdyn) and (not is_parallelio):
     print("=======================================================================")
     print(" Regression tests for MD")
     print("=======================================================================")
@@ -275,6 +284,8 @@ if (is_atdyn or is_spdyn) and (not is_parallelio):
             tolerance_cur = tolerance_fujitsu_weak
         if is_atdyn and ("REST-RMSD_EXT" in dirname):
             tolerance_cur = tolerance_press_rmsd
+        if is_cgdyn:
+            tolerance_cur = tolerance_cgdyn
 
         tolerance_cur_virial = tolerance_cur*virial_ratio
 
