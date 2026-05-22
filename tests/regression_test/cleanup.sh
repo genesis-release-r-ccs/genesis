@@ -60,6 +60,16 @@ rm test_gamd_spdyn/*/*/error*   >& /dev/null
 rm test_gamd_spdyn/*/*/out.gamd >& /dev/null
 rm -r test_gamd_spdyn/*/*/output.?*      >& /dev/null
 
+rm test_abmd_atdyn/*/*/test*    >& /dev/null
+rm test_abmd_atdyn/*/*/error*   >& /dev/null
+rm test_abmd_atdyn/*/*/out.abmd >& /dev/null
+rm -r test_abmd_atdyn/*/*/output.?*      >& /dev/null
+
+rm test_abmd_spdyn/*/*/test*    >& /dev/null
+rm test_abmd_spdyn/*/*/error*   >& /dev/null
+rm test_abmd_spdyn/*/*/out.abmd >& /dev/null
+rm -r test_abmd_spdyn/*/*/output.?*      >& /dev/null
+
 rm test_fep/*/*/test*       >& /dev/null
 rm test_fep/*/*/error*      >& /dev/null
 rm test_fep/*/*/out*.fepout >& /dev/null
