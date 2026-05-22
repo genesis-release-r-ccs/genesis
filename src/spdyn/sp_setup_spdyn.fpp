@@ -25,6 +25,7 @@ module sp_setup_spdyn_mod
   use sp_ensemble_mod
   use sp_enefunc_table_mod
   use sp_restraints_mod
+  use sp_reac_coord_mod
   use sp_constraints_mod
   use sp_boundary_mod
   use sp_pairlist_mod
@@ -40,6 +41,7 @@ module sp_setup_spdyn_mod
   use sp_dynvars_str_mod
   use sp_ensemble_str_mod
   use sp_restraints_str_mod
+  use sp_reac_coord_str_mod
   use sp_constraints_str_mod
   use sp_boundary_str_mod
   use sp_pairlist_str_mod
@@ -48,11 +50,14 @@ module sp_setup_spdyn_mod
   use sp_energy_str_mod
   use sp_domain_str_mod
   use sp_remd_str_mod
+  use sp_bias_str_mod
   use sp_rpath_str_mod
   use sp_remd_mod
+  use sp_bias_mod
   use sp_rpath_mod
   use sp_experiments_mod
   use sp_gamd_mod
+  use sp_abmd_mod
   use molecules_mod
   use molecules_str_mod
   use fitting_mod
@@ -70,6 +75,7 @@ module sp_setup_spdyn_mod
   use fileio_crd_mod
   use fileio_rst_mod
   use fileio_mode_mod
+  use fileio_spline_mod
   use structure_check_mod
   use messages_mod
   use timers_mod
@@ -89,6 +95,7 @@ module sp_setup_spdyn_mod
   public  :: setup_spdyn_md
   public  :: setup_spdyn_min
   public  :: setup_spdyn_remd
+  public  :: setup_spdyn_bias
   public  :: setup_spdyn_rpath
   public  :: setup_spdyn_md_pio
   public  :: setup_spdyn_min_pio
@@ -137,6 +144,7 @@ contains
 
     ! local variables
     type(s_restraints)       :: restraints
+    type(s_reac_coord)       :: reac_coord
     type(s_top)              :: top
     type(s_par)              :: par
     type(s_gpr)              :: gpr
@@ -154,6 +162,7 @@ contains
     type(s_grocrd)           :: groref
     type(s_mode)             :: mode
     type(s_localres)         :: localres
+    type(s_spline)           :: spline
     logical                  :: use_parallel_io
 
     ! setup parallel I/O
@@ -172,7 +181,7 @@ contains
     !
     call input_md(ctrl_data%inp_info, top, par, psf, prmtop, grotop,  &
                   pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                  localres, mode)
+                  localres, mode, spline)
 
     ! define molecules
     !
@@ -241,12 +250,19 @@ contains
                           molecule, restraints)
 
 
+    ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)
+
+
     ! setup enefunc in each domain
     !
     call define_enefunc(ctrl_data%ene_info,  &
                         par, prmtop, grotop, &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc, comm)
+                        domain, enefunc, comm, reac_coord)
 
     call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -258,6 +274,7 @@ contains
 
     call dealloc_restraints_all(restraints)
     call dealloc_localres(localres, LocalRestraint)
+    call dealloc_reac_coord_all(reac_coord)
 
     if (domain%fep_use) then
       ! FEP: setup alchemy
@@ -340,6 +357,11 @@ contains
     ! set gamd
     !
     call setup_gamd(ctrl_data%gamd_info, dynamics, domain, enefunc)
+
+
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, domain, enefunc)
 
 
     ! set output
@@ -684,6 +706,7 @@ contains
 
     ! local variables
     type(s_restraints)       :: restraints
+    type(s_reac_coord)       :: reac_coord
     type(s_top)              :: top
     type(s_par)              :: par
     type(s_prmtop)           :: prmtop
@@ -701,6 +724,7 @@ contains
     type(s_grocrd)           :: groref
     type(s_mode)             :: mode
     type(s_localres)         :: localres
+    type(s_spline)           :: spline
     logical                  :: use_parallel_io
 
 
@@ -718,7 +742,7 @@ contains
     !
     call input_remd(ctrl_data%inp_info, top, par, psf, prmtop, grotop,  &
                     pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref, &
-                    localres, mode)
+                    localres, mode, spline)
 
     ! define molecules
     !
@@ -770,6 +794,12 @@ contains
     call setup_solute_tempering(ctrl_data%rep_info, &
                                 molecule, restraints, ctrl_data%cons_info)
 
+    ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)  
+
     ! set parameters for domain 
     !
     if (present(alchemy)) then
@@ -792,7 +822,7 @@ contains
     !
     call define_enefunc(ctrl_data%ene_info, par, prmtop, grotop,     &
                         localres, molecule, constraints, restraints, &
-                        domain, enefunc, comm)
+                        domain, enefunc, comm, reac_coord)
 
     call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
                              domain, molecule, enefunc)
@@ -877,11 +907,16 @@ contains
     end if
 
     call dealloc_restraints_all(restraints)
+    call dealloc_reac_coord_all(reac_coord)
     call dealloc_molecules_all(molecule)
 
     ! set gamd
     !
     call setup_gamd(ctrl_data%gamd_info, dynamics, domain, enefunc, remd)
+
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, domain, enefunc, remd)
 
     ! set output
     !
@@ -930,6 +965,262 @@ contains
     return
 
   end subroutine setup_spdyn_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_spdyn_bias
+  !> @brief        setup variables and structures in Bias-Exchange simulation
+  !! @authors      SI
+  !! @param[in]    ctrl_data   : information of control parameters
+  !! @param[out]   output      : information of output
+  !! @param[out]   molecule    : information of molecules
+  !! @param[out]   enefunc     : information of energy function
+  !! @param[out]   pairlist    : information of nonbonded pairlist
+  !! @param[out]   dynvars     : information of dynamic variables
+  !! @param[out]   dynamics    : information of molecular dynamics
+  !! @param[out]   constraints : information of constraints
+  !! @param[out]   ensemble    : information of ensemble
+  !! @param[out]   boundary    : information of boundary condition
+  !! @param[out]   bias        : information of remd
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_spdyn_bias(ctrl_data, output, molecule, enefunc, pairlist, &
+                              dynvars, dynamics, constraints, ensemble, boundary, &
+                              domain, comm, bias)                            
+
+    ! formal arguments
+    type(s_ctrl_data),       intent(in)    :: ctrl_data
+    type(s_output),          intent(inout) :: output
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_pairlist),        intent(inout) :: pairlist
+    type(s_dynvars),         intent(inout) :: dynvars
+    type(s_dynamics),        intent(inout) :: dynamics
+    type(s_constraints),     intent(inout) :: constraints
+    type(s_ensemble),        intent(inout) :: ensemble
+    type(s_boundary),        intent(inout) :: boundary
+    type(s_domain),          intent(inout) :: domain
+    type(s_comm),            intent(inout) :: comm    
+    type(s_bias),            intent(inout) :: bias
+
+    ! local variables
+    integer                     :: i
+    integer                     :: replicaid, parmsetid
+    type(s_restraints)          :: restraints
+    type(s_reac_coord)          :: reac_coord    
+    type(s_top)                 :: top
+    type(s_par)                 :: par
+    type(s_gpr)                 :: gpr
+    type(s_psf)                 :: psf
+    type(s_prmtop)              :: prmtop
+    type(s_grotop)              :: grotop
+    type(s_pdb)                 :: ref
+    type(s_pdb)                 :: fit
+    type(s_pdb)                 :: pdb
+    type(s_crd)                 :: crd
+    type(s_ambcrd)              :: ambcrd
+    type(s_grocrd)              :: grocrd
+    type(s_ambcrd)              :: ambref
+    type(s_grocrd)              :: groref
+    type(s_rst)                 :: rst
+    type(s_mode)                :: mode
+    type(s_localres)            :: localres
+    type(s_spline)              :: spline
+    logical                  :: use_parallel_io
+
+
+
+    ! read input files
+    !
+    call input_bias(ctrl_data%inp_info, top, par, psf, prmtop, grotop, &
+                    pdb, crd, ambcrd, grocrd, rst, ref, ambref, groref,     &
+                    localres, mode, spline)
+
+    ! define molecule
+    !
+    call define_molecules(molecule, pdb, crd, top, par, gpr, psf, ref, fit, &
+                          mode, prmtop, ambcrd, ambref, grotop, grocrd, groref)
+
+    call dealloc_pdb_all(pdb)
+    call dealloc_crd_all(crd)
+    call dealloc_top_all(top)
+    call dealloc_gpr_all(gpr)
+    call dealloc_psf_all(psf)
+    call dealloc_pdb_all(ref)
+    call dealloc_pdb_all(fit)
+    call dealloc_ambcrd_all(ambcrd)
+    call dealloc_ambcrd_all(ambref)
+    call dealloc_grocrd_all(grocrd)
+    call dealloc_grocrd_all(groref)
+
+    ! restart coordinates, velocity and boundary
+    !
+    if (rst%rstfile_type /= RstfileTypeUndef) then
+      call setup_restart_pre(rst, molecule)
+    end if
+
+    ! set parameters for boundary condition
+    !
+    call setup_boundary(ctrl_data%bound_info,            &
+                        ctrl_data%ene_info%table,        &
+                        ctrl_data%ene_info%pairlistdist, &
+                        ctrl_data%ene_info%water_model,  &
+                        ctrl_data%ens_info%ensemble,     &
+                        ctrl_data%cons_info%rigid_bond,  &
+                        ctrl_data%ene_info%dsize_cg,     &
+                        ctrl_data%ene_info%dmin_size_cg, &
+                        rst, boundary)
+
+    ! set parameters for restraints
+    !
+    call setup_restraints(ctrl_data%res_info, &
+                          ctrl_data%sel_info, &
+                          molecule, restraints)       
+
+    ! set parameters for reaction coordinate
+    !
+    call setup_reac_coord(ctrl_data%reac_info, &
+                          ctrl_data%sel_info,  &
+                          molecule, reac_coord)           
+
+    ! set parameters for domain 
+    !
+    call setup_domain(ctrl_data%ene_info,  &
+                      ctrl_data%cons_info, &
+                      boundary, molecule, enefunc, constraints, domain)
+
+    ! setup enefunc in each domain
+    !
+    call define_enefunc(ctrl_data%ene_info, par, prmtop, grotop,     &
+                        localres, molecule, constraints,   &
+                        restraints, domain, enefunc, comm, reac_coord)
+
+    call setup_fitting_spdyn(.false., ctrl_data%fit_info, ctrl_data%sel_info, &
+                             domain, molecule, enefunc)
+
+    ! set parameters for communication
+    !
+    call setup_communicate(boundary, domain, comm)
+    call setup_communicate_size(domain, comm)
+
+    call dealloc_localres(localres, LocalRestraint)
+
+    ! set parameters for pairlist
+    !
+    call setup_pairlist(enefunc, domain, pairlist)
+
+    ! set parameters for PME
+    !
+    if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
+      if (enefunc%vdw == VDWPME) then
+        if (domain%fep_use) call error_msg('VDWPME is not supported in FEP')
+        call setup_pme (domain, boundary, enefunc)
+        call pme_pre_lj(domain, boundary)
+      else
+        call setup_pme(domain, boundary, enefunc)
+        call pme_pre  (domain, boundary)
+      end if
+    end if
+
+    ! set parameters for dynamics
+    !
+    call setup_dynamics(ctrl_data%dyn_info,   &
+                        ctrl_data%bound_info, &
+                        ctrl_data%res_info,   &
+                        ctrl_data%alch_info,  &
+                        molecule, dynamics)
+
+    ! mass repartitioning
+    !
+    if (dynamics%hydrogen_mr) &
+      call setup_mass_repartitioning(dynamics, constraints, domain, &
+                                     enefunc)
+
+    ! set parameters for dynamic variables
+    !
+    call setup_dynvars(dynvars, dynamics)
+
+    ! set parameters for ensemble
+    !
+    call setup_ensemble(ctrl_data%ens_info, dynamics, ensemble)
+
+    ! set parameters for constraints
+    !
+    call setup_constraints(ctrl_data%cons_info, &
+                           par, prmtop, grotop, molecule, domain, &
+                           enefunc, constraints)
+    call dealloc_par_all(par)
+    call dealloc_prmtop_all(prmtop)
+    call dealloc_grotop_all(grotop)
+
+    ! setup bias
+    !
+    call setup_bias(ctrl_data%bias_info, rst, boundary, dynamics, domain, &
+                    restraints, ensemble, enefunc, bias=bias)
+
+    !call dealloc_rst_all(rst) 
+
+    call dealloc_restraints_all(restraints)
+    call dealloc_reac_coord_all(reac_coord)
+    call dealloc_molecules_all(molecule)
+
+    ! set gamd
+    !
+    !call setup_gamd(ctrl_data%gamd_info, dynamics, molecule, enefunc, remd)
+
+    ! set abmd
+    !
+    call setup_abmd(ctrl_data%abmd_info, rst, dynamics, domain, &
+                    enefunc, bias=bias)
+    
+    ! set output
+    !
+    call setup_output_bias(ctrl_data%out_info, dynamics, output, bias)
+
+    ! restart other variables
+    !
+    if (rst%rstfile_type /= RstfileTypeUndef) then
+      call setup_restart_post(rst, dynamics, dynvars)
+      call dealloc_rst_all(rst)
+    end if
+
+    domain%num_deg_freedom = molecule%num_deg_freedom
+
+    ! turn off group T/P when vacuum is used
+    !
+    if (ensemble%group_tp) then
+      if (enefunc%vacuum) then
+        if (main_rank)      &
+          write(MsgOut,'(A)') &
+            'Setup_Spdyn_Md> group_tp = No is assigned with vacuum = yes'
+        ensemble%group_tp = .false.
+      end if
+    end if
+
+    ! pressure degree of freedom for group pressure
+    !
+    if (ensemble%group_tp) then
+      if (constraints%rigid_bond) then
+        call compute_group_deg_freedom(domain, constraints)
+      else
+        if (main_rank)      &
+          write(MsgOut,'(A)') &
+            'Setup_Spdyn_Md> group_tp = No is assigned with rigid_bond = No'
+        ensemble%group_tp = .false.
+      end if
+    end if
+
+    if (enefunc%nonb_limiter .and. main_rank) then
+      write(MsgOut,'(A,F12.8)')  &
+        'Setup_Spdyn_Remd> nonb_limiter : minimim distance= ', &
+          sqrt(enefunc%minimum_contact)
+      write(MsgOut,'(A)') 
+    end if
+
+    return
+
+  end subroutine setup_spdyn_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

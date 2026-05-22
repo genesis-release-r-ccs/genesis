@@ -17,6 +17,7 @@ module sp_setup_mpi_mod
   use sp_energy_mod
   use sp_energy_str_mod
   use sp_remd_mod
+  use sp_bias_mod
   use sp_rpath_mod
   use sp_boundary_mod
   use fileio_control_mod
@@ -36,6 +37,7 @@ module sp_setup_mpi_mod
   ! subroutines
   public  :: setup_mpi_md
   public  :: setup_mpi_remd
+  public  :: setup_mpi_bias
   public  :: setup_mpi_rpath
 
 contains
@@ -386,6 +388,201 @@ contains
     return
 
   end subroutine setup_mpi_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_mpi_bias
+  !> @brief        setup mpi in BIAS
+  !> @authors      SI
+  !! @param[in]    ene_info  : ENERGY section control parameters information
+  !! @param[in]    bias_info : BIAS section control parameters information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_mpi_bias(ene_info, bias_info)
+
+    ! formal arguments
+    type(s_ene_info),        intent(in)    :: ene_info
+    type(s_bias_info),       intent(in)    :: bias_info
+
+    ! local variables
+    integer                  :: i, alloc_stat, dealloc_stat
+    integer                  :: nthread
+    integer                  :: ndocks, nproc_per_dock
+    integer                  :: color, key, temp, temp2
+    integer                  :: node_recip, node_real, expon
+    character(6)             :: mast, nonb1, nonb2
+    logical                  :: prime_flag
+
+    integer,     allocatable :: globrank(:), repno(:), reprank(:)
+    integer,     allocatable :: nproc_per_rep(:)
+    logical,     allocatable :: repmast(:), nonbreal(:), nonbrecip(:)
+
+
+#ifdef HAVE_MPI_GENESIS
+
+    ndocks   = bias_info%nreplicas * bias_info%nwalkers
+
+    ! Check relationship between nwalkers and num_procs
+    !
+    if (mod(nproc_world,bias_info%nwalkers) /= 0) then
+      call error_msg('Setup_Mpi_Bias> total_MPI_procs must be a '//&
+                     'multiple of nwalkers')
+    else
+      nproc_per_dock = int(nproc_world / ndocks)
+    end if
+
+    ! Check relationship between nreplicas and num_procs
+    !
+    allocate(nproc_per_rep(bias_info%nreplicas))
+
+    !if (mod(nproc_world,nreplicas) /= 0) then
+    !  call error_msg('Setup_Mpi_Bias> mod(total_MPI_procs,nreplicas)'//&
+    !                 ' is not ZERO')
+    my_country_no = int(my_world_rank / nproc_per_dock)
+
+    ! check factorization of 2,3,5
+    if (nproc_per_dock /= 1) then
+      prime_flag=factorization_235(nproc_per_dock)
+      if (.not. prime_flag)  &
+        call error_msg('Setup_Mpi_Bias> The number of MPI processes per walkers'//&
+                       ' must be a multiple of 2,3,5')
+    end if
+
+    ! Communicator within each replica (mpi_comm_country)
+    !
+    call mpi_comm_split(mpi_comm_world, my_country_no, my_world_rank, &
+                        mpi_comm_country, ierror)
+    call mpi_comm_size (mpi_comm_country, nproc_country,   ierror)
+    call mpi_comm_rank (mpi_comm_country, my_country_rank, ierror)
+
+    ! Communicator between replicas (mpi_comm_airplane)
+    !
+    temp  = my_country_no
+    color = my_country_rank
+    key   = temp
+
+    call mpi_comm_split(mpi_comm_world, color, key, mpi_comm_airplane, ierror)
+    call mpi_comm_size (mpi_comm_airplane, nproc_airplane,   ierror)
+    call mpi_comm_rank (mpi_comm_airplane, my_airplane_rank, ierror)
+
+    if (my_country_rank == 0) then
+      replica_main_rank = .true.
+    else
+      replica_main_rank = .false.
+    end if
+
+    ! Equalize communicator (mpi_comm_city) between MD and REMD
+    !
+    select case (ene_info%electrostatic)
+
+    case (ElectrostaticPME)
+
+#ifdef HAVE_MPI_GENESIS
+            mpi_comm_city = mpi_comm_country
+#endif
+      
+            real_calc       = .true.
+            reciprocal_calc = .true.
+            nproc_city      = nproc_country
+            my_city_rank    = my_country_rank
+
+    case (ElectrostaticCUTOFF)
+
+#ifdef HAVE_MPI_GENESIS
+      mpi_comm_city = mpi_comm_country
+#endif
+
+      real_calc       = .true.
+      reciprocal_calc = .false.
+      nproc_city      = nproc_country
+      my_city_rank    = my_country_rank
+
+    end select
+
+    ! Write the summary of setup MPI
+    !
+    allocate(globrank (nproc_world), &
+             repno    (nproc_world), &
+             reprank  (nproc_world), &
+             repmast  (nproc_world), &
+             nonbreal (nproc_world), &
+             nonbrecip(nproc_world), &
+             stat=alloc_stat)
+    if (alloc_stat /= 0) &
+      call error_msg_alloc
+
+    call mpi_gather(my_world_rank, 1, mpi_integer,                      &
+                    globrank, 1, mpi_integer, 0, mpi_comm_world, ierror)
+    call mpi_gather(my_country_no, 1, mpi_integer,                      &
+                    repno, 1, mpi_integer, 0, mpi_comm_world, ierror)
+    call mpi_gather(my_city_rank, 1, mpi_integer,                       &
+                    reprank, 1, mpi_integer, 0, mpi_comm_world, ierror)
+    call mpi_gather(replica_main_rank, 1, mpi_logical,                  &
+                    repmast, 1, mpi_logical, 0, mpi_comm_world, ierror)
+    call mpi_gather(real_calc, 1, mpi_logical,                          &
+                    nonbreal, 1, mpi_logical, 0, mpi_comm_world, ierror)
+    call mpi_gather(reciprocal_calc, 1, mpi_logical,                    &
+                    nonbrecip, 1, mpi_logical, 0, mpi_comm_world, ierror)
+
+    if (main_rank) then
+
+      write(MsgOut,'(a)') 'Setup_Mpi_Bias> Summary of Setup MPI'
+      write(MsgOut,'(a,i10)') '  number of MPI processes                = ', &
+                              nproc_world
+      write(MsgOut,'(a,i10)') '  number of MPI processes in one walkers = ', &
+                              nproc_country
+#ifdef OMP
+
+      !$omp parallel shared(nthread)
+      nthread = omp_get_num_threads()
+      !$omp end parallel
+      write(MsgOut,'(a,i10)') '  number of OpenMP threads               = ', &
+                              nthread
+#else
+
+      nthread = 1
+
+#endif
+      write(MsgOut,'(a,i10)') '  total number of CPU cores              = ', &
+                              nproc_world*nthread
+      write(MsgOut,'(a)') '     world_rank     country_no   country_rank'
+
+      do i = 1, nproc_world
+
+        mast  = '      '
+        nonb1 = '      '
+        nonb2 = '      '
+
+        if (repmast(i))   mast  = 'MASTER'
+        if (nonbreal(i))  nonb1 = 'REAL  '
+        if (nonbrecip(i)) nonb2 = 'RECP  '
+
+        write(MsgOut,'(3I15,2X,3A6)') &
+              globrank(i), repno(i), reprank(i), NONB1, NONB2, mast
+      end do
+
+      write(MsgOut,'(a)') ''
+
+    end if
+
+
+    ! deallocate local array
+    !
+    deallocate(globrank, repno, reprank, repmast,      &
+               nonbreal, nonbrecip, stat=dealloc_stat)
+    if (dealloc_stat /= 0) &
+      call error_msg_dealloc
+
+#else
+
+    call error_msg('Setup_Mpi_Bias> Bias-Exchange is supported with MPI')
+
+#endif
+
+    return
+
+  end subroutine setup_mpi_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

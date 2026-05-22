@@ -28,6 +28,7 @@ module sp_output_mod
   use sp_enefunc_str_mod
   use sp_domain_str_mod
   use sp_remd_str_mod
+  use sp_bias_str_mod 
   use sp_rpath_str_mod
   use sp_constraints_mod
   use sp_alchemy_str_mod
@@ -41,6 +42,7 @@ module sp_output_mod
   use messages_mod
   use mpi_parallel_mod
   use constants_mod
+  use bspline_mod
 #ifdef HAVE_MPI_GENESIS
   use mpi
 #endif
@@ -62,6 +64,9 @@ module sp_output_mod
     character(MaxFilename) :: mfrcfile   = ''
     character(MaxFilename) :: rpathlogfile  = ''
     character(MaxFilename) :: gamdfile   = ''
+    character(MaxFilename) :: reacfile   = ''
+    character(MaxFilename) :: abmdfile   = ''
+    character(MaxFilename) :: splinefile = ''
     character(MaxFilename) :: fepfile    = ''
   end type s_out_info
 
@@ -75,21 +80,28 @@ module sp_output_mod
   public  :: setup_output_md
   public  :: setup_output_min
   public  :: setup_output_remd
+  public  :: setup_output_bias
   public  :: setup_output_rpath
   public  :: open_output
   public  :: close_output
   public  :: output_md
   public  :: output_min
   public  :: output_remd
+  public  :: output_bias
   public  :: output_rpath
   public  :: output_prst_md
   public  :: output_prst_min
   public  :: output_gamd
+  public  :: output_reac
+  public  :: output_abmd
+  public  :: output_spline  
 
   private :: output_restart_md
   private :: output_restart_min
   private :: output_restart_remd
+  private :: output_restart_bias
   private :: output_restart_rpath
+  private :: add_spline_data
   private :: write_trajectory_dcd
   private :: write_trajectory_dcdvel
   private :: reduce_coord
@@ -130,6 +142,9 @@ contains
         write(MsgOut,'(A)') '# rstfile    = sample().rst  # parallel I/O restart file'
         write(MsgOut,'(A)') '# pdbfile    = sample.pdb    # PDB file'
         write(MsgOut,'(A)') '# gamdfile   = sample.gamd   # gamd file'
+        write(MsgOut,'(A)') '# reacfile   = sample.reac   # reac file'
+        write(MsgOut,'(A)') '# abmdfile   = sample.abmd   # abmd file'
+        write(MsgOut,'(A)') '# splinefile = sample.spl    # spline file'        
         write(MsgOut,'(A)') '# fepfile    = sample.fepout # fep file'
         write(MsgOut,'(A)') ' '
 
@@ -152,6 +167,9 @@ contains
         write(MsgOut,'(A)') '# pdbfile    = sample{}.pdb  # PDB file'
         write(MsgOut,'(A)') '# remfile    = sample{}.rem  # replica exchange ID file'
         write(MsgOut,'(A)') '# enefile    = sample{}.ene  # energy output for grest (only when analysis_grest = YES'
+        write(MsgOut,'(A)') '# reacfile   = sample.reac   # reac file'
+        write(MsgOut,'(A)') '# abmdfile   = sample.abmd   # abmd file'
+        write(MsgOut,'(A)') '# splinefile = sample.spl    # spline file'
         write(MsgOut,'(A)') '# fepfile    = sample.fepout # fep file'
         write(MsgOut,'(A)') ' '
 
@@ -223,6 +241,9 @@ contains
     call read_ctrlfile_string(handle, Section, 'rpathlogfile', out_info%rpathlogfile)
     call read_ctrlfile_string(handle, Section, 'mfrcfile', out_info%mfrcfile)
     call read_ctrlfile_string(handle, Section, 'gamdfile',  out_info%gamdfile)
+    call read_ctrlfile_string(handle, Section, 'reacfile',  out_info%reacfile)
+    call read_ctrlfile_string(handle, Section, 'abmdfile',  out_info%abmdfile)
+    call read_ctrlfile_string(handle, Section, 'splinefile',  out_info%splinefile)  
     call read_ctrlfile_string(handle, Section, 'fepfile',   out_info%fepfile)
 
     call end_ctrlfile_section(handle)
@@ -256,6 +277,12 @@ contains
         write(MsgOut,*) ' mfrcfile   = ', trim(out_info%mfrcfile)
       if (out_info%gamdfile .ne. '') &
         write(MsgOut,*) ' gamdfile   = ', trim(out_info%gamdfile)
+      if (out_info%reacfile .ne. '') &
+        write(MsgOut,*) ' reacfile   = ', trim(out_info%reacfile)
+      if (out_info%abmdfile .ne. '') &
+        write(MsgOut,*) ' abmdfile   = ', trim(out_info%abmdfile)
+      if (out_info%splinefile .ne. '') &
+        write(MsgOut,*) ' splinefile   = ', trim(out_info%splinefile)          
       if (out_info%fepfile /= '') &
         write(MsgOut,*) ' fepfile    = ', trim(out_info%fepfile)
       write(MsgOut,'(A)') ' '
@@ -322,6 +349,17 @@ contains
     if (out_info%gamdfile .ne. '') then
       output%gamdout  = .true.
       output%gamdfile = out_info%gamdfile
+    end if
+
+    if (out_info%reacfile .ne. '') then
+      output%reacout  = .true.
+      output%reacfile = out_info%reacfile
+    end if
+
+    if (out_info%abmdfile .ne. '') then
+      output%abmdout  = .true.
+      output%abmdfile = out_info%abmdfile
+      output%reduce_bp  = .true.
     end if
 
     if (dynamics%fepout_period > 0) then
@@ -481,6 +519,26 @@ contains
       output%remout  = .true.
     end if
 
+    if (out_info%reacfile .ne. '') then
+      output%reacout  = .true.
+      output%reacfile = out_info%reacfile
+      call include_id_to_filename(output%reacfile)
+      output%reacfile = output%reacfile
+    end if
+
+    if (out_info%abmdfile .ne. '') then
+      if(remd%reduce_bias_potential) then
+        output%abmdout  = .true.
+        output%abmdfile = out_info%abmdfile
+      else
+        output%abmdout  = .true.
+        output%abmdfile = out_info%abmdfile
+        call include_id_to_filename(output%abmdfile)
+        output%abmdfile = output%abmdfile
+      endif
+      output%reduce_bp  = remd%reduce_bias_potential
+    end if
+
     if (dynamics%fepout_period > 0) then
       if (out_info%fepfile == '') &
         call error_msg('Setup_Output_Remd> Error: fepfile name is not'//&
@@ -505,6 +563,103 @@ contains
     return
 
   end subroutine setup_output_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    setup_output_bias
+  !> @brief        setup output information for Bias-Exchange
+  !! @authors      SI
+  !! @param[in]    out_info : OUTPUT section control parameters information
+  !! @param[in]    dynamics : dynamics information
+  !! @param[out]   output   : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine setup_output_bias(out_info, dynamics, output, bias)
+
+    ! formal arguments
+    type(s_out_info),        intent(in)    :: out_info
+    type(s_dynamics),        intent(in)    :: dynamics
+    type(s_output),          intent(inout) :: output
+    type(s_bias),            intent(inout) :: bias  
+
+    ! local variables
+    logical                                :: biasflag = .true.
+
+    output%verbose = dynamics%verbose
+
+    output%logfile = out_info%logfile
+    call include_id_to_filename(output%logfile, biasflag)
+    output%logfile = output%logfile
+    output%logout  = .true.
+
+    if (dynamics%crdout_period > 0) then
+      if (out_info%dcdfile .eq. '') &
+        call error_msg('Setup_Output_Bias> dcdfile must be specified '//&
+                       'in [OUTPUT] when crdout_period > 0 in [DYNAMICS]')
+      output%dcdfile = out_info%dcdfile
+      call include_id_to_filename(output%dcdfile, biasflag)
+      output%dcdfile = output%dcdfile
+      output%dcdout  = .true.
+
+      if (out_info%remfile .eq. '') &
+        call error_msg('Setup_Output_Bias> Error: remfile name is not specified in [OUTPUT].')
+      output%remfile = out_info%remfile
+      call include_id_to_filename(output%remfile, biasflag)
+      output%remfile = output%remfile
+      output%remout  = .true.
+    end if
+
+    if (dynamics%velout_period > 0) then
+      if (out_info%dcdvelfile .eq. '') &
+        call error_msg('Setup_Output_Bias> Error: dcdvelfile name is not specified in [OUTPUT] (velout_period > 0 in [DYNAMICS]).')
+      output%dcdvelfile = out_info%dcdvelfile
+      call include_id_to_filename(output%dcdvelfile, biasflag)
+      output%dcdvelfile = output%dcdvelfile
+      output%dcdvelout  = .true.
+    end if
+
+    if (dynamics%rstout_period > 0) then
+      if (out_info%rstfile .eq. '') &
+        call error_msg('Setup_Output_Bias> Error: rstfile name is not specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS]).')
+      output%rstfile = out_info%rstfile
+      call include_id_to_filename(output%rstfile, biasflag)
+      output%rstfile = output%rstfile
+      output%rstout  = .true.
+
+      if (out_info%pdbfile .ne. '') then
+        output%pdbfile = out_info%pdbfile
+        call include_id_to_filename(output%pdbfile, biasflag)
+        output%pdbfile = output%pdbfile
+        output%pdbout  = .true.
+      end if
+    end if
+
+    if (out_info%reacfile .ne. '') then
+      output%reacout  = .true.
+      output%reacfile = out_info%reacfile
+      call include_id_to_filename(output%reacfile, biasflag)
+      output%reacfile = output%reacfile
+    end if
+
+    if (out_info%abmdfile .ne. '') then
+      if(bias%reduce_bias_potential) then
+        output%abmdout  = .true.
+        output%abmdfile = out_info%abmdfile
+      else
+        output%abmdout  = .true.
+        output%abmdfile = out_info%abmdfile
+        call include_id_to_filename(output%abmdfile, biasflag)
+        output%abmdfile = output%abmdfile
+      endif
+      output%reduce_bp  = bias%reduce_bias_potential
+    end if
+
+    output%replica = .true.
+
+    return
+
+  end subroutine setup_output_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -760,6 +915,36 @@ contains
       end if
     end if
 
+    ! open reacfile
+    !
+    if (output%reacout) then
+      if (main_rank .or. replica_main_rank) then
+        call open_file(file, output%reacfile, IOFileOutputNew)
+        output%reacunit = file
+      end if
+    end if
+
+    ! open abmdfile
+    !
+    if (output%abmdout) then
+      if ((output%reduce_bp .and. main_rank) .or. &
+          (.not. output%reduce_bp .and. replica_main_rank)) then
+        call open_file(file, output%abmdfile, IOFileOutputNew)
+        output%abmdunit = file
+      end if
+    end if
+
+    ! open splinefile
+    ! just check whether splinefile is already existing.
+    !
+    if (output%splineout) then
+      if ((output%reduce_bp .and. main_rank) .or. &
+          (.not. output%reduce_bp .and. replica_main_rank)) then
+        call open_file(file, output%splinefile, IOFileOutputNew)
+        call close_file(file)
+      end if
+    end if
+
     ! open fepfile
     !
     if (output%fepout) then
@@ -857,7 +1042,7 @@ contains
     type(s_dynvars),         intent(inout) :: dynvars
     type(s_domain),  target, intent(inout) :: domain
     type(s_enefunc),         intent(inout) :: enefunc
-    type(s_remd),            intent(inout) :: remd  
+    type(s_remd),  optional, intent(inout) :: remd  
 
     ! local variables
     logical                   :: alloc_ref, dealloc_ref
@@ -922,22 +1107,24 @@ contains
 
         end if
 
-        if (remd%analysis_grest) then
-          alloc_ref = (istep == dynamics%crdout_period)
-          dealloc_ref = (istep == dynamics%nsteps)
-          if (dynamics%integrator == IntegratorLEAP) then
-            call compute_grest_energy_output(1, alloc_ref, dealloc_ref, &
-                                             boundary, pairlist,     &
-                                             ensemble, domain,       &
+        if (present(remd)) then
+          if (remd%analysis_grest) then
+            alloc_ref = (istep == dynamics%crdout_period)
+            dealloc_ref = (istep == dynamics%nsteps)
+            if (dynamics%integrator == IntegratorLEAP) then
+              call compute_grest_energy_output(1, alloc_ref, dealloc_ref, &
+                                               boundary, pairlist,     &
+                                               ensemble, domain,       &
                                              enefunc, remd)
-          else
-            call compute_grest_energy_output(2, alloc_ref, dealloc_ref, &
-                                             boundary, pairlist,     &
-                                             ensemble, domain,       &
-                                             enefunc, remd)
+            else
+              call compute_grest_energy_output(2, alloc_ref, dealloc_ref, &
+                                               boundary, pairlist,     &
+                                               ensemble, domain,       &
+                                               enefunc, remd)
+            end if
+            call write_grest_energy_output(output, alloc_ref, istep,   &
+                                           dynamics%nsteps, remd)
           end if
-          call write_grest_energy_output(output, alloc_ref, istep,   &
-                                         dynamics%nsteps, remd)
         end if
 
       end if
@@ -1009,7 +1196,8 @@ contains
           call output_prst_md(output, enefunc, dynamics, boundary, &
                               dynvars, domain, constraints)
         else
-          call output_restart_md(output, domain, dynamics, boundary, dynvars)
+          call output_restart_md(output, domain, dynamics, boundary, &
+                                 dynvars, enefunc)
         end if
 
       end if
@@ -1163,7 +1351,7 @@ contains
                                 dynvars, domain, constraints, remd)
         else
           call output_restart_remd(output, domain, dynamics, dynvars, &
-                                   boundary, remd)
+                                   boundary, enefunc, remd)
         end if
       end if
     end if
@@ -1171,6 +1359,62 @@ contains
     return
 
   end subroutine output_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_bias
+  !> @brief        output restart data for BE-ABMD
+  !! @authors      SI
+  !! @param[inout] output   : output information
+  !! @param[in]    molecule : molecule information
+  !! @param[in]    dynamics : dynamics information
+  !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    bias     : BIAS information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_bias(icycle, output, enefunc, domain, dynamics, dynvars, &
+                         boundary, constraints, bias)
+                         
+    ! formal arguments
+    integer,                 intent(in)    :: icycle
+    type(s_output),          intent(inout) :: output
+    type(s_enefunc),         intent(inout) :: enefunc
+    type(s_domain),          intent(inout) :: domain
+    type(s_dynamics),        intent(in)    :: dynamics
+    type(s_dynvars),         intent(in)    :: dynvars
+    type(s_boundary),        intent(in)    :: boundary
+    type(s_constraints),     intent(in)    :: constraints
+    type(s_bias),            intent(inout) :: bias
+
+    ! local variables
+    integer                                :: dockid
+    logical                                :: biasflag = .true.
+
+    dockid =  my_country_no   + 1
+
+    ! output remfile
+    !
+    if (replica_main_rank .and. output%remout) then
+      if (icycle /= bias%ncycles) then
+        write(output%remunit,'(2I10)')          &
+          dynvars%step,                         &
+          bias%dockid2repsetid(dockid)
+      end if
+    end if
+
+    ! output restart
+    !
+    if (dynamics%rstout_period > 0) then
+      if (dynvars%step > 0 .and. mod(dynvars%step,dynamics%rstout_period) == 0) then
+        call output_restart_bias(output, domain, dynamics, dynvars, &
+                                 boundary, enefunc, bias)
+      end if
+    end if
+
+    return
+
+  end subroutine output_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -1380,6 +1624,283 @@ contains
 
   end subroutine output_gamd
 
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_reac
+  !> @brief        output the value of reaction coordinates
+  !! @authors      JK
+  !! @param[inout] output   : output information
+  !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    enefunc  : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_reac(step, output, dynvars, enefunc, remd, bias)
+
+    ! formal arguments
+    integer,                 intent(in) :: step
+    type(s_output),          intent(in) :: output
+    type(s_dynvars),         intent(in) :: dynvars
+    type(s_enefunc),target,  intent(in) :: enefunc
+    type(s_remd),  optional, intent(in) :: remd
+    type(s_bias),  optional, intent(in) :: bias
+
+    ! local variables
+    integer                             :: i, iend, dockid, inum, jnum
+    character(16)                       :: chrnreac
+    type(s_enefunc_reac_coord), pointer :: reac_coord
+
+    if (.not. output%reacout) return
+    reac_coord => enefunc%reac_coord
+    if (mod(dynvars%step, reac_coord%monitor_period) /= 0) then
+      return
+    endif
+    
+    if (present(bias)) then
+      if (.not. replica_main_rank) return
+    else  
+      if(remd%total_nreplicas == 0) then
+        if (.not. main_rank) return
+      else
+        if (.not. replica_main_rank) return
+      endif
+    end if  
+
+    if (present(bias)) then 
+      dockid  = my_country_no + 1
+      iend    = enefunc%abmd%nreac_coord
+      jnum    = enefunc%abmd%dockid2repsetid(dockid)
+      inum    = enefunc%abmd%repsetid2paramid(jnum,1)
+      write(chrnreac,*) iend
+      write(output%reacunit,'(i10, '//trim(chrnreac)//'f20.5)') &
+            step, (reac_coord%xi(bias%ifunc(inum,i)), i=1,iend)  
+    else
+      write(chrnreac,*) reac_coord%nreac_coord
+      write(output%reacunit,'(i10, '//trim(chrnreac)//'f20.5)') &
+            step, (reac_coord%xi(i), i=1,reac_coord%nreac_coord)
+    end if
+
+  end subroutine output_reac
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_abmd
+  !> @brief        output the value of the bias potential
+  !! @authors      JK
+  !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[inout] output   : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_abmd(dynvars, enefunc, output)
+
+    ! formal arguments
+    type(s_dynvars),         intent(in)    :: dynvars
+    type(s_enefunc),target,  intent(in)    :: enefunc
+    type(s_output),          intent(inout) :: output
+
+    ! local variables
+    character(16)                       :: chrnreac
+    type(s_enefunc_abmd),       pointer :: abmd
+    type(s_enefunc_reac_coord), pointer :: reac
+    real(dp),                   pointer :: uk(:)
+    real(wp)                            :: xi
+    integer                             :: i,j, icount
+    integer,                    pointer :: indices(:)
+    real(wp),               allocatable :: xvals(:)
+    real(dp),               allocatable :: utmp(:)
+
+    if (.not. output%abmdout) return
+    abmd    => enefunc%abmd
+    if (mod(dynvars%step, abmd%monitor_period) /= 0) then
+      return
+    endif
+    reac    => enefunc%reac_coord
+    uk      => abmd%uk
+    indices => reac%indices
+
+    if (abmd%reduce_bias_potential) then
+      if (.not. main_rank) return
+    else
+      if (.not. replica_main_rank) return
+    endif
+
+    if(output%out_abmd_header) then
+      write(output%abmdunit,   '(a,i5)') '# nreac_coord ',abmd%nreac_coord
+      do i = 1, abmd%nreac_coord
+        write(output%abmdunit, '(a,3i5,3f15.5)')               &
+                     '# i kind nxi ximin ximax dxi',           &
+                     i, abmd%kind(i), abmd%nxi(i), abmd%ximin(i), &
+                     abmd%ximax(i), abmd%dxi(i)
+      enddo
+      output%out_abmd_header = .false.
+    endif
+
+    allocate(xvals(1:abmd%nreac_coord))
+    allocate(utmp (1:abmd%nreac_coord_comb))
+
+    call bspline_interpolation(abmd%nreac_coord_comb, abmd%nreac_coord_comb,   &
+         abmd%nreac_coord, abmd%nxi, abmd%nxi, abmd%ximin, abmd%dxi, abmd%dxi, &
+         uk, utmp)
+
+    icount = 0
+    write(chrnreac,*) abmd%nreac_coord+1
+    write(output%abmdunit,'(a,i10,f20.5)') '# STEP,  U ',dynvars%step, abmd%u
+
+    combo:do i = 1, abmd%nreac_coord_comb
+      call bspline_resolve_indices(i, abmd%nreac_coord, abmd%nxi, indices)
+      do j = 1, abmd%nreac_coord
+        if(indices(j)==-1 .or. indices(j) == abmd%nxi(j)) then
+          cycle combo
+        endif
+      enddo
+      do j = 1, abmd%nreac_coord
+        xvals(j) = abmd%ximin(j)+indices(j)*abmd%dxi(j)
+      enddo
+      write(output%abmdunit, '('//trim(chrnreac)//'f20.5)') &
+      (xvals(j), j=1, abmd%nreac_coord), utmp(i)
+      icount = icount + 1
+      if (icount == abmd%nxi(1)) then
+        write(output%abmdunit,*)
+        icount = 0
+      endif
+    enddo combo
+
+    deallocate(xvals)
+    deallocate(utmp)
+
+    return
+
+  end subroutine output_abmd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_spline
+  !> @brief        output the value of spline coeffecients
+  !! @authors      JK
+  !! @param[in]    dynvars  : dynamic variables information
+  !! @param[in]    enefunc  : potential energy functions information
+  !! @param[inout] output   : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_spline(dynvars, enefunc, output)
+
+    ! formal arguments
+    type(s_dynvars),         intent(in)    :: dynvars
+    type(s_enefunc),target,  intent(in)    :: enefunc
+    type(s_output),          intent(inout) :: output
+
+    ! local variables
+    character(16)                       :: chrnreac
+    type(s_enefunc_abmd),       pointer :: abmd
+    type(s_enefunc_reac_coord), pointer :: reac
+    real(dp),                   pointer :: uk(:)
+    real(wp)                            :: xi
+    integer                             :: file
+    integer                             :: i,j, icount
+    integer,                    pointer :: indices(:)
+    real(wp),               allocatable :: xvals(:)
+    real(wp),               allocatable :: utmp(:)
+
+    if (.not. output%splineout) return
+    abmd    => enefunc%abmd
+    if (mod(dynvars%step, abmd%monitor_period_spline) /= 0) then
+      return
+    endif
+
+    reac    => enefunc%reac_coord
+    uk      => abmd%uk
+    indices => reac%indices
+
+    if (abmd%reduce_bias_potential) then
+      if (.not. main_rank) return
+    else
+      if (.not. replica_main_rank) return
+    endif
+
+    ! open Spline file
+    !
+    call open_file(file, output%splinefile, IOFileOutputReplace)
+
+    output%out_spline_header = .false. !! Temporary
+    if(output%out_spline_header) then
+      write(file,   '(a,i5)') '# nreac_coord ',abmd%nreac_coord
+      do i = 1, abmd%nreac_coord
+        write(file, '(a,3i5,3f15.5)')               &
+                     '# i kind nxi ximin ximax dxi',           &
+                     i, abmd%kind(i), abmd%nxi(i), abmd%ximin(i), &
+                     abmd%ximax(i), abmd%dxi(i)
+      enddo
+      output%out_spline_header = .false.
+    endif
+
+    allocate(xvals(1:abmd%nreac_coord))
+
+    ! Write header for restart
+    icount = 0
+    write(chrnreac,*) abmd%nreac_coord+1
+    write(file,'(a,i10,f20.5)') '# STEP,  U ',dynvars%step, abmd%u
+    write(chrnreac,*) abmd%nreac_coord
+    write(file, '(a,i10,'//trim(chrnreac)//'i10,'//trim(chrnreac)//'f20.5)') &
+         '# For RST', abmd%nreac_coord, (abmd%nxi(i), i=1, abmd%nreac_coord), &
+         (abmd%dxi(j), j=1, abmd%nreac_coord)
+    write(chrnreac,*) abmd%nreac_coord+1
+
+    combo:do i = 1, abmd%nreac_coord_comb
+      call bspline_resolve_indices(i, abmd%nreac_coord, abmd%nxi, indices)
+      do j = 1, abmd%nreac_coord
+        if(indices(j)==-1 .or. indices(j) == abmd%nxi(j)) then
+          cycle combo
+        endif
+      enddo
+      do j = 1, abmd%nreac_coord
+        xvals(j) = abmd%ximin(j)+indices(j)*abmd%dxi(j)
+      enddo
+      write(file, '('//trim(chrnreac)//'f20.5)') &
+      (xvals(j), j=1, abmd%nreac_coord), uk(i)
+      icount = icount + 1
+
+      if (icount == abmd%nxi(1)) then
+        write(file,*)
+        icount = 0
+      endif
+    enddo combo
+
+    call close_file(file)
+    
+    deallocate(xvals)
+
+    return
+
+  end subroutine output_spline
+
+  subroutine add_spline_data(rst, enefunc)
+
+    type(s_rst),             intent(inout) :: rst
+    type(s_enefunc), target, intent(in)    :: enefunc
+
+    type(s_enefunc_abmd), pointer :: abmd
+    real(dp),               pointer :: uk(:)
+
+    if (.not. enefunc%abmd_use) return
+
+    abmd => enefunc%abmd
+    if (allocated(abmd%uk)) then
+      uk => abmd%uk
+    else
+      return
+    end if
+
+    call alloc_rst(rst, RestartABMD, abmd%nreac_coord, abmd%nreac_coord_comb)
+    rst%abmd_nxi (1:abmd%nreac_coord)      = abmd%nxi (1:abmd%nreac_coord)
+    rst%abmd_dxi (1:abmd%nreac_coord)      = abmd%dxi (1:abmd%nreac_coord)
+    rst%abmd_ubuf(1:abmd%nreac_coord_comb) = uk(1:abmd%nreac_coord_comb)
+
+  end subroutine add_spline_data
+
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    output_prst_md
@@ -1569,7 +2090,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine output_restart_md(output, domain, dynamics, boundary, dynvars)
+  subroutine output_restart_md(output, domain, dynamics, boundary, dynvars, &
+                               enefunc)
 
     ! formal arguments
     type(s_output),          intent(in)    :: output
@@ -1577,6 +2099,7 @@ contains
     type(s_dynamics),        intent(in)    :: dynamics
     type(s_boundary),        intent(in)    :: boundary
     type(s_dynvars),         intent(in)    :: dynvars
+    type(s_enefunc),         intent(in)    :: enefunc
 
     ! local variables
     type(s_rst)              :: rst
@@ -1650,6 +2173,8 @@ contains
     end if
 
     rst%velocity(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
+
+    call add_spline_data(rst, enefunc)
 
     ! output restart information
     !
@@ -1767,7 +2292,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine output_restart_remd(output, domain, dynamics, dynvars, &
-                                 boundary, remd)
+                                 boundary, enefunc, remd)
 
     ! formal arguments
     type(s_output),           intent(in)    :: output
@@ -1775,6 +2300,7 @@ contains
     type(s_dynamics),         intent(in)    :: dynamics
     type(s_dynvars),          intent(in)    :: dynvars
     type(s_boundary),         intent(in)    :: boundary
+    type(s_enefunc),          intent(in)    :: enefunc
     type(s_remd),             intent(inout) :: remd
 
     ! local variables
@@ -1861,6 +2387,8 @@ contains
       rst%num_exchanges(1:nrep,1:ndim,1:2) = remd%num_exchanges(1:nrep,1:ndim,1:2)
     end if
 
+    call add_spline_data(rst, enefunc)
+
     if (replica_main_rank) &
       call output_rst(output%rstfile, rst)
 
@@ -1870,6 +2398,120 @@ contains
     return
 
   end subroutine output_restart_remd
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    output_restart_bias
+  !> @brief        output restart data for BE-ABMD
+  !! @authors      SI
+  !! @param[in]    output   : output information
+  !! @param[in]    molecule : molecule information
+  !! @param[in]    dynamics : dynamics information
+  !! @param[in]    dynvars  : dynamic variables information
+  !! @param[inout] bias     : REMD information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine output_restart_bias(output, domain, dynamics, dynvars, &
+                                 boundary, enefunc, bias)
+
+    ! formal arguments
+    type(s_output),           intent(in)    :: output
+    type(s_domain),   target, intent(in)    :: domain
+    type(s_dynamics),         intent(in)    :: dynamics
+    type(s_dynvars),          intent(in)    :: dynvars
+    type(s_boundary),         intent(in)    :: boundary
+    type(s_enefunc),          intent(in)    :: enefunc
+    type(s_bias),             intent(inout) :: bias
+
+    ! local variables
+    type(s_rst)              :: rst
+    real(wip),       pointer :: coord(:,:,:), vel(:,:,:)
+    integer                  :: i, ix, nrep, ndim, ndocks
+    integer,         pointer :: ncell, natom(:), id_l2g(:,:)
+    integer(iintegers), pointer :: natom_all
+
+
+    ncell     => domain%num_cell_local
+    natom_all => domain%num_atom_all
+    natom     => domain%num_atom
+    id_l2g    => domain%id_l2g
+    coord     => domain%coord
+    vel       => domain%velocity
+
+    if (.not. allocated(tmp_coord1)) &
+      allocate(tmp_coord1(3, natom_all), tmp_coord2(3, natom_all))
+
+    call alloc_rst(rst, RestartAtom, int(natom_all))
+
+    nrep   = bias%nreplicas
+    ndim   = bias%nwalkers
+    ndocks = nrep*ndim
+    call alloc_rst(rst, RestartReplica, ndocks, 1)
+
+    ! Output RST file
+    !
+    rst%iseed                  = dynamics%iseed_init_velocity
+    rst%num_atoms              = natom_all
+    rst%box_size_x             = boundary%box_size_x
+    rst%box_size_y             = boundary%box_size_y
+    rst%box_size_z             = boundary%box_size_z
+    rst%thermostat_momentum    = dynvars %thermostat_momentum
+    rst%barostat_momentum(1:3) = dynvars %barostat_momentum(1:3)
+
+    call random_stock_mpi_tobyte(mpi_comm_country, rst%random)
+
+    ! reduce coordinates
+    !
+    tmp_coord1(1:3,1:natom_all) = 0.0_wip
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        tmp_coord1(1:3,id_l2g(ix,i)) = coord(1:3,ix,i)
+      end do
+    end do
+
+    call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    rst%coord(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
+
+    ! reduce velocities
+    !
+    tmp_coord1(1:3,1:natom_all) = 0.0_wip
+    do i = 1, ncell
+      do ix = 1, natom(i)
+        tmp_coord1(1:3,id_l2g(ix,i)) = vel(1:3,ix,i)
+      end do
+    end do
+
+    call reduce_coord(tmp_coord1, tmp_coord2, int(natom_all))
+
+    rst%velocity(1:3,1:natom_all) = tmp_coord1(1:3,1:natom_all)
+
+    if (bias%equilibration_only) then
+      rst%rstfile_type                     = RstfileTypeMd
+    else
+      rst%rstfile_type                     = RstfileTypeRemd
+      rst%iseed_remd                       = bias%iseed
+      rst%nreplicas                        = ndocks   ! = NReplicas * NWalkers
+      rst%dimension                        = 1        ! = NWalkers
+      rst%repid2parmsetid(1:ndocks)     = bias%dockid2repsetid(1:ndocks)
+      rst%num_criteria (1:nrep*ndim,1,1:2) = &
+                             bias%num_criteria_rep (1:ndocks,1:2)
+      rst%num_exchanges(1:nrep*ndim,1,1:2) = &
+                             bias%num_exchanges_rep(1:ndocks,1:2)
+    end if
+
+    call add_spline_data(rst, enefunc)
+
+    if (replica_main_rank) &
+      call output_rst(output%rstfile, rst)                 
+                              
+    if (dynvars%step == dynamics%nsteps) &
+      call dealloc_rst_all(rst)
+
+    return
+
+  end subroutine output_restart_bias
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
@@ -2350,7 +2992,7 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine include_id_to_filename(filename)
+  subroutine include_id_to_filename(filename, biasflag)
 
     ! formal arguments
     character(MaxFilename),  intent(inout) :: filename
@@ -2360,11 +3002,19 @@ contains
     integer                  :: i, j, ci1, ci2, cnumber
     character(MaxFilename)   :: filename_ori
     character(10)            :: frmt, cd, cid
+    logical, optional        :: biasflag
 
 
     ! get replica id
     !
-    id = my_country_no + 1
+    if ( present(biasflag) ) then
+      id = my_country_no + 1
+      if (nrep_per_proc > 1) id = my_country_no
+    else
+      id = my_country_no + 1
+      if (nrep_per_proc > 1) id = my_replica_no
+    end if
+
     do i = 1, 100
       comp = 10**i
       if (id < comp) then

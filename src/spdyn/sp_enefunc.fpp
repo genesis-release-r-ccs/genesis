@@ -25,6 +25,7 @@ module sp_enefunc_mod
   use sp_migration_mod
   use sp_energy_mod
   use sp_restraints_str_mod
+  use sp_reac_coord_str_mod
   use sp_constraints_str_mod
   use sp_enefunc_str_mod
   use sp_energy_str_mod
@@ -90,25 +91,27 @@ contains
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : energy potential functions information
   !! @param[inout] comm        : communication information
+  !! @param[in]    reac_coord  : reaction coordinate information (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc(ene_info, par, prmtop, grotop, localres, molecule, &
-                            constraints, restraints, domain, enefunc, comm)
+                            constraints, restraints, domain, enefunc, comm, &
+                            reac_coord)
 
     ! formal arguments
-    type(s_ene_info),        intent(in)    :: ene_info
-    type(s_par),             intent(in)    :: par
-    type(s_prmtop),          intent(in)    :: prmtop
-    type(s_grotop),          intent(in)    :: grotop
-    type(s_localres),        intent(in)    :: localres
-    type(s_molecule),        intent(in)    :: molecule
-    type(s_constraints),     intent(inout) :: constraints
-    type(s_restraints),      intent(in)    :: restraints
-    type(s_domain),          intent(inout) :: domain
-    type(s_enefunc),         intent(inout) :: enefunc
-    type(s_comm),            intent(inout) :: comm   
-
+    type(s_ene_info),             intent(in)    :: ene_info
+    type(s_par),                  intent(in)    :: par
+    type(s_prmtop),               intent(in)    :: prmtop
+    type(s_grotop),               intent(in)    :: grotop
+    type(s_localres),             intent(in)    :: localres
+    type(s_molecule),             intent(in)    :: molecule
+    type(s_constraints),          intent(inout) :: constraints
+    type(s_restraints),           intent(in)    :: restraints
+    type(s_domain),               intent(inout) :: domain
+    type(s_enefunc),              intent(inout) :: enefunc
+    type(s_comm),                 intent(inout) :: comm   
+    type(s_reac_coord), optional, intent(in)    :: reac_coord
 
     enefunc%forcefield        = ene_info%forcefield
     enefunc%output_style      = ene_info%output_style
@@ -171,7 +174,8 @@ contains
     if (par%num_bonds > 0 .and. enefunc%forcefield /= ForceFieldSpica) then
 
       call define_enefunc_charmm(ene_info, par, localres, molecule, &
-                                 constraints, restraints, domain, enefunc)
+                                 constraints, restraints, domain, enefunc, &
+                                 reac_coord)
 
     ! spica
     !
@@ -187,7 +191,8 @@ contains
          call error_msg('Define_Enefunc> Localres is not available in this FF')
 
       call define_enefunc_amber (ene_info, prmtop, molecule, &
-                                 constraints, restraints, domain, enefunc)
+                                 constraints, restraints, domain, enefunc, &
+                                 reac_coord)
 
     ! gromacs
     !
@@ -196,7 +201,8 @@ contains
          call error_msg('Define_Enefunc> Localres is not available in this FF')
 
       call define_enefunc_gromacs(ene_info, grotop, molecule, &
-                                 constraints, restraints, domain, enefunc)
+                                 constraints, restraints, domain, enefunc, &
+                                 reac_coord)
 
     end if
 

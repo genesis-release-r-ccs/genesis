@@ -3,7 +3,7 @@
 !  Module   sp_control_md
 !> @brief   read parameters and data for md simulation
 !! @authors Yuji Sugita (YS), Takaharu Mori (TM), Chigusa Kobayashi (CK),
-!!          Norio Takase (NT)
+!!          Norio Takase (NT), Shingo Ito (SI)
 ! 
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -21,13 +21,16 @@ module sp_control_mod
   use sp_dynamics_mod
   use sp_ensemble_mod
   use sp_restraints_mod
+  use sp_reac_coord_mod
   use sp_constraints_mod
   use sp_boundary_mod
   use sp_energy_mod
   use sp_remd_mod
+  use sp_bias_mod
   use sp_rpath_mod
   use sp_experiments_mod
   use sp_gamd_mod
+  use sp_abmd_mod
   use select_mod
   use fitting_mod
   use fileio_control_mod
@@ -54,6 +57,9 @@ module sp_control_mod
 
     ! data for section replica
     type(s_rep_info)      :: rep_info
+
+    ! data for section bias-exchange
+    type(s_bias_info)     :: bias_info
 
     ! data for section rpath
     type(s_rpath_info)    :: rpath_info
@@ -82,6 +88,9 @@ module sp_control_mod
     ! data for section restraints
     type(s_res_info)      :: res_info
 
+    ! data for section reaccoord
+    type(s_reac_info)     :: reac_info
+
     ! data for section restraints
     type(s_exp_info)      :: exp_info
 
@@ -90,6 +99,9 @@ module sp_control_mod
 
     ! data for section gamd
     type(s_gamd_info)     :: gamd_info
+
+    ! data for section abmd
+    type(s_abmd_info)     :: abmd_info
 
     ! data for section alchemy
     type(s_alch_info)     :: alch_info
@@ -103,6 +115,7 @@ module sp_control_mod
   public  :: control_md
   public  :: control_min
   public  :: control_remd
+  public  :: control_bias
   public  :: control_rpath
   private :: show_ctrl
 
@@ -218,7 +231,7 @@ contains
   !
   !  Subroutine    control_md
   !> @brief        open/read/close control files for MD
-  !! @authors      YS, TM, CK
+  !! @authors      YS, TM, CK, SI
   !! @param[in]    filename  : file name of control file
   !! @param[out]   ctrl_data : information of control parameters
   !
@@ -255,6 +268,11 @@ contains
     ! read gamd section
     !
     call read_ctrl_gamd(handle, ctrl_data%gamd_info)
+
+
+    ! read abmd section
+    !
+    call read_ctrl_abmd(handle, ctrl_data%abmd_info)
 
 
     ! read alchemy section
@@ -297,6 +315,11 @@ contains
     ! read restraints section
     !
     call read_ctrl_restraints(handle, ctrl_data%res_info)
+
+
+    ! read reaccoord section
+    !
+    call read_ctrl_reac_coord(handle, ctrl_data%reac_info)
 
 
     ! read fitting section
@@ -412,7 +435,7 @@ contains
   !
   !  Subroutine    control_remd
   !> @brief        open/read/close control files for REMD
-  !! @authors      TM, CK
+  !! @authors      TM, CK, SI
   !! @param[in]    filename  : file name of control file
   !! @param[out]   ctrl_data : information of control parameters
   !
@@ -456,6 +479,11 @@ contains
     call read_ctrl_gamd(handle, ctrl_data%gamd_info)
 
 
+    ! read abmd section
+    !
+    call read_ctrl_abmd(handle, ctrl_data%abmd_info, ctrl_data%rep_info)
+
+
     ! read alchemy section
     !
     if (find_ctrlfile_section(filename, 'ALCHEMY')) then
@@ -497,6 +525,12 @@ contains
     !
     call read_ctrl_restraints(handle, ctrl_data%res_info)
 
+
+    ! read reaccoord section
+    !
+    call read_ctrl_reac_coord(handle, ctrl_data%reac_info)
+
+    
     ! read fitting section
     !
     call read_ctrl_fitting_md(handle, ctrl_data%fit_info)
@@ -515,6 +549,118 @@ contains
 
   end subroutine control_remd
 
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    control_bias
+  !> @brief        open/read/close control files for Bias-Exchange
+  !! @authors      SI
+  !! @param[in]    filename  : file name of control file
+  !! @param[out]   ctrl_data : information of control parameters
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine control_bias(filename, ctrl_data)
+
+    ! formal arguments
+    character(*),            intent(in)    :: filename
+    type(s_ctrl_data),       intent(inout) :: ctrl_data
+
+    ! local variables
+    integer                  :: handle
+
+
+    ! open control file
+    ! 
+    call open_ctrlfile(filename, handle)
+
+    if (handle == 0) &
+      call error_msg('Control_Bias> File I / O Error')
+
+
+    ! read input section
+    !
+    call read_ctrl_input(handle, ctrl_data%inp_info)
+
+
+    ! read output section
+    !
+    call read_ctrl_output(handle, ctrl_data%out_info)
+
+
+    ! read gamd section
+    !
+    !call read_ctrl_gamd(handle, ctrl_data%gamd_info)
+
+
+    ! read bias section
+    !
+    call read_ctrl_bias(handle, ctrl_data%bias_info)
+
+
+    ! read abmd section
+    !
+    call read_ctrl_abmd(handle, ctrl_data%abmd_info, ctrl_data%rep_info)
+
+
+    ! read energy section
+    !
+    call read_ctrl_energy(handle, ctrl_data%ene_info)
+
+
+    ! read dynamics section
+    !
+    call read_ctrl_dynamics(handle, ctrl_data%dyn_info)
+
+
+    ! read constraints section
+    !
+    call read_ctrl_constraints(handle, ctrl_data%cons_info)
+
+
+    ! read ensemble section
+    !
+    call read_ctrl_ensemble(handle, ctrl_data%ens_info)
+
+
+    ! read boundary section
+    !
+    call read_ctrl_boundary(handle, ctrl_data%bound_info)
+
+
+    ! read selection section
+    !
+    call read_ctrl_selection(handle, ctrl_data%sel_info)
+
+
+    ! read restraints section
+    !
+    call read_ctrl_restraints(handle, ctrl_data%res_info)
+
+
+    ! read reaccoord section
+    !
+    call read_ctrl_reac_coord(handle, ctrl_data%reac_info)
+
+
+    ! read fitting section
+    !
+    call read_ctrl_fitting_md(handle, ctrl_data%fit_info)
+
+
+    ! read experiments section
+    !
+    call read_ctrl_experiments(handle, ctrl_data%exp_info)
+
+
+    ! close control file
+    !
+    call close_ctrlfile(handle)
+
+
+    return
+
+  end subroutine control_bias
+  
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    control_rpath
@@ -615,7 +761,7 @@ contains
   !
   !  Subroutine    show_ctrl
   !> @brief        show usage of GENESIS SPDYN control file
-  !! @authors      NT
+  !! @authors      NT, SI
   !! @param[in]    ctrl_str : ctrl string     : "ctrl", "ctrl_all"
   !! @param[in]    run_mode : run mode string : "md", "min", "remd", "rpath"
   !
@@ -682,6 +828,11 @@ contains
     call show_ctrl_gamd(show_all, run_mode)
 
 
+    ! show abmd section
+    !
+    call show_ctrl_abmd(show_all, run_mode)
+    
+    
     ! show alchemy section
     !
     call show_ctrl_alchemy(show_all, run_mode)
@@ -721,6 +872,12 @@ contains
     !
     call show_ctrl_restraints(show_all, run_mode)
 
+
+    ! show reaccoord section
+    !
+    call show_ctrl_reac_coord(show_all, run_mode)
+
+    
     ! show experiments section
     !
     call show_ctrl_experiments(show_all, run_mode)

@@ -120,6 +120,104 @@ module sp_enefunc_str_mod
     real(dp), allocatable         :: v_rest_omp(:,:,:)
   end type s_enefunc_gamd
 
+  ! ABMD
+  type, public :: s_enefunc_abmd
+    logical                       :: update_biasing_potential
+    logical                       :: biasing_potential_force
+    logical                       :: stop_when_out_of_range
+    logical                       :: reduce_bias_potential
+    logical                       :: wt
+    integer                       :: monitor_period
+    integer                       :: monitor_period_spline
+    integer                       :: update_period
+    real(dp)                      :: tauf
+    real(dp)                      :: wt_temperature
+    real(dp)                      :: u
+    real(dp), allocatable         :: uk(:)
+    real(dp), allocatable         :: tmp_uk(:)
+    real(dp), allocatable         :: puk(:)
+    !real(wp), allocatable         :: f_abmd_omp(:,:,:,:,:)
+    !real(dp), allocatable         :: v_abmd_omp(:,:,:,:)
+    real(wp), allocatable         :: bk(:,:), bk2(:,:), sumdbk(:)
+    real(wp), allocatable         :: pbk(:,:), pbk2(:,:), psumdbk(:)
+
+    integer                       :: temp_nreac_coord
+    integer                       :: temp_nreac_coord_comb                                                                   
+    integer,  allocatable         :: temp_nxi(:)
+    integer,  allocatable         :: temp_kind(:)
+    integer,  allocatable         :: temp_bondslist(:,:,:)
+    integer,  allocatable         :: temp_bondslist_to_atomlist(:,:)
+    real(wp), allocatable         :: temp_ximin(:)
+    real(wp), allocatable         :: temp_ximax(:)
+    real(wp), allocatable         :: temp_dxi(:)
+    real(wp), allocatable         :: temp_invdxi(:)
+    real(dp), allocatable         :: temp_uk(:) 
+    logical,  allocatable         :: temp_periodicity(:)
+
+    integer                       :: nreac_coord
+    integer                       :: nreac_coord_comb
+    integer,  allocatable         :: ifunc(:,:)
+    integer,  allocatable         :: nxi(:)
+    integer,  allocatable         :: dockid2repsetid(:)
+    integer,  allocatable         :: repsetid2paramid(:,:)
+    integer,  allocatable         :: kind(:)
+    integer,  allocatable         :: bondslist(:,:,:)
+    integer,  allocatable         :: bondslist_to_atomlist(:,:)
+    real(wp), allocatable         :: ximin(:), ximax(:), dxi(:), invdxi(:)
+    real(wp), allocatable         :: force_xi(:,:,:,:)
+    real(dp), allocatable         :: virial_xi(:,:,:)
+    logical,  allocatable         :: periodicity(:)
+
+  end type s_enefunc_abmd
+
+  ! reaction coordinate
+  type, public :: s_enefunc_reac_coord
+    logical                       :: reac_coord_flag = .false.
+    logical                       :: posi
+    integer                       :: nreac_coord
+    integer                       :: nreac_coord_comb
+    integer                       :: nreac_func
+    integer                       :: num_groups
+    integer                       :: max_num_groups
+    integer                       :: max_atoms
+    integer                       :: monitor_period
+    integer                       :: nnonzero
+    integer                       :: mol_num_atoms
+    integer,  allocatable         :: num_atoms_bonds_reac_coord(:)
+    integer,  allocatable         :: istarts(:), nnonzeros(:)
+    integer,  allocatable         :: numatoms(:)
+    integer,  allocatable         :: atom(:,:)
+    integer,  allocatable         :: funcgrp(:)
+    integer,  allocatable         :: grouplist(:,:)
+    integer,  allocatable         :: atomlist(:,:)
+    integer,  allocatable         :: bondslist(:,:,:)
+    integer,  allocatable         :: bondslist_to_atomlist(:,:)
+    integer,  allocatable         :: num_atoms(:)
+    integer,  allocatable         :: indices(:), indices2(:)
+    real(wp), allocatable         :: masscoef(:,:)
+    integer,  allocatable         :: kind(:)
+    integer,  allocatable         :: exponent_dist(:,:)
+    real(wp), allocatable         :: weight_dist(:,:)
+    integer,  allocatable         :: direction(:)
+    real(wp), allocatable         :: const(:,:)
+    real(wp), allocatable         :: unitv(:,:)
+    integer,  allocatable         :: nxi(:)
+    real(wp), allocatable         :: ximin(:), ximax(:), dxi(:), invdxi(:)
+    real(wp), allocatable         :: uboundary(:)
+    real(wp), allocatable         :: xi(:)
+    real(wp), allocatable         :: force_xi(:,:,:,:)
+    real(dp), allocatable         :: virial_xi(:,:,:)
+    logical,  allocatable         :: periodicity(:)
+    logical                       :: chk_periodicity
+
+    real(wp), allocatable         :: force(:,:,:)
+    real(wp), allocatable         :: coord(:,:,:)
+    real(wp), allocatable         :: bonds_coord(:,:)
+    real(wp), allocatable         :: bonds_force(:,:)
+    logical                       :: out_of_range
+
+  end type s_enefunc_reac_coord
+
   type, public :: s_enefunc
 
     integer                       :: forcefield
@@ -510,6 +608,14 @@ module sp_enefunc_str_mod
     logical                       :: gamd_use
     type(s_enefunc_gamd)          :: gamd
 
+    ! reaction coordinate
+    type(s_enefunc_reac_coord)    :: reac_coord
+
+    ! abmd
+    logical                       :: abmd_use
+    logical                       :: bias_use
+    type(s_enefunc_abmd)          :: abmd
+
     ! For vacuum
     logical                       :: vacuum
 
@@ -617,7 +723,12 @@ module sp_enefunc_str_mod
   integer,      public, parameter :: EneFuncNonbFEPList   = 46
   integer,      public, parameter :: EneFuncFEPBonded     = 47
   integer,      public, parameter :: EneFuncBondCell_FEP  = 48
-  integer,      public, parameter :: EneFuncBondCell_FIT  = 49
+  integer,      public, parameter :: EneFuncReacCoord     = 49
+  integer,      public, parameter :: EneFuncReacg         = 50
+  integer,      public, parameter :: EneFuncReacf         = 51
+  integer,      public, parameter :: EneFuncReacatm       = 52
+  integer,      public, parameter :: EneFuncABMD          = 53  
+  integer,      public, parameter :: EneFuncBondCell_FIT  = 54
 
   ! water model type
   integer,      public, parameter :: TIP1                 = 1
@@ -803,6 +914,9 @@ contains
 
     enefunc%gamd_use                = .false.
 
+    enefunc%abmd_use                = .false.
+    enefunc%bias_use                = .false.
+
     return
 
   end subroutine init_enefunc
@@ -817,10 +931,13 @@ contains
   !! @param[in]    var_size  : size of the selected variable
   !! @param[in]    var_size1 : 2nd size of the selected variable (optional)
   !! @param[in]    var_size2 : 3rd size of the selected variable (optional)
+  !! @param[in]    var_size3 : 4th size of the selected variable (optional)
+  !! @param[in]    var_size4 : 5th size of the selected variable (optional)  
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine alloc_enefunc(enefunc, variable, var_size, var_size1, var_size2)
+  subroutine alloc_enefunc(enefunc, variable, var_size, var_size1, var_size2, &
+                           var_size3, var_size4)
 
     ! formal arguments
     type(s_enefunc),         intent(inout) :: enefunc
@@ -828,11 +945,14 @@ contains
     integer,                 intent(in)    :: var_size
     integer,       optional, intent(in)    :: var_size1
     integer,       optional, intent(in)    :: var_size2
+    integer,       optional, intent(in)    :: var_size3
+    integer,       optional, intent(in)    :: var_size4    
 
     ! local variables
     integer                  :: alloc_stat
     integer                  :: dealloc_stat
-    integer                  :: var_size3, var_size4
+    integer                  :: size1, size2, size3, size4
+    integer                  :: var_size5, var_size6
 
 
     alloc_stat   = 0
@@ -1391,23 +1511,23 @@ contains
                      stat = dealloc_stat)
       end if
 
-      var_size3 = MaxBond+MaxAngle*2+MaxWater*3
-      var_size4 = MaxDihe*2+MaxImpr
+      var_size5 = MaxBond+MaxAngle*2+MaxWater*3
+      var_size6 = MaxDihe*2+MaxImpr
       if (.not. allocated(enefunc%nonb_excl_list)) &
-        allocate(enefunc%nonb_excl_list (4, var_size3, var_size),   &
-                 enefunc%nb14_calc_list (4, var_size4, var_size),   &
-                 enefunc%sc_calc_list   (var_size4, var_size),      &
-                 enefunc%nb14_qq_scale  (var_size4, var_size),      &
-                 enefunc%nb14_lj_scale  (var_size4, var_size),      &
+        allocate(enefunc%nonb_excl_list (4, var_size5, var_size),   &
+                 enefunc%nb14_calc_list (4, var_size6, var_size),   &
+                 enefunc%sc_calc_list   (var_size6, var_size),      &
+                 enefunc%nb14_qq_scale  (var_size6, var_size),      &
+                 enefunc%nb14_lj_scale  (var_size6, var_size),      &
                  enefunc%exclusion_mask(MaxAtom,MaxAtom,var_size1), &
                  enefunc%exclusion_mask1(MaxAtom,MaxAtom,var_size), &
                  stat = alloc_stat)
 
-      enefunc%nonb_excl_list (1:4, 1:var_size3, 1:var_size) = 0
-      enefunc%nb14_calc_list (1:4, 1:var_size4, 1:var_size) = 0
-      enefunc%sc_calc_list   (1:var_size4, 1:var_size)      = 0
-      enefunc%nb14_qq_scale  (1:var_size4, 1:var_size)      = 0.0_wp
-      enefunc%nb14_lj_scale  (1:var_size4, 1:var_size)      = 0.0_wp
+      enefunc%nonb_excl_list (1:4, 1:var_size5, 1:var_size) = 0
+      enefunc%nb14_calc_list (1:4, 1:var_size6, 1:var_size) = 0
+      enefunc%sc_calc_list   (1:var_size6, 1:var_size)      = 0
+      enefunc%nb14_qq_scale  (1:var_size6, 1:var_size)      = 0.0_wp
+      enefunc%nb14_lj_scale  (1:var_size6, 1:var_size)      = 0.0_wp
 
     case (EneFuncNonbFEPList)
 
@@ -1421,19 +1541,19 @@ contains
                      stat = dealloc_stat)
       end if
 
-      var_size3 = MaxDihe*2+MaxImpr
+      var_size5 = MaxDihe*2+MaxImpr
       if (.not. allocated(enefunc%nb14_calc_list_fep)) &
-        allocate(enefunc%nb14_calc_list_fep (4, var_size3, var_size),   &
-                 enefunc%sc_calc_list_fep   (var_size3, var_size),      &
-                 enefunc%nb14_qq_scale_fep  (var_size3, var_size),      &
-                 enefunc%nb14_lj_scale_fep  (var_size3, var_size),      &
+        allocate(enefunc%nb14_calc_list_fep (4, var_size5, var_size),   &
+                 enefunc%sc_calc_list_fep   (var_size5, var_size),      &
+                 enefunc%nb14_qq_scale_fep  (var_size5, var_size),      &
+                 enefunc%nb14_lj_scale_fep  (var_size5, var_size),      &
                  enefunc%num_nb14_calc_fep  (var_size),             &
                  stat = alloc_stat)
 
-      enefunc%nb14_calc_list_fep (1:4, 1:var_size3, 1:var_size) = 0
-      enefunc%sc_calc_list_fep   (1:var_size3, 1:var_size)      = 0
-      enefunc%nb14_qq_scale_fep  (1:var_size3, 1:var_size)      = 0.0_wp
-      enefunc%nb14_lj_scale_fep  (1:var_size3, 1:var_size)      = 0.0_wp
+      enefunc%nb14_calc_list_fep (1:4, 1:var_size5, 1:var_size) = 0
+      enefunc%sc_calc_list_fep   (1:var_size5, 1:var_size)      = 0
+      enefunc%nb14_qq_scale_fep  (1:var_size5, 1:var_size)      = 0.0_wp
+      enefunc%nb14_lj_scale_fep  (1:var_size5, 1:var_size)      = 0.0_wp
       enefunc%num_nb14_calc_fep(1:var_size)                     = 0
 
     case (EneFuncRefg)
@@ -1494,8 +1614,8 @@ contains
                      stat = dealloc_stat)
       end if
 
-      var_size3 = max(int(var_size1/2),1)
-      var_size4 = int(var_size1*(var_size1-1)/2)
+      var_size5 = max(int(var_size1/2),1)
+      var_size6 = int(var_size1*(var_size1-1)/2)
 
       if (.not. allocated(enefunc%restraint_kind)) &
         allocate(enefunc%restraint_kind         (var_size),                &
@@ -1504,15 +1624,15 @@ contains
                  enefunc%restraint_ref          (1:2, 1:var_size),         &
                  enefunc%restraint_funcgrp      (1:var_size),              &
                  enefunc%restraint_exponent_func(1:var_size),              &
-                 enefunc%restraint_exponent_dist(1:var_size3, 1:var_size), &
+                 enefunc%restraint_exponent_dist(1:var_size5, 1:var_size), &
                  enefunc%restraint_mode(1:var_size),                       &
-                 enefunc%restraint_weight_dist  (1:var_size3, 1:var_size), &
+                 enefunc%restraint_weight_dist  (1:var_size5, 1:var_size), &
                  enefunc%restraint_wcom1        (1:3, 1:var_size1),        &
                  enefunc%restraint_wcom2        (1:3, 1:var_size1),        &
-                 enefunc%restraint_wdrt         (1:var_size3),             &
+                 enefunc%restraint_wdrt         (1:var_size5),             &
                  enefunc%restraint_rcom1        (1:3, 1:var_size1),        &
-                 enefunc%restraint_rcom2        (1:3, 1:var_size4),        &
-                 enefunc%restraint_rdrt         (1:var_size4),             &
+                 enefunc%restraint_rcom2        (1:3, 1:var_size6),        &
+                 enefunc%restraint_rdrt         (1:var_size6),             &
                  enefunc%restraint_rpath_func   (1:var_size),              &
                  stat = alloc_stat)
 
@@ -1522,15 +1642,15 @@ contains
       enefunc%restraint_ref          (1:2, 1:var_size)         = 0.0_wp
       enefunc%restraint_funcgrp      (1:var_size)              = 0
       enefunc%restraint_exponent_func(1:var_size)              = 0
-      enefunc%restraint_exponent_dist(1:var_size3, 1:var_size) = 0
+      enefunc%restraint_exponent_dist(1:var_size5, 1:var_size) = 0
       enefunc%restraint_mode(1:var_size)                       = 0
-      enefunc%restraint_weight_dist  (1:var_size3, 1:var_size) = 0.0_wp
+      enefunc%restraint_weight_dist  (1:var_size5, 1:var_size) = 0.0_wp
       enefunc%restraint_wcom1        (1:3, 1:var_size1)        = 0.0_wp
       enefunc%restraint_wcom2        (1:3, 1:var_size1)        = 0.0_wp
-      enefunc%restraint_wdrt         (1:var_size3)             = 0.0_wp
+      enefunc%restraint_wdrt         (1:var_size5)             = 0.0_wp
       enefunc%restraint_rcom1        (1:3, 1:var_size1)        = 0.0_wp
-      enefunc%restraint_rcom2        (1:3, 1:var_size4)        = 0.0_wp
-      enefunc%restraint_rdrt         (1:var_size4)             = 0.0_wp
+      enefunc%restraint_rcom2        (1:3, 1:var_size6)        = 0.0_wp
+      enefunc%restraint_rdrt         (1:var_size6)             = 0.0_wp
       enefunc%restraint_rpath_func   (1:var_size)              = 0
 
     case (EneFuncRefc)
@@ -2101,6 +2221,108 @@ contains
       enefunc%gamd%f_rest_omp(1:3,1:var_size,1:var_size1,1:var_size2) = 0.0_wp
       enefunc%gamd%v_rest_omp(1:3,1:3,1:var_size2) = 0.0_dp
 
+   case (EneFuncABMD)
+      ! var_size  = enefunc%reac_coord%nreac_coord
+      ! var_size1 = maxval(enefunc%reac_coord%nxi)
+      ! var_size2 = enefunc%reac_coord%nreac_coord_comb
+      ! var_size3 = bias%total_nwalkers (if bias = true)
+      !     size4 = enefunc%reac_coord%mol_num_atoms
+
+      if (allocated(enefunc%abmd%uk)) then
+        if( size(enefunc%abmd%uk) /= var_size1 ) then
+          deallocate(enefunc%abmd%uk,                         &
+                     enefunc%abmd%puk,                        &
+                     enefunc%abmd%tmp_uk,                     &
+                     enefunc%abmd%bk,                         &
+                     enefunc%abmd%bk2,                        &
+                     enefunc%abmd%sumdbk,                     &
+                     enefunc%abmd%pbk,                        &
+                     enefunc%abmd%pbk2,                       &
+                     enefunc%abmd%psumdbk,                    &                     
+                     enefunc%abmd%ifunc,                      &
+                     enefunc%abmd%dockid2repsetid,            &
+                     enefunc%abmd%repsetid2paramid,           &
+                     enefunc%abmd%nxi,                        &
+                     enefunc%abmd%dxi,                        &
+                     enefunc%abmd%kind,                       &
+                     enefunc%abmd%invdxi,                     & 
+                     enefunc%abmd%ximin,                      & 
+                     enefunc%abmd%ximax,                      &
+                     enefunc%abmd%periodicity,                &
+                     enefunc%abmd%bondslist,                  &
+                     enefunc%abmd%bondslist_to_atomlist,      &
+                     enefunc%abmd%temp_nxi,                   &
+                     enefunc%abmd%temp_dxi,                   &
+                     enefunc%abmd%temp_kind,                  &
+                     enefunc%abmd%temp_invdxi,                & 
+                     enefunc%abmd%temp_ximin,                 & 
+                     enefunc%abmd%temp_ximax,                 &
+                     enefunc%abmd%temp_periodicity,           &
+                     enefunc%abmd%temp_bondslist,             &
+                     enefunc%abmd%temp_bondslist_to_atomlist, &
+                     stat = dealloc_stat)
+        endif
+      endif
+      size1 = enefunc%reac_coord%max_atoms
+      size2 = enefunc%reac_coord%num_groups
+      size3 = maxval(enefunc%reac_coord%num_atoms_bonds_reac_coord)
+      size4 = enefunc%reac_coord%mol_num_atoms
+
+      !enefunc%abmd%force_xi(4,3,size4),                 &!
+      !enefunc%abmd%force_xi(4,3,size4,maxcell,1)
+      if (.not. allocated(enefunc%abmd%uk)) then
+        allocate(enefunc%abmd%uk(var_size2),                       &
+                 enefunc%abmd%puk(var_size2),                      &
+                 enefunc%abmd%tmp_uk(var_size2),                   &
+                 enefunc%abmd%bk(-1:var_size1,var_size),           &
+                 enefunc%abmd%bk2(-1:var_size1-1,var_size),        &
+                 enefunc%abmd%sumdbk(var_size),                    &
+                 enefunc%abmd%pbk(-1:var_size1,var_size),          &
+                 enefunc%abmd%pbk2(-1:var_size1-1,var_size),       &
+                 enefunc%abmd%psumdbk(var_size),                   &                                                                 
+                 enefunc%abmd%nxi(4),                              &
+                 enefunc%abmd%ximin(4),                            &
+                 enefunc%abmd%ximax(4),                            &
+                 enefunc%abmd%dxi(4),                              &
+                 enefunc%abmd%invdxi(4),                           &
+                 enefunc%abmd%kind(4),                             &
+                 enefunc%abmd%periodicity(4),                      &
+                 enefunc%abmd%bondslist(size1,size2,4),            &
+                 enefunc%abmd%bondslist_to_atomlist(size3,4),      &
+                 enefunc%abmd%force_xi(4,3,MaxAtom,maxcell), &
+                 enefunc%abmd%virial_xi(4,3,3),                    &
+                 enefunc%abmd%temp_nxi(4),                              &
+                 enefunc%abmd%temp_ximin(4),                            &
+                 enefunc%abmd%temp_ximax(4),                            &
+                 enefunc%abmd%temp_dxi(4),                              &
+                 enefunc%abmd%temp_invdxi(4),                           &
+                 enefunc%abmd%temp_kind(4),                             &
+                 enefunc%abmd%temp_periodicity(4),                      &
+                 enefunc%abmd%temp_bondslist(size1,size2,4),    &
+                 enefunc%abmd%temp_bondslist_to_atomlist(size3,4),  &
+                 stat = alloc_stat)
+
+          if (alloc_stat /= 0)   call error_msg_alloc
+          if (dealloc_stat /= 0) call error_msg_dealloc   
+
+          if (present(var_size3)) then
+            allocate(enefunc%abmd%ifunc(var_size3, 4),                 &
+                     enefunc%abmd%dockid2repsetid(var_size3),          &
+                     enefunc%abmd%repsetid2paramid(var_size3, 2),      &
+                     stat = alloc_stat)
+          else
+            allocate(enefunc%abmd%ifunc(1, 4),                         &
+                     enefunc%abmd%dockid2repsetid(1),                  &
+                     enefunc%abmd%repsetid2paramid(1, 2),              &
+                     stat = alloc_stat)
+          end if      
+        end if         
+        enefunc%abmd%uk(1:var_size2)     = 0.0_dp
+        enefunc%abmd%puk(1:var_size2)    = 0.0_dp
+        enefunc%abmd%tmp_uk(1:var_size2) = 0.0_dp
+        enefunc%abmd%nxi                 = 0
+        enefunc%abmd%kind                = 0
+
     case default
 
       call error_msg('Alloc_Enefunc> bad variable')
@@ -2614,6 +2836,74 @@ contains
                      stat = dealloc_stat)
       endif
  
+    case (EneFuncABMD)
+
+      if (allocated(enefunc%abmd%uk)) then
+          deallocate(enefunc%abmd%uk,         &
+                     enefunc%abmd%tmp_uk,     &
+                     enefunc%abmd%bk,         &
+                     enefunc%abmd%bk2,        &
+                     enefunc%abmd%sumdbk,     &
+                     stat = dealloc_stat)
+      endif
+
+    case (EneFuncReacg)
+
+      if (allocated(enefunc%reac_coord%numatoms)) then
+          deallocate(enefunc%reac_coord%numatoms,  &
+                     enefunc%reac_coord%atomlist,  &
+                     enefunc%reac_coord%bondslist, &
+                     enefunc%reac_coord%masscoef,  &
+                     stat = dealloc_stat)
+      endif
+
+    case (EneFuncReacf)
+
+      if (allocated(enefunc%reac_coord%kind)) then
+          deallocate(enefunc%reac_coord%kind,                       &
+                     enefunc%reac_coord%grouplist,                  &
+                     enefunc%reac_coord%funcgrp,                    &
+                     enefunc%reac_coord%exponent_dist,              &
+                     enefunc%reac_coord%weight_dist,                &
+                     enefunc%reac_coord%unitv,                      &
+                     enefunc%reac_coord%direction,                  &
+                     enefunc%reac_coord%const,                      &
+                     enefunc%reac_coord%num_atoms_bonds_reac_coord, &
+                     enefunc%reac_coord%indices,                    &
+                     enefunc%reac_coord%indices2,                   &
+                     enefunc%reac_coord%istarts,                    &
+                     enefunc%reac_coord%nnonzeros,                  &
+                     stat = dealloc_stat)
+      end if
+
+    case (EneFuncReacatm)
+
+      if (allocated(enefunc%reac_coord%atom)) then
+          deallocate(enefunc%reac_coord%atom,                  &
+                     enefunc%reac_coord%force,                 &
+                     enefunc%reac_coord%coord,                 &
+                     enefunc%reac_coord%bondslist_to_atomlist, &
+                     enefunc%reac_coord%bonds_coord,           &
+                     enefunc%reac_coord%bonds_force,           &
+                     stat = dealloc_stat)
+      endif
+
+    case (EneFuncReacCoord)
+
+      if(allocated(enefunc%reac_coord%nxi)) then
+          deallocate(enefunc%reac_coord%nxi,         &
+                     enefunc%reac_coord%ximin,       &
+                     enefunc%reac_coord%ximax,       &
+                     enefunc%reac_coord%dxi,         &
+                     enefunc%reac_coord%invdxi,      &
+                     enefunc%reac_coord%xi,          &
+                     enefunc%reac_coord%uboundary,   &
+                     enefunc%reac_coord%periodicity, &
+                     enefunc%reac_coord%force_xi,    &
+                     enefunc%reac_coord%virial_xi,   &
+                     stat = dealloc_stat)
+      endif
+
     case default
 
       call error_msg('Dealloc_Enefunc> bad variable')
@@ -2670,6 +2960,11 @@ contains
     call dealloc_enefunc(enefunc, EneFuncFitd)
     call dealloc_enefunc(enefunc, EneFuncGamdDih)
     call dealloc_enefunc(enefunc, EneFuncGamdRest)
+    call dealloc_enefunc(enefunc, EneFuncABMD)
+    call dealloc_enefunc(enefunc, EneFuncReacg)
+    call dealloc_enefunc(enefunc, EneFuncReacf)
+    call dealloc_enefunc(enefunc, EneFuncReacatm)
+    call dealloc_enefunc(enefunc, EneFuncReacCoord)    
     call dealloc_enefunc(enefunc, EneFuncNonbFEPList)
     call dealloc_enefunc(enefunc, EneFuncFEPBonded)
 

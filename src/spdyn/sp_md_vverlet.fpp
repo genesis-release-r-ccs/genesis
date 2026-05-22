@@ -22,6 +22,7 @@ module sp_md_vverlet_mod
   use sp_communicate_mod
   use sp_energy_mod
   use sp_remd_str_mod
+  use sp_bias_str_mod
   use sp_output_str_mod
   use sp_dynamics_str_mod
   use sp_dynvars_str_mod
@@ -32,6 +33,8 @@ module sp_md_vverlet_mod
   use sp_enefunc_str_mod
   use sp_domain_str_mod
   use sp_enefunc_gamd_mod
+  use sp_enefunc_abmd_mod
+  use sp_enefunc_reac_coord_mod
   use random_mod
   use math_libs_mod
   use random_mod
@@ -94,12 +97,13 @@ contains
   !! @param[inout] ensemble    : ensemble information
   !! @param[inout] comm        : information of communication
   !! @param[inout] remd        : remd information
+  !! @param[inout] bias        : bias information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine vverlet_dynamics(output, domain, enefunc, dynvars, dynamics, &
                               pairlist, boundary, constraints, ensemble,  &
-                              comm, remd, alchemy)
+                              comm, remd, alchemy, bias)
 
     ! formal arguments
     type(s_output),          intent(inout) :: output
@@ -112,8 +116,9 @@ contains
     type(s_constraints),     intent(inout) :: constraints
     type(s_ensemble),        intent(inout) :: ensemble
     type(s_comm),            intent(inout) :: comm
-    type(s_remd),            intent(inout) :: remd
+    type(s_remd),   optional,intent(inout) :: remd
     type(s_alchemy),optional,intent(inout) :: alchemy
+    type(s_bias),   optional,intent(in)    :: bias
 
     ! local variables
     real(wip)                :: simtim, dt, temperature
@@ -259,8 +264,13 @@ contains
 
         ! output trajectory(t + dt) and restart data
         !
-        call output_md(output, dynamics, boundary, pairlist, ensemble, &
-                       constraints, dynvars, domain, enefunc, remd)
+        if(present(remd)) then
+          call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                         constraints, dynvars, domain, enefunc, remd)
+        else
+          call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                         constraints, dynvars, domain, enefunc)
+        end if
 
         ! Update GAMD
         !
@@ -269,6 +279,20 @@ contains
             call update_gamd_vverlet(output, enefunc, dynvars)
           end if
         end if
+
+        ! output ABMD reaction coordinates
+        !
+        if (enefunc%abmd_use) then
+          if(present(remd)) then
+            call output_reac(dynvars%step, output, dynvars, enefunc, remd=remd)
+            call update_abmd_vverlet(dynvars, dynamics, ensemble, domain, &
+                                     enefunc, output, remd=remd)
+          else if(present(bias)) then
+            call output_reac(dynvars%step, output, dynvars, enefunc, bias=bias)
+            call update_abmd_vverlet(dynvars, dynamics, ensemble, domain, &
+                                     enefunc, output, bias=bias)
+          end if
+        endif
 
 !       ! output parallel I/O restart
 !       !
@@ -425,6 +449,13 @@ contains
 
       call timer(TimerIntegrator, TimerOff)
 
+      if (enefunc%abmd_use .and. &
+          enefunc%abmd%stop_when_out_of_range) then
+          if(reac_coords_are_out_of_range(enefunc, remd)) then
+            exit
+          endif
+      endif
+
     end do
 
     ! for final output
@@ -434,14 +465,33 @@ contains
 
     ! output trajectory(t + dt) and restart data
     !
-    call output_md(output, dynamics, boundary, pairlist, ensemble, &
-                   constraints, dynvars, domain, enefunc, remd)
+    if(present(remd)) then
+      call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                     constraints, dynvars, domain, enefunc, remd)
+    else
+      call output_md(output, dynamics, boundary, pairlist, ensemble, &
+                     constraints, dynvars, domain, enefunc)
+    end if
 
     ! Update GAMD
     !
     if (enefunc%gamd%update_period > 0) then
       call update_gamd_vverlet(output, enefunc, dynvars)
     end if
+
+    ! output ABMD reaction coordinates
+    !
+    if (enefunc%abmd_use) then
+      if(present(remd)) then
+        call output_reac(dynvars%step, output, dynvars, enefunc, remd=remd)
+        call update_abmd_vverlet(dynvars, dynamics, ensemble, domain, &
+                                 enefunc, output, remd=remd)
+      else if(present(bias)) then
+        call output_reac(dynvars%step, output, dynvars, enefunc, bias=bias)
+        call update_abmd_vverlet(dynvars, dynamics, ensemble, domain, &
+                                 enefunc, output, bias=bias)
+      end if
+    endif
 
     ! FEP: Compute and output energy differnces between adjacent states
     if ((domain%fep_use).and.(present(alchemy))) then
@@ -3310,6 +3360,69 @@ contains
     return
 
   end subroutine update_gamd_vverlet
+
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    update_abmd_vverlet
+  !> @brief        update ABMD parameters
+  !! @authors      JK
+  !! @param[in]    dynvars     : dynamic variables information
+  !! @param[in]    dynamics    : dynamics information
+  !! @param[in]    ensemble    : ensemble information
+  !! @param[in]    domain      : domain information
+  !! @param[in]    remd        : REMD information
+  !! @param[inout] enefunc     : energy information
+  !! @param[inout] output      : output information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+ 
+  subroutine update_abmd_vverlet(dynvars, dynamics, ensemble, domain, &
+                                 enefunc, output, remd, bias)
+    ! formal arguments
+    type(s_dynvars),  target, intent(in)    :: dynvars
+    type(s_dynamics),         intent(in)    :: dynamics
+    type(s_ensemble),         intent(in)    :: ensemble
+    type(s_domain),   target, intent(in)    :: domain
+    type(s_enefunc),  target, intent(inout) :: enefunc
+    type(s_output),           intent(inout) :: output
+    type(s_remd),   optional, intent(in)    :: remd
+    type(s_bias),   optional, intent(in)    :: bias
+
+    ! local variables
+    type(s_enefunc_abmd), pointer    :: abmd
+    integer                          :: num_degree
+    real(dp)                         :: kbT
+
+    abmd => enefunc%abmd
+
+    ! output the bias potential
+    call output_abmd(dynvars, enefunc, output)
+
+    ! output spline coefficients
+    if ( .not. present (bias)) then
+      if (remd%total_nreplicas==0) call output_spline(dynvars, enefunc, output)
+    end if
+
+    ! update abmd bias potential
+    !if (ensemble%group_tp) then
+    !  num_degree = domain%num_group_freedom
+    !else
+    !  num_degree = domain%num_deg_freedom
+    !endif
+    !kbT = 2.0_dp*dynvars%ekin/real(num_degree,dp)
+    kbT = ensemble%temperature * KBOLTZ
+    if  (mod(dynvars%step,enefunc%abmd%update_period) == 0) then      
+      if (present(remd)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, remd=remd)
+      else if (present(bias)) then
+        call update_enefunc_abmd(dynvars, dynamics, kbT, enefunc, bias=bias)
+      endif
+    end if
+
+    return
+
+  end subroutine update_abmd_vverlet
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !

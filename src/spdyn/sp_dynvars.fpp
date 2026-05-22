@@ -309,6 +309,13 @@ contains
       end if
     end if
 
+    ! ABMD
+    !
+    if (enefunc%abmd_use) then
+      dynvars%total_energy = dynvars%total_energy + &
+                             dynvars%energy%bias_abmd
+    endif
+
     ! volume(t+dt) and pressure(t+dt)
     !
     dynvars%box_size_x = boundary%box_size_x_ref
@@ -607,6 +614,12 @@ contains
         end if
     end if
 
+    if (enefunc%abmd_use) then
+      write(category(ifm),frmt) 'ABMD_BIAS'
+      values(ifm) = dynvars%energy%bias_abmd
+      ifm = ifm+1
+    end if
+        
     if (etitle) then
 
       write(DynvarsOut,'(A,$)') title

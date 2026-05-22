@@ -115,7 +115,8 @@ module sp_remd_str_mod
     integer                           :: exchange_period
     integer                           :: iseed
     logical                           :: equilibration_only
-    logical                           :: analysis_grest
+    logical                           :: analysis_grest = .false.
+    logical                           :: reduce_bias_potential    
     integer,              allocatable :: types(:)
     integer,              allocatable :: nreplicas(:)
     integer,              allocatable :: repid2parmsetid(:)

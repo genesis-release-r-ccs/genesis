@@ -20,11 +20,13 @@ module sp_energy_mod
   use sp_energy_table_linear_bondcorr_mod
   use sp_energy_nonbonds_mod
   use sp_energy_restraints_mod
+  use sp_energy_reac_coord_mod
   use sp_energy_dihedrals_mod
   use sp_energy_angles_mod
   use sp_energy_bonds_mod
   use sp_energy_efield_mod
   use sp_energy_gamd_mod
+  use sp_energy_abmd_mod  
   use sp_boundary_str_mod
   use sp_pairlist_str_mod
   use sp_enefunc_str_mod
@@ -1224,10 +1226,10 @@ contains
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
     real(dp)                 :: efield_omp (nthread)
+    real(dp)                 :: sumu
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, k, ix, ic, jc, start_i
-
 
     ! number of cells and atoms
     !
@@ -1497,6 +1499,11 @@ contains
 
       end if
 
+      if (enefunc%reac_coord%reac_coord_flag) then
+        call compute_energy_reac_coord(.true., .true., domain, boundary, &
+                      enefunc, coord, force_omp, virial_omp)
+      endif
+
     end if
 
     ! finish GPU
@@ -1744,6 +1751,13 @@ contains
     if (enefunc%gamd_use) then
       call boost_gamd(domain, enefunc, energy, force, virial)
     end if
+
+    ! ABMD bias potential
+    !
+    if (enefunc%abmd_use) then
+      call compute_bias_potential_abmd(domain, enefunc, energy, force, virial, &
+                                       sumu)
+    endif
 
 #ifdef NVTX
     call nvtxEndRange
@@ -2225,6 +2239,7 @@ contains
     real(dp)                 :: ecmap_omp  (nthread)
     real(dp)                 :: eposi_omp  (nthread)
     real(dp)                 :: efield_omp (nthread)
+    real(dp)                 :: sumu
     real(wip)                :: trans(1:3)
     real(wip)                :: force_tmp(1:3)
     integer                  :: ncell, natom, id, i, ix, ic, jc, k, start_i
@@ -2491,6 +2506,13 @@ contains
 
         end if
       end if
+
+
+      if (enefunc%reac_coord%reac_coord_flag) then
+        call compute_energy_reac_coord(.true., .true., domain, boundary, &
+                      enefunc, coord, force_omp, virial_omp)
+      endif
+
     end if
 
     ! finish GPU
@@ -2738,6 +2760,13 @@ contains
     if (enefunc%gamd_use) then 
       call boost_gamd(domain, enefunc, energy, force, virial)
     end if
+
+    ! ABMD bias potential
+    !
+    if (enefunc%abmd_use) then
+      call compute_bias_potential_abmd(domain, enefunc, energy, force, virial, &
+                                       sumu)
+    endif
 
 #ifdef NVTX
     call nvtxEndRange
@@ -5299,6 +5328,12 @@ contains
       end if
     end if
 
+    if (enefunc%abmd_use) then
+      write(category(ifm),frmt) 'ABMD_BIAS'
+      values(ifm) = energy%bias_abmd
+      ifm = ifm+1
+    end if
+        
     if (etitle) then
 
       write(MsgOut,'(A,$)') title

@@ -17,6 +17,7 @@ module sp_remd_mod
   use sp_energy_mod
   use sp_energy_str_mod
   use sp_energy_restraints_mod
+  use sp_energy_abmd_mod
   use sp_md_leapfrog_mod
   use sp_md_vverlet_mod
   use sp_md_respa_mod
@@ -114,6 +115,7 @@ module sp_remd_mod
   private :: perform_replica_exchange
   private :: remd_autoadj_displacement
   private :: temperature_remd
+  private :: abmd_bias_potential_exchange
   private :: pressure_remd
   private :: surface_tension_remd
   private :: restraint_remd
@@ -2857,6 +2859,11 @@ contains
                                ensemble, comm, remd)
       end if
 
+      if (enefunc%abmd_use .and. enefunc%abmd%stop_when_out_of_range       &
+                           .and. enefunc%reac_coord%out_of_range) then
+        exit
+      endif
+
       ! perform remd
       !
       if (.not. remd%equilibration_only) then
@@ -2870,6 +2877,9 @@ contains
       call output_remd(i, output, enefunc, domain, dynamics, dynvars, &
                        boundary, constraints, remd)
 
+      ! output spline coefficients
+      !
+      call output_spline(dynvars, enefunc, output)  
 
     end do
 
@@ -3002,7 +3012,7 @@ contains
 
     case(RemdTemperature)
 
-      call temperature_remd(dimno, exptrn, domain, dynvars, remd)
+      call temperature_remd(dimno, exptrn, domain, dynvars, enefunc, remd)
 
     case(RemdPressure)
 
@@ -3315,6 +3325,7 @@ contains
   !! @param[in]    exptrn   : exchange pattern
   !! @param[inout] domain   : domain information
   !! @param[inout] dynvars  : dynamics variables information
+  !! @param[inout] enefunc  : potential energy functions information
   !! @param[inout] remd     : REMD information
   !! @note         Y.Sugita & Y.Okamoto, Chem.Phys.Lett., 314, 141−151 (1999)
   !!               K.Hukushima & K.Nemoto, J.Phys.Soc.Jpn., 65, 1604-1608 (1996)
@@ -3323,13 +3334,14 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine temperature_remd(dimno, exptrn, domain, dynvars, remd)
+  subroutine temperature_remd(dimno, exptrn, domain, dynvars, enefunc, remd)
 
     ! formal arguments
     integer,                  intent(in)    :: dimno
     integer,                  intent(in)    :: exptrn
     type(s_domain),   target, intent(inout) :: domain
     type(s_dynvars),          intent(inout) :: dynvars
+    type(s_enefunc),  target, intent(inout) :: enefunc
     type(s_remd),     target, intent(inout) :: remd
 
     ! local variables
@@ -3346,6 +3358,8 @@ contains
     integer,          pointer :: repid2parmsetid(:), parmsetid2repid(:)
     real(wp),         pointer :: parameters(:,:)
     real(wp),         pointer :: after_gather(:), random_table(:,:)
+    real(wp),     allocatable :: xi_gather(:,:)
+    real(dp),     allocatable :: u(:), u_gather(:,:)
 
 
     total_nreplicas => remd%total_nreplicas
@@ -3374,6 +3388,34 @@ contains
     do i = 1, total_nreplicas
       remd%potential_energy(i) = after_gather(i)
     end do
+
+    ! allgather xi when abmd is enabled
+    !
+    if(enefunc%abmd_use) then
+      allocate(xi_gather(enefunc%reac_coord%nreac_coord,total_nreplicas))
+      allocate(u_gather(total_nreplicas, total_nreplicas))
+      allocate(u(total_nreplicas))
+#ifdef HAVE_MPI_GENESIS
+      call mpi_allgather(enefunc%reac_coord%xi,                  &
+                         enefunc%reac_coord%nreac_coord,         &
+                         mpi_wp_real, xi_gather,                 &
+                         enefunc%reac_coord%nreac_coord,         &
+                         mpi_wp_real, mpi_comm_airplane, ierror)
+      u(my_country_no+1) = enefunc%abmd%u
+      do i = 1, total_nreplicas
+        if (i == my_country_no+1) cycle
+        call compute_bias_potential_abmd(domain, enefunc, &
+             sumu = u(i), xiex = xi_gather(:,i), update_u = .false.)
+      enddo
+      call mpi_allgather(u, total_nreplicas, mpi_real8, u_gather, &
+                            total_nreplicas, mpi_real8,           &
+                            mpi_comm_airplane, ierror)
+      !do i = 1, total_nreplicas
+      !  remd%potential_energy(i) = remd%potential_energy(i) - u_gather(i, i)
+      !enddo
+#endif
+      enefunc%abmd%tmp_uk = enefunc%abmd%uk
+    endif
 
     ! replica exchange
     !
@@ -3409,6 +3451,13 @@ contains
         beta_i   = 1.0_wp / (KBOLTZ * temp_i)
         beta_j   = 1.0_wp / (KBOLTZ * temp_j)
         delta    = (beta_j - beta_i)*(energy_i - energy_j)
+
+        if (enefunc%abmd_use) then
+          delta  = delta + beta_i * (u_gather(repid_j, repid_i) - &
+                                     u_gather(repid_i, repid_i))  &
+                         - beta_j * (u_gather(repid_j, repid_j) - &
+                                     u_gather(repid_i, repid_j))
+        endif
 
         ! Metropolis criterion
         !
@@ -3448,11 +3497,23 @@ contains
           end if
 
           repid2parmsetid(i) = parmsetid_j
+
+          if (enefunc%abmd_use) then
+            call abmd_bias_potential_exchange(repid_i, repid_j, enefunc)
+          endif
+
         end if
  
       end if
 
     end do
+
+    if (enefunc%abmd_use) then
+      enefunc%abmd%uk = enefunc%abmd%tmp_uk
+      deallocate(xi_gather)
+      deallocate(u_gather)
+      deallocate(u)
+    endif
 
     return
 
@@ -3955,7 +4016,7 @@ contains
     integer                   :: i, j, jx
     integer                   :: repid_i, repid_j, neighid
     integer                   :: parmsetid, parmsetid_i, parmsetid_j
-    real(wp)                  :: beta, factor
+    real(wp)                  :: beta, temp_i, temp_j, beta_i, beta_j, factor
     real(wp)                  :: energy_i, energy_j, delta
     real(wp)                  :: before_gather, eneval
     logical                   :: does_exist, do_trial, do_exchange
@@ -3965,6 +4026,8 @@ contains
     integer,          pointer :: repid2parmsetid(:), parmsetid2repid(:)
     real(wp),         pointer :: parameters(:,:)
     real(wp),         pointer :: after_gather(:), random_table(:,:)
+    real(wp),     allocatable :: xi_gather(:,:)
+    real(dp),     allocatable :: u(:), u_gather(:,:)
 
     ! REST
     integer                   :: nc, nv
@@ -4091,6 +4154,31 @@ contains
       remd%potential_energy(i) = remd%potential_energy(i) - after_gather(i)
     end do
 
+    ! allgather xi when abmd is enabled
+    !
+    if(enefunc%abmd_use) then
+      allocate(xi_gather(enefunc%reac_coord%nreac_coord,total_nreplicas))
+      allocate(u_gather(total_nreplicas, total_nreplicas))
+      allocate(u(total_nreplicas))
+#ifdef HAVE_MPI_GENESIS
+      call mpi_allgather(enefunc%reac_coord%xi,                  &
+                         enefunc%reac_coord%nreac_coord,         &
+                         mpi_wp_real, xi_gather,                 &
+                         enefunc%reac_coord%nreac_coord,         &
+                         mpi_wp_real, mpi_comm_airplane, ierror)
+      u(my_country_no+1) = enefunc%abmd%u
+      do i = 1, total_nreplicas
+        if (i == my_country_no+1) cycle
+        call compute_bias_potential_abmd(domain, enefunc, &
+             sumu = u(i), xiex = xi_gather(:,i), update_u = .false.)
+      enddo
+      call mpi_allgather(u, total_nreplicas, mpi_real8, u_gather, &
+                            total_nreplicas, mpi_real8,           &
+                            mpi_comm_airplane, ierror)
+#endif
+      enefunc%abmd%tmp_uk = enefunc%abmd%uk
+    endif
+
     ! replica exchange
     !
     do i = 1, total_nreplicas
@@ -4122,6 +4210,13 @@ contains
         energy_j = remd%potential_energy(repid_j)
         delta    = - beta * (energy_i + energy_j)
 
+        if (enefunc%abmd_use) then
+          delta    = delta + beta * (u_gather(repid_j, repid_i) - &
+                                     u_gather(repid_i, repid_i))  &
+                           - beta * (u_gather(repid_j, repid_j) - &
+                                     u_gather(repid_i, repid_j))
+        endif
+
         ! Metropolis criterion
         !
         if (delta <= 0.0_wp) then
@@ -4150,6 +4245,11 @@ contains
             = num_exchanges(parmsetid_i,dimno,exptrn) + 1
 
           repid2parmsetid(i) = parmsetid_j
+
+          if (enefunc%abmd_use) then
+            call abmd_bias_potential_exchange(repid_i, repid_j, enefunc)
+          endif
+
         else
           ! have to put back enefunc to the original state
           !
@@ -4160,6 +4260,13 @@ contains
       end if
 
     end do
+
+    if (enefunc%abmd_use) then
+      enefunc%abmd%uk = enefunc%abmd%tmp_uk
+      deallocate(xi_gather)
+      deallocate(u_gather)
+      deallocate(u)
+    endif
 
 
     return
@@ -5012,7 +5119,7 @@ contains
 
     case(RemdTemperature)
 
-      call temperature_remd(dimno, exptrn, domain, dynvars, remd)
+      call temperature_remd(dimno, exptrn, domain, dynvars, enefunc, remd)
 
     case(RemdPressure)
 
@@ -5654,5 +5761,94 @@ contains
     return
 
   end subroutine assign_condition_fep
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    abmd_bias_potential_exchange
+  !> @brief        exchange abmd bias potential between two replicas
+  !! @authors      JK, SI
+  !! @param[in]    repi    : the ID for the first replica
+  !! @param[in]    repj    : the ID for the second replica
+  !! @param[inout] enefunc : potential energy functions information
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine abmd_bias_potential_exchange(repi, repj, enefunc)
+    integer,                  intent(in)    :: repi, repj
+    type(s_enefunc),  target, intent(inout) :: enefunc
+    real(dp), allocatable                   :: unonzero(:)
+    integer,  allocatable                   :: indexnonzero(:)
+    integer                                 :: nnonzero
+    integer                                 :: i, j, ierror
+    integer                                 :: irequest0, irequest1, irequest2
+#ifdef HAVE_MPI_GENESIS
+    integer                                 :: istatus(mpi_status_size)
+#endif
+    if (my_country_no == repj-1) then
+      ! Exchange repj-1 > repi-1
+      !
+      nnonzero = 0
+      do i = 1, enefunc%reac_coord%nreac_coord_comb 
+        if (enefunc%abmd%uk(i)>EPS) then
+          nnonzero = nnonzero + 1
+        endif
+      enddo
+
+      call mpi_isend(nnonzero, 1, mpi_integer, repi-1, 0, mpi_comm_airplane, &
+                     irequest0, ierror)
+      call mpi_wait(irequest0, istatus, ierror)
+
+      allocate(unonzero(nnonzero))
+      allocate(indexnonzero(nnonzero))
+
+      nnonzero = 0
+      do i = 1, enefunc%reac_coord%nreac_coord_comb
+        if (enefunc%abmd%uk(i)>EPS) then
+          nnonzero = nnonzero+1    
+          unonzero(nnonzero)     = enefunc%abmd%uk(i)
+          indexnonzero(nnonzero) = i
+        endif
+      enddo
+
+      call mpi_isend(indexnonzero, nnonzero, mpi_integer, repi-1, 1,      &
+                     mpi_comm_airplane, irequest1,  ierror)
+      call mpi_isend(unonzero, nnonzero, mpi_double_precision, repi-1, 2, &
+                     mpi_comm_airplane, irequest2,  ierror)
+      call mpi_wait(irequest1, istatus, ierror)
+      call mpi_wait(irequest2, istatus, ierror)
+
+      deallocate(unonzero)
+      deallocate(indexnonzero)
+
+    endif
+
+    if (my_country_no == repi-1) then
+      ! Exchange repj-1 > repi-1
+      !
+      call mpi_irecv(nnonzero, 1, mpi_integer, repj-1, 0, mpi_comm_airplane, &
+                     irequest0, ierror)
+      call mpi_wait(irequest0, istatus, ierror)
+
+      allocate(unonzero(nnonzero))
+      allocate(indexnonzero(nnonzero))
+
+      call mpi_irecv(indexnonzero, nnonzero, mpi_integer, repj-1, 1,      &
+                     mpi_comm_airplane, irequest1,  ierror)
+      call mpi_irecv(unonzero, nnonzero, mpi_double_precision, repj-1, 2, &
+                     mpi_comm_airplane, irequest2,  ierror)
+      call mpi_wait(irequest1, istatus, ierror)
+      call mpi_wait(irequest2, istatus, ierror)
+
+      enefunc%abmd%tmp_uk = 0.0_dp
+      do i = 1, nnonzero 
+        enefunc%abmd%tmp_uk(indexnonzero(i)) = unonzero(i)
+      enddo
+
+      deallocate(unonzero)
+      deallocate(indexnonzero)
+
+    endif
+
+  end subroutine abmd_bias_potential_exchange
 
 end module sp_remd_mod

@@ -37,8 +37,10 @@ program spdyn
   use sp_enefunc_str_mod
   use sp_domain_str_mod
   use sp_remd_str_mod
+  use sp_bias_str_mod
   use sp_rpath_str_mod
   use sp_remd_mod
+  use sp_bias_mod
   use sp_rpath_mod
   use molecules_str_mod
   use fileio_control_mod
@@ -69,6 +71,7 @@ program spdyn
   integer, parameter  :: GenesisFEPMD   = 5
   integer, parameter  :: GenesisFEPMIN  = 6
   integer, parameter  :: GenesisFEPREMD = 7
+  integer, parameter  :: GenesisBIAS  = 8
 
   ! local variables
   character(MaxFilename)      :: ctrl_filename
@@ -86,6 +89,7 @@ program spdyn
   type(s_domain)              :: domain
   type(s_comm)                :: comm
   type(s_remd)                :: remd
+  type(s_bias)                :: bias
   type(s_rpath)               :: rpath
   integer                     :: i
   real(dp)                    :: sas, eae
@@ -160,6 +164,9 @@ contains
       end if
     else  if (find_ctrlfile_section(ctrl_filename, 'REMD')) then
       genesis_run_mode = GenesisREMD
+
+    else if (find_ctrlfile_section(ctrl_filename, 'BIAS')) then
+      genesis_run_mode = GenesisBIAS
 
     else if (find_ctrlfile_section(ctrl_filename, 'RPATH')) then
       genesis_run_mode = GenesisRPATH
@@ -240,6 +247,10 @@ contains
 
       call control_remd(ctrl_filename, ctrl_data)
 
+    case (GenesisBIAS)
+
+      call control_bias(ctrl_filename, ctrl_data)
+
     case (GenesisRPATH)
 
       call control_rpath(ctrl_filename, ctrl_data)
@@ -264,6 +275,10 @@ contains
 
       call setup_mpi_remd(ctrl_data%ene_info, ctrl_data%rep_info, &
                           ctrl_data%bound_info)
+
+    case (GenesisBIAS)
+
+      call setup_mpi_bias(ctrl_data%ene_info, ctrl_data%bias_info)  
 
     case (GenesisRPATH)
 
@@ -296,6 +311,12 @@ contains
       call setup_spdyn_remd(ctrl_data, output, molecule, enefunc, pairlist,  &
                           dynvars, dynamics, constraints, ensemble, boundary,&
                           domain, comm, remd)
+
+   case (GenesisBIAS)
+
+      call setup_spdyn_bias(ctrl_data, output, molecule, enefunc,     &
+                            pairlist, dynvars, dynamics, constraints, &
+                            ensemble, boundary, domain, comm, bias)
 
     case (GenesisRPATH)
 
@@ -390,6 +411,16 @@ contains
 
       call run_remd(output, domain, enefunc, dynvars, dynamics, pairlist, &
                     boundary, constraints, ensemble, comm, remd)
+
+    case (GenesisBIAS)
+
+      if (main_rank) then
+        write(MsgOut,'(A)') '[STEP5] Perform Bias-Exchange MD Simulation'
+        write(MsgOut,'(A)') ' '
+      end if
+
+      call run_bias(output, domain, enefunc, dynvars, dynamics, pairlist, &
+                    boundary, constraints, ensemble, comm, bias)
 
     case (GenesisRPATH)
 

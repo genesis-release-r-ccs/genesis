@@ -70,8 +70,6 @@ else:
     is_number = re.compile('^[+-]?(\d*\.\d+|\d+\.?\d*)([eE][+-]?\d+|)\Z')
     if is_number.match(sys.argv[2]):
         tolerance = float(sys.argv[2])
-    elif sys.argv[2] == "gpu":
-        is_gpu = True
     elif sys.argv[2] == "parallel_io":
         is_parallelio = True
     elif sys.argv[2] == "fugaku":
@@ -94,6 +92,9 @@ if (genesis_command == "-h") or (genesis_command == "--help"):
 
     # run atdyn tests
     $ ./test_abmd.py "mpirun -np 8 /path/to/genesis/bin/atdyn"
+
+    # run spdyn tests
+    $ ./test_abmd.py "mpirun -np 8 /path/to/genesis/bin/spdyn"
 
     # run with specfic tolerance value
     $ ./test_abmd.py "mpirun -np 8 /path/to/genesis/bin/atdyn" 0.1
@@ -142,14 +143,8 @@ elif genesis_command[-5:] == "spdyn":
 
 if is_atdyn:
     test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_abmd_atdyn")
-#elif is_spdyn:
-#    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_abmd_spdyn")
-
-if is_gpu:
-    print("=======================================================================")
-    print(" ABMD regression tests are temporarily skipped for GPU jobs")
-    print("=======================================================================")
-    sys.exit(0)
+elif is_spdyn:
+    test_dirs = getdirs(os.path.dirname(os.path.abspath(__file__)) + "/test_abmd_spdyn")
 
 for dir in test_dirs:
     if not os.path.exists(dir):
@@ -254,3 +249,4 @@ elif ifailed > 0:
     sys.exit(1)
 else:
     sys.exit(0)
+

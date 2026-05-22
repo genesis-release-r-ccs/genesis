@@ -40,7 +40,9 @@ spdyn_SOURCES = \
 	sp_alchemy_str.fpp \
 	sp_output_str.fpp \
 	sp_remd_str.fpp \
+	sp_bias_str.fpp \
 	sp_rpath_str.fpp \
+	sp_reac_coord_str.fpp \
 	sp_migration.fpp \
 	sp_communicate.fpp \
 	sp_parallel_io.fpp \
@@ -81,6 +83,8 @@ spdyn_SOURCES = \
 	sp_enefunc_fit.fpp \
 	sp_energy_restraints.fpp \
 	sp_energy_gamd.fpp \
+	sp_energy_abmd.fpp \
+	sp_energy_reac_coord.fpp \
 	sp_energy.fpp \
 	sp_grest_energy.fpp \
 	sp_fep_energy.fpp \
@@ -92,6 +96,8 @@ spdyn_SOURCES = \
 	sp_enefunc_amber.fpp \
 	sp_enefunc_gromacs.fpp \
 	sp_enefunc_gamd.fpp \
+	sp_enefunc_abmd.fpp \
+	sp_enefunc_reac_coord.fpp \
 	sp_enefunc.fpp \
 	sp_constraints.fpp \
 	sp_restraints.fpp \
@@ -111,6 +117,9 @@ spdyn_SOURCES = \
     sp_fep_topology.fpp \
 	sp_rpath.fpp \
 	sp_gamd.fpp \
+	sp_bias.fpp \
+	sp_abmd.fpp \
+	sp_reac_coord.fpp \
 	sp_dynamics.fpp \
 	sp_minimize.fpp \
 	sp_restart.fpp \
@@ -151,7 +160,9 @@ prst_setup_SOURCES = \
 	sp_minimize_str.fpp \
 	sp_output_str.fpp \
 	sp_remd_str.fpp \
+	sp_bias_str.fpp \
 	sp_rpath_str.fpp \
+	sp_reac_coord_str.fpp \
 	sp_migration.fpp \
 	sp_communicate.fpp \
 	sp_parallel_io.fpp \
@@ -192,6 +203,8 @@ prst_setup_SOURCES = \
 	sp_enefunc_fit.fpp \
 	sp_energy_restraints.fpp \
 	sp_energy_gamd.fpp \
+	sp_energy_abmd.fpp \
+	sp_energy_reac_coord.fpp \
 	sp_energy.fpp \
 	sp_grest_energy.fpp \
 	sp_fep_energy.fpp \
@@ -203,6 +216,8 @@ prst_setup_SOURCES = \
 	sp_enefunc_amber.fpp \
 	sp_enefunc_gromacs.fpp \
 	sp_enefunc_gamd.fpp \
+	sp_enefunc_abmd.fpp \
+	sp_enefunc_reac_coord.fpp \
 	sp_enefunc.fpp \
 	sp_constraints.fpp \
 	sp_restraints.fpp \
@@ -222,6 +237,9 @@ prst_setup_SOURCES = \
     sp_fep_topology.fpp \
 	sp_rpath.fpp \
 	sp_gamd.fpp \
+	sp_bias.fpp \
+	sp_abmd.fpp \
+	sp_reac_coord.fpp \
 	sp_dynamics.fpp \
         pr_fileio.c \
         pr_huge_molecule.fpp \

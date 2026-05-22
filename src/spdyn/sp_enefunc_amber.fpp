@@ -19,8 +19,10 @@ module sp_enefunc_amber_mod
   use sp_enefunc_table_mod
   use sp_energy_mod
   use sp_restraints_str_mod
+  use sp_enefunc_reac_coord_mod
   use sp_constraints_str_mod
   use sp_enefunc_str_mod
+  use sp_reac_coord_str_mod
   use sp_energy_str_mod
   use sp_domain_str_mod
   use dihedral_libs_mod
@@ -61,11 +63,13 @@ contains
   !! @param[in]    restraints  : restraints information
   !! @param[inout] domain      : domain information
   !! @param[inout] enefunc     : potential energy functions information
+  !! @param[in]    reac_coord  : reaction coordinate information (optional)
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine define_enefunc_amber(ene_info, prmtop, molecule, &
-                                  constraints, restraints, domain, enefunc)
+                                  constraints, restraints, domain, enefunc, &
+                                  reac_coord)
 
     ! formal arguments
     type(s_ene_info),        intent(in)    :: ene_info 
@@ -75,6 +79,7 @@ contains
     type(s_restraints),      intent(in)    :: restraints
     type(s_domain),          intent(inout) :: domain
     type(s_enefunc),         intent(inout) :: enefunc
+    type(s_reac_coord), optional, intent(in)    :: reac_coord
 
     ! local variables
     integer                  :: ncel, ncelb
@@ -153,6 +158,11 @@ contains
     !
     call setup_enefunc_restraints(molecule, restraints, domain, enefunc)
 
+    ! reaction coordinate
+    !
+    if(present(reac_coord)) &
+    call setup_enefunc_reac_coord(molecule, reac_coord, domain, enefunc)
+                                  
     ! write summary of energy function
     !
     if (main_rank) then
