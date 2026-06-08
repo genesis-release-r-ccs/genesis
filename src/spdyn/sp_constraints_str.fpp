@@ -386,7 +386,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Constraints> bad variable')
+      call error_msg('Alloc_Constraints> Invalid variable')
 
     end select
 
@@ -473,7 +473,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Constraints> bad variable')
+      call error_msg('Dealloc_Constraints> Invalid variable')
 
     end select
 

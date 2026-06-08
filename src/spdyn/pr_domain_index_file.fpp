@@ -937,7 +937,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    di_write_head
-  !> @brief        write header informaiton
+  !> @brief        write header information
   !! @authors      NT
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -1013,7 +1013,7 @@ contains
     return
 
 900 call error_msg('Di_Write_Head> File open error. '//trim(filename))
-910 call error_msg('Di_Write_Head> File is already exist. '//trim(filename))
+910 call error_msg('Di_Write_Head> File already exists. '//trim(filename))
 
   end subroutine di_write_head
 

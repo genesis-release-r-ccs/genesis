@@ -347,7 +347,7 @@ contains
       if (remd%types(i) == RemdAlchemyRest) then
 
         if (ensemble%ensemble == EnsembleNVE ) then
-          call error_msg('Fep_Rest> Fep_Rest is not available for NVE!')
+          call error_msg('Fep_Rest> Fep_Rest is not supported for NVE!')
         end if
 
         rest_param = remd%dparameters(i,remd%parmidsets(parmsetid,i))

@@ -433,7 +433,8 @@ contains
     do i = 1, ncel
       found = found + bond(i)
       if (bond(i) > MaxBond) &
-        call error_msg('Setup_Enefunc_Bond> Too many bonds.')
+        call error_msg('Setup_Enefunc_Bond> Maximum number of bonds '//&
+                       'exceeded.')
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -451,12 +452,12 @@ contains
         nbond_fep = nbond_fep + molecule%num_bonds_fep(i)
       end do
       if (enefunc%num_bond_all /= nbond_fep*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+        call error_msg('Setup_Enefunc_Bond> Missing bond parameters.')
 
     else
 
       if (enefunc%num_bond_all /= nbond*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+        call error_msg('Setup_Enefunc_Bond> Missing bond parameters.')
 
     end if
 
@@ -759,8 +760,8 @@ contains
       end do
 
       if (wat_found /= num_water) &
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> # of water is incorrect')
+        call error_msg('Setup_Enefunc_Bond_Constraint> Maximum number of '//&
+                       'bonds exceeded.')
 
     end if
 
@@ -785,7 +786,7 @@ contains
 !                                    -2*constraints%num_bonds &
 !                                    -wat_bonds*domain%num_duplicate)) then
 !          call error_msg( &
-!            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+!            'Setup_Enefunc_Bond_Constraint> Some bond parameters are missing.')
 !        end if
 
     else
@@ -794,7 +795,7 @@ contains
                                      -constraints%num_bonds     &
                                      -wat_bonds*domain%num_duplicate)) then
         call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+          'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
       end if
 
 
@@ -1024,7 +1025,8 @@ contains
       found = found + angle(i)
       if (angle_calc) found = found + nwater(i)
       if (angle(i) > MaxAngle) &
-        call error_msg('Setup_Enefunc_Angl> Too many angles.')
+        call error_msg('Setup_Enefunc_Angl> Maximum number of '//&
+                       'angles exceeded.')
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -1041,12 +1043,12 @@ contains
         nangl_fep = nangl_fep + molecule%num_angles_fep(i)
       end do
       if (enefunc%num_angl_all /= nangl_fep*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Angl> Some angle paremeters are missing.')
+        call error_msg('Setup_Enefunc_Angl> Missing angle parameters.')
 
     else
 
       if (enefunc%num_angl_all /= nangl*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Angl> Some angle paremeters are missing.')
+        call error_msg('Setup_Enefunc_Angl> Missing angle parameters.')
 
     end if
 
@@ -1153,9 +1155,9 @@ contains
 
       if (mod(nangl_per_water,num_water) /= 0) then
         write(MsgOut,*) &
-             'Setup_Enefunc_Angl_Constraint> invalid ANGL count: ', &
-             'number of angle terms in a water molecule is not integer.'
-        call error_msg('Setup_Enefunc_Angl_Constraint> abort')
+             'Setup_Enefunc_Angl_Constraint> Invalid angle count: ', &
+             'The number of angle terms in a water molecule must be integer.'
+        call error_msg('Setup_Enefunc_Angl_Constraint> Incorrect water numbers.')
       end if
       nangl_per_water = nangl_per_water / num_water
 
@@ -1277,7 +1279,8 @@ contains
     do i = 1, ncel
       found = found + angle(i)
       if (angle(i) > MaxAngle) &
-        call error_msg('Setup_Enefunc_Angl_Constraint> Too many angles.')
+        call error_msg('Setup_Enefunc_Angl_Constraint> Maximum number of '//&
+                       'angles exceeded.')
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -1296,14 +1299,14 @@ contains
       if (enefunc%num_angl_all /= &
           domain%num_duplicate*(nangl_fep - nangl_per_water*num_water)) &
         call error_msg( &
-        'Setup_Enefunc_Angl> Some angle paremeters are missing.')
+        'Setup_Enefunc_Angl> Missing angle parameters.')
 
     else
 
       if (enefunc%num_angl_all /= &
           domain%num_duplicate*(nangl - nangl_per_water*num_water)) &
         call error_msg( &
-        'Setup_Enefunc_Angl_Constraint> Some angle paremeters are missing.')
+        'Setup_Enefunc_Angl_Constraint> Missing angle parameters.')
 
     end if
 
@@ -1497,7 +1500,8 @@ contains
   
                   if (period(dihedral(icel_local),icel_local) >  &
                   enefunc%notation_14types) &
-                  call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
+                  call error_msg('Setup_Enefunc_Dihe> Maximum number of '//&
+                                 'periodicities exceeded.')
   
                 end if
               end if
@@ -1542,7 +1546,8 @@ contains
  
                     if (period(dihedral(icel_local),icel_local) >  &
                     enefunc%notation_14types) &
-                    call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
+                    call error_msg('Setup_Enefunc_Dihe> Maximum number of '//&
+                                   'periodicities exceeded.')
   
                   end if
                 end if
@@ -1563,7 +1568,8 @@ contains
     do i = 1, ncel
       found = found + dihedral(i)
       if (dihedral(i) > MaxDihe) &
-        call error_msg('Setup_Enefunc_Dihe> Too many dihedral angles.')
+        call error_msg('Setup_Enefunc_Dihe> Maximum number of dihedral '//&
+                       'angles exceeded.')
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -1581,13 +1587,13 @@ contains
       end do
       if (enefunc%num_dihe_all < ndihe_fep*domain%num_duplicate) &
         call error_msg( &
-           'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+           'Setup_Enefunc_Dihe> Missing dihedral parameters.')
 
     else
 
       if (enefunc%num_dihe_all < ndihe*domain%num_duplicate) &
         call error_msg( &
-           'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+           'Setup_Enefunc_Dihe> Missing dihedral parameters.')
 
     end if
 
@@ -1965,7 +1971,8 @@ contains
     do i = 1, ncel
       found = found + improper(i)
       if (improper(i) > MaxImpr) &
-        call error_msg('Setup_Enefunc_Impr> Too many improper dihedral angles')
+        call error_msg('Setup_Enefunc_Impr> Maximum number of '//&
+                       'improper dihedral angles exceeded.')
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -1983,13 +1990,13 @@ contains
       end do
       if (enefunc%num_impr_all < nimpr_fep*domain%num_duplicate) &
         call error_msg( &
-          'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+          'Setup_Enefunc_Impr> Missing improper parameters.')
 
     else
 
       if (enefunc%num_impr_all < nimpr*domain%num_duplicate) &
         call error_msg( &
-          'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+          'Setup_Enefunc_Impr> Missing improper parameters.')
 
     end if
 
@@ -2289,12 +2296,12 @@ contains
         ncmap_fep = ncmap_fep + molecule%num_cmaps_fep(i)
       end do
       if (enefunc%num_cmap_all /= ncmap_fep*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+        call error_msg('Setup_Enefunc_Cmap> Missing cmap parameters.')
 
     else
 
       if (enefunc%num_cmap_all /=  molecule%num_cmaps*domain%num_duplicate) &
-        call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+        call error_msg('Setup_Enefunc_Cmap> Missing cmap parameters.')
 
     end if
 

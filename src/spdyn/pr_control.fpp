@@ -1,7 +1,7 @@
 !--------1---------2---------3---------4---------5---------6---------7---------8
 !
 !  Module   pr_control_mod
-!> @brief   read parameters and data for Parallel I/O restart setup
+!> @brief   Reads parameters and data for Parallel I/O restart setup
 !! @authors Norio Takase (NT), Takaharu Mori (TM)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
@@ -208,7 +208,7 @@ contains
       write(MsgOut,'(A)')'*                                                  *'
       write(MsgOut,'(A)')'*                    PRST_SETUP                    *'
       write(MsgOut,'(A)')'*                                                  *'
-      write(MsgOut,'(A)')'*      Generater of parallel I/O restart files     *'
+      write(MsgOut,'(A)')'*      Generator of parallel I/O restart files     *'
       write(MsgOut,'(A)')'*                                                  *'
       write(MsgOut,'(A)')'*                Developed by RIKEN                *'
       write(MsgOut,'(A)')'*                                                  *'
@@ -245,7 +245,7 @@ contains
     call open_ctrlfile(filename, handle)
 
     if (handle == 0) &
-      call error_msg('Control> File IO Error')
+      call error_msg('Control> File I/O Error.')
 
     ! initialize variables
     !

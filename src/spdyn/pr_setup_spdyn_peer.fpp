@@ -247,8 +247,8 @@ contains
       if (bound_info%domain_x == 1 .or. &
           bound_info%domain_y == 1 .or. &
           bound_info%domain_z == 1 ) then
-        call error_msg('Setup_Boundary> other than (2,1,1)/(2,2,1), '//&
-                       'domain[x,y,z] should be larger than 1')
+	  call error_msg('Setup_Boundary> For domains other than (2,1,1) or '//&
+                         '(2,2,1), domain[x,y,z] should be larger than 1.')
       end if
 
     end if
@@ -308,7 +308,7 @@ contains
     type(s_constraints),     intent(inout) :: constraints
 
 
-    ! initialize structure informations
+    ! initialize structure information
     !
     call init_enefunc(enefunc)
     call init_constraints(constraints)
@@ -424,7 +424,8 @@ contains
       constraints%water_type = TIP3
       water_atom   = 3
     else
-      call error_msg('Setup_Solute_And_Water_Peer_0> # of water is incorrect.')
+      call error_msg('Setup_Solute_And_Water_Peer_0> Number of water '//&
+                     'molecules is incorrect.')
     end if
 
     enefunc%table%num_water = nwat
@@ -505,9 +506,11 @@ contains
     end do
 
     if (nwat /= hm_num_water_list) &
-      call error_msg('Setup_Solute_And_Water_Peer> number of water is incorrect')
+      call error_msg('Setup_Solute_And_Water_Peer> Number of water '//&
+                     'molecules is incorrect')
     if (nsol /= hm_num_solute_list) &
-      call error_msg('Setup_Solute_And_Water_Peer> number of solute is incorrect')
+      call error_msg('Setup_Solute_And_Water_Peer> Number of solute '//&
+                     'atoms is incorrect')
 
     if (main_rank) &
       write(MsgOut,'(a)') ' '
@@ -627,7 +630,7 @@ contains
       else if (hm_duplicate(i1) == 8) then
         constraints%nh(8) = constraints%nh(8) + 1
       else if (hm_duplicate(i1) >= 8) then
-        call error_msg("Bond(>8) for one atom is not considered")
+        call error_msg("An atom with more than 8 bonds is not supported.")
       end if
     end do
 
@@ -1396,7 +1399,7 @@ contains
           end do
 
           if (vij == 0.0_wp .or. wij == 0.0_wp) &
-       call error_msg('Setup_Enefunc_Nonb_G_Peer_0> combination is not found.')
+       call error_msg('Setup_Enefunc_Nonb_G_Peer_0> Combination not found.')
 
           if (grotop%defaults%combi_rule == 2) then
 
@@ -1441,7 +1444,8 @@ contains
           enefunc%excl_level = excl_level
         else if (enefunc%excl_level /= excl_level) then
           call error_msg( &
-      'Setup_Enefunc_Nonb_G_Peer_0> multiple "exclude_nbon" is not supported.')
+              'Setup_Enefunc_Nonb_G_Peer_0> Multiple "exclude_nbon" '//&
+              'values are not supported.')
         end if
       end do
     end if
@@ -1569,7 +1573,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncDISTCOM) then
 
           call error_msg('Setup_Enefunc_Restraints_Peer_0> '//&
-               'DIST restraint is not supported in parallel I/O')
+               'DIST restraints are not supported in parallel I/O')
 
         ! summary for angle restraint
         !
@@ -1578,7 +1582,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncANGLECOM) then
 
           call error_msg('Setup_Enefunc_Restraints_Peer_0> '//&
-               'ANGLE restraint is not supported in parallel I/O')
+               'ANGLE restraints are not supported in parallel I/O')
 
         ! summary for dihedral angle restraint
         !
@@ -1587,7 +1591,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncDIHEDCOM) then
 
           call error_msg('Setup_Enefunc_Restraints_Peer_0> '//&
-               'DIHED restraint is not supported in parallel I/O')
+               'DIHED restraints are not supported in parallel I/O')
 
         ! summary for pc restraint
         !
@@ -1596,7 +1600,7 @@ contains
             enefunc%restraint_kind(i) == RestraintsFuncPCCOM) then
 
           call error_msg('Setup_Enefunc_Restraints_Peer_0> '//&
-               'PC restraint is not supported in parallel I/O')
+               'PC restraints are not supported in parallel I/O')
 
         ! summary for positinal and RMSD restraint
         !
@@ -2004,7 +2008,8 @@ contains
 
 
     if (.not. hm_atom_ref_set_flag) &
-      call error_msg('Setup_Enefunc_Refcoord_Peer_0> Refcoord is not set')
+      call error_msg('Setup_Enefunc_Refcoord_Peer_0> Reference coordinates '//&
+                     'are not set.')
 
     return
 
@@ -2319,7 +2324,7 @@ contains
               ioffset = 1
               a = gromol%vsites3(k)%a
               b = gromol%vsites3(k)%b
-              if (a /= b) call error_msg('TIP4P molecule is not symmetric')
+              if (a /= b) call error_msg('TIP4P molecule is not symmetric.')
               constraints%water_rOD = 2.0_wp * a  &
                                 * sqrt(constraints%water_rOH**2 &
                                        -0.25_wp*constraints%water_rHH**2)
@@ -2334,8 +2339,8 @@ contains
         if (ioffset == 1) exit
       end do
 
-      if (ioffset /= 1) call error_msg('Virtual site should be defined &
-                                     & when using TIP4P')
+      if (ioffset /= 1) call error_msg('Virtual site should be defined '//&
+                                       'using TIP4P')
 
     end if
 
@@ -2627,7 +2632,7 @@ contains
     integer                  :: ncel_local, ncel_bound, ncel_all
 
 
-    ! initialize structure informations
+    ! initialize structure information
     !
     call init_domain(domain)
 
@@ -3948,7 +3953,7 @@ contains
 
                 if (period(dihedral(icel_local),icel_local) >  &
                 enefunc%notation_14types) &
-                call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicity.')
+                call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicities.')
               end if
             end if
           end do
@@ -3993,7 +3998,7 @@ contains
 
                   if (period(dihedral(icel_local),icel_local) >  &
                   enefunc%notation_14types) &
-                  call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicity.')
+                  call error_msg('Setup_Enefunc_Dihe_C_Peer> Too many periodicities.')
                 end if
               end if
             end do
@@ -4533,7 +4538,7 @@ contains
             write(MsgOut,*) 'Setup_Enefunc_Cmap_Peer> not found CMAP: '
             write(MsgOut,*) ' [',ci1,']-[',ci2,']-[',ci3,']-[',ci4,']-'
             write(MsgOut,*) ' [',ci5,']-[',ci6,']-[',ci7,']-[',ci8,'] '
-            write(MsgOut,*)  'in parameter file. (ERROR)'
+            write(MsgOut,*)  'in the parameter file. (ERROR)'
           end if
 
         end if
@@ -4664,7 +4669,7 @@ contains
       k = hm_atom_cls_no(i)
       if (k < 1) then
         call error_msg( &
-        'Setup_Enefunc_Nonb> atom class is not defined: "'&
+        'Setup_Enefunc_Nonb> Atom class is not defined: "'&
         //trim(hm_atom_cls_name(i))//'"')
       endif
 
@@ -5464,7 +5469,7 @@ contains
       k = hm_atom_cls_no(i)
       if (k < 1) then
         call error_msg( &
-        'Setup_Enefunc_Nonb> atom class is not defined: "'&
+        'Setup_Enefunc_Nonb> Atom class is not defined: "'&
         //trim(hm_atom_cls_name(i))//'"')
       endif
       check_cls(k) = 1
@@ -6112,7 +6117,7 @@ contains
               dihe_pbc(3,ndihe,icel_local) = pbc_int
 
               if (period(ndihe,icel_local) >  enefunc%notation_14types) &
-              call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
+              call error_msg('Setup_Enefunc_Dihe> Too many periodicities.')
             end if
 
           end if
@@ -6666,7 +6671,8 @@ contains
           enefunc%excl_level = excl_level
         else if (enefunc%excl_level /= excl_level) then
           call error_msg( &
-     'Setup_Enefunc_Nonb_G_Peer_0> multiple "exclude_nbon" is not supported.')
+          'Setup_Enefunc_Nonb_G_Peer_0> Multiple "exclude_nbon" values '//&
+          'are not supported.')
         end if
       end do
     end if
@@ -6677,7 +6683,7 @@ contains
       k = hm_atom_cls_no(i)
       if (k < 1) then
         call error_msg( &
-        'Setup_Enefunc_Nonb> atom class is not defined: "'&
+        'Setup_Enefunc_Nonb> Atom class is not defined: "'&
         //trim(hm_atom_cls_name(i))//'"')
       endif
       check_cls(k) = 1

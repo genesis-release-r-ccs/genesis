@@ -827,7 +827,7 @@ contains
 
       case default
 
-        call error_msg('Thermostat is not properly defined')
+        call error_msg('Invalid thermostat')
 
       end select
 
@@ -852,14 +852,14 @@ contains
 
       case default
 
-        call error_msg('Available thermostat/barostat for NPT are' // &
-                       'only Langevin/Bussi/Berendsen/NHC')
+        call error_msg('Supported thermostat/barostat for NPT are' // &
+                       'Langevin, Bussi, Berendsen, and NHC')
 
       end select
 
     case default
 
-      call error_msg('Ensemble is not defined properly')
+      call error_msg('Invalid ensemble')
 
     end select
 
@@ -963,7 +963,7 @@ contains
 
       case default
 
-        call error_msg('Thermostat is not properly defined')
+        call error_msg('Invalid thermostat')
 
       end select
 
@@ -983,14 +983,14 @@ contains
 
       case default
 
-        call error_msg('Available thermostat/barostat for NPT are' // &
-                       'only Langevin/Bussi/Berendsen/NHC')
+        call error_msg('Supported thermostat/barostat for NPT are' // &
+                       'Langevin, Bussi, Berendsen, and NHC')
 
       end select
 
     case default
 
-      call error_msg('Ensemble is not defined properly')
+      call error_msg('Invalid ensemble')
 
     end select
 
@@ -3968,7 +3968,7 @@ contains
 
       if (ensemble%temperature < 0.0_wip) &
         call error_msg( &
-        'Simulated_Annealing_VVER> Error: Temperature is less than 0 K')
+        'Simulated_Annealing_VVER> Error: Temperature must be > 0 K')
 
     end if
 

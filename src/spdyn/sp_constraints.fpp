@@ -289,8 +289,8 @@ contains
 
       if (constraints%hydrogen_type == ConstraintAtomName  &
          .and. molecule%special_hydrogen) &
-      call error_msg('Setup_Constraints> Non ordinary hydrogen name is not'//&
-                         ' allowed. If you want, use hydrogen_type option.')
+      call error_msg('Setup_Constraints> Unrecognized hydrogen name. '//&
+                     'Use the hydrogen_type option for non-standard names.')
 
       ! setup SETTLE
       !
@@ -1013,7 +1013,7 @@ contains
               ioffset = 1
               a = gromol%vsites3(k)%a
               b = gromol%vsites3(k)%b
-              if (a /= b) call error_msg('TIP4P molecule is not symmetric')
+              if (a /= b) call error_msg('The TIP4P molecule is not symmetric.')
               constraints%water_rOD = 2.0_wp * a  &
                                 * sqrt(constraints%water_rOH**2 &
                                        -0.25_wp*constraints%water_rHH**2)
@@ -1028,8 +1028,8 @@ contains
         if (ioffset == 1) exit
       end do
 
-      if (ioffset /= 1) call error_msg('Virtual site should be defined &
-                                     & when using TIP4P')
+      if (ioffset /= 1) call error_msg('Virtual site must be defined '// &
+                                       'when using the TIP4P model.')
 
     end if
 
@@ -1056,7 +1056,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    setup_tip4_dummy
-  !> @brief        r(O-D) in TIP4P
+  !> @brief        Defines the O-D distance in TIP4P water model
   !! @authors      JJ
   !! @param[in]    par         : PAR information
   !! @param[in]    prmtop      : AMBER parameter topology information
@@ -1216,7 +1216,7 @@ contains
               ioffset = 1
               a = gromol%vsites3(k)%a
               b = gromol%vsites3(k)%b
-              if (a /= b) call error_msg('TIP4P molecule is not symmetric')
+              if (a /= b) call error_msg('The TIP4P molecule is not symmetric.')
               constraints%water_rOD = 2.0_wp * a  &
                                 * sqrt(constraints%water_rOH**2 &
                                        -0.25_wp*constraints%water_rHH**2)
@@ -1230,8 +1230,8 @@ contains
 
       end do
 
-      if (ioffset /= 1) call error_msg('Virtual site should be defined &
-                                     & when using TIP4P')
+      if (ioffset /= 1) call error_msg('Virtual site must be defined '//&
+                                       'when using the TIP4P model.')
 
     end if
 
@@ -1627,7 +1627,7 @@ contains
  !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    update_vel_group
-  !> @brief        Update group velocity
+  !> @brief        Updates group velocity
   !! @authors      JJ
   !! @param[in]    constraints : constraints information
   !! @param[in]    ncell       : number of cells
@@ -1945,7 +1945,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_group_deg_freedom
-  !> @brief        Compute degree of freedom for pressure
+  !> @brief        Computes degree of freedom for pressure
   !! @authors      JJ
   !! @param[inout] domain      : domain information
   !! @param[inout] constraints : constraints information
@@ -2492,7 +2492,7 @@ contains
       end do
     end do
 
-    ! update coordiantes
+    ! update coordinates
     !
     do icel = id+1, ncell, nthread
       do ix = 1, natom(icel)

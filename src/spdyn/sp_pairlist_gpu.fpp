@@ -171,7 +171,7 @@ contains
 
 #ifdef DEBUG
     if (max_natom > MaxAtom) then
-      call error_msg('Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+      call error_msg('Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
     end if
 #endif
     max_load = 16 * ((max_natom+7)/8 * (max_natom+3)/4) + max_natom

@@ -226,14 +226,15 @@ contains
                                  res_info%vector(i))
 
       if (res_info%exponent(i) <= 0) &
-        call error_msg('Read_Ctrl_Restraints> exponent is incorrect')
+        call error_msg('Read_Ctrl_Restraints> Invalid exponent value')
 
       if (res_info%select_index(i) == '') &
-        call error_msg('Read_Ctrl_Restraints> No index is found')
+        call error_msg('Read_Ctrl_Restraints> Atom index not specified.')
 
       if (res_info%function(i) == RestraintsFuncPC .or. &
           res_info%function(i) == RestraintsFuncPCCOM ) &
-        call error_msg('Read_Ctrl_Restraints> PC restraint is not allowed in spdyn')
+        call error_msg('Read_Ctrl_Restraints> PC restraints are not '//&
+                       'supported in spdyn')
 
     end do
 

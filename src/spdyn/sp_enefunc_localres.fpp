@@ -180,7 +180,8 @@ contains
     do i = 1,ncell
       found = found + bond(i)
       if (bond(i) > MaxBond) &
-        call error_msg('Setup_Enefunc_Localres_Bond> Too many bonds.') 
+        call error_msg('Setup_Enefunc_Localres_Bond> Maximum number of '//&
+                       'bonds exceeded.') 
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -194,7 +195,7 @@ contains
         enefunc%num_bond_all+2*enefunc%table%num_water-oldbonds /= irest .and. &
         enefunc%num_bond_all+3*enefunc%table%num_water-oldbonds /= irest)      &
       call error_msg( &
-           'Setup_Enefunc_Localres_Bond> Some Bond Paremeters are missing.')
+           'Setup_Enefunc_Localres_Bond> Missing Bond Parameters')
 
     return
 
@@ -324,7 +325,8 @@ contains
     do i = 1,ncell
       found = found + angle(i)
       if (angle(i) > MaxAngle) &
-        call error_msg('Setup_Enefunc_Localres_Angle> Too many angles.') 
+        call error_msg('Setup_Enefunc_Localres_Angle> Maximum '//&
+                       'number of angles exceeded.') 
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -337,7 +339,7 @@ contains
     if (enefunc%num_angl_all-oldangle /= irest .and.                    &
         enefunc%num_angl_all-oldangle+enefunc%table%num_water /= irest) &
       call error_msg( &
-           'Setup_Enefunc_Localres_Angle> Some Angle Paremeters are missing.')
+           'Setup_Enefunc_Localres_Angle> Missing Angle Parameters')
 
     return
 
@@ -467,7 +469,8 @@ contains
       found = found + dihed(i)
       if (dihed(i) > maxdihe) &
         call error_msg( &
-             'Setup_Enefunc_Localres_Dihed> Too many dihedral angles.') 
+             'Setup_Enefunc_Localres_Dihed> Maximum number of '//&
+             'dihedral angles exceeded.') 
     end do
 
 #ifdef HAVE_MPI_GENESIS
@@ -479,7 +482,7 @@ contains
 
     if (enefunc%num_dihe_all-olddihed /= irest) &
       call error_msg( &
-           'Setup_Enefunc_Localres_Dihed> Some Dihed Paremeters are missing.')
+           'Setup_Enefunc_Localres_Dihed> Missing Dihed Parameters.')
 
     return
 

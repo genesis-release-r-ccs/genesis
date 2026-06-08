@@ -148,7 +148,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       do ix = 1, natom(i) - 1
@@ -177,11 +177,11 @@ contains
                 rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
                 if (rij2 < err_minimum_contact) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
               end if
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list1(num_nb15,i) = iy
             end if
@@ -206,7 +206,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       num_nb15 = 0
@@ -239,11 +239,11 @@ contains
               if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
                 if (rij2 < err_minimum_contact) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
               end if
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ij) = iy
             end if
@@ -275,7 +275,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       num_nb15 = 0
@@ -309,7 +309,7 @@ contains
 #ifdef DEBUG
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ij) = iy
             end if
@@ -450,7 +450,7 @@ contains
 
       if (natom(i) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       do ix = 1, natom(i) - 1
 
@@ -468,13 +468,13 @@ contains
               if (rij2 < err_minimum_contact) then
                 if (.not. nonb_limiter) &
                   call error_msg( &
-                  'Debug: Update_Pairlist_Pbc> too small contact')
+                  'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                 small_contact = small_contact + 1
               end if
             endif
             if (num_nb15 > MaxNb15) &
               call error_msg( &
-                   'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                   'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 
             nb15_calc_list1(num_nb15,i) = iy
           end if
@@ -497,7 +497,7 @@ contains
 
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       num_nb15 = 0
       num_nb15_pre = 0
@@ -529,13 +529,13 @@ contains
                 if (rij2 < err_minimum_contact) then
                   if (.not. nonb_limiter) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                   small_contact = small_contact + 1
                 end if
               endif
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
               nb15_calc_list(num_nb15,ij) = iy
             end if
           end if
@@ -565,7 +565,7 @@ contains
 
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       num_nb15 = 0
       num_nb15_pre = 0
@@ -597,7 +597,7 @@ contains
 
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
               nb15_calc_list(num_nb15,ij) = iy
             end if
           end if
@@ -764,7 +764,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       do ix = 1, natom(i) - 1
@@ -806,11 +806,11 @@ contains
                 rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
                 if (rij2 < err_minimum_contact) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
               end if
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list1(num_nb15,i) = iy
             end if
@@ -840,7 +840,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       num_nb15 = 0
@@ -891,11 +891,11 @@ contains
               if (table .and. table_order == 1 .and. (.not. nonb_limiter)) then
                 if (rij2 < err_minimum_contact) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
               end if
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ij) = iy
             end if
@@ -939,7 +939,7 @@ contains
 #ifdef DEBUG
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 #endif
 
       num_nb15 = 0
@@ -991,7 +991,7 @@ contains
 #ifdef DEBUG
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ij) = iy
             end if
@@ -1165,7 +1165,7 @@ contains
 
       if (natom(i) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       do ix = 1, natom(i) - 1
 
@@ -1190,13 +1190,13 @@ contains
                 if (rij2 < err_minimum_contact) then
                   if (.not. nonb_limiter) &
                     call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                   small_contact = small_contact + 1
                 end if
               endif
               if (num_nb15_fep > MaxNb15) &
                 call error_msg( &
-                'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
               nb15_calc_list1_fep(num_nb15_fep,i) = iy
               cycle
             end if
@@ -1211,13 +1211,13 @@ contains
               if (rij2 < err_minimum_contact) then
                 if (.not. nonb_limiter) &
                   call error_msg( &
-                  'Debug: Update_Pairlist_Pbc> too small contact')
+                  'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                 small_contact = small_contact + 1
               end if
             endif
             if (num_nb15 > MaxNb15) &
               call error_msg( &
-                   'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                   'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 
             nb15_calc_list1(num_nb15,i) = iy
           end if
@@ -1245,7 +1245,7 @@ contains
 
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       num_nb15 = 0
       num_nb15_pre = 0
@@ -1289,13 +1289,13 @@ contains
                   if (rij2 < err_minimum_contact) then
                     if (.not. nonb_limiter) &
                       call error_msg( &
-                      'Debug: Update_Pairlist_Pbc> too small contact')
+                      'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                     small_contact = small_contact + 1
                   end if
                 endif
                 if (num_nb15_fep > MaxNb15) &
                   call error_msg( &
-                  'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                  'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
                 nb15_calc_list_fep(num_nb15_fep,ij) = iy
                 cycle
               end if
@@ -1305,13 +1305,13 @@ contains
                 if (rij2 < err_minimum_contact) then
                   if (.not. nonb_limiter) &
                   call error_msg( &
-                    'Debug: Update_Pairlist_Pbc> too small contact')
+                    'Debug: Update_Pairlist_Pbc> Atomic distance is too small.')
                   small_contact = small_contact + 1
                 end if
               endif
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
               nb15_calc_list(num_nb15,ij) = iy
             end if
           end if
@@ -1353,7 +1353,7 @@ contains
 
       if (natom(i) > MaxAtom .or. natom(j) > MaxAtom) &
         call error_msg( &
-             'Debug: Update_Pairlist_Pbc> natom(cell) is exceed MaxAtom')
+             'Debug: Update_Pairlist_Pbc> natom(cell) exceeds MaxAtom')
 
       num_nb15 = 0
       num_nb15_pre = 0
@@ -1397,7 +1397,7 @@ contains
                 num_nb15_fep = num_nb15_fep + 1
                 if (num_nb15_fep > MaxNb15) &
                   call error_msg( &
-                  'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                  'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
                 nb15_calc_list_fep(num_nb15_fep,ij) = iy
                 cycle
               end if
@@ -1406,7 +1406,7 @@ contains
 
               if (num_nb15 > MaxNb15) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
               nb15_calc_list(num_nb15,ij) = iy
             end if
           end if

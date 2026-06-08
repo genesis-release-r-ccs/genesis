@@ -46,7 +46,7 @@ contains
   !> @brief        create cached molecule from GROMACS structure/coordinate file
   !! @authors      NT
   !! @param[in]    grotop     : GROMACS topology information
-  !! @param[in]    grocrdfile : GROMACS coordiante file
+  !! @param[in]    grocrdfile : GROMACS coordinate file
   !! @param[in]    groreffile : Reference GROMACS coordinate file
   !! @param[in]    pdbfile    : PDB file name (optional)
   !! @param[in]    reffile    : Reference coordinate PDB file name (optional)
@@ -898,7 +898,7 @@ contains
 
     return
 
-900 call error_msg('Cm_Create_Cache_Grocrd_Coord> read ERROR. ')
+900 call error_msg('Cm_Create_Cache_Grocrd_Coord> Read error. ')
 
   end subroutine cm_create_cache_grocrd_coord
 

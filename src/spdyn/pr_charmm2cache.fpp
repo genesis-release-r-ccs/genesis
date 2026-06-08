@@ -977,7 +977,7 @@ contains
 
     return
 
-900 call error_msg('Cm_Create_Cache_Crd_Coord> read ERROR. ')
+900 call error_msg('Cm_Create_Cache_Crd_Coord> Read error. ')
 
   end subroutine cm_create_cache_crd_coord
 

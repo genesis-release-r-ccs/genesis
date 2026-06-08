@@ -319,24 +319,24 @@ contains
 
     if (dynamics%crdout_period > 0) then
       if (out_info%dcdfile .eq. '') &
-        call error_msg('Setup_Output_Md> Error: dcdfile name is not'//&
-                  ' specified in [OUTPUT] (crdout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Md> dcdfile must be specified '//&
+                       'in [OUTPUT] when crdout_period > 0 in [DYNAMICS].')
       output%dcdout  = .true.
       output%dcdfile = out_info%dcdfile
     end if
 
     if (dynamics%velout_period > 0) then
       if (out_info%dcdvelfile .eq. '') &
-        call error_msg('Setup_Output_Md> Error: dcdvelfile name is not'//&
-                  ' specified in [OUTPUT] (velout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Md> dcdvelfile must be specified '//&
+                       'in [OUTPUT] when velout_period > 0 in [DYNAMICS].')
       output%dcdvelout  = .true.
       output%dcdvelfile = out_info%dcdvelfile
     end if
 
     if (dynamics%rstout_period > 0) then
       if (out_info%rstfile .eq. '') &
-        call error_msg('Setup_Output_Md> Error: rstfile name is not'//&
-                       'specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Md> rstfile must be specified '//&
+                       'in [OUTPUT] when rstout_period > 0 in [DYNAMICS].')
       output%rstout  = .true.
       output%rstfile = out_info%rstfile
     end if
@@ -364,8 +364,8 @@ contains
 
     if (dynamics%fepout_period > 0) then
       if (out_info%fepfile == '') &
-        call error_msg('Setup_Output_Md> Error: fepfile name is not'//&
-                  ' specified in [OUTPUT] (fepout_period > 0 in [ALCHEMY])')
+        call error_msg('Setup_Output_Md> fepfile must be specified '//&
+                       'in [OUTPUT] when fepout_period > 0 in [ALCHEMY].')
       output%fepout  = .true.
       output%fepfile = out_info%fepfile
     end if
@@ -401,16 +401,16 @@ contains
 
     if (minimize%crdout_period > 0) then
       if (out_info%dcdfile .eq. '') &
-        call error_msg('Setup_Output_Min> Error: dcdfile name is not'//&
-                  ' specified in [OUTPUT] (crdout_period > 0 in [MINIMIZE])')
+        call error_msg('Setup_Output_Min> dcdfile must be specified '//&
+                       'in [OUTPUT] when crdout_period > 0 in [MINIMIZE].')
       output%dcdout  = .true.
       output%dcdfile = out_info%dcdfile
     end if
 
     if (minimize%rstout_period > 0) then
       if (out_info%rstfile .eq. '') &
-        call error_msg('Setup_Output_Min> Error: rstfile name is not'//&
-                  ' specified in [OUTPUT] (rstout_period > 0 in [MINIMIZE])')
+        call error_msg('Setup_Output_Min> rstfile must be specified '//&
+                       'in [OUTPUT] when rstout_period > 0 in [MINIMIZE].')
       output%rstout  = .true.
       output%rstfile = out_info%rstfile
     end if
@@ -454,17 +454,17 @@ contains
 
     if (dynamics%crdout_period > 0) then
       if (out_info%dcdfile .eq. '') &
-        call error_msg('Setup_Output_Remd> Error: dcdfile name is not'//&
-                  ' specified in [OUTPUT] (crdout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Remd> dcdfile must be specified '//&
+                       'in [OUTPUT] when crdout_period > 0 in [DYNAMICS].')
       output%dcdfile = out_info%dcdfile
       call include_id_to_filename(output%dcdfile)
       output%dcdfile = output%dcdfile
       output%dcdout  = .true.
       if (remd%analysis_grest) then
         if (out_info%enefile .eq. '') &
-        call error_msg('Setup_Output_Remd> Error: enefile name is not'//&
-                       ' specified in [OUTPUT] (crdout_period > 0 in' //&
-                       ' [DYNAMICS]) and analysis_grest = YES')
+        call error_msg('Setup_Output_Remd> enefile must be specified '//&
+                       'in [OUTPUT] when crdout_period > 0 in ' //&
+                       '[DYNAMICS] and analysis_grest = YES.')
         output%enefile = out_info%enefile
         call include_id_to_filename(output%enefile)
         output%enefile = output%enefile
@@ -474,8 +474,8 @@ contains
 
     if (dynamics%velout_period > 0) then
       if (out_info%dcdvelfile .eq. '') &
-        call error_msg('Setup_Output_Remd> Error: dcdvelfile name is not'//&
-                  ' specified in [OUTPUT] (velout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Remd> dcdvelfile must be specified '//&
+                       'in [OUTPUT] when velout_period > 0 in [DYNAMICS].')
       output%dcdvelfile = out_info%dcdvelfile
       call include_id_to_filename(output%dcdvelfile)
       output%dcdvelfile = output%dcdvelfile
@@ -485,8 +485,8 @@ contains
 
     if (dynamics%rstout_period > 0) then
       if (out_info%rstfile .eq. '') &
-        call error_msg('Setup_Output_Remd> Error: rstfile name is not'//&
-                  ' specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS])')
+        call error_msg('Setup_Output_Remd> rstfile must be specified '//&
+                       'in [OUTPUT] when rstout_period > 0 in [DYNAMICS].')
       output%rstfile = out_info%rstfile
       call include_id_to_filename(output%rstfile)
       output%rstfile = output%rstfile
@@ -494,8 +494,8 @@ contains
 
       if (.not. remd%equilibration_only .and. remd%exchange_period > 0) then
         if (mod(dynamics%rstout_period,remd%exchange_period) /= 0) &
-        call error_msg('Setup_Output_Remd> Error in rstout_period'//&
-        '  mod(rstout_period, exchange_period) is not ZERO')
+        call error_msg('Setup_Output_Remd> rstout_period must be a '//&
+                       'multiple of exchange_period.')
       end if
 
       if (out_info%pdbfile .ne. '') then
@@ -508,8 +508,8 @@ contains
 
     if (dynamics%eneout_period > 0) then
       if (mod(remd%exchange_period,dynamics%eneout_period) /= 0) &
-      call error_msg('Setup_Output_Remd> Error in eneout_period'//&
-      '  mod(exchange_period, eneout_period) is not ZERO')
+      call error_msg('Setup_Output_Remd> exchange_period must be a '//&
+                     'multiple of eneout_period.')
     end if
 
     if (out_info%remfile .ne. '') then
@@ -541,8 +541,8 @@ contains
 
     if (dynamics%fepout_period > 0) then
       if (out_info%fepfile == '') &
-        call error_msg('Setup_Output_Remd> Error: fepfile name is not'//&
-                  ' specified in [OUTPUT] (fepout_period > 0 in [ALCHEMY])')
+        call error_msg('Setup_Output_Remd> fepfile must be specified '//&
+                       'in [OUTPUT] when fepout_period > 0 in [ALCHEMY].')
       output%fepfile = out_info%fepfile
       call include_id_to_filename(output%fepfile)
       output%fepfile = output%fepfile
@@ -550,8 +550,8 @@ contains
 
       ! output remfile to sort fepfile
       if (out_info%remfile == '') &
-        call error_msg('Setup_Output_Remd> Error: remfile name is not'//&
-                  ' specified in [OUTPUT]')
+        call error_msg('Setup_Output_Remd> remfile must be specified '//&
+                       'in [OUTPUT].')
       output%remfile = out_info%remfile
       call include_id_to_filename(output%remfile)
       output%remfile = output%remfile
@@ -603,7 +603,8 @@ contains
       output%dcdout  = .true.
 
       if (out_info%remfile .eq. '') &
-        call error_msg('Setup_Output_Bias> Error: remfile name is not specified in [OUTPUT].')
+        call error_msg('Setup_Output_Bias> remfile must be specified '//&
+                       'in [OUTPUT].')
       output%remfile = out_info%remfile
       call include_id_to_filename(output%remfile, biasflag)
       output%remfile = output%remfile
@@ -612,7 +613,9 @@ contains
 
     if (dynamics%velout_period > 0) then
       if (out_info%dcdvelfile .eq. '') &
-        call error_msg('Setup_Output_Bias> Error: dcdvelfile name is not specified in [OUTPUT] (velout_period > 0 in [DYNAMICS]).')
+        call error_msg('Setup_Output_Bias> dcdvelfile name must be '//&
+                       'specified in [OUTPUT] when velout_period > 0 '//&
+                       'in [DYNAMICS].')
       output%dcdvelfile = out_info%dcdvelfile
       call include_id_to_filename(output%dcdvelfile, biasflag)
       output%dcdvelfile = output%dcdvelfile
@@ -621,7 +624,8 @@ contains
 
     if (dynamics%rstout_period > 0) then
       if (out_info%rstfile .eq. '') &
-        call error_msg('Setup_Output_Bias> Error: rstfile name is not specified in [OUTPUT] (rstout_period > 0 in [DYNAMICS]).')
+        call error_msg('Setup_Output_Bias> rstfile must be specified '//&
+                       'in [OUTPUT] when rstout_period > 0 in [DYNAMICS].')
       output%rstfile = out_info%rstfile
       call include_id_to_filename(output%rstfile, biasflag)
       output%rstfile = output%rstfile
@@ -690,7 +694,7 @@ contains
 
     if (dynamics%crdout_period > 0) then
       if (out_info%dcdfile .eq. '') &
-        call error_msg('Setup_Output_Rpath> dcd filename is blank')
+        call error_msg('Setup_Output_Rpath> dcd filename is not specified.')
       output%dcdfile = out_info%dcdfile
       call include_id_to_filename(output%dcdfile)
       output%dcdout  = .true.
@@ -698,7 +702,7 @@ contains
 
     if (dynamics%velout_period > 0) then
       if (out_info%dcdvelfile .eq. '') &
-        call error_msg('Setup_Output_Rpath> dcdvel filename is blank')
+        call error_msg('Setup_Output_Rpath> dcdvel filename is not specified.')
       output%dcdvelfile = out_info%dcdvelfile
       call include_id_to_filename(output%dcdvelfile)
       output%dcdvelout  = .true.
@@ -706,15 +710,15 @@ contains
 
     if (dynamics%rstout_period > 0) then
       if (out_info%rstfile .eq. '') &
-        call error_msg('Setup_Output_Rpath> rst filename is blank')
+        call error_msg('Setup_Output_Rpath> rst filename is not specified.')
       output%rstfile = out_info%rstfile
       call include_id_to_filename(output%rstfile)
       output%rstout  = .true.
 
       if (.not. rpath%equilibration_only .and. rpath%rpath_period > 0) then
         if (mod(dynamics%rstout_period,rpath%rpath_period) /= 0) &
-        call error_msg('Setup_Output_Rpath> Error in rstout_period'//&
-        '  mod(rstout_period, rpath_period) is not ZERO')
+        call error_msg('Setup_Output_Rpath> rstout_period must be a '//&
+                       'multiple of rpath_period.')
       end if
 
       if (out_info%pdbfile .ne. '') then
@@ -740,8 +744,8 @@ contains
 
     if (dynamics%eneout_period > 0) then
       if (mod(rpath%rpath_period,dynamics%eneout_period) /= 0) &
-      call error_msg('Setup_Output_Rpath> Error in eneout_period'//&
-      '  mod(rpath_period, eneout_period) is not ZERO')
+      call error_msg('Setup_Output_Rpath> rpath_period must be a multiple '//&
+                     'of eneout_period.')
     end if
 
     if (out_info%rpathlogfile .ne. '') then

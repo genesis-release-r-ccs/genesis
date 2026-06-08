@@ -252,7 +252,7 @@ contains
     call open_ctrlfile(filename, handle)
 
     if (handle == 0) &
-      call error_msg('Control_Md> File IO Error')
+      call error_msg('Control_Md> File I/O Error')
 
 
     ! read input section
@@ -365,7 +365,7 @@ contains
     call open_ctrlfile(filename, handle)
 
     if (handle == 0) &
-      call error_msg('Control_Min> File IO Error')
+      call error_msg('Control_Min> File I/O Error')
 
 
     ! read input section
@@ -456,7 +456,7 @@ contains
     call open_ctrlfile(filename, handle)
 
     if (handle == 0) &
-      call error_msg('Control_Remd> File IO Error')
+      call error_msg('Control_Remd> File I/O Error')
 
 
     ! read input section
@@ -686,7 +686,7 @@ contains
     call open_ctrlfile(filename, handle)
 
     if (handle == 0) &
-      call error_msg('Control_Rpath> File IO Error')
+      call error_msg('Control_Rpath> File I/O Error')
 
 
     ! read input section

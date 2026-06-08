@@ -90,7 +90,7 @@ contains
 
     return
 
-900 call error_msg('Hm_Create_Pdb_Coord> read ERROR. ')
+900 call error_msg('Hm_Create_Pdb_Coord> Read error. ')
 
   end subroutine hm_create_pdb_coord
 

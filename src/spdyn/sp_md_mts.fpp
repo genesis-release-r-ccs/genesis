@@ -217,7 +217,7 @@ contains
         !
         istep = (i-1) * multistep + j
 
-        ! save coordiantes for constraint
+        ! save coordinates for constraint
         !
         do k = 1, ncell
           do jx = 1, natom(k)

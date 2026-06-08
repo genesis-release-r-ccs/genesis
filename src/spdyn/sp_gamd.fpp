@@ -331,7 +331,7 @@ contains
     ! check integrator
     !
     if (dynamics%integrator == IntegratorVRES) then
-      call error_msg('Setup_Gamd> VRES is not allowed in GaMD')
+      call error_msg('Setup_Gamd> The VRES integrator is not supported in GaMD')
     end if
 
     ! setup boost type
@@ -357,7 +357,7 @@ contains
     if (gamd_info%update_period > 0) then
 
       if (mod(dynamics%nsteps, gamd_info%update_period) /= 0) then
-        call error_msg('Setup_Gamd> mod(nsteps,update_period) must be zero')
+        call error_msg('Setup_Gamd> nsteps must be a multiple of update_period.')
       else
         gamd%update_period = gamd_info%update_period
       end if
@@ -368,7 +368,7 @@ contains
         if (main_rank) then
           write(MsgOut,'(A)') 'Setup_Gamd> Parameter update is not allowed in &
                                &GaMD-REUS'
-          write(MsgOut,'(A)') 'Setup_Gamd> GaMD parameters will not be updated'
+          write(MsgOut,'(A)') 'Setup_Gamd> GaMD parameters will not be updated.'
         end if
       end if
  
@@ -377,12 +377,12 @@ contains
       gamd%update_period = 0
       gamd%gamd_stat = .false.
       if (main_rank) then
-        write(MsgOut,'(A)') 'Setup_Gamd> GaMD parameters will not be updated'
+        write(MsgOut,'(A)') 'Setup_Gamd> GaMD parameters will not be updated.'
       end if
 
     else
 
-      call error_msg('Setup_Gamd> update_period should be non-negative integer')
+      call error_msg('Setup_Gamd> update_period must be a positive integer.')
 
     end if
 

@@ -179,19 +179,22 @@ contains
     !
     if (ens_info%ensemble == EnsembleNVE .and.  &
         ens_info%tpcontrol /= TpcontrolNo) &
-      call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+      call error_msg('Read_Ctrl_Ensemble> "tpcontrol" must be "NO" '//&
+                     'in the NVE ensemble.')
 
     if (ens_info%ensemble == EnsembleNPAT .and.   &
         ens_info%isotropy /= IsotropyXY_Fixed)    &
-      call error_msg('Read_Ctrl_Ensemble> NPAT should be XY-FIXED')
+      call error_msg('Read_Ctrl_Ensemble> NPAT requires XY-FIXED isotropy')
 
     if (ens_info%ensemble == EnsembleNPT .and.   &
         ens_info%isotropy == IsotropyXY_Fixed) &
-          call error_msg('Read_Ctrl_Ensemble> Cannot specify XY-FIXED with NPT')
+          call error_msg('Read_Ctrl_Ensemble> XY-FIXED isotropy '//&
+                         'is not supported with the NPT ensemble.')
 
     if (ens_info%ensemble == EnsembleNPgT .and. &
         ens_info%isotropy /= IsotropySEMI_ISO) &
-      call error_msg('Read_Ctrl_Ensemble> NPgT is available with SEMI-ISO')
+      call error_msg('Read_Ctrl_Ensemble> NPgT ensemble requires '//&
+                     'SEMI-ISO isotropy')
 
     if (ens_info%tpcontrol == TpcontrolLangevin) &
       call error_msg('Read_Ctrl_Ensemble> Langevin is not available')
@@ -243,7 +246,8 @@ contains
           write(MsgOut,'(A20,F10.3)') '  tau_t           = ', ens_info%tau_t
 
         case default
-          call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+          call error_msg('Read_Ctrl_Ensemble> Invalid combination of '//&
+                         'ensemble and thermostat setting')
 
         end select
 
@@ -268,7 +272,8 @@ contains
                                       trim(IsotropyTypes(ens_info%isotropy))
 
         case default
-          call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+          call error_msg('Read_Ctrl_Ensemble> Invalid combination of '//&
+                         'ensemble and thermostat/barostat setting')
 
         end select
 
@@ -298,7 +303,8 @@ contains
                                       trim(IsotropyTypes(ens_info%isotropy))
 
         case default
-          call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+          call error_msg('Read_Ctrl_Ensemble> Invalid combination of '//&
+                         'ensemble and thermostat/barostat setting')
 
         end select
 
@@ -327,7 +333,8 @@ contains
                                       trim(IsotropyTypes(ens_info%isotropy))
 
         case default
-          call error_msg('Read_Ctrl_Ensemble> Error in specifying "tpcontrol"')
+          call error_msg('Read_Ctrl_Ensemble> Invalid combination of '//&
+                         'ensemble and thermostat/barostat setting')
 
         end select
 
@@ -388,13 +395,6 @@ contains
       ensemble%use_barostat = .true.
     else
       ensemble%use_barostat = .false.
-    end if
-    !
-    ! error check for tpcontrol & integrator
-    !
-    if (dynamics%integrator == IntegratorLEAP .and. &
-        ensemble%tpcontrol           == TpcontrolBUSSI) then
-      call error_msg('Setup_Ensemble> BUSSI is not allowed in Leap-frog')
     end if
 
     return

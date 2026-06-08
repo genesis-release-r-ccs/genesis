@@ -203,10 +203,10 @@ contains
     ! error check
     !
     if (rpath_info%nreplica == 0) &
-      call error_msg('Read_Ctrl_Rpath> nreplica should be >0 in [RPATH]')
+      call error_msg('Read_Ctrl_Rpath> nreplica must be >0 in [RPATH]')
 
     if (rpath_info%delta < EPS .and. rpath_info%rpath_period > 0) &
-    call error_msg('Read_Ctrl_Rpath> delta should be larger than 0 if rpath_period > 0 ')
+    call error_msg('Read_Ctrl_Rpath> delta must be larger than 0 if rpath_period > 0 ')
 
     ! get dimension from the number of numerics in rest_function_char
     !
@@ -331,13 +331,13 @@ contains
     atomlist      => enefunc%restraint_atomlist
 
     if (dynamics%integrator == IntegratorPMTS ) &
-        call error_msg('Setup_Rpath> Rpath+RESPA is not allowed')
+        call error_msg('Setup_Rpath> Rpath+RESPA is not supported.')
 
     ! setup reparameterization period
     !
     if (rpath_info%rpath_period > 0) then
       if (mod(dynamics%nsteps, rpath_info%rpath_period) /= 0) then
-        call error_msg('Setup_Rpath> mod(nsteps,rpath_period) must be zero')
+        call error_msg('Setup_Rpath> nsteps must be a multiple of rpath_period.')
       else
         rpath%equilibration_only = .false.
         rpath%rpath_period = rpath_info%rpath_period
@@ -345,8 +345,8 @@ contains
       end if
       if (dynamics%rstout_period > 0) then
         if (mod(dynamics%rstout_period,rpath_info%rpath_period) /= 0) then
-          call error_msg('Setup_Rpath> mod(rstout_period, rpath_period)'//&
-                         ' must be zero')
+          call error_msg('Setup_Rpath> rstout_period must be a multiple '//&
+                         'of rpath_period.')
         end if
       endif
     else if (rpath_info%rpath_period == 0) then
@@ -354,7 +354,7 @@ contains
       rpath%rpath_period = dynamics%nsteps
       rpath%ncycle = 1
     else
-      call error_msg('Setup_Rpath> rpath_period should be non-negative integer')
+      call error_msg('Setup_Rpath> rpath_period must be non-negative integer.')
     end if
 
     ifunc = rpath_info%rest_function(1)
@@ -362,8 +362,8 @@ contains
     do i = 1, rpath_info%dimension
       itmp = rpath_info%rest_function(i)
       if (enefunc%restraint_kind(itmp) /= ikind) then
-          call error_msg('Setup_Rpath> [ERROR] multiple types of '//&
-          'restraint functions as CV are not allowed')
+          call error_msg('Setup_Rpath> Multiple types of '//&
+                         'restraint functions are not supported as CVs.')
       end if
       enefunc%restraint_rpath_func(itmp)=i
 
@@ -371,23 +371,25 @@ contains
     if (ikind /= RestraintsFuncPOSI .and. &
         ikind /= RestraintsFuncDIST .and. &
         ikind /= RestraintsFuncDIHED) then
-      call error_msg('Setup_Rpath> [ERROR] This CV is not allowed in spdyn')
+	call error_msg('Setup_Rpath> The selected CV type is not '//&
+                       'supported in spdyn.')
     end if
 
     if (enefunc%restraint_kind(ifunc) == RestraintsFuncPOSI) then
       enefunc%rpath_pos_func = ifunc
       if (enefunc%fitting_method /= FittingMethodNO) then
         if (.not. enefunc%do_fitting) &
-          call error_msg('Setup_Rpath> [ERROR] fitfile should be specified')
+          call error_msg('Setup_Rpath> A fitfile is required.')
         if (enefunc%mass_weight) &
-          call error_msg('Setup_Rpath> [ERROR] mass_weight is not allowed')
+          call error_msg('Setup_Rpath> mass_weight is not supported '//&
+                         'for this calculation.')
       end if
 
       do i = 1, enefunc%num_restraintfuncs
         if (enefunc%restraint_kind(i) == ikind) then
           if (enefunc%restraint_rpath_func(i) == 0) then
-            call error_msg('Setup_Rpath> [ERROR] all POSI restraint should'//&
-               ' be used as R-path CV')
+            call error_msg('Setup_Rpath> All POSI restraints must'//&
+                           'be designed as R-path CVs')
           end if
         end if
       end do
@@ -517,7 +519,7 @@ contains
 
       do i = 1, enefunc%restraint_funcgrp(ifunc)
         if (enefunc%restraint_numatoms(i) > 1) &
-          call error_msg('Setup_Rpath> # of atoms should be 1')
+          call error_msg('Setup_Rpath> The numbver of atoms must be one.')
       end do
       natmgrp = enefunc%restraint_funcgrp(ifunc)
 

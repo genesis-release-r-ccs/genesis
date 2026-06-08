@@ -97,7 +97,8 @@ contains
     ! we do not allow duplication option with restraint
     !
     if (domain%num_duplicate > 1) &
-      call error_msg('Setup_Enefunc_Restraint> duplication is not allowed with restraint')
+      call error_msg('Setup_Enefunc_Restraint> duplication option is '//&
+                     'not supported with restraint')
 
     ! summary of setup enefunc_restraint
     !
@@ -254,7 +255,8 @@ contains
     ! error message when both position and rmsd restraints are assigned
     !
     if (enefunc%restraint_posi .and. enefunc%restraint_rmsd) &
-      call error_msg('Setup_Enefunc_Restraint> Choose either position or rmsd restraint')
+      call error_msg('Setup_Enefunc_Restraint> Position and RMSD '//&
+                     'restraints cannot be used simultaneously.')
 
     return
 
@@ -420,7 +422,8 @@ contains
     !
     do i = 1, enefunc%num_restraintgroups
       if (enefunc%restraint_numatoms(i) == 0) &
-        call error_msg('Setup_Enefunc_Rest_Group> no atom in group')
+        call error_msg('Setup_Enefunc_Rest_Group> Specified group '//&
+                       'contains no atoms.')
     end do
 
     ! setup mass_coefficient
@@ -730,7 +733,7 @@ contains
 
     if (position_flag .and. rmsd_flag) &
      call error_msg('Setup_Enefunc_Rest_Domain> RMSD and POSI'//&
-                    'are not allowed at once')
+                    'cannot be used simultaneously.')
 
     j = 0
     do i = 1, num_funcs
@@ -900,13 +903,15 @@ contains
     ndata = split_num(string)
 
     if (ndata == 0) then
-      call error_msg('Setup_Restraint_Constants> constant is not given')
+      call error_msg('Setup_Restraint_Constants> Missing force constant: '//&
+                     'please provide a value for "constant".')
     end if
 
     if (allocated(enefunc%restraint_const_replica)) then
       ndata_max = size(enefunc%restraint_const_replica(:,1))
       if (ndata > ndata_max) then
-        call error_msg('Setup_Restraint_Constants> the number of values for constant shoule be same in all functions')
+        call error_msg('Setup_Restraint_Constants> Inconsistent number of '//&
+                       'force constant values across functions.')
       end if
     else
       ndata_max = ndata;

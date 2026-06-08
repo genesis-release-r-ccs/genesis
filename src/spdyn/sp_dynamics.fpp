@@ -362,13 +362,13 @@ contains
       !
       if (mod(dyn_info%baro_period,dyn_info%thermo_period) /= 0) then
         if (main_rank) &
-          write(MsgOut,'(A)') '  mod(barostat_period,thermostat_period) is not ZERO'
+          write(MsgOut,'(A)') '  barostat_period is not a multiple of thermostat_period'
         do while (.true.)
           dyn_info%baro_period = dyn_info%baro_period + 1
           if (mod(dyn_info%baro_period,dyn_info%thermo_period) == 0) exit
         end do
         if (main_rank) then
-          write(MsgOut,'(A)') '  we increase the barostat_period'
+          write(MsgOut,'(A)') '  We increase the barostat_period'
           write(MsgOut,'(A20,I10)')  &
             '  barostat_period = ', dyn_info%baro_period
         end if
@@ -382,7 +382,7 @@ contains
     !
     if (dyn_info%integrator == IntegratorLEAP) then
       call error_msg ( &
-        'LEAP integrator is not available. '//&
+        'The LEAP integrator is not supported in this version. '//&
         'Please run VVER integrator instead.')
     end if
       
@@ -391,84 +391,84 @@ contains
     if (dyn_info%crdout_period > 0) then
       if (mod(dyn_info%nsteps, dyn_info%crdout_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in crdout_period'//&
-          '  mod(nsteps, crdout_period) is not ZERO')
+          'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+          'crdout_period.')
       end if
     end if
 
     if (dyn_info%velout_period > 0) then
       if (mod(dyn_info%nsteps, dyn_info%velout_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in velout_period'//&
-          '  mod(nsteps, velout_period) is not ZERO')
+          'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+          'velout_period.')
       end if
     end if
 
     if (dyn_info%eneout_period > 0 .and.                        &
         mod(dyn_info%nsteps, dyn_info%eneout_period) /= 0) then
       call error_msg( &
-        'Read_Ctrl_Dynamics> Error in eneout_period'//&
-        '  mod(nsteps, eneout_period) is not ZERO')
+        'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+        'eneout_period.')
     end if
 
     if (dyn_info%rstout_period > 0) then
       if (mod(dyn_info%nsteps, dyn_info%rstout_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in rstout_period'//&
-          '  mod(nsteps, rstout_period) is not ZERO')
+          'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+          'rstout_period.')
       end if
     end if
 
     if (dyn_info%stoptr_period > 0) then
       if (mod(dyn_info%nsteps, dyn_info%stoptr_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in stoptr_period'//&
-          '  mod(nsteps, stoptr_period) is not ZERO')
+          'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+          'stoptr_period.')
       end if
     end if
 
     if (dyn_info%nbupdate_period > 0 .and.                      &
         mod(dyn_info%nsteps, dyn_info%nbupdate_period) /= 0) then
       call error_msg( &
-        'Read_Ctrl_Dynamics> Error in nbupdate_period'//&
-        '  mod(nsteps, nbupdate_period) is not ZERO')
+        'Read_Ctrl_Dynamics> nsteps must be a multiple of '//&
+        'nbupdate_period.')
     end if
 
     if (dyn_info%anneal_period > 0) then
       if (mod(dyn_info%nsteps, dyn_info%anneal_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in anneal_period'//&
-          '  mod(nsteps, anneal_period) is not ZERO')
+          'Read_Ctrl_Dynamics> steps must be a multiple of '//&
+          'anneal_period.')
       end if
     end if
 
     if (dyn_info%annealing .and. dyn_info%anneal_period <= 0) then
       call error_msg( &
-        'Read_Ctrl_Dynamics> Error in anneal_period'//&
-        '  annealing = YES, but anneal_period is <= ZERO')
+        'Read_Ctrl_Dynamics> anneal_period must be greater than 0 '//&
+        'when annealing = YES.')
     end if
 
     if (dyn_info%crdout_period > 0) then
       if (mod(dyn_info%crdout_period,dyn_info%nbupdate_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in crdout_period or nbupdate_period'//&
-          '  mod(crdout_period,nbupdate_period) is not ZERO')
+          'Read_Ctrl_Dynamics> crdout_period must be a multiple of '//&
+          'nbupdate_period.')
       end if
     end if
 
     if (dyn_info%elec_long_period > 0) then
       if (mod(dyn_info%nbupdate_period,dyn_info%elec_long_period) /= 0) then
         call error_msg( &
-          'Read_Ctrl_Dynamics> Error in elec_long_period or nbupdate_period'//&
-          '  mod(nbupdate_period,elec_long_period) is not ZERO')
+          'Read_Ctrl_Dynamics> nbupdate_period must be a multiple of '//&
+          'elec_long_period.')
       end if
     end if
 
     if (dyn_info%elec_long_period > 0) then
       if (mod(dyn_info%thermo_period,dyn_info%elec_long_period) /= 0) then
         call error_msg( &
-         'Read_Ctrl_Dynamics> Error in elec_long_period or thermostat_period'//&
-         '  mod(thermostat_period,elec_long_period) is not ZERO')
+         'Read_Ctrl_Dynamics> thermostat_period must be a multiple of '//&
+         'elec_long_period.')
       end if
     end if
 
@@ -977,7 +977,7 @@ contains
 
       case (IntegratorLEAP)
 
-        call error_msg('LEAP integrator is not available in FEP')
+        call error_msg('LEAP integrator is not supported in FEP')
 !        call leapfrog_dynamics_fep(output, domain, enefunc, dynvars, dynamics, &
 !                               pairlist, boundary, constraints, ensemble,  &
 !                               comm, remd, alchemy)

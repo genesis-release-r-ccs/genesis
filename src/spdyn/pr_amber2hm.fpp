@@ -46,7 +46,7 @@ contains
   !> @brief        create huge molecule from AMBER parameter/topology file
   !! @authors      NT
   !! @param[in]    prmtop     : AMBER parameter/topology information
-  !! @param[in]    ambcrdfile : AMBER coordiante file
+  !! @param[in]    ambcrdfile : AMBER coordinate file
   !! @param[in]    ambreffile : Reference AMBER coordinate file
   !! @param[in]    pdbfile    : PDB file name (optional)
   !! @param[in]    reffile    : Reference coordinate PDB file name (optional)
@@ -594,7 +594,7 @@ contains
 
     return
 
-900 call error_msg('Hm_Create_Ambcrd_Coord> read ERROR. ')
+900 call error_msg('Hm_Create_Ambcrd_Coord> Read error. ')
 
   end subroutine hm_create_ambcrd_coord
 

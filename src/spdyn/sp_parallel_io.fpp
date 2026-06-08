@@ -1751,24 +1751,25 @@ contains
 
     ! check if the number of cells are multple of 2*domain
     !
+
     if (mod(boundary%num_cells_x, boundary%num_domain(1)) /= 0)            &
-      call error_msg('Pio_Boundary_Check> Cell number in x dimesion is '// &
-                     'not multiple of domain_x')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the x dimesion must be a multiple of domain_x')
     if (boundary%num_cells_x <= boundary%num_domain(1))                    &
-      call error_msg('Pio_Boundary_Check> Cell number in x dimesion is '// &
-                     'not greater than domain_x')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the x dimesion must be greater than domain_x')
     if (mod(boundary%num_cells_y, boundary%num_domain(2)) /= 0)            &
-      call error_msg('Pio_Boundary_Check> Cell number in y dimesion is '// &
-                     'not multiple of domain_y')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the y dimesion must be a multiple of domain_y')
     if (boundary%num_cells_y <= boundary%num_domain(2))                    &
-      call error_msg('Pio_Boundary_Check> Cell number in y dimesion is '// &
-                     'not greater than domain_y')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the y dimesion must be greater than domain_y')
     if (mod(boundary%num_cells_z, boundary%num_domain(3)) /= 0)            &
-      call error_msg('Pio_Boundary_Check> Cell number in z dimesion is '// &
-                     'not multiple of domain_z')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the z dimesion must be a multiple of domain_z')
     if (boundary%num_cells_z <= boundary%num_domain(3))                    &
-      call error_msg('Pio_Boundary_Check> Cell number in z dimesion is '// &
-                     'not greater than domain_z')
+      call error_msg('Pio_Boundary_Check> The number of cells in '//       &
+                     'the z dimesion must be greater than domain_z')
 
     ! check the domain number in rst and control input
     !
@@ -1776,14 +1777,14 @@ contains
         boundary%num_pio_domain(2) /= 0 .or. &
         boundary%num_pio_domain(3) /= 0) then
       if (boundary%num_domain_pio(1) /= boundary%num_pio_domain(1)) &
-        call error_msg('Pio_Boundary_Check> domain_x in rst and '// &
-                       'pio_domain_x in control input are different')
+        call error_msg('Pio_Boundary_Check> domain_x in the restart file '//&
+                       'and pio_domain_x in control input do not match.')
       if (boundary%num_domain_pio(2) /= boundary%num_pio_domain(2)) &
-        call error_msg('Pio_Boundary_Check> domain_y in rst and '// &
-                       'pio_domain_y in control input are different')
+        call error_msg('Pio_Boundary_Check> domain_y in the restart file '//&
+                       'and pio_domain_y in control input do not match.')
       if (boundary%num_domain_pio(3) /= boundary%num_pio_domain(3)) &
-        call error_msg('Pio_Boundary_Check> domain_z in rst and '// &
-                       'pio_domain_z in control input are different')
+        call error_msg('Pio_Boundary_Check> domain_z in the restart file '//&
+                       'and pio_domain_z in control input do not match.')
     end if
 
     return

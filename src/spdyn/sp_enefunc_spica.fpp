@@ -414,7 +414,7 @@ contains
 #endif
 
 !   if (enefunc%num_bond_all /= nbond*domain%num_duplicate) &
-!     call error_msg('Setup_Enefunc_Bond> Some bond paremeters are missing.')
+!     call error_msg('Setup_Enefunc_Bond> Some bond parameters are missing.')
 
     return
 
@@ -629,8 +629,7 @@ contains
 #endif
 
     if (enefunc%num_enm_all /= nenm*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Bond> Some bond paremeters are '//&
-                     'missing.')
+      call error_msg('Setup_Enefunc_Bond> Missing bond parameters')
 
 !   call update_cell_size_enm(domain, enefunc, comm)
 !   call update_cell_boundary_enm(domain, enefunc, comm)
@@ -902,8 +901,7 @@ contains
 #endif
 
     if (enefunc%num_angl_all /= nangl*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Angl> Some angle paremeters are '//&
-                     'missing.')
+      call error_msg('Setup_Enefunc_Angl> Missing angle parameters')
 
     return
 
@@ -1115,7 +1113,8 @@ contains
                   if (period(dihedral(icel_local),icel_local) >  &
                       enefunc%notation_14types) &
                     call error_msg('Setup_Enefunc_Dihe> '//&
-                                   'Too many periodicity.')
+                                   'Maximum number of periodicities '//&
+                                   'exceeded')
 
                   exit
   
@@ -1144,7 +1143,8 @@ contains
                     if (period(dihedral(icel_local),icel_local) >  &
                         enefunc%notation_14types) &
                       call error_msg('Setup_Enefunc_Dihe> '//&
-                                     'Too many periodicity.')
+                                     'Maximum number of periodicities '//&
+                                     'exceeded')
                     exit  
                   end if
                 end if
@@ -1171,7 +1171,7 @@ contains
 
     if (enefunc%num_dihe_all < ndihe*domain%num_duplicate) &
       call error_msg( &
-         'Setup_Enefunc_Dihe> Some dihedral paremeters are missing.')
+         'Setup_Enefunc_Dihe> Missing dihedral parameters')
 
     return
 
@@ -1591,7 +1591,7 @@ contains
 
     if (enefunc%num_impr_all < nimpr*domain%num_duplicate) &
         call error_msg( &
-        'Setup_Enefunc_Impr> Some improper paremeters are missing.')
+        'Setup_Enefunc_Impr> Missing improper parameters')
 
     return
 
@@ -1748,7 +1748,7 @@ contains
       k = molecule%atom_cls_no(i)
       if (k < 1) then
         call error_msg( &
-        'Setup_Enefunc_Nonb> atom class is not defined: "'&
+        'Setup_Enefunc_Nonb> Atom class is not defined: "'&
         //trim(molecule%atom_cls_name(i))//'"')
       end if
       check_cls(k) = check_cls(k) + 1

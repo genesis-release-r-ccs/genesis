@@ -323,7 +323,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Restraints> Invalid variable')
+      call error_msg('Dealloc_Reac_Coord> Invalid variable')
 
     end select
 

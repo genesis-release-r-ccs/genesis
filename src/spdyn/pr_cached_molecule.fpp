@@ -456,7 +456,7 @@ contains
 
     if (lexist) then
 
-      write(MsgOut,'(a)') 'Cm_Create_Molecules> cache files are already exist.'
+      write(MsgOut,'(a)') 'Cm_Create_Molecules> cache files already exist.'
       write(MsgOut,'(a)') '           Reuse cache file. '//&
            trim(cm_cache_name)//'...'
       write(msgOut,'(a)') ''
@@ -1304,7 +1304,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_atom_coord, &
@@ -1356,7 +1356,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_atom_refcoord, &
@@ -1408,7 +1408,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_atom_velocity, &
@@ -1458,7 +1458,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_molecule_no, &
@@ -2297,7 +2297,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_water_list, &
@@ -2347,7 +2347,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_solute_list, &
@@ -2397,7 +2397,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_solute_list_inv, &
@@ -2447,7 +2447,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_solute, &
@@ -2941,7 +2941,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_duplicate, &
@@ -2993,7 +2993,7 @@ contains
 
 #ifdef OMP
     if (omp_get_thread_num() /= 0) &
-      call error_msg("Cm_Set_*** () ERROR : multi-thread is not supported.")
+      call error_msg("Cm_Set_*** () ERROR : Multithreading is not supported.")
 #endif
 
     call cm_get_page(cmp_H_index, &
@@ -3833,7 +3833,7 @@ contains
       page_out = .false.
 
     if (index == 0) &
-      call error_msg('Cm_Get_Page> index is ZERO.')
+      call error_msg('Cm_Get_Page> Index is zero.')
 
     ! check head
     !

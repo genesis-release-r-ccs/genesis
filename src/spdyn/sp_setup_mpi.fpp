@@ -76,8 +76,8 @@ contains
     if (nproc_country /= 1) then
       prime_flag=factorization_235(nproc_country)
       if (.not. prime_flag)  &
-        call error_msg('Setup_Mpi_Md> number of MPI processes should be'//&
-                       ' multiples of 2,3,5')
+        call error_msg('Setup_Mpi_Md> The number of MPI processes must be '//&
+                       'a multiple of 2,3,5')
     end if
 #endif
 
@@ -205,8 +205,8 @@ contains
     ! Check relationship between nreplicas and num_procs
     !
     if (mod(nproc_world,nreplicas) /= 0) then
-      call error_msg('Setup_Mpi_Remd> mod(total_MPI_procs,nreplicas)'//&
-                     ' is not ZERO')
+      call error_msg('Setup_Mpi_Remd> total_MPI_procs must be a multiple '//&
+                     'of nreplicas.')
     else
       nproc_per_rep = int(nproc_world/nreplicas)
     end if
@@ -215,8 +215,8 @@ contains
     if (nproc_per_rep /= 1) then
       prime_flag=factorization_235(nproc_per_rep)
       if (.not. prime_flag)  &
-        call error_msg('Setup_Mpi_Remd> number of MPI processes per replica'//&
-                       ' should be multiples of 2,3,5')
+        call error_msg('Setup_Mpi_Remd> The number of MPI processes per '//&
+                       'replica must be a multiples of 2,3,5')
     end if
 
     ! replica number in each dimension
@@ -381,7 +381,7 @@ contains
 
 #else
 
-    call error_msg('Setup_Mpi_Remd> REMD is available with MPI')
+    call error_msg('Setup_Mpi_Remd> REMD is supported with MPI')
 
 #endif
 
@@ -619,8 +619,8 @@ contains
     ! Check relationship between nreplicas and num_procs
     !
     if (mod(nproc_world,nreplica) /= 0) then
-      call error_msg('Setup_Mpi_Rpath> mod(total_MPI_procs,nreplica)'//&
-                     ' is not ZERO')
+      call error_msg('Setup_Mpi_Rpath> total_MPI_procs must be a '//&
+                     'multiple of nreplica.')
     else
       nproc_per_rep = int(nproc_world/nreplica)
     end if
@@ -629,8 +629,8 @@ contains
     if (nproc_per_rep /= 1) then
       prime_flag=factorization_235(nproc_per_rep)
       if (.not. prime_flag)  &
-        call error_msg('Setup_Mpi_Rpath> number of MPI processes per replica'//&
-                       ' should be multiples of 2,3,5')
+        call error_msg('Setup_Mpi_Rpath> The number of MPI processes per '//&
+                       'replica must be a multiple of 2,3,5')
     end if
 
 
@@ -765,7 +765,7 @@ contains
 
 #else
 
-    call error_msg('Setup_Mpi_Rpath> RPATH is available with MPI')
+    call error_msg('Setup_Mpi_Rpath> RPATH is supported with MPI')
 
 #endif
 

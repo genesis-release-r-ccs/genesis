@@ -46,7 +46,7 @@ contains
   !> @brief        create cached molecule from AMBER parameter/topology file
   !! @authors      NT
   !! @param[in]    prmtop     : AMBER parameter/topology information
-  !! @param[in]    ambcrdfile : AMBER coordiante file
+  !! @param[in]    ambcrdfile : AMBER coordinate file
   !! @param[in]    ambreffile : Reference AMBER coordinate file
   !! @param[in]    pdbfile    : PDB file name (optional)
   !! @param[in]    reffile    : Reference coordinate PDB file name (optional)
@@ -922,7 +922,7 @@ contains
 
     return
 
-900 call error_msg('Cm_Create_Cache_Ambcrd_Coord> read ERROR. ')
+900 call error_msg('Cm_Create_Cache_Ambcrd_Coord> Read error. ')
 
   end subroutine cm_create_cache_ambcrd_coord
 

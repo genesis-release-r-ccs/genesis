@@ -128,7 +128,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Replica> bad variable')
+      call error_msg('Alloc_Experiments> Invalid variable')
 
     end select
 
@@ -179,7 +179,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Experiments> bad variable')
+      call error_msg('Dealloc_Experiments> Invalid variable')
 
     end select 
 

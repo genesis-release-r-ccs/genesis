@@ -776,7 +776,7 @@ contains
 
     return
 
-900 call error_msg('Hm_Create_Crd_Coord> read ERROR. ')
+900 call error_msg('Hm_Create_Crd_Coord> Read error. ')
 
   end subroutine hm_create_crd_coord
 

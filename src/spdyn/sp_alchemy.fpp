@@ -304,40 +304,40 @@ contains
     end do
 
     if (split_num(alch_info%lambljB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Remd> &
-        "num_fep_windows" and number of data in "lambljB" are inconsistent')
+        call error_msg('Setup_Alchemy_Remd> '// &
+        'Mismatch between "num_fep_windows" and "lambljB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambljB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambljB(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambelA) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Remd> &
-        "num_fep_windows" and number of data in "lambelA" are inconsistent')
+        call error_msg('Setup_Alchemy_Remd> '// &
+        'Mismatch between "num_fep_windows" and "lambelA" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelA, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambelA(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambelB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Remd> &
-        "num_fep_windows" and number of data in "lambelB" are inconsistent')
+        call error_msg('Setup_Alchemy_Remd> '// &
+        'Mismatch between "num_fep_windows" and "lambelB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambelB(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambbondA) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Remd> &
-        "num_fep_windows" and number of data in "lambbondA" are inconsistent')
+        call error_msg('Setup_Alchemy_Remd> '// &
+        'Mismatch between "num_fep_windows" and "lambbondA" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondA, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambbondA(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambbondB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Remd> &
-        "num_fep_windows" and number of data in "lambbondB" are inconsistent')
+        call error_msg('Setup_Alchemy_Remd> '// &
+        'Mismatch between "num_fep_windows" and "lambbondB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambbondB(j) = lamb_temp(j)
@@ -345,8 +345,8 @@ contains
 
     if (alch_info%lambrest == '') then
       if (main_rank) then
-        write(MsgOut,'(A)') 'Setup_Alchemy_Remd> All values of lambrest &
-          are set to 1.0 because lambrest is not specified.'
+        write(MsgOut,'(A)') 'Setup_Alchemy_Remd> All values of "lambrest" '// &
+          'set to 1.0 (not specified).'
         write(MsgOut,'(A)') ''
       end if
       do j = 1, alchemy%num_fep_windows
@@ -354,8 +354,8 @@ contains
       end do
     else
       if (split_num(alch_info%lambrest) /= (alchemy%num_fep_windows)) &
-          call error_msg('Setup_Alchemy_Remd> &
-          "num_fep_windows" and number of data in "lambrest" are inconsistent')
+          call error_msg('Setup_Alchemy_Remd> '// &
+          'Mismatch between "num_fep_windows" and "lambrest" data count')
       call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambrest, lamb_temp)
       do j = 1, alchemy%num_fep_windows
         alchemy%lambrest(j) = lamb_temp(j)
@@ -436,8 +436,8 @@ contains
     !
     alchemy%num_fep_windows  = split_num(alch_info%lambljA)
     if (alchemy%num_fep_windows < 1) &
-      call error_msg('Setup_Alchemy_Min> number of data in &
-                      "lambljA" should be > 0')
+      call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                     ' "lambljA" must be > 0.')
 
     if (alchemy%num_fep_windows > 1) then
         call alloc_alchemy(alchemy, alchemy%num_fep_windows)
@@ -448,32 +448,32 @@ contains
         alchemy%lambljA(1) = lamb_temp(1)
 
         if (split_num(alch_info%lambljB) < 1) &
-          call error_msg('Setup_Alchemy_Min> number of data in &
-                          "lambljB" should be > 0')
+          call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                         ' "lambljB" must be > 0.')
         call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambljB, lamb_temp)
         alchemy%lambljB(1) = lamb_temp(1)
 
         if (split_num(alch_info%lambelA) < 1) &
-          call error_msg('Setup_Alchemy_Min> number of data in &
-                          "lambelA" should be > 0')
+          call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                         ' "lambelA" must be > 0.')
         call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelA, lamb_temp)
         alchemy%lambelA(1) = lamb_temp(1)
 
         if (split_num(alch_info%lambelB) < 1) &
-          call error_msg('Setup_Alchemy_Min> number of data in &
-                          "lambelB" should be > 0')
+          call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                         ' "lambelB" must be > 0.')
         call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelB, lamb_temp)
         alchemy%lambelB(1) = lamb_temp(1)
 
         if (split_num(alch_info%lambbondA) < 1) &
-          call error_msg('Setup_Alchemy_Min> number of data in &
-                          "lambbondA" should be > 0')
+          call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                         ' "lambbondA" must be > 0.')
         call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondA, lamb_temp)
         alchemy%lambbondA(1) = lamb_temp(1)
 
         if (split_num(alch_info%lambbondB) < 1) &
-          call error_msg('Setup_Alchemy_Min> number of data in &
-                          "lambbondB" should be > 0')
+          call error_msg('Setup_Alchemy_Min> Number of data points in'// &
+                         ' "lambbondB" must be > 0.')
         call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondB, lamb_temp)
         alchemy%lambbondB(1) = lamb_temp(1)
 
@@ -595,8 +595,8 @@ contains
       alchemy%fep_md_type = FEP_Single
       if (alch_info%ref_lambid == 0) then
         if (main_rank) then
-          call error_msg('Setup_Alchemy_Md> &
-            &ref_lambid should be set to window id (> 0) if fep_md_type is Single.')
+          call error_msg('Setup_Alchemy_Md> ref_lambid must be a '//&
+                         'valid window id (> 0) if fep_md_type is "Single".')
         end if
       end if
       alchemy%ref_lambid = alch_info%ref_lambid
@@ -609,8 +609,8 @@ contains
       alchemy%num_fep_neighbor = 1
     else
       if (main_rank) then
-        call error_msg('Setup_Alchemy_Md> &
-          fep_direction should be Bothsides, Forward, or Reverse.')
+        call error_msg('Setup_Alchemy_Md> Invalid fep_direction. '//&
+                       'Supported values: Bothsides, Forward, or Reverse.')
       end if
     end if
 
@@ -629,40 +629,40 @@ contains
     end do
 
     if (split_num(alch_info%lambljB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Md> &
-        "num_fep_windows" and number of data in "lambljB" are inconsistent')
+        call error_msg('Setup_Alchemy_Md> '// &
+        'Mismatch between "num_fep_windows" and "lambljB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambljB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambljB(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambelA) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Md> &
-        "num_fep_windows" and number of data in "lambelA" are inconsistent')
+        call error_msg('Setup_Alchemy_Md> '// &
+        'Mismatch between "num_fep_windows" and "lambelA" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelA, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambelA(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambelB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Md> &
-        "num_fep_windows" and number of data in "lambelB" are inconsistent')
+        call error_msg('Setup_Alchemy_Md> '// &
+        'Mismatch between "num_fep_windows" and "lambelB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambelB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambelB(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambbondA) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Md> &
-        "num_fep_windows" and number of data in "lambbondA" are inconsistent')
+        call error_msg('Setup_Alchemy_Md> '// &
+        'Mismatch between "num_fep_windows" and "lambbondA" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondA, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambbondA(j) = lamb_temp(j)
     end do
 
     if (split_num(alch_info%lambbondB) /= (alchemy%num_fep_windows)) &
-        call error_msg('Setup_Alchemy_Md> &
-        "num_fep_windows" and number of data in "lambbondB" are inconsistent')
+        call error_msg('Setup_Alchemy_Md> '// &
+        'Mismatch between "num_fep_windows" and "lambbondB" data count')
     call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambbondB, lamb_temp)
     do j = 1, alchemy%num_fep_windows
       alchemy%lambbondB(j) = lamb_temp(j)
@@ -670,8 +670,8 @@ contains
 
     if (alch_info%lambrest == '') then
       if (main_rank) then
-        write(MsgOut,'(A)') 'Setup_Alchemy_Md> All values of lambrest &
-          are set to 1.0 because lambrest is not specified.'
+        write(MsgOut,'(A)') 'Setup_Alchemy_Md> All values of "lambrest" '// &
+                            'set to 1.0 (not specified).'
         write(MsgOut,'(A)') ''
       end if
       do j = 1, alchemy%num_fep_windows
@@ -679,8 +679,8 @@ contains
       end do
     else
       if (split_num(alch_info%lambrest) /= (alchemy%num_fep_windows)) &
-          call error_msg('Setup_Alchemy_Md> &
-          "num_fep_windows" and number of data in "lambrest" are inconsistent')
+          call error_msg('Setup_Alchemy_Md> '// &
+          'Mismatch between "num_fep_windows" and "lambrest" data count')
       call split(alchemy%num_fep_windows, alchemy%num_fep_windows, alch_info%lambrest, lamb_temp)
       do j = 1, alchemy%num_fep_windows
         alchemy%lambrest(j) = lamb_temp(j)

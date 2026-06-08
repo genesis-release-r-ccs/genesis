@@ -160,7 +160,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Boundary> bad variable')
+      call error_msg('Alloc_Boundary> Invalid variable')
 
     end select
 
@@ -208,7 +208,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Boundary> bad variable')
+      call error_msg('Dealloc_Boundary> Invalid variable')
 
     end select
 

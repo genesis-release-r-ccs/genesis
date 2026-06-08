@@ -242,7 +242,7 @@ contains
 
      case default
 
-       call error_msg('Alloc_Restraints> bad variable')
+       call error_msg('Alloc_Restraints> Invalid variable')
 
      end select
 
@@ -311,7 +311,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Restraints> bad variable')
+      call error_msg('Dealloc_Restraints> Invalid variable')
 
     end select
 

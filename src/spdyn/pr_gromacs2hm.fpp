@@ -46,7 +46,7 @@ contains
   !> @brief        create huge molecule from GROMACS structure/coordinate file
   !! @authors      NT
   !! @param[in]    grotop     : GROMACS topology information
-  !! @param[in]    grocrdfile : GROMACS coordiante file
+  !! @param[in]    grocrdfile : GROMACS coordinate file
   !! @param[in]    groreffile : Reference GROMACS coordinate file
   !! @param[in]    pdbfile    : PDB file name (optional)
   !! @param[in]    reffile    : Reference coordinate PDB file name (optional)

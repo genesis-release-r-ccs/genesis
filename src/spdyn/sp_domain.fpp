@@ -2010,11 +2010,11 @@ contains
 
     if (nwater /= enefunc%table%num_water) &
       call error_msg('Setup_Solute_And_Water> Incorrect number of '//&
-                     'water molecules')
+                     'water molecules.')
 
     if (nsolute /= enefunc%table%num_solute) &
       call error_msg('Setup_Solute_And_Water> Incorrect number of '//&
-                     'solute atoms')
+                     'solute atoms.')
 
 
     ! set water oxygen and hydrogen
@@ -5274,7 +5274,7 @@ contains
           rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
           if (rr < EPS .and. ene_info%error_check_coord) &
             call error_msg('Check_Atom_Coord> Atomic overlap detected: '//&
-	                   'coordinates are too close')
+	                   'coordinates are too close.')
           if (rr < ene_info%minimum_contact .and. &
               mass(ix,i)*mass(iy,i) > EPS) then
             !$omp critical
@@ -5287,7 +5287,7 @@ contains
                 .not. ene_info%contact_check     .and.  &
                 ene_info%error_check_coord)             &
               call error_msg('Check_Atom_Coord> Contact distance too small: '//&
-                             'please use nonb_limiter')
+                             'please use nonb_limiter.')
           end if
         end do
       end do
@@ -5337,7 +5337,7 @@ contains
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS .and. ene_info%error_check_coord) &
               call error_msg('Check_Atom_Coord> Atom overlap detected: '//&
-	                     'coordinates are too close')
+	                     'coordinates are too close.')
             if (rr < ene_info%minimum_contact) then
               !$omp critical
               write(MsgOut, '(A,I10,I10,F10.5)') &
@@ -5348,7 +5348,7 @@ contains
                   .not. ene_info%contact_check     .and.  &
                   ene_info%error_check_coord)             &
                 call error_msg('Check_Atom_Coord> Contact distance too '//&
-                               'small: please use nonb_limiter')
+                               'small: please use nonb_limiter.')
             end if
           end do
         end do
@@ -5393,7 +5393,7 @@ contains
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS .and. ene_info%error_check_coord) &
               call error_msg('Check_Atom_Coord> Atom overlap detected: '//&
-	                     'coordinates are too close')
+	                     'coordinates are too close.')
             if (rr < ene_info%minimum_contact) then
               !$omp critical
               write(MsgOut,'(A,I10,I10,F10.5)') &
@@ -5404,7 +5404,7 @@ contains
                   .not. ene_info%contact_check     .and.  &
                   ene_info%error_check_coord)             &
                 call error_msg('Check_Atom_Coord> Contact distance too '//&
-		               'small: please use nonb_limiter')
+		               'small: please use nonb_limiter.')
             end if
           end do
         end do
@@ -5502,7 +5502,7 @@ contains
           rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
           if (rr < EPS) &
             call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
-	                   'coordinates are too close')
+	                   'coordinates are too close.')
 
           if (rr < enefunc%minimum_contact .and. &
               mass(ix,i)*mass(iy,i) > EPS) then
@@ -5533,7 +5533,7 @@ contains
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
             call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
-            'coordinates are too close')
+            'coordinates are too close.')
 
             if (rr < enefunc%minimum_contact) then
               !$omp critical
@@ -5561,7 +5561,7 @@ contains
             rr = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
             if (rr < EPS) &
               call error_msg('Check_Atom_Coord_Pio> Atom overlap detected: '//&
-	      'coordinates are too close')
+	      'coordinates are too close.')
 
             if (rr < enefunc%minimum_contact) then
               !$omp critical

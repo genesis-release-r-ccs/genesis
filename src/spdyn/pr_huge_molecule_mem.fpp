@@ -2260,7 +2260,7 @@ contains
 
 
     if (main_rank) &
-      call error_msg('ERROR: Allocation is failed. :['//&
+      call error_msg('ERROR: Allocation failed. :['//&
       var_name//']. Molecule is too big. Do not Use HM_USE_MEMORY.')
 
     return

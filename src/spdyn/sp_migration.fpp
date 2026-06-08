@@ -825,7 +825,7 @@ contains
 
 #ifdef DEBUG
       if (ptl_add(i)+nsolute(i)-ptl_exit(i) > MaxAtom) &
-        call error_msg('Debug: Update_Incoming_Atom> atom is exceed MaxAtom')
+        call error_msg('Debug: Update_Incoming_Atom> Atom exceeds MaxAtom')
 #endif
 
       ! when the number of coming particles is larger than that of outgoing ones
@@ -995,7 +995,7 @@ contains
 
 #ifdef DEBUG
       if (water_stay(i)+water_move(i) > MaxWater) then
-        call error_msg('Debug: Update_Incoming_Water> water is exceed MaxWater')
+        call error_msg('Debug: Update_Incoming_Water> Water exceeds MaxWater')
       end if
 #endif
 
@@ -1111,7 +1111,7 @@ contains
 
 #ifdef DEBUG
       if (water_stay(i)+water_move(i) > MaxWater) then
-        call error_msg('Debug: Update_Incoming_Water> water is exceed MaxWater')
+        call error_msg('Debug: Update_Incoming_Water> Water exceeds MaxWater')
       end if
 #endif
 
@@ -1235,7 +1235,7 @@ contains
 
 #ifdef DEBUG
         if (HGr_stay(j,i)+Hgr_move(j,i) > HGroupMax) then
-          call error_msg('Debug: Update_Incoming_HGr> HGr is exceed HGroupMax')
+          call error_msg('Debug: Update_Incoming_HGr> HGr exceeds HGroupMax')
         end if
 #endif
 
@@ -1520,13 +1520,13 @@ contains
 #ifdef DEBUG
       if (bond_add(i)+nbond(i)-bond_exit(i) > MaxBond) then
         call error_msg( &
-            'Debug: update_incoming_enefunc_bond> bond is exceed MaxBond')
+            'Debug: update_incoming_enefunc_bond> Bond exceeds MaxBond')
       end if
 #endif
 
       if (bond_add(i) > BondMove) &
         call error_msg( &
-        'Debug: update_incoming_enefunc_bond> bond migration is exceed maximum')
+        'Debug: update_incoming_enefunc_bond> Bond migration exceeds maximum')
 
       if (bond_add(i) >= bond_exit(i)) then
 
@@ -1755,12 +1755,13 @@ contains
 #ifdef DEBUG
       if (angle_add(i)+nangle(i)-angle_exit(i) > MaxAngle) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_angle> angle is exceed MaxAngle')
+            'Debug: update_incoming_enefunc_angle> Angle exceeds MaxAngle')
 #endif
 
       if (angle_add(i) > AngleMove) &
         call error_msg( &
-     'Debug: update_incoming_enefunc_angle> angle migration is exceed maximum')
+            'Debug: update_incoming_enefunc_angle> Angle migration exceeds '//&
+            'maximum')
 
       if (angle_add(i) >= angle_exit(i)) then
 
@@ -2013,12 +2014,12 @@ contains
 #ifdef DEBUG
       if (dihed_add(i)+ndihedral(i)-dihed_exit(i) > MaxDihe) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_dihed> dihed is exceed MaxDihe')
+            'Debug: update_incoming_enefunc_dihed> Dihed exceeds MaxDihe')
 #endif
 
       if (dihed_add(i) > DiheMove) &
         call error_msg( &
-    'Debug: update_incoming_enefunc_dihed> dihed migration is exceed maximum')
+        'Debug: update_incoming_enefunc_dihed> Dihed migration exceeds maximum')
 
       if (dihed_add(i) >= dihed_exit(i)) then
 
@@ -2265,12 +2266,12 @@ contains
 #ifdef DEBUG
       if (dihed_add(i)+ndihedral(i)-dihed_exit(i) > MaxDihe) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_rb_dihed> dihed is exceed MaxDihe')
+            'Debug: update_incoming_enefunc_rb_dihed> Dihed exceeds MaxDihe')
 #endif
 
       if (dihed_add(i) > DiheMove) &
         call error_msg( &
-   'Debug: update_incoming_enefunc_rb_dihed> dihed migration is exceed maximum')
+        'Debug: update_incoming_enefunc_rb_dihed> Dihed migration exceeds maximum')
 
       if (dihed_add(i) >= dihed_exit(i)) then
 
@@ -2523,12 +2524,12 @@ contains
 #ifdef DEBUG
       if (impr_add(i)+nimproper(i)-impr_exit(i) > MaxImpr) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_impr> improper is exceed MaxImpr')
+            'Debug: update_incoming_enefunc_impr> Improper exceeds MaxImpr')
 #endif
 
       if (impr_add(i) > ImprMove) &
         call error_msg( &
-   'Debug: update_incoming_enefunc_impr> improper migration is exceed maximum')
+        'Debug: update_incoming_enefunc_impr> Improper migration exceeds maximum')
 
       if (impr_add(i) >= impr_exit(i)) then
 
@@ -2751,12 +2752,12 @@ contains
 #ifdef DEBUG
       if (cmap_add(i)+ncmap(i)-cmap_exit(i) > MaxCmap) &
         call error_msg( &
-          'Debug: update_incoming_enefunc_cmap> cmap is exceed MaxCmap')
+          'Debug: update_incoming_enefunc_cmap> Cmap exceeds MaxCmap')
 #endif
 
       if (cmap_add(i) > CmapMove) &
         call error_msg( &
-      'Debug: update_incoming_enefunc_cmap> cmap migration is exceed maximum')
+        'Debug: update_incoming_enefunc_cmap> Cmap migration exceeds maximum')
 
       if (cmap_add(i) >= cmap_exit(i)) then
 
@@ -2981,12 +2982,13 @@ contains
 #ifdef DEBUG
       if (restraint_add(i)+nrestraint(i)-restraint_exit(i) > MaxRest) &
         call error_msg( &
-          'Debug: update_incoming_enefunc_rest> restraint is exceed MaxRest')
+          'Debug: update_incoming_enefunc_rest> Restraint exceeds MaxRest')
 #endif
 
       if (restraint_add(i) > RestMove) &
         call error_msg( &
-  'Debug: update_incoming_enefunc_rest> restraint migration is exceed maximum')
+        'Debug: update_incoming_enefunc_rest> Restraint migration '//&
+        'exceeds maximum')
 
       if (restraint_add(i) >= restraint_exit(i)) then
 
@@ -3175,12 +3177,12 @@ contains
 #ifdef DEBUG
       if (fitting_add(i)+nfitting(i)-fitting_exit(i) > MaxRest) &
         call error_msg( &
-          'Debug: update_incoming_enefunc_fit> fitting atoms exceed MaxRest')
+          'Debug: update_incoming_enefunc_fit> Fitting atoms exceeds MaxRest')
 #endif
 
       if (fitting_add(i) > RestMove) &
         call error_msg( &
-  'Debug: update_incoming_enefunc_fit> fitting migration exceeds maximum')
+        'Debug: update_incoming_enefunc_fit> Fitting migration exceeds maximum')
 
       if (fitting_add(i) >= fitting_exit(i)) then
 
@@ -3881,7 +3883,7 @@ contains
 
 #ifdef DEBUG
       if (ptl_add(i)+nsolute(i)-ptl_exit(i) > MaxAtom) &
-        call error_msg('Debug: Update_Incoming_Atom> atom is exceed MaxAtom')
+        call error_msg('Debug: Update_Incoming_Atom> Atom exceeds MaxAtom')
 #endif
 
       ! when the number of coming particles is larger than that of outgoing ones
@@ -4073,7 +4075,7 @@ contains
 
 #ifdef DEBUG
       if (water_stay(i)+water_move(i) > MaxWater) then
-        call error_msg('Debug: Update_Incoming_Water> water is exceed MaxWater')
+        call error_msg('Debug: Update_Incoming_Water> Water exceeds MaxWater')
       end if
 #endif
 
@@ -4201,7 +4203,7 @@ contains
 
 #ifdef DEBUG
         if (HGr_stay(j,i)+Hgr_move(j,i) > HGroupMax) then
-          call error_msg('Debug: Update_Incoming_HGr> HGr is exceed HGroupMax')
+          call error_msg('Debug: Update_Incoming_HGr> HGr exceeds HGroupMax')
         end if
 #endif
 
@@ -4421,13 +4423,13 @@ contains
 #ifdef DEBUG
       if (bond_add(i)+nbond(i)-bond_exit(i) > MaxBond) then
         call error_msg( &
-            'Debug: update_incoming_enefunc_bond> bond is exceed MaxBond')
+            'Debug: update_incoming_enefunc_bond> Bond exceeds MaxBond')
       end if
 #endif
 
       if (bond_add(i) > BondMove) &
         call error_msg( &
-        'Debug: update_incoming_enefunc_bond> bond migration is exceed maximum')
+        'Debug: update_incoming_enefunc_bond> Bond migration exceeds maximum')
 
       if (bond_add(i) >= bond_exit(i)) then
 
@@ -4673,12 +4675,12 @@ contains
 #ifdef DEBUG
       if (angle_add(i)+nangle(i)-angle_exit(i) > MaxAngle) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_angle> angle is exceed MaxAngle')
+            'Debug: update_incoming_enefunc_angle> Angle exceeds MaxAngle')
 #endif
 
       if (angle_add(i) > AngleMove) &
         call error_msg( &
-     'Debug: update_incoming_enefunc_angle> angle migration is exceed maximum')
+        'Debug: update_incoming_enefunc_angle> Angle migration exceeds maximum')
 
       if (angle_add(i) >= angle_exit(i)) then
 
@@ -4946,12 +4948,12 @@ contains
 #ifdef DEBUG
       if (dihed_add(i)+ndihedral(i)-dihed_exit(i) > MaxDihe) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_dihed> dihed is exceed MaxDihe')
+            'Debug: update_incoming_enefunc_dihed> Dihed exceeds MaxDihe')
 #endif
 
       if (dihed_add(i) > DiheMove) &
         call error_msg( &
-    'Debug: update_incoming_enefunc_dihed> dihed migration is exceed maximum')
+        'Debug: update_incoming_enefunc_dihed> Dihed migration exceeds maximum')
 
       if (dihed_add(i) >= dihed_exit(i)) then
 
@@ -5212,12 +5214,12 @@ contains
 #ifdef DEBUG
       if (dihed_add(i)+ndihedral(i)-dihed_exit(i) > MaxDihe) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_rb_dihed> dihed is exceed MaxDihe')
+            'Debug: update_incoming_enefunc_rb_dihed> Dihed exceeds MaxDihe')
 #endif
 
       if (dihed_add(i) > DiheMove) &
         call error_msg( &
-   'Debug: update_incoming_enefunc_rb_dihed> dihed migration is exceed maximum')
+        'Debug: update_incoming_enefunc_rb_dihed> Dihed migration exceeds maximum')
 
       if (dihed_add(i) >= dihed_exit(i)) then
 
@@ -5484,12 +5486,12 @@ contains
 #ifdef DEBUG
       if (impr_add(i)+nimproper(i)-impr_exit(i) > MaxImpr) &
         call error_msg( &
-            'Debug: update_incoming_enefunc_impr> improper is exceed MaxImpr')
+            'Debug: update_incoming_enefunc_impr> Improper exceeds MaxImpr')
 #endif
 
       if (impr_add(i) > ImprMove) &
         call error_msg( &
-   'Debug: update_incoming_enefunc_impr> improper migration is exceed maximum')
+        'Debug: update_incoming_enefunc_impr> Improper migration exceeds maximum')
 
       if (impr_add(i) >= impr_exit(i)) then
 
@@ -5726,12 +5728,12 @@ contains
 #ifdef DEBUG
       if (cmap_add(i)+ncmap(i)-cmap_exit(i) > MaxCmap) &
         call error_msg( &
-          'Debug: update_incoming_enefunc_cmap> cmap is exceed MaxCmap')
+          'Debug: update_incoming_enefunc_cmap> Cmap exceeds MaxCmap')
 #endif
 
       if (cmap_add(i) > CmapMove) &
         call error_msg( &
-      'Debug: update_incoming_enefunc_cmap> cmap migration is exceed maximum')
+        'Debug: update_incoming_enefunc_cmap> Cmap migration exceeds maximum')
 
       if (cmap_add(i) >= cmap_exit(i)) then
 

@@ -245,7 +245,7 @@ contains
     ! error check
     !
     if (bias_info%nwalkers == 0) &
-      call error_msg('Read_Ctrl_Bias> Error in nwalkers in [BIAS]')
+      call error_msg('Read_Ctrl_Bias> Invalid nwalkers in [BIAS] section')
 
 
     call end_ctrlfile_section(handle)
@@ -442,7 +442,7 @@ contains
       bias%exchange_period    = dynamics%nsteps
       bias%ncycles            = 1
     else
-      call error_msg('Setup_Bias> Error in exchange_period')
+      call error_msg('Setup_Bias> Invalid exchange_period')
     end if
 
     ! count numbers for allocation of reac_function

@@ -154,7 +154,7 @@ contains
 #ifdef DEBUG
             if (num_nb15 > MaxNb15_Fugaku) &
               call error_msg(              &
-                   'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                   'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
             nb15_calc_list(num_nb15,ixx,1) = iyy
 
@@ -275,7 +275,7 @@ contains
 #ifdef DEBUG
               if (num_nb15 > MaxNb15_Fugaku) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ixx,1) = iyy
             end if
@@ -473,7 +473,7 @@ contains
 #ifdef DEBUG
             if (num_nb15 > MaxNb15_Fugaku) &
               call error_msg(              &
-                   'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                   'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
             nb15_calc_list(num_nb15,ixx,1) = iyy
 
@@ -648,7 +648,7 @@ contains
 #ifdef DEBUG
               if (num_nb15 > MaxNb15_Fugaku) &
                 call error_msg( &
-                     'Debug: Update_Pairlist_Pbc> num_nb15 is exceed MaxNb15')
+                     'Debug: Update_Pairlist_Pbc> num_nb15 exceeds MaxNb15')
 #endif
               nb15_calc_list(num_nb15,ixx,1) = iyy
             end if

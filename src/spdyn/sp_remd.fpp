@@ -259,7 +259,8 @@ contains
     ! error check
     !
     if (rep_info%dimension > RemdMaxNdimensions .or. rep_info%dimension == 0) &
-      call error_msg('Read_Ctrl_Remd> error in dimension in [REMD]')
+      call error_msg('Read_Ctrl_Remd> Invalid dimension specified in '//&
+                     'the [REMD] section')
 
     ! read allocatable variables
     !
@@ -392,18 +393,21 @@ contains
         if (rep_info%nreplicas(i) /= rep_info%nreplicas_x(i)  &
                                     *rep_info%nreplicas_y(i)  &
                                     *rep_info%nreplicas_z(i)) &
-          call error_msg('Read_Ctrl_Remd> error in nreplicas in [REMD]')
+          call error_msg('Read_Ctrl_Remd> Invalid nreplicas specified '//&
+                         'in the [REMD] section')
       end if
     end do
 
     do i = 1, rep_info%dimension
       if (rep_info%nreplicas(i) == 0) &
-        call error_msg('Read_Ctrl_Remd> error in nreplicas in [REMD]')
+        call error_msg('Read_Ctrl_Remd> Invalid nreplicas specified '//&
+                       'in the [REMD] section')
     end do
 
     trep = product(rep_info%nreplicas(1:rep_info%dimension))
     if (trep == 0) &
-      call error_msg('Read_Ctrl_Remd> error in nreplicas in [REMD]')
+      call error_msg('Read_Ctrl_Remd> Invalid nreplicas specified '//&
+                     'in the [REMD] section')
 
 
     call end_ctrlfile_section(handle)
@@ -438,7 +442,8 @@ contains
           write(MsgOut,'(A)')   '  type            = ALCHEMY'
         else if (rep_info%types(i) == RemdAlchemyRest) then
           if ( rep_info%dimension > 1 ) then
-            call error_msg('Read_Ctrl_Remd> dimension > 1 is not allowed for FEP/REST')
+            call error_msg('Read_Ctrl_Remd> dimension > 1 is not supported '//&
+                           'for FEP/REST')
           end if
           write(MsgOut,'(A)')       '  type            = ALCHEMYREST (FEP/REST)'
           write(MsgOut,'(A20,A30)') '  select_index    = ', rep_info%select_index(i)
@@ -510,7 +515,7 @@ contains
         read(rep_info%select_index(i),*) ndata
 
         if (restraints%num_groups < ndata) then
-          call error_msg('  Setup_Solute_Tempering> group out of range')
+          call error_msg('  Setup_Solute_Tempering> group index is out of range')
         end if
 
         ! have to change water name to avoid table for solute water mols
@@ -519,7 +524,8 @@ contains
 
           k = restraints%atomlist(j,ndata)
           if (molecule%residue_name(k) == cons_info%water_model) then
-            call error_msg('Error> water molecules must not be in REST solute.')
+            call error_msg('Error> water molecules are not allowed in '//&
+                           'the REST solute group.')
 
             molecule%residue_name(k) = DummyWaterName
             if (main_rank) then
@@ -702,13 +708,14 @@ contains
     do i = 1, remd%dimension
       if (remd%types(i) == RemdGamma .and.  &
           ensemble%ensemble /= EnsembleNPgT) &
-         call error_msg('Setup_Remd> Ensemble should be NPgT in gamma-REMD')
+         call error_msg('Setup_Remd> The NPgT ensemble is required for '//&
+                        'gamma-REMD')
       ! FEP
       if ((remd%types(i) == RemdAlchemy) .or. &
         (remd%types(i) == RemdAlchemyRest)) then
         if (ensemble%tpcontrol /= TpcontrolBussi .and. &
             ensemble%tpcontrol /= TpcontrolNO)         &
-            call error_msg('Setup_Remd> tpcontrol should be Bussi or No in FEP')
+            call error_msg('Setup_Remd> tpcontrol must be Bussi or No in FEP')
       end if
     end do
 
@@ -717,8 +724,8 @@ contains
     do i = 1, remd%dimension
       if (remd%cyclic_params(i)) then
         if (mod(remd%nreplicas(i),2) /= 0) &
-          call error_msg('Setup_Remd> nreplicas must be even,'//&
-                         ' if cyclic_params is specified')
+          call error_msg('Setup_Remd> nreplicas must be an even number '//&
+                         'when cyclic_params is specified.')
       end if
     end do
 
@@ -749,7 +756,10 @@ contains
         do j = 2, remd%total_nreplicas
           icomp = recvbuf(i,j)
           if (iref /= icomp) &
-            call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+            call error_msg('Setup_Remd> REMD restart information is '//&
+                           'inconsistent across replicas. This may be '//&
+                           'due to incomplete file output or a previous '//&
+                           'system crash')
         end do
       end do
 
@@ -763,7 +773,10 @@ contains
             do j = 2, remd%total_nreplicas
               icomp = recvbuf(i,j)
               if (iref /= icomp) &
-                call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+                call error_msg('Setup_Remd> REMD restart information is '//&
+                           'inconsistent across replicas. This may be '//&
+                           'due to incomplete file output or a previous '//&
+                           'system crash')
             end do
           end do
 
@@ -775,7 +788,10 @@ contains
             do j = 2, remd%total_nreplicas
               icomp = recvbuf(i,j)
               if (iref /= icomp) &
-                call error_msg("Setup_Remd> REMD restart information differs between replicas. Perhaps some restart files were not output correctly in the previous run due to a computer accident.")
+                call error_msg('Setup_Remd> REMD restart information is '//&
+                           'inconsistent across replicas. This may be '//&
+                           'due to incomplete file output or a previous '//&
+                           'system crash')
             end do
           end do
 
@@ -808,36 +824,36 @@ contains
     !
     if (rep_info%exchange_period > 0) then
       if (dynamics%eneout_period > rep_info%exchange_period) then
-        call error_msg('Setup_Remd> (eneout_period <= exchange_period)'//&
-                       ' is required')
+        call error_msg('Setup_Remd> (eneout_period must be less than '//&
+                       ' or equal to exchange_period.')
       else
         if (mod(rep_info%exchange_period,dynamics%eneout_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,eneout_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of eneout_period.')
         end if
         if (mod(rep_info%exchange_period,dynamics%thermo_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,thermo_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of thermo_period.')
         end if
         if (mod(rep_info%exchange_period,dynamics%baro_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,baro_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of baro_period.')
         end if
         ! FEP
         do i = 1, remd%dimension
           if ((remd%types(i) == RemdAlchemy) .or. &
             (remd%types(i) == RemdAlchemyRest)) then
             if (mod(rep_info%exchange_period,dynamics%fepout_period) /= 0) then
-              call error_msg('Setup_Remd> mod(exchange_period,fepout_period)'//&
-                ' must be zero')
+              call error_msg('Setup_Remd> exchange_period must be a '//&
+                             'multiple of fepout_period.')
             end if
           end if
         end do
       end if
       cycles = 2*rep_info%exchange_period*remd%dimension
       if (mod(dynamics%nsteps,cycles) /= 0) then
-        call error_msg('Setup_Remd> mod(nsteps,(2*exchange_period*dimension))'//&
-                       ' must be zero')
+        call error_msg('Setup_Remd> nsteps must be a multiple of '//&
+                       '2*exchange_period*dimension.')
       else
         remd%equilibration_only = .false.
         remd%exchange_period = rep_info%exchange_period
@@ -882,7 +898,8 @@ contains
           (remd%types(i) /= RemdAlchemy)) then
         param = rep_info%parameters(i)
         if (split_num(param) /= remd%nreplicas(i)) &
-          call error_msg('Setup_Remd> "nreplicas" and number of data in "parameters" are inconsistent')
+	  call error_msg('Setup_Remd> "nreplicas" does not match the '//&
+                         'number of entries in the parameters list.')
 
         call split(remd%nreplicas(i), max_nreplicas, param, ddata)
 
@@ -1192,7 +1209,7 @@ contains
     do i = 1, remd%dimension
       if (remd%types(i) == RemdGamma .and.  &
           ensemble%ensemble /= EnsembleNPgT) &
-         call error_msg('Setup_Remd> Ensemble should be NPgT in gamma-REMD')
+         call error_msg('Setup_Remd> Ensemble must be NPgT in gamma-REMD')
     end do
 
     ! check cyclic_params
@@ -1200,8 +1217,8 @@ contains
     do i = 1, remd%dimension
       if (remd%cyclic_params(i)) then
         if (mod(remd%nreplicas(i),2) /= 0) &
-          call error_msg('Setup_Remd> nreplicas must be even,'//&
-                         ' if cyclic_params is specified')
+          call error_msg('Setup_Remd> nreplicas must be an even number '//&
+                         'when cyclic_params is specified.')
       end if
     end do
 
@@ -1232,26 +1249,26 @@ contains
     !
     if (rep_info%exchange_period > 0) then
       if (dynamics%eneout_period > rep_info%exchange_period) then
-        call error_msg('Setup_Remd> (eneout_period <= exchange_period)'//&
-                       ' is required')
+        call error_msg('Setup_Remd> eneout_period must be less than '//&
+                       'or equal to exchange_period')
       else
         if (mod(rep_info%exchange_period,dynamics%eneout_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,eneout_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of eneout_period.')
         end if
         if (mod(rep_info%exchange_period,dynamics%thermo_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,thermo_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of thermo_period.')
         end if
         if (mod(rep_info%exchange_period,dynamics%baro_period) /= 0) then
-          call error_msg('Setup_Remd> mod(exchange_period,baro_period)'//&
-                         ' must be zero)')
+          call error_msg('Setup_Remd> exchange_period must be a multiple '//&
+                         'of baro_period.')
         end if
       end if
       cycles = 2*rep_info%exchange_period*remd%dimension
       if (mod(dynamics%nsteps,cycles) /= 0) then
-        call error_msg('Setup_Remd> mod(nsteps,(2*exchange_period*dimension))'//&
-                       ' must be zero')
+        call error_msg('Setup_Remd> nsteps must be a multiple of '//&
+                       '2*exchange_period*dimension.')
       else
         remd%equilibration_only = .false.
         remd%exchange_period = rep_info%exchange_period
@@ -1295,7 +1312,8 @@ contains
       if (remd%types(i) /= RemdRestraint) then
         param = rep_info%parameters(i)
         if (split_num(param) /= remd%nreplicas(i)) &
-          call error_msg('Setup_Remd> "nreplicas" and number of data in "parameters" are inconsistent')
+	call error_msg('Setup_Remd> "nreplicas" does not match the number '//&
+                       'of data in "parameters".')
 
         call split(remd%nreplicas(i), max_nreplicas, param, ddata)
 
@@ -1547,25 +1565,27 @@ contains
             write(msg2,'(i0)') funcid
 
             if (enefunc%restraint_kind(funcid) == RestraintsFuncPOSI) then
-              call error_msg('Setup_Remd> REUS of positional restraints is not allowed')
+              call error_msg('Setup_Remd> REUS is not supported for '//&
+                             'positional restraints.')
             end if
 
             if (enefunc%restraint_kind(funcid) == RestraintsFuncPC .or.   &
                 enefunc%restraint_kind(funcid) == RestraintsFuncPCCOM) then
-              call error_msg('Setup_Remd> REUS of PC restraints is not allowed')
+              call error_msg('Setup_Remd> REUS is not supported for '//&
+                             'PC restraints.')
             end if
 
             if (split_num(restraints%constant(funcid)) /= remd%nreplicas(i)) then
-              call error_msg('Setup_Remd> nreplica' // trim(msg1) // ' in [REMD] and &
-                                          constant' // trim(msg2) // ' in [RESTRAINTS] &
-                                          have inconsistency')
+              call error_msg('Setup_Remd> Inconsistency between nreplica' // &
+                             trim(msg1) // ' in [REMD] and constant ' // &
+                             trim(msg2) // ' in [RESTRAINTS].')
             end if
 
             if (enefunc%restraint_kind(funcid) /= RestraintsFuncEM) then
               if (split_num(restraints%reference(funcid)) /= remd%nreplicas(i)) then
-                call error_msg('Setup_Remd> nreplica' // trim(msg1) // ' in [REMD] and &
-                                            reference'// trim(msg2) // ' in [RESTRAINTS] &
-                                            have inconsistency')
+                call error_msg('Setup_Remd> Inconsistency between nreplica' // &
+                               trim(msg1) // ' in [REMD] and reference'// &
+                               trim(msg2) // ' in [RESTRAINTS].')
               end if
             end if
 
@@ -4360,7 +4380,7 @@ contains
       if (remd%types(i) == RemdSoluteTempering) then
 
         if (ensemble%ensemble == EnsembleNVE) then
-          call error_msg('Solute_Tempering> REST is not available for NVE!')
+          call error_msg('Solute_Tempering> REST is not supported for NVE!')
         end if
 
         rest_param = remd%dparameters(i,remd%parmidsets(parmsetid,i))
@@ -4962,7 +4982,7 @@ contains
       ! MD main loop
       !
       if (dynamics%integrator == IntegratorLEAP) then
-        call error_msg('LEAP integrator is not available in FEP')
+        call error_msg('LEAP integrator is not supported in FEP')
       else if (dynamics%integrator == IntegratorVVER) then
         call vverlet_dynamics (output, domain, enefunc, dynvars, dynamics, &
                                pairlist, boundary, constraints, ensemble,  &
@@ -5146,7 +5166,7 @@ contains
         call fep_remd(dimno, exptrn, domain, ensemble, dynvars, enefunc, remd, &
                       pairlist, boundary, output, alchemy)
       else
-        call error_msg('Alchemy infomartion must be needed')
+        call error_msg('Alchemy infomartion is required for this calculation.')
       end if
 
     end select
@@ -5333,8 +5353,8 @@ contains
       if (remd%types(i) == RemdAlchemy .or. &
           remd%types(i) == RemdAlchemyRest) then
         if (alchemy%num_fep_windows /= (remd%nreplicas(i))) &
-          call error_msg('Setup_Remd> &
-            "nreplicas" and number of FEP windows are inconsistent')
+  	  call error_msg('Setup_Remd> "nreplicas" does not match the '//&
+                         'number of FEP windows.')
         do j = 1, remd%nreplicas(i)
           lambid = lambid + 1
           remd%iparameters(i,j) = lambid
@@ -5746,7 +5766,7 @@ contains
       if (remd%types(i) == RemdAlchemyRest) then
 
         if (ensemble%ensemble == EnsembleNVE ) then
-          call error_msg('Solute_Tempering> REST is not available for NVE!')
+          call error_msg('Solute_Tempering> REST is not supported for NVE!')
         end if
 
         rest_param = remd%dparameters(i,remd%parmidsets(parmsetid,i))

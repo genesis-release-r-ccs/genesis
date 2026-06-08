@@ -203,8 +203,8 @@ contains
       grid_space = boundary%box_size_z / real(ngrid(3),wp)
       ngridMax   = min(ngridMax,int(boundary%cell_size_z/grid_space))
       if (ngridmax < n_bs) &
-        call error_msg('Cell size should be larger to obtain the charge'// &
-                       ' data from neighboring cells')
+        call error_msg('Cell size must be increased to include '// &
+                       'neighbor cell data.')
 
       ! Check grid point in x direction
       !
@@ -977,7 +977,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz
       do iy = 1, nlocaly
@@ -987,7 +987,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -1623,7 +1623,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz
       do iy = 1, nlocaly
@@ -1634,7 +1634,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)

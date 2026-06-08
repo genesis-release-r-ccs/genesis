@@ -202,7 +202,7 @@ contains
       ngridmax = min(ngridmax, ngrid(2)/ny)
       ngridmax = min(ngridmax, ngrid(3)/nz)
       if (ngridmax < 2*n_bs) &
-        call error_msg('Cell size or PME grids should be larger')
+        call error_msg('Cell size or PME grids must be increased.')
 
       ! Check grid point in x direction
       !
@@ -1079,7 +1079,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+8
       do iy = 1, nlocaly+8
@@ -1089,7 +1089,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -1536,7 +1536,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+8
       do iy = 1, nlocaly+8
@@ -1547,7 +1547,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -2039,7 +2039,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+12
       do iy = 1, nlocaly+12
@@ -2049,7 +2049,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -2505,7 +2505,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+12
       do iy = 1, nlocaly+12
@@ -2516,7 +2516,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -3054,7 +3054,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+16
       do iy = 1, nlocaly+16
@@ -3064,7 +3064,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)
@@ -3580,7 +3580,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+16
       do iy = 1, nlocaly+16
@@ -3591,7 +3591,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)

@@ -323,7 +323,8 @@ contains
               nbond = nbond + 1
 
               if (nbond > MaxBond) &
-                call error_msg('Setup_Enefunc_Bond> Too many bonds.') 
+                call error_msg('Setup_Enefunc_Bond> Maximum number of '//&
+                               'bonds exceeded.') 
 
               list (1,nbond,icel_local) = i1
               list (2,nbond,icel_local) = i2
@@ -407,7 +408,8 @@ contains
               nbond = nbond + 1
 
               if (nbond > MaxBond) &
-                call error_msg('Setup_Enefunc_Bond> Too many bonds.') 
+                call error_msg('Setup_Enefunc_Bond> Maximum number of '//&
+                               'bonds exceeded.') 
 
               list (1,nbond,icel_local) = i1
               list (2,nbond,icel_local) = i2
@@ -641,7 +643,8 @@ contains
               bond(icel_local) = bond(icel_local) + 1
 
               if (bond(icel_local) > MaxBond) &
-                call error_msg('Setup_Enefunc_Bond_Constraint> Too many bonds.') 
+                call error_msg('Setup_Enefunc_Bond_Constraint> Maximum number of '//&
+                               'bonds exceeded.') 
 
               list (1,bond(icel_local),icel_local) = i1
               list (2,bond(icel_local),icel_local) = i2
@@ -807,8 +810,8 @@ contains
       end do
 
       if (wat_found /= enefunc%table%num_water) &
-        call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> # of water is incorrect')
+        call error_msg('Setup_Enefunc_Bond_Constraint> Incorrect number of '//&
+                       'water molecules.') 
 
     end if
 
@@ -838,7 +841,7 @@ contains
                                        nbond_c_singleB_all) &
                                     - wat_bonds*domain%num_duplicate) then
           call error_msg( &
-            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+            'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
         end if
       else
         if (enefunc%num_bond_all /=   prmtop%num_bondh *domain%num_duplicate &
@@ -847,7 +850,7 @@ contains
                                          nbond_c_singleB_all) &
                                       -3*enefunc%table%num_water*domain%num_duplicate) then
           call error_msg( &
-            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+            'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
         end if
       end if
 
@@ -860,7 +863,7 @@ contains
                                     - constraints%num_bonds &
                                     - wat_bonds*domain%num_duplicate) then
           call error_msg( &
-            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+            'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
         end if
 
       else
@@ -870,7 +873,7 @@ contains
                                       - constraints%num_bonds &
                                       -3*enefunc%table%num_water*domain%num_duplicate) then
           call error_msg( &
-            'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+            'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
         end if
 
       end if
@@ -1016,7 +1019,8 @@ contains
               nangl = nangl + 1
 
               if (nangl > MaxAngle) &
-                call error_msg('Setup_Enefunc_Angl> Too many angles.') 
+                call error_msg('Setup_Enefunc_Angl> Maximum number of '//&
+                               'angles exceeded.') 
 
               alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
               force(    nangl,icel_local) = &
@@ -1104,7 +1108,8 @@ contains
             nangl = nangl + 1
 
             if (nangl > MaxAngle) &
-              call error_msg('Setup_Enefunc_Angl> Too many angles.') 
+              call error_msg('Setup_Enefunc_Angl> Maximum number of '//&
+                             'angles exceeded.') 
 
             alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
             force(    nangl,icel_local) = &
@@ -1304,7 +1309,8 @@ contains
               nangl = nangl + 1
   
               if (nangl > MaxAngle) &
-                call error_msg('Setup_Enefunc_Angl_Constraint> Too many angles.') 
+                call error_msg('Setup_Enefunc_Angl_Constraint> Maximum '//&
+                               'number of angles exceeded.') 
   
               alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
               force(    nangl,icel_local) = &
@@ -1392,7 +1398,8 @@ contains
             nangl = nangl + 1
 
             if (nangl > MaxAngle) &
-              call error_msg('Setup_Enefunc_Angl_Constraint> Too many angles.') 
+              call error_msg('Setup_Enefunc_Angl_Constraint> Maximum '//&
+                             'number of angles exceeded.') 
 
             alist(1:3,nangl,icel_local) = (/i1, i2, i3/)
             force(    nangl,icel_local) = &
@@ -1432,7 +1439,7 @@ contains
         enefunc%num_angl_all /= (prmtop%num_anglh + prmtop%num_mangla - enefunc%table%num_water)  &
                                  *domain%num_duplicate ) &
       call error_msg( &
-        'Setup_Enefunc_Angl_Constraint> Some angle paremeters are missing.')
+        'Setup_Enefunc_Angl_Constraint> Missing angle parameters.')
 
     return
 
@@ -1565,7 +1572,8 @@ contains
             ndihe = ndihe + 1
 
             if (ndihe > MaxDihe) &
-              call error_msg('Setup_Enefunc_Dihe> Too many dihedrals.') 
+              call error_msg('Setup_Enefunc_Dihe> Maximum number of '//&
+                             'dihedral angles exceeded.') 
 
             list(1:4,ndihe,icel_local) = (/i1,i2,i3,i4/)
             force (  ndihe,icel_local) = &
@@ -1651,7 +1659,8 @@ contains
             ndihe = ndihe + 1
 
             if (ndihe > MaxDihe) &
-              call error_msg('Setup_Enefunc_Dihe> Too many dihedrals.') 
+              call error_msg('Setup_Enefunc_Dihe> Maximum number of '//&
+                             'dihedral angles exceeded.') 
 
             list(1:4,ndihe,icel_local) = (/i1,i2,i3,i4/)
             force (  ndihe,icel_local) = &
@@ -1821,7 +1830,8 @@ contains
             nimpr = nimpr + 1
 
             if (nimpr > MaxImpr) &
-              call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
+              call error_msg('Setup_Enefunc_Impr> Maximum number of '//&
+                             'improper dihedral angles exceeded.') 
 
             list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
             force (  nimpr,icel_local) = &
@@ -1909,7 +1919,8 @@ contains
             nimpr = nimpr + 1
 
             if (nimpr > MaxImpr) &
-              call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
+              call error_msg('Setup_Enefunc_Impr> Maximum number of '//&
+                             'improper dihedral angles exceeded.') 
 
             list(1:4,nimpr,icel_local) = (/ia,ib,ic,id/)
             force (  nimpr,icel_local) = &
@@ -2150,7 +2161,7 @@ contains
 #endif
 
     if (enefunc%num_cmap_all /=  prmtop%num_cmap*domain%num_duplicate) &
-      call error_msg('Setup_Enefunc_Cmap> Some cmap parameters are missing.')
+      call error_msg('Setup_Enefunc_Cmap> Missing cmap parameters.')
 
     return
 
@@ -2282,7 +2293,7 @@ contains
       k = molecule%atom_cls_no(i)
       if (k < 1) then
         call error_msg( &
-        'Setup_Enefunc_Nonb> atom class is not defined: "'&
+        'Setup_Enefunc_Nonb> Atom class not defined for atom types: "'&
         //trim(molecule%atom_cls_name(i))//'"')
       end if
       check_cls(k) = 1

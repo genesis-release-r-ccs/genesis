@@ -289,7 +289,8 @@ contains
 
         ! check too big energy
         !
-        if (etmp > enemax) call error_msg('Posicon_ene> energy is too big')
+        if (etmp > enemax) call error_msg('Posicon_ene> Excessive '//&
+                                'positional restraint energy detected.')
         erest_temp = erest_temp + etmp
 
         if (calc_force) then

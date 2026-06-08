@@ -146,8 +146,8 @@ contains
       end if
 
       if ((alch_info%dualA == "NONE") .and. (alch_info%dualB == "NONE")) then
-        call error_msg('Define_FEP_Topology> Atoms with dual &
-          &topology are not defined.')
+        call error_msg('Define_FEP_Topology> Dual-topology atoms have '// &
+                       'not been defined.')
       end if
 
       molecule%num_atoms_fep(5) = molecule%num_atoms &
@@ -189,8 +189,8 @@ contains
         end do
         molecule%num_atoms_fep(1) = size(selatoms(1)%idx)
       else
-        call error_msg('Define_FEP_Topology> singleA must be assigned &
-          &in Hybrid topology.')
+        call error_msg('Define_FEP_Topology> singleA must be assigned '// &
+                       'for Hybrid topology.')
       end if
 
       ! singleB atoms are set to 2

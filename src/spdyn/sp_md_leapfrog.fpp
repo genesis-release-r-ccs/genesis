@@ -1736,7 +1736,7 @@ contains
 
       if (ensemble%temperature < 0.0_wip) &
         call error_msg( &
-        'Simulated_Annealing_Leapfrog> Error: Temperature is less than 0 K')
+        'Simulated_Annealing_Leapfrog> Error: Temperature must be > 0 K.')
 
     end if
 

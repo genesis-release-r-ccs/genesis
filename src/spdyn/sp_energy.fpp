@@ -371,24 +371,21 @@ contains
     !
     if (ene_info%switchdist > ene_info%cutoffdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> switchdist must be less than cutoffdist. '// &
-         'Please set switchdist shorter than cutoffdist.')
+         'Read_Ctrl_Energy> switchdist must be less than cutoffdist. ')
     end if
 
     if (ene_info%cutoffdist >= ene_info%pairlistdist) then
       call error_msg( &
-         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist. '// &
-         'Please set cutoffdist shorter than pairlistdist.')
+         'Read_Ctrl_Energy> cutoffdist must be less than pairlistdist. ')
     end if
 
-    if (ene_info%pme_nspline < 3 ) then
+    if (ene_info%pme_nspline <= 3 ) then
       call error_msg( &
-         'Read_Ctrl_Energy> "pme_nspline" is too small. '// &
-         'Please set pme_nspline > 3.')
+         'Read_Ctrl_Energy> "pme_nspline" must be > 3.')
 
     else if (mod(ene_info%pme_nspline,2) == 1 ) then
       call error_msg( &
-         'Read_Ctrl_Energy> "pme_nspline" should be even (in the current version)')
+         'Read_Ctrl_Energy> "pme_nspline" should be an even number.')
 
     end if
 
@@ -405,20 +402,20 @@ contains
 #ifdef USE_GPU
     if (ene_info%electrostatic == ElectrostaticCUTOFF) &
       call error_msg( &
-         'Read_Ctrl_Energy> cutoff is not available with GPU. '// &
-         'Please use GENESIS compiled without enabling GPU.')
+         'Read_Ctrl_Energy> cutoff is not supported on GPU. '// &
+         'Please use a non-GPU version.')
 
     if (ene_info%water_model /= "NONE") ene_info%water_model = 'NONE'
 
     if (ene_info%nonb_limiter) &
       call error_msg( &
-         'Read_Ctrl_Energy> nonb_limiter is not available with GPU. '// &
-         'Please use GENESIS compiled without enabling GPU.')
+         'Read_Ctrl_Energy> nonb_limiter is not supported on GPU. '// &
+         'Please use a non-GPU version.')
 
     if (ene_info%structure_check /= StructureCheckNone) &
       call error_msg( &
-         'Read_Ctrl_Energy> structure_check is not available with GPU. '// &
-         'Please use GENESIS compiled without enabling GPU.')
+         'Read_Ctrl_Energy> structure_check is not supported on GPU. '// &
+         'Please use a non-GPU version.')
 #endif
 
     call tolower(pme_alpha)
@@ -435,14 +432,15 @@ contains
 
       if (ene_info%electrostatic /= ElectrostaticPME) then
         if (.not. ene_info%vacuum) then
-          call error_msg('Read_Ctrl_Energy> Electrostatic cutoff is not allowed in amber unless vacuum is used.')
+          call error_msg('Read_Ctrl_Energy> Electrostatic cutoff is not '//&
+                         'supported for amber unless vacuum is used.')
         end if
       end if
 
       if (ene_info%switchdist /= ene_info%cutoffdist) then
         if (main_rank)      &
         write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy>  WARNING: switchdist should be equal to '//  &
+          'Read_Ctrl_Energy>  WARNING: switchdist must equal '//  &
           'cutoffdist if forcefield is AMBER'
           ene_info%switchdist = ene_info%cutoffdist
       end if
@@ -462,8 +460,8 @@ contains
       if (ene_info%dispersion_corr /= Disp_corr_NONE) then
         if (main_rank)      &
         write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy>  WARNING: dispersion correction can not be'//&
-          ' set ene_info%cutoffdist if forcefield is CHARMM'
+          'Read_Ctrl_Energy>  WARNING: dispersion correction is not '//&
+	  'supported if forcefield is CHARMM'
           ene_info%dispersion_corr = Disp_corr_NONE
       end if
 
@@ -475,7 +473,7 @@ contains
       if (ene_info%dmin_size_cg < ene_info%pairlistdist) then
         if (main_rank)      &
           write(MsgOut,'(A)') &
-          'Read_Ctrl_Energy>  WARNING: dmin_size_cg is automatically'//     &
+          'Read_Ctrl_Energy>  WARNING: dmin_size_cg has beenautomatically'//   &
           ' set to pairlistdist if forcefield is GROMARTINI and '//         &
           'dmin_size_cg < pairlistdist'
         ene_info%dmin_size_cg = ene_info%pairlistdist
@@ -500,7 +498,7 @@ contains
         if (main_rank)      &
         write(MsgOut,'(A)') &
           'Read_Ctrl_Energy>  WARNING: vdW_force_switch can not be'//     &
-          ' set if dispersion_pme is YES'
+          ' used when dispersion_pme is enabled'
         ene_info%vdw_force_switch = .false.
       end if
       if (ene_info%vdw_shift) then
@@ -559,7 +557,8 @@ contains
       if (ene_info%nonb_limiter ) then
         if (main_rank) &
           write(MsgOut,'(A)') &
-       'Read_Ctrl_Energy>  WARNING: nonb_limiter is only in table'
+       'Read_Ctrl_Energy>  WARNING: nonb_limiter is only available '//&
+       'when using lookup table'
         ene_info%nonb_limiter = .false.
       end if
     end if
@@ -3983,7 +3982,7 @@ contains
   !! @param[in]    npt         : flag for NPT or not
   !! @param[inout] energy      : energy information
   !! @param[inout] atmcls_pbc  : atom class number
-  !! @param[input] coord_pbc   : pbc coordiante
+  !! @param[input] coord_pbc   : pbc coordinate
   !! @param[inout] force       : forces of target systems
   !! @param[inout] force_omp   : temprary forces of target systems
   !! @param[inout] force_pbc   : pfb force 

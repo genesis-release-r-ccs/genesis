@@ -305,8 +305,8 @@ contains
                  bound_info%domain_y == 1 .and. &
                  bound_info%domain_z == 1))) then
 
-        call error_msg('Setup_Boundary> other than (2,1,1)/(2,2,1)/(1,1,1), '//&
-                       'domain[x,y,z] should be larger than 1')
+        call error_msg('Setup_Boundary> Except for (2,1,1)/(2,2,1)/(1,1,1), '//&
+                       'domain[x,y,z] must be > 1.')
 
       end if
 
@@ -407,8 +407,8 @@ contains
           bound_info%domain_y == 1 .or. &
           bound_info%domain_z == 1 ) then
 
-        call error_msg('Setup_Boundary_Pio> other than (2,1,1)/(2,2,1)/' &
-                       //'(1,1,1), domain[x,y,z] should be larger than 1')
+        call error_msg('Setup_Boundary_Pio> Except for (2,1,1)/(2,2,1)/' &
+                       //'(1,1,1), domain[x,y,z] must be > 1.')
 
       end if
 
@@ -491,23 +491,23 @@ contains
             boundary%num_domain_max(3) > 0) then
 
           if (boundary%num_domain_max(1) < boundary%num_domain(1))             &
-            call error_msg('Setup_Processor_Number> domain_x_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_x_max must be '// &
                            'greater than domain_x')
           if (boundary%num_domain_max(2) < boundary%num_domain(2))             &
-            call error_msg('Setup_Processor_Number> domain_y_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_y_max must be '// &
                            'greater than domain_y')
           if (boundary%num_domain_max(3) < boundary%num_domain(3))             &
-            call error_msg('Setup_Processor_Number> domain_z_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_z_max must be '// &
                            'greater than domain_z')
 
           if (mod(boundary%num_domain_max(1),boundary%num_domain(1)) /= 0)     &
-            call error_msg('Setup_Processor_Number> domain_x_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_x_max must be '// &
                            'multiple of domain_x')
           if (mod(boundary%num_domain_max(2),boundary%num_domain(2)) /= 0)     &
-            call error_msg('Setup_Processor_Number> domain_y_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_y_max must be '// &
                            'multiple of domain_y')
           if (mod(boundary%num_domain_max(3),boundary%num_domain(3)) /= 0)     &
-            call error_msg('Setup_Processor_Number> domain_z_max should be '// &
+            call error_msg('Setup_Processor_Number> domain_z_max must be '// &
                            'multiple of domain_z')
         
         else
@@ -520,8 +520,8 @@ contains
 
       else
 
-        call error_msg('Setup_Processor_Number> # of process is not '// &
-                       'domain_x * domain_y * domain_z ')
+        call error_msg('Setup_Processor_Number> Total processes do not '// &
+                       'match domain_x * domain_y * domain_z.')
 
       end if
 
@@ -599,21 +599,18 @@ contains
           end do
         end do
         if (.not. defined_proc) &
-          call error_msg('Setup_Processor_Number> MPI Process number can not '//&
-                         'be defined, please set them manualy')
+          call error_msg('Setup_Processor_Number> Unable to auto-define '//&
+                         'MPI processes; please set them manualy')
       end if
     else
-      call error_msg('Setup_Processor_Number> Cannot define domains'//         &
-                     ' and cells. '//                                          &
-                     'Smaller MPI processors, or shorter pairlistdist, or '//  &
-                     'larger boxsize should be used.')
+      call error_msg('Setup_Processor_Number> Failed to define domains/cells.'// &
+                     ' Try fewer MPI ranks or a larger box size.')
     end if
 
     if (itype == 0) then
-      call error_msg('Setup_Processor_Number> Cannot define domains '//         &
-                     'and cells. '//                                           &
-                     'Smaller or adjusted MPI processors, or shorter'//        &
-                     ' pairlistdist, or larger boxsize should be used.')
+      call error_msg('Setup_Processor_Number> Failed to define domains/cells.'// &
+                     ' Try fewer MPI ranks, shorter pairlistdist, or largeer '// &
+                     'box size.')
     end if
 
     k = 0
@@ -700,13 +697,13 @@ contains
             ! num_domain should be the multiple of num_pio_domain
             !
             if (mod(num_domain(1), num_pio_domain(1)) /= 0)                   &
-              call error_msg('Setup_Processor_Number_pio> domain_x should '// &
+              call error_msg('Setup_Processor_Number_pio> domain_x must '// &
                              'be multiple of pio_domain_x')
             if (mod(num_domain(2), num_pio_domain(2)) /= 0)                   &
-              call error_msg('Setup_Processor_Number_pio> domain_y should '// &
+              call error_msg('Setup_Processor_Number_pio> domain_y must '// &
                              'be multiple of pio_domain_y')
             if (mod(num_domain(3), num_pio_domain(3)) /= 0)                   &
-              call error_msg('Setup_Processor_Number_pio> domain_z should '// &
+              call error_msg('Setup_Processor_Number_pio> domain_z must '// &
                              'be multiple of pio_domain_z')
   
             ! decide the rank of file to be open
@@ -727,20 +724,20 @@ contains
             !
             if (mod(num_pio_domain(1), num_domain(1)) /= 0)                &
               call error_msg('Setup_Processor_Number_pio> pio_domain_x '// &
-                             'should be multiple of domain_x')
+                             'must be multiple of domain_x')
             if (mod(num_pio_domain(2), num_domain(2)) /= 0)                &
               call error_msg('Setup_Processor_Number_pio> pio_domain_y '// &
-                             'should be multiple of domain_y')
+                             'must be multiple of domain_y')
             if (mod(num_pio_domain(3), num_domain(3)) /= 0)                &
               call error_msg('Setup_Processor_Number_pio> pio_domain_z '// &
-                             'should be multiple of domain_z')
+                             'must be multiple of domain_z')
 
             boundary%multiple_file_read = .true.
             boundary%multiple_file(1:3) = num_pio_domain(1:3) / num_domain(1:3)
 
           else
             call error_msg('Setup_Processor_Number_pio> pio_domain '// &
-                           'should be greater/less than domain in '//  &
+                           'must be greater/less than domain in '//  &
                            'all directoins')
 
           end if
@@ -755,8 +752,8 @@ contains
  
       else
 
-        call error_msg('Setup_Processor_Number> # of process is not '// &
-                       'domain_x * domain_y * domain_z ')
+	      call error_msg('Setup_Processor_Number> Total processes do '// &
+                       'not match domain_x * domain_y * domain_z.')
 
       end if
 
@@ -871,9 +868,8 @@ contains
     if (k /= 0) ncell_z = ncell_z - k
 
     if (ncell_x < 5 .or. ncell_y < 5 .or. ncell_z < 5) &
-      call error_msg('Setup_Boundary_Cell> too small boxsize/pairlistdist. '//&
-                     'shorter pairlistdist or larger boxsize or less MPI processors'//&
-                     ' should be used.')
+      call error_msg('Setup_Boundary_Cell> Box size too small for pairlistdist. '//&
+                     'Reduce MPI ranks or increase box size.')
 
     csize_x = bsize_x/real(ncell_x, wp)
     csize_y = bsize_y/real(ncell_y, wp)
@@ -906,10 +902,10 @@ contains
     if (ncell_x <= boundary%num_domain(1) .or. &
         ncell_y <= boundary%num_domain(2) .or. &
         ncell_z <= boundary%num_domain(3))     &
+
       call error_msg( &
-          'Setup_Boundary_Cell> ncell_[x,y,z] should be greater than or equal to '//&
-          '2*domain_[x,y,z]. Please reduce MPI and increase OpenMP to use the '//   &
-          'same number of processors.')
+        'Setup_Boundary_Cell> ncell must be >= 2*domain_[x,y,z]. '//&
+        'Reduce MPI and increase OpenMP threads.')
 
     return
 

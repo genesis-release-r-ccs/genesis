@@ -188,7 +188,8 @@ contains
     !
     else if (prmtop%num_atoms > 0) then
       if (localres%num_funcs > 0) &
-         call error_msg('Define_Enefunc> Localres is not available in this FF')
+        call error_msg('Define_Enefunc> Localres is not supported by the '//&
+                       'selected force field.')
 
       call define_enefunc_amber (ene_info, prmtop, molecule, &
                                  constraints, restraints, domain, enefunc, &
@@ -198,7 +199,8 @@ contains
     !
     else if (grotop%num_atomtypes > 0) then
       if (localres%num_funcs > 0) &
-         call error_msg('Define_Enefunc> Localres is not available in this FF')
+        call error_msg('Define_Enefunc> Localres is not supported by the '//&
+                       'selected force field.')
 
       call define_enefunc_gromacs(ene_info, grotop, molecule, &
                                  constraints, restraints, domain, enefunc, &
@@ -711,7 +713,8 @@ contains
           end do  
           found = found + bond(i) + 2*nwater(i)  !! 2 is two O-H bond from water molecules
           if (bond(i) > MaxBond) &
-            call error_msg('Setup_Enefunc_Bond_Pio> Too many bonds.')
+            call error_msg('Setup_Enefunc_Bond_Pio> Maximum number of bonds '//&
+                           'exceeded.')
 
         end if
 
@@ -956,7 +959,8 @@ contains
           end if
  
           if (angle(i) > MaxAngle) &
-            call error_msg('Setup_Enefunc_Angl_Pio> Too many angles.')
+            call error_msg('Setup_Enefunc_Angl_Pio> Maximum number of '//&
+                           'angles exceeded.')
 
         end if
 
@@ -1042,7 +1046,8 @@ contains
           end do
           found = found + dihedral(i)
           if (dihedral(i) > MaxDihe) &
-            call error_msg('Setup_Enefunc_Dihe_Pio> Too many dihedral angles.')
+            call error_msg('Setup_Enefunc_Dihe_Pio> Maximum number of '//&
+                           'dihedral angles exceeded.')
   
         end if
 
@@ -1118,7 +1123,8 @@ contains
           end do
           found = found + dihedral(i)
           if (dihedral(i) > MaxDihe) &
-            call error_msg('Setup_Enefunc_Dihe_Pio> Too many dihedral angles.')
+            call error_msg('Setup_Enefunc_Dihe_Pio> Maximum number of '//&
+                           'dihedral angles exceeded.')
   
         end if
 
@@ -1204,8 +1210,8 @@ contains
           end do
           found = found + improper(i)
           if (improper(i) > MaxImpr) &
-            call error_msg( &
-              'Setup_Enefunc_Impr_Pio> Too many improper dihedral angles')
+            call error_msg('Setup_Enefunc_Impr_Pio> Maximum number of '//&
+                           'improper dihedral angles exceeded.')
  
         end if
 
@@ -1301,7 +1307,8 @@ contains
           end do
           found = found + enefunc%num_cmap(i)
           if (enefunc%num_cmap(i) > MaxCmap) &
-            call error_msg('Setup_Enefunc_Cmap_Pio> Too many cmaps.')
+            call error_msg('Setup_Enefunc_Cmap_Pio> Maximum number of '//&
+                           'cmaps exceeded.')
 
         end if
 
@@ -1657,7 +1664,8 @@ contains
       end if
 
     else
-      call error_msg('Setup_Enefunc_DispCorr> This force field is not allowed')
+      call error_msg('Setup_Enefunc_DispCorr> Dispersion correction is not '//&
+                     'supported for this force field.')
     end if
 
 !   enefunc%dispersion_energy = factor*(eswitch-vlong)
@@ -2316,7 +2324,7 @@ contains
 
     if (domain%nonbond_kernel == NBK_Spica) then
       call error_msg('Update_EneFunc_Fep> SPICA force field is not '//&
-              'supported in FEP')
+                     'supported in FEP')
     end if
 
     if (constraints%rigid_bond) then
@@ -2505,7 +2513,8 @@ contains
       enefunc%dispersion_virial_AB = -2.0_wip*factor_AB*vlong
 
     else
-      call error_msg('Setup_Enefunc_DispCorr_Fep> This force field is not available in FEP')
+      call error_msg('Setup_Enefunc_DispCorr_Fep> Selected force field is '//&
+                     'not supported in FEP')
     end if
 
     return

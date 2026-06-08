@@ -103,8 +103,8 @@ contains
           end if
         end do
         if (fit_check .and. .not. fit_info%force_no_fitting) then
-          call error_msg('Setup_Fitting_Spdyn> No fit is not allowed '//&
-                      'in RMSD restraint')
+          call error_msg('Setup_Fitting_Spdyn> Fitting must be enabled for '//&
+                         'RMSD restraint')
         endif
         if (fit_check .and. fit_info%force_no_fitting) then
           write(MsgOut,'(A)') "Setup_Fitting_Spdyn> RMSD restraint without FITTING"
@@ -146,7 +146,8 @@ contains
 
     if (enefunc%fitting_method /= FittingMethodTR_ROT .and. &
         enefunc%fitting_method /= FittingMethodXYTR_ZROT) &
-      call error_msg('Setup_Fitting_Spdyn> NO/TR+ROT/XYTR+ZROT is allowed')
+      call error_msg('Setup_Fitting_Spdyn> Valid fitting types: '//&
+                     'NO, TR+ROT, or XYTR+ZROT')
 
     fitting_atom_idx      = fit_info%fitting_atom
     enefunc%mass_weight   = fit_info%mass_weight
@@ -162,17 +163,17 @@ contains
     do i = 1,enefunc%num_restraintfuncs
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM .and. &
         (.not. enefunc%mass_weight) ) &
-        call error_msg('Setup_Fitting_Spdyn> RESTRAINTS and FITTING '//&
-                       'is inconsistent.  Please check [FITTING] section')
+        call error_msg('Setup_Fitting_Spdyn> Restraint and Fitting '//&
+                       'parameters are inconsistent; check [FITTING] section.')
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .and. &
         (enefunc%mass_weight) ) &
         call error_msg('Setup_Fitting_Spdyn> RESTRAINTS and FITTING'//&
-                       'is inconsistent.  Please check [FITTING] section')
+                       'is inconsistent.  Please check [FITTING] section.')
       if (enefunc%restraint_kind(i) == RestraintsFuncRMSD .or. &
           enefunc%restraint_kind(i) == RestraintsFuncRMSDCOM) then
         if (fitting_atom_idx /= enefunc%restraint_grouplist(1,i)) then
-          call error_msg('Setup_Fitting_Spdyn> fitting group should be'//&
-                       'same with restraint group in RMSD restraint')
+          call error_msg('Setup_Fitting_Spdyn> fitting group must match '//&
+                         'the same restraint group for RMSD restraint.')
         end if
       end if
     end do
@@ -270,11 +271,11 @@ contains
 
     if (fitting_file == FittingFileFIT) then
       if (size(molecule%atom_fitcoord(1,:)) /= molecule%num_atoms) &
-      call error_msg('Setup_Enefunc_Fit_Refcoord> bad fitfile in [INPUT]')
+      call error_msg('Setup_Enefunc_Fit_Refcoord> Invalid fitfile in [INPUT]')
 
     else if (fitting_file == FittingFileREF) then
       if (size(enefunc%restraint_refcoord(1,:)) /= molecule%num_atoms) &
-      call error_msg('Setup_Enefunc_Fit_Refcoord> bad reffile in [INPUT]')
+      call error_msg('Setup_Enefunc_Fit_Refcoord> Invalid reffile in [INPUT]')
      
     end if
 

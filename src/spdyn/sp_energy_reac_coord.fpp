@@ -884,7 +884,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    get_reac_coord_coordinates
-  !> @brief        get coordiantes for reaction coordinates calculation
+  !> @brief        get coordinates for reaction coordinates calculation
   !! @authors      JK
   !! @param[in]    domain        : domain information
   !! @param[in]    enefunc       : potential energy functions information

@@ -854,7 +854,7 @@ contains
     end(2) = y_end
     end(3) = z_end
 
-    ! Initialization of Q-fanction
+    ! Initialization of Q-function
     !
     do iz = 1, nlocalz+8
       do iy = 1, nlocaly+8
@@ -864,7 +864,7 @@ contains
       end do
     end do
 
-    ! Calculateing Q-fanction
+    ! Calculating Q-function
     !
     grid(1:3) = real(ngrid(1:3),wp)
     half_grid(1:3) = real(ngrid(1:3)/2,wp)

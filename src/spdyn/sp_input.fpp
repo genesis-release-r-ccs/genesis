@@ -1166,7 +1166,7 @@ contains
 
       cnumber = len_trim(filename_ori)
       if (cnumber + ndigit > MaxFilename) &
-         call error_msg('Error: too long filename'//filename_ori)
+         call error_msg('Error: Filename'//filename_ori//' is too long.')
 
       j = 0
       do i = 1, ci1 - 1

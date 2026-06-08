@@ -283,7 +283,8 @@ contains
                   if (icel_local > 0 .and. icel_local <= ncel) then
   
                     if (bond(icel_local)+1 > MaxBond) &
-                      call error_msg('Setup_Enefunc_Bond> Too many bonds.') 
+                      call error_msg('Setup_Enefunc_Bond> Maximum number of '//&
+                                     'bonds exceeded.') 
   
                     nbond_a = nbond_a + 1
   
@@ -639,7 +640,7 @@ contains
 
       if (wat_found /= nwat) &
            call error_msg( &
-           'Setup_Enefunc_Bond_Constraint> # of water is incorrect')
+           'Setup_Enefunc_Bond_Constraint> Invalid number of water molecules')
 
     end if
 
@@ -659,7 +660,7 @@ contains
       if (enefunc%num_bond_all /= &
           (nbond_sys-constraints%num_bonds-wat_bonds*domain%num_duplicate)) then
         call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+          'Setup_Enefunc_Bond_Constraint> Missing bond parameters')
       end if
 
     else
@@ -667,7 +668,7 @@ contains
       if (enefunc%num_bond_all /= &
           (nbond_sys-constraints%num_bonds-3*nwat*domain%num_duplicate))then
         call error_msg( &
-          'Setup_Enefunc_Bond_Constraint> Some bond paremeters are missing.')
+          'Setup_Enefunc_Bond_Constraint> Missing bond parameters.')
       end if
 
     end if
@@ -682,7 +683,7 @@ contains
   !> @brief        define ANGLE term for each cell in potential energy function
   !! @authors      NT
   !! @param[in]    molecule : molecule information
-  !! @param[in]    grotop   : GROMACS topology informaiton
+  !! @param[in]    grotop   : GROMACS topology information
   !! @param[in]    domain   : domain information
   !! @param[inout] enefunc  : potential energy functions information
   !
@@ -770,7 +771,8 @@ contains
                   if (icel_local > 0 .and. icel_local <= ncel) then
 
                     if (angle(icel_local)+1 > MaxAngle) &
-                      call error_msg('Setup_Enefunc_Angl> Too many angles.') 
+                      call error_msg('Setup_Enefunc_Angl> Maximum number '//&
+                                     'of angles exceeded.') 
 
                     nangl_a = nangl_a + 1
 
@@ -956,7 +958,8 @@ contains
 
                     if (angle(icel_local)+1 > MaxAngle) &
                       call error_msg( &
-                              'Setup_Enefunc_Angl_Constraint> Too many angles.')
+                              'Setup_Enefunc_Angl_Constraint> Maximum '//&
+                              'number of angles exceeded.')
 
                     nangl_a = nangl_a + 1
 
@@ -1011,7 +1014,7 @@ contains
 
     if (enefunc%num_angl_all /= (nangl_sys - nwat*domain%num_duplicate)) &
       call error_msg( &
-        'Setup_Enefunc_Angl_Constraint> Some angle paremeters are missing.')
+        'Setup_Enefunc_Angl_Constraint> Missing angle parameters')
 
     return
 
@@ -1109,7 +1112,8 @@ contains
                 ndihe = ndihe + 1
 
                 if (ndihe > MaxDihe) &
-                  call error_msg('Setup_Enefunc_Dihe> Too many dihedrals.') 
+                  call error_msg('Setup_Enefunc_Dihe> Maximum number '//&
+                                 'of dihedrals exceeded.') 
 
                 list (1:4,ndihe,icel_local) = (/ia, ib, ic, id/)
                 force (   ndihe,icel_local) = gromol%dihes(k)%kp * JOU2CAL
@@ -1130,7 +1134,8 @@ contains
                 dihe_pbc(3,ndihe,icel_local) = pbc_int
 
                 if (period(ndihe,icel_local) >  enefunc%notation_14types) &
-              call error_msg('Setup_Enefunc_Dihe> Too many periodicity.')
+              call error_msg('Setup_Enefunc_Dihe> Maximum number '//&
+                             'of periodicities exceeded.')
 
               end if
 
@@ -1383,7 +1388,8 @@ contains
                 nimpr = nimpr + 1
 
                 if (nimpr > MaxImpr) &
-                  call error_msg('Setup_Enefunc_Impr> Too many impropers.') 
+                  call error_msg('Setup_Enefunc_Impr> Maximum number '//&
+                                 'of impropers exceeded.') 
 
                 list (1:4,nimpr,icel_local) = (/ia, ib, ic, id/)
                 force (   nimpr,icel_local) = gromol%dihes(k)%kp & 

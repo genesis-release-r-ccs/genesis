@@ -290,7 +290,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
-        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
+        if (domain%fep_use) call error_msg('VDWPME is not supported in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -326,11 +326,11 @@ contains
     if (domain%fep_use) then
       ! FEP: Some thermostat and barostat are not available in FEP
       if (ensemble%tpcontrol  == TpcontrolBerendsen) then
-        call error_msg('Setup_Ensemble> Berendsen is not allowed in FEP')
+        call error_msg('Setup_Ensemble> Berendsen is not supported in FEP')
       else if (ensemble%tpcontrol  == TpcontrolNoseHoover) then
-        call error_msg('Setup_Ensemble> NoseHoover is not allowed in FEP')
+        call error_msg('Setup_Ensemble> NoseHoover is not supported in FEP')
       else if (ensemble%tpcontrol  == TpcontrolMTK) then
-        call error_msg('Setup_Ensemble> MTK is not allowed in FEP')
+        call error_msg('Setup_Ensemble> MTK is not supported in FEP')
       end if
     end if
 
@@ -627,7 +627,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
-        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
+        if (domain%fep_use) call error_msg('VDWPME is not supported in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -842,7 +842,7 @@ contains
     !
     if (ctrl_data%ene_info%electrostatic == ElectrostaticPME) then
       if (enefunc%vdw == VDWPME) then
-        if (domain%fep_use) call error_msg('VDWPME is not allowed in FEP')
+        if (domain%fep_use) call error_msg('VDWPME is not supported in FEP')
         call setup_pme (domain, boundary, enefunc)
         call pme_pre_lj(domain, boundary)
       else
@@ -876,11 +876,11 @@ contains
     if (domain%fep_use) then
       ! FEP: Some thermostat and barostat are not available in FEP
       if (ensemble%tpcontrol  == TpcontrolBerendsen) then
-        call error_msg('Setup_Ensemble> Berendsen is not allowed in FEP')
+        call error_msg('Setup_Ensemble> Berendsen is not supported in FEP')
       else if (ensemble%tpcontrol  == TpcontrolNoseHoover) then
-        call error_msg('Setup_Ensemble> NoseHoover is not allowed in FEP')
+        call error_msg('Setup_Ensemble> NoseHoover is not supported in FEP')
       else if (ensemble%tpcontrol  == TpcontrolMTK) then
-        call error_msg('Setup_Ensemble> MTK is not allowed in FEP')
+        call error_msg('Setup_Ensemble> MTK is not supported in FEP')
       end if
     end if
 
@@ -2083,7 +2083,7 @@ contains
         end if
       end do
       if (fit_check) then
-        call error_msg('Setup_Spdyn_Md_Pio> WARNING: Fitting is not allowed')
+        call error_msg('Setup_Spdyn_Md_Pio> WARNING: Fitting is not supported')
       else
         if (main_rank) then
           write(MsgOut,*) "Setup_Fitting_Spdyn> NO fitting is applied, skip"
@@ -2147,7 +2147,7 @@ contains
 
       cnumber = len_trim(filename_ori)
       if (cnumber + ndigit > MaxFilename) &
-         call error_msg('Error: too long filename'//filename_ori)
+         call error_msg('Filename '//filename_ori//' is too long')
 
       j = 0
       do i = 1, ci1 - 1

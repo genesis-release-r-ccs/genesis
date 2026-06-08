@@ -318,7 +318,7 @@ contains
           endif
         end if
 
-        ! save coordiantes for constraint
+        ! save coordinates for constraint
         !
         call timer(TimerIntegrator, TimerOn)
 #ifdef NVTX
@@ -834,7 +834,7 @@ contains
     ! select ensemble, thermostat and barostat
     !
     if (.not. ensemble%group_tp .and. constraints%rigid_bond) &
-      call error_msg('In VRES, ensemble%group_tp=NO does not work')
+      call error_msg('In VRES, ensemble%group_tp=NO is not supported.')
 
     select case (ensemble%ensemble)
 
@@ -855,7 +855,7 @@ contains
 
       case default
 
-        call error_msg('Thermostat is not properly defined')
+        call error_msg('Thermostat type is invalid.')
 
       end select
 
@@ -871,14 +871,14 @@ contains
 
       case default
 
-        call error_msg('Available thermostat/barostat for NPT are ' //  &
-                       'only Bussi/Berendsen/NHC')
+        call error_msg('Supported thermostat/barostat types for NPT are: '//&
+                       'Bussi, Berendsen, and NHC')
 
       end select
 
     case default
 
-      call error_msg('Ensemble is not defined properly')
+      call error_msg('Invalid ensemble type')
 
     end select
 
@@ -964,14 +964,14 @@ contains
   
         case default
 
-        call error_msg('Available thermostat/barostat for NPT are' // &
-                       'only Bussi/Berendsen/NHC')
+        call error_msg('Supported thermostat/barostat for NPT are' // &
+                       'only Bussi, Berendsen, and NHC')
 
       end select
 
     case default
 
-      call error_msg('Ensemble is not defined properly')
+      call error_msg('Invalid ensemble')
 
     end select
 
@@ -4066,7 +4066,8 @@ contains
 
       if (ensemble%temperature < 0.0_wip) &
         call error_msg( &
-        'Simulated_Annealing_Leapfrog> Error: Temperature is less than 0 K')
+        'Simulated_Annealing_Leapfrog> Error: Target temperature must be '//&
+        '> 0 K')
 
     end if
 

@@ -2325,7 +2325,7 @@ contains
 
     case default
 
-      call error_msg('Alloc_Enefunc> bad variable')
+      call error_msg('Alloc_Enefunc> Invalid variable')
 
     end select
 
@@ -2906,7 +2906,7 @@ contains
 
     case default
 
-      call error_msg('Dealloc_Enefunc> bad variable')
+      call error_msg('Dealloc_Enefunc> Invalid variable')
 
     end select
 

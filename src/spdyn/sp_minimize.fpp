@@ -247,32 +247,32 @@ contains
     if (main_rank) then
       if (min_info%eneout_period > 0) then
         if (mod(min_info%nsteps, min_info%eneout_period) /= 0) then
-          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in eneout_period'
-          write(MsgOut,'(A)') '  mod(nsteps, eneout_period) is not ZERO'
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in eneout_period. '
+          write(MsgOut,'(A)') 'nsteps must be a multiple of eneout_period.'
           call error_msg
         end if
       end if
 
       if (min_info%crdout_period > 0) then
         if (mod(min_info%nsteps, min_info%crdout_period) /= 0) then
-          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in crdout_period'
-          write(MsgOut,'(A)') '  mod(nsteps, crdout_period) is not ZERO'
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in crdout_period. '
+          write(MsgOut,'(A)') 'nsteps must be a multiple of crdout_period.'
           call error_msg
         end if
       end if
 
       if (min_info%rstout_period > 0) then
         if (mod(min_info%nsteps, min_info%rstout_period) /= 0) then
-          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in rstout_period'
-          write(MsgOut,'(A)') '  mod(nsteps, rstout_period) is not ZERO'
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in rstout_period. '
+          write(MsgOut,'(A)') 'nsteps must be a multiple of rstout_period.'
           call error_msg
         end if
       end if
 
       if (min_info%nbupdate_period > 0) then
         if (mod(min_info%nsteps, min_info%nbupdate_period) /= 0) then
-          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in nbupdate_period'
-          write(MsgOut,'(A)') '  mod(nsteps, nbupdate_period) is not ZERO'
+          write(MsgOut,'(A)') 'Read_Ctrl_Minimize> Error in nbupdate_period. '
+          write(MsgOut,'(A)') 'nsteps must be a multiple of nbupdate_period.'
           call error_msg
         end if
       end if

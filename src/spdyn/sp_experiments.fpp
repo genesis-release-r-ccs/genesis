@@ -251,7 +251,8 @@ contains
       end do
 
       if (.not. do_emfit_res) then
-        call error_msg('Setup_Experiments> EM is not defined in [RESTRAINTS]')
+        call error_msg('Setup_Experiments> EM restraint is not defined '//&
+                       'in [RESTRAINTS]')
       end if
 
       experiments%do_emfit = .true.
@@ -326,7 +327,8 @@ contains
       dy   = sit%dx
       dz   = sit%dx
     else
-      call error_msg('Setup_Experiments_Emfit> Unrecognized file format of the EM density map.')
+      call error_msg('Setup_Experiments_Emfit> Unrecognized EM density '//&
+                     'map format; please check your input file.')
     end if
 
     ! allocate array
@@ -568,7 +570,9 @@ contains
       write(MsgOut,'(A,F10.3,A,3F10.3)') &
         'ERROR: cutoff distance for EM = ', (n_grid_cut + 1)/inv_dx, &
         '  cell size (pairlistdist/2)  = ', csize(1:3)
-      call error_msg('Compute_Energy_Experimental_Restraint_Emfit> pairlistdist should be larger')
+      call error_msg('Compute_Energy_Experimental_Restraint_Emfit> '// &
+                     'pairlistdist is too small for the current '//    &
+                     'EM map grid.')
     end if
 
 
@@ -729,7 +733,9 @@ contains
 
             if (ig_domain0(j,k) < n_grid_cut .or. ig_domain0(j,k) >= nmap(j) - n_grid_cut) then
               write(MsgOut,'(A,I10)') 'Gaussian kernel is extending outside the map box for atom ', n
-              call error_msg('Compute_Energy_Experimental_Restraint_Emfit> Gaussian kernel is extending outside the map box (see "Chapter: Trouble shooting" in the user manual)')
+              call error_msg('Compute_Energy_Experimental_Restraint_Emfit> '//&
+                             'Gaussian kernel exceeds map boundaries; '//&
+                             'see "Trouble shooting" in the user manual)')
             end if
 
             ig_max_tmp = ig_domain0(j,k) + n_grid_cut

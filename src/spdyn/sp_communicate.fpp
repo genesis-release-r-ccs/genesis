@@ -157,7 +157,7 @@ contains
 
           k = k + 1
 
-          ! sending coordinate, receving force
+          ! sending coordinate, receiving force
           !
           index_upper = cell_end(1) + (i-1)*cell(1) + (j-1)*cell(1)*cell(2)
           local_index = cell_g2l(index_upper)
@@ -175,7 +175,7 @@ contains
             comm%if_lower_recv(k,1) = local_index
           end if
 
-          ! receving coordinate, sending force
+          ! receiving coordinate, sending force
           !
           if (cell_end(1) == cell(1)) then
             ix = 1
@@ -228,7 +228,7 @@ contains
 
           k = k + 1
 
-          ! sending coordinate, receving force
+          ! sending coordinate, receiving force
           !
           index_upper = ix + (cell_end(2)-1)*cell(1) + (j-1)*cell(1)*cell(2)
           local_index = cell_g2l(index_upper)
@@ -254,7 +254,7 @@ contains
             comm%if_lower_recv(k,2) = bd_index + ncell_local
           end if
 
-          ! receving coordinate, sending force
+          ! receiving coordinate, sending force
           !
           if (cell_end(2) == cell(2)) then
             iy = 1
@@ -317,7 +317,7 @@ contains
 
           k = k + 1
 
-          ! sending coordinates, receving forces
+          ! sending coordinates, receiving forces
           !
           index_upper = ix + (iy-1)*cell(1) + (cell_end(3)-1)*cell(1)*cell(2)
           local_index = cell_g2l(index_upper)
@@ -343,7 +343,7 @@ contains
             comm%if_lower_recv(k,3) = bd_index + ncell_local
           end if
 
-          ! receving coordinates, sending forces
+          ! receiving coordinates, sending forces
           !
           if (cell_end(3) == cell(3)) then
             iz = 1
@@ -527,8 +527,8 @@ contains
         k = k + natom(ic)
       end do
        if (recv_size(1) /= k) &
-         call error_msg('Setup_Communicate_Size> Disagreement between'//&
-                        ' sending and receving processors')
+         call error_msg('Setup_Communicate_Size> Mismatch between'//&
+                        ' sending and receiving processors')
 
        k = 0
        do i = 1, num_cell(ii)
@@ -536,8 +536,8 @@ contains
          k = k + natom(ic)
        end do
        if (recv_size(2) /= k) &
-         call error_msg('Setup_Communicate_Size> Disagreement between'//&
-                        ' sending and receving processors')
+         call error_msg('Setup_Communicate_Size> Mismatch between'//&
+                        ' sending and receiving processors')
 
        k = 0
        do i = 1, num_cell(ii)
@@ -545,8 +545,8 @@ contains
          k = k + natom(ic)
        end do
        if (recv_size(3) /= k) &
-         call error_msg('Setup_Communicate_Size> Disagreement between'//&
-                         'sending and receving processors')
+         call error_msg('Setup_Communicate_Size> Mismatch between'//&
+                         ' sending and receiving processors')
 
        k = 0
        do i = 1, num_cell(ii)
@@ -554,8 +554,8 @@ contains
          k = k + natom(ic)
        end do
        if (recv_size(4) /= k) &
-         call error_msg('Setup_Communicate_Size> Disagreement between'//&
-                        'sending and receving processors')
+         call error_msg('Setup_Communicate_Size> Mismatch between'//&
+                        ' sending and receiving processors')
 
     end do
 
@@ -3503,8 +3503,8 @@ contains
       end do
 
       if (upper_frecv(ii) /= k) &
-        call error_msg('Update_Cell_Size_Constraints> Disagreement between'//&
-                       ' sending and receving processors')
+        call error_msg('Update_Cell_Size_Constraints> Mismatch between'//&
+                       ' sending and receiving processors')
 
       k = 0
       do i = 1, num_cell(ii)
@@ -3513,8 +3513,8 @@ contains
       end do
 
       if (lower_frecv(ii) /= k) &
-        call error_msg('Update_Cell_Size_Constraints> Disagreement between'//&
-                       ' sending and receving processors')
+        call error_msg('Update_Cell_Size_Constraints> Mismatch between'//&
+                       ' sending and receiving processors')
 
     end do
 
