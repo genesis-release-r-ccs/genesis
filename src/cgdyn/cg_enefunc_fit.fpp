@@ -78,8 +78,9 @@ contains
       if (enefunc%fitting_method .ne. FittingMethodTR .and.      &
           enefunc%fitting_method .ne. FittingMethodTR_ROT .and.  &
           enefunc%fitting_method .ne. FittingMethodTR_ZROT) then
-          call error_msg('Error: Setup_Fitting_cgdyn - pressure_rmsd option '//&
-		         'is only allowed in Translation fitting.')
+          call error_msg('Error: Setup_Fitting_cgdyn - the pressure_rmsd '//&
+                         'option is only allowed when Translation fitting '//&
+                         'is used.')
       endif
     endif
 
@@ -94,8 +95,9 @@ contains
           endif
         end do
         if (fit_check .and. .not. fit_info%force_no_fitting) then
-          call error_msg('Error: Setup_Fitting_cgdyn - No fitting is allowed '//&
-		         'in RMSD restraint.')
+          call error_msg('Error: Setup_Fitting_cgdyn - Fitting is required '//&
+                         'for RMSD restraints. Please specify a fitting '//&
+                         'method.')
         endif
         if (fit_check .and. fit_info%force_no_fitting) then
           write(MsgOut,'(A)') "Setup_Fitting_cgdyn> RMSD restraint without fitting."
@@ -105,8 +107,8 @@ contains
       do i = 1,enefunc%num_restraintfuncs
         if (enefunc%restraint_kind(i) .eq. RestraintsFuncPC .or. &
             enefunc%restraint_kind(i) .eq. RestraintsFuncPCCOM) then
-           call error_msg('Error: Setup_Fitting_cgdyn - No fitting is '//&
-		          'allowed in PC/PCCOM.')
+           call error_msg('Error: Setup_Fitting_cgdyn - Fitting is required '//&
+                          'for PC/PCCOM. Please specify a fitting method.')
         endif
       end do
       return
@@ -187,8 +189,9 @@ contains
   !  Subroutine    setup_enefunc_fit_domain
   !> @brief        Sets up fitting information about the domain.
   !! @authors      KT
-  !! @param[in]    domain  : domain information
-  !! @param[inout] enefunc : energy potential functions information
+  !! @param[in]    domain        : domain information
+  !! @param[inout] enefunc       : energy potential functions information
+  !! @param[in]    fitting_index : atom indices for fitting
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 

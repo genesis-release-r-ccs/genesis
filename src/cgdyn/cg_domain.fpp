@@ -868,11 +868,12 @@ contains
   !
   !  Subroutine    setup_cell_to_rank
   !> @brief        Defines the processor rank and the number of cells &
-  !!               in each domain.  
+  !!               in each domain.
   !! @authors      JJ
+  !! @param[in]    cell     : cell number in each dimension
   !! @param[in]    boundary : boundary condition information
   !! @param[inout] domain   : domain information
-  !! @param[out]   cell     : cells in boundary  !
+  !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
   subroutine setup_cell_to_rank(cell, boundary, domain)

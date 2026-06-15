@@ -52,6 +52,7 @@ contains
   !! @authors      CK, TM
   !! @param[in]    molecule   : molecule information
   !! @param[in]    restraints : restraints information
+  !! @param[in]    domain     : domain information
   !! @param[inout] enefunc    : potential energy functions information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
@@ -108,8 +109,8 @@ contains
           do j = 1, enefunc%restraint_numatoms(i) 
             iatm=enefunc%restraint_atomlist(j,i)
             if (iatm <= 0 .or. iatm > molecule%num_atoms) &
-              call error_msg('Error: Setup_Enefunc_Restraint - Atom index '//&
-	                     'is not correct.')
+              call error_msg('Error: Setup_Enefunc_Restraint - The atom '//&
+                             'index is incorrect.')
             segname = molecule%segment_name(iatm)
             resname = molecule%residue_name(iatm)
             atname  = molecule%atom_name(iatm)
@@ -290,7 +291,8 @@ contains
     !
     do i = 1, enefunc%num_restraintgroups
       if (enefunc%restraint_numatoms(i) == 0) &
-        call error_msg('Error: Setup_Enefunc_Rest_Group - No atom in group.')
+        call error_msg('Error: Setup_Enefunc_Rest_Group - No atoms found '//&
+                       'in the group.')
     end do
 
     ! setup mass_coefficient

@@ -51,6 +51,7 @@ contains
   !  Subroutine    setup_pairlist
   !> @brief        Initializes, allocates, and sets up pairlists for nonbonded interactions.
   !! @authors      JJ
+  !! @param[in]    boundary : boundary condition information
   !! @param[in]    enefunc  : potential energy functions information
   !! @param[in]    domain   : domain information
   !! @param[inout] pairlist : pair-list information

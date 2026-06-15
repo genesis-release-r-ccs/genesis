@@ -2346,7 +2346,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_CG_ele
-  !> @brief        Calculates excluded volume energy with pairlist (NOBC).
+  !> @brief        Calculates electrostatic energy/force 
   !! @authors      JJ 
   !! @param[in]    domain   : domain information
   !! @param[in]    enefunc  : potential energy functions
@@ -2531,7 +2531,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_PWMcos
-  !> @brief        Calculates PWMcos energy with pairlist (NOBC).
+  !> @brief        Calculates PWMcos energy with pairlist
   !! @authors      JJ 
   !! @param[in]    domain   : domain information
   !! @param[in]    enefunc  : potential energy functions
@@ -3023,7 +3023,7 @@ contains
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
   !  Subroutine    compute_energy_PWMcosns
-  !> @brief        Calculates PWMcosns energy with pairlist (NOBC).
+  !> @brief        Calculates PWMcosns energy with pairlist 
   !! @authors      JJ 
   !! @param[in]    domain   : domain information
   !! @param[in]    enefunc  : potential energy functions

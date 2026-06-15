@@ -515,11 +515,17 @@ contains
   !  Subroutine    setup_processor_number
   !> @brief        Defines the number of processors in each dimension.
   !! @authors      JJ
-  !! @param[in]    bound_info : BOUNDARY section control parameters information
-  !! @param[in]    table        : flag for use table or not
-  !! @param[in]    pairlistdist : pair-list distance
-  !! @param[in]    ensemble     : type of ensemble 
-  !! @param[inout] boundary     : boundary information
+  !! @param[in]    bound_info       : BOUNDARY section control parameters information
+  !! @param[in]    ene_info         : ENERGY section information
+  !! @param[in]    pairlistdist_ele : pair-list distance for electrostatic
+  !! @param[in]    pairlistdist_126 : pair-list distance for 12-6
+  !! @param[in]    pairlistdist_WF  : pair-list distance for WF
+  !! @param[in]    pairlistdist_PWMcos : pair-list distance for PWMcos
+  !! @param[in]    pairlistdist_DNAbp  : pair-list distance for DNAbp
+  !! @param[in]    pairlistdist_exv    : pair-list distance for excluded volume
+  !! @param[in]    cellsize_min     : minimum cell size
+  !! @param[in]    ensemble         : type of ensemble 
+  !! @param[inout] boundary         : boundary information
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
