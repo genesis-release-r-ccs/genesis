@@ -1,0 +1,32 @@
+[INPUT]
+grotopfile            = ../../../build/cg_systems/top/vesicle_mixed.top
+grocrdfile            = ../../../build/cg_systems/crd/vesicle_mixed.gro
+rstfile               = ../../../build/cg_systems/rst/vesicle_mixed.rst
+
+[OUTPUT]
+
+[ENERGY]
+forcefield            = RESIDCG
+electrostatic         = CUTOFF
+cg_sol_temperature    = 323.15
+cg_sol_ionic_strength = 0.15
+
+[DYNAMICS]
+integrator            = LEAP
+timestep              = 0.01
+nsteps                = 20
+eneout_period         = 2
+stoptr_period         = 2
+nbupdate_period       = 2
+iseed                 = 67
+
+[CONSTRAINTS]
+rigid_bond            = NO
+
+[ENSEMBLE]
+ensemble              = NVE
+tpcontrol             = NO
+temperature           = 323.15
+
+[BOUNDARY]
+type                  = PBC

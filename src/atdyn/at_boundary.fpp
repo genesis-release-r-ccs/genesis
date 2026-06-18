@@ -1295,6 +1295,7 @@ contains
     real(wp)                        :: ci, cj, ck
     integer                         :: cellpair_max_x, cellpair_max_y, cellpair_max_z
     integer                         :: ik, jk, kk
+    logical                         :: small_x, small_y, small_z
 
 
     boundary%use_cell_linked_list = .true.
@@ -1319,8 +1320,13 @@ contains
     ncell_x = int(bsize_x/pairlistdist_long)
     ncell_y = int(bsize_y/pairlistdist_long)
     ncell_z = int(bsize_z/pairlistdist_long)
-    ! 
-    if (ncell_x < 3 .or. ncell_y < 3 .or. ncell_z < 3) then
+    !
+    small_x = ncell_x < 3
+    small_y = ncell_y < 3
+    small_z = ncell_z < 3
+    if ((small_x .and. bsize_x <= 2.0_wp*pairlistdist_long) .or. &
+        (small_y .and. bsize_y <= 2.0_wp*pairlistdist_long) .or. &
+        (small_z .and. bsize_z <= 2.0_wp*pairlistdist_long)) then
       ! if (pairlistdist_short < 0.5_wp*bsize_x .and. &
       !     pairlistdist_short < 0.5_wp*bsize_y .and. &
       !     pairlistdist_short < 0.5_wp*bsize_z) then
@@ -1347,6 +1353,10 @@ contains
       ncell_y = int(bsize_y/boundary%pairlist_grid)
       ncell_z = int(bsize_z/boundary%pairlist_grid)
     end if
+
+    if (small_x) ncell_x = 1
+    if (small_y) ncell_y = 1
+    if (small_z) ncell_z = 1
 
     ! -------------------------
     ! cell size and cell number
@@ -1380,6 +1390,9 @@ contains
     cellpair_max_x = int(pairlistdist_long / csize_x) + 1
     cellpair_max_y = int(pairlistdist_long / csize_y) + 1
     cellpair_max_z = int(pairlistdist_long / csize_z) + 1
+    if (small_x) cellpair_max_x = 0
+    if (small_y) cellpair_max_y = 0
+    if (small_z) cellpair_max_z = 0
     boundary%num_neighbor_cells_CG_ele    = 0
     boundary%num_neighbor_cells_CG_126    = 0
     boundary%num_neighbor_cells_CG_WF     = 0

@@ -18,28 +18,28 @@ GENESIS_Information> GENESIS Information
   nonbonding   = CPU
 
 Build_Information> Compiler Information
-  build host   = diego@mbp-m1-max.local
-  fortran      = GNU Fortran (Homebrew GCC 15.2.0_1) 15.2.0
+  build host   = diego@legion
+  fortran      = GNU Fortran (Ubuntu 15.2.0-16ubuntu1) 15.2.0
   option       =  -O3 -ffast-math -march=native -ffree-line-length-none -fallow-argument-mismatch -fPIC  -fopenmp   
-  C            = gcc-15 (Homebrew GCC 15.2.0_1) 15.2.0
-  option       = -g -O2 -fopenmp 
+  C            = gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+  option       = -O3 -ffast-math -march=native -fPIC  -fopenmp 
   defined var. =  -DHAVE_MPI_GENESIS -DOMP -DFFTE -DLAPACK -DDSFMT_MEXP=19937 -D__GFORTRAN__
   link option  =  -fopenmp  -llapack -lblas   
   MPI Compiler = Open MPI
 
 Runtime_Information> Machine and Library Information
-  date       = 2026/03/16 16:07:22
-  cpu model    = N/A
+  date       = 2026/06/17 17:34:55
+  cpu model    = Intel(R) Core(TM) Ultra 9 275HX
   exec. host   = diego@
-  LD library   = /lib:/usr/lib:/etc/ld.so.conf.d:/Users/diego/.local/lib
- MPI Runtime = Open MPI v5.0.9, package: Open MPI brew@Tahoe-arm64.local Distribution, ident: 5.0.9, repo rev: v5.0.9, Oct 30, 2025
+  LD library   = :/usr/local/cuda/lib64:/usr/local/cuda/lib64
+ MPI Runtime = Open MPI v5.0.10, package: Debian OpenMPI, ident: 5.0.10, repo rev: v5.0.10, Feb 23, 2026
 
 [STEP1] Read Control Parameters
  
 Read_Ctrl_Input> Input Files
-  grotopfile = ../../../build/cg_systems/top/popc.top
-  grocrdfile = ../../../build/cg_systems/crd/popc.gro
-  rstfile = ../../../build/cg_systems/rst/popc.rst
+  grotopfile = ../../../build/cg_systems/top/vesicle.top
+  grocrdfile = ../../../build/cg_systems/crd/vesicle.gro
+  rstfile = ../../../build/cg_systems/rst/vesicle.rst
  
 Read_Ctrl_Output> Output Files
  
@@ -65,13 +65,13 @@ Read_Ctrl_Energy> Parameters of Energy Calculations
   efield_virial   =              no
  
 Read_Ctrl_Dynamics> Parameters of MD simulation
-  integrator      =    VVER_CG  nsteps          =         10
+  integrator      =    LEAP     nsteps          =         20
   timestep        =     0.0100  initial_time    =     0.0000
   eneout_period   =          2  rstout_period   =          0
   crdout_period   =          0  velout_period   =          0
-  nbupdate_period =         10  stoptr_period   =         10
+  nbupdate_period =          2  stoptr_period   =          2
   qmsave_period   =          0
-  iseed           =       1234
+  iseed           =         67
   annealing       =         no
   verbose         =         no
   target_md       =         no
@@ -84,13 +84,9 @@ Read_Ctrl_Constraints> Parameters for Constraints
   fixatm_select_index        =       none
  
 Read_Ctrl_Ensemble> Parameters for Ensemble
-  ensemble        =        NPT
-  temperature     =    303.150
-  pressure        =      0.000
-  tpcontrol       =   LANGEVIN
-  gamma_t         =      0.010
-  gamma_p         =      0.010
-  isotropy        = Z-FIXED-SE
+  ensemble        =        NVE
+  initial_temp    =    323.150
+  tpcontrol       =         NO
  
 Read_Ctrl_Boundary> Parameters of Boundary Condition
   type            =     PBC   
@@ -113,8 +109,8 @@ Read_Ctrl_Fitting_MD> Parameters of Fitting
  
 Setup_Mpi_Md> Summary of Setup MPI
   number of MPI processes   =          8
-  number of OpenMP threads  =          1
-  total number of CPU cores =          8
+  number of OpenMP threads  =          3
+  total number of CPU cores =         24
 
 [STEP3] Set Relevant Variables and Structures
  
@@ -141,8 +137,8 @@ Read_Grotop> Summary of Grotopfile
       num_IDR_MPIPI          0
     .. not used molecule types were hidden.
 
-  num_molecules   =       2048
-    POPC                  :  2048
+  num_molecules   =       5811
+    POPC                  :  5811
 
   num_atomtypes   =         26  num_bondtypes   =          0
   num_angltypes   =          0  num_dihetypes   =          0
@@ -157,32 +153,34 @@ Read_Grotop> Summary of Grotopfile
   num_cg_LJ_parameters      =      5
 
 Read_Rst_Binary> Summary of RST file
-  num_atoms       =      12288  iseed           = 2027211620
-  boxsize (x,y,z) =    261.999   261.999   200.000
+  num_atoms       =      34866  iseed           =          0
+  boxsize (x,y,z) =    391.548   391.548   391.548
 
 Define_Molecule> Summary of molecules
-  num_atoms       =      12288  num_bonds       =      10240
-  num_angles      =       8192  num_dihedrals   =          0
+  num_atoms       =      34866  num_bonds       =      29055
+  num_angles      =      23244  num_dihedrals   =          0
   num_impropers   =          0  num_cmap_terms  =          0
-  num_residues    =          1  num_molecules   =       2048
-  num_segments    =          1  num_deg_freedom =      36864
+  num_residues    =          1  num_molecules   =       5811
+  num_segments    =          1  num_deg_freedom =     104598
   total_charge    =      0.000
  
 Update_Num_Deg_Freedom> Number of degrees of freedom was updated
-  num_deg_freedom =      36861 (After removing translation)
+  num_deg_freedom =     104595 (After removing translation)
  
 Setup_Boundary> Setup Variables for Boundary Condition
-  box_size(x,y,z) =    261.999   261.999   200.000
+  box_size(x,y,z) =    391.548   391.548   391.548
   origin(x,y,z)   =      0.000     0.000     0.000
  
 Random_Init> Initialize the random number
-  seed            = 1234
+  seed            = 67
+
+Setup_Enefunc_Cmap> Natural spline is used to derive cmap coefs.
 
 Define_Enefunc_Gromacs> Number of Interactions in Each Term
-  bond_ene        =      10240  angle_ene       =       8192
+  bond_ene        =      29055  angle_ene       =      23244
   torsion_ene     =          0  rb_torsion_ene  =          0
   improper_ene    =          0
-  nb_exclusions   =      18432  nb14_calc       =          0
+  nb_exclusions   =      52299  nb14_calc       =          0
   vsite2_ene      =          0  vsite3_ene      =          0
   vsite3fd_ene    =          0  vsite3fad_ene   =          0
   vsite3out_ene   =          0  vsite4fdn_ene   =          0
@@ -199,51 +197,70 @@ Setup_Fitting_Atdyn> NO fitting is applied, skip
  
             STEP          ENERGY            BOND           ANGLE  NATIVE_CONTACT NON-NATIVE_CONT           ELECT             WCA           ISOLF          CG_EXV
  --------------- --------------- --------------- --------------- ---------------
-               0     -30903.3106       3713.3317       2906.5734          0.0000          0.0000        107.1087        367.9547     -37998.2790          0.0000
+               0    -113133.3645       5034.5015       2259.8004          0.0000          0.0000         64.8584         17.6884    -120510.2131          0.0000
 
 [STEP5] Perform Molecular Dynamics Simulation
  
-INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE             WCA           ISOLF  NATIVE_CONTACT          CG_EXV           ELECT     TEMPERATURE          VOLUME            BOXX            BOXY            BOXZ          VIRIAL        PRESSURE         PRESSXX         PRESSYY         PRESSZZ
+Generate_Velocity> Generate initial velocities
+  iseed           =         67
+  temperature     =    323.150
+ 
+Random_Init_Velocity> Initialize the random number
+  seed            = 67
+
+INFO:       STEP            TIME       TOTAL_ENE   POTENTIAL_ENE     KINETIC_ENE            RMSG            BOND           ANGLE             WCA           ISOLF  NATIVE_CONTACT          CG_EXV           ELECT     TEMPERATURE          VOLUME
  --------------- --------------- --------------- --------------- ---------------
-INFO:          2          0.0200     -21424.6139     -30881.1061       9456.4922          1.3869       3699.6195       2899.8550        368.6429     -37956.0355          0.0000          0.0000        106.8121        258.1983   13737222.5298        262.0804        262.0804        200.0000     -16992.4292        -53.3488        -50.1547        -51.1781        -58.7137
+INFO:          0          0.0000     -79570.2580    -113133.3645      33563.1065          0.0515       5034.5015       2259.8004         17.6884    -120510.2131          0.0000          0.0000         64.8584        322.9547   60027929.8207
 
-INFO:          4          0.0400     -21413.6197     -30857.7755       9444.1559          1.3864       3686.5976       2893.2408        369.8538     -37913.9698          0.0000          0.0000        106.5021        257.8614   13745740.2699        262.1616        262.1616        200.0000     -17000.9882        -53.3995        -49.8912        -51.4332        -58.8740
+INFO:          2          0.0200     -79570.0859    -112957.6346      33387.5487          0.1911       5130.0502       2267.6657         24.3751    -120444.5748          0.0000          0.0000         64.8493        321.2654   60027929.8207
 
-INFO:          6          0.0600     -21402.4597     -30832.9416       9430.4819          1.3859       3674.4679       2886.7292        371.6922     -37872.0140          0.0000          0.0000        106.1831        257.4881   13754191.8929        262.2422        262.2422        200.0000     -17003.1205        -53.4227        -49.6353        -51.5978        -59.0351
+INFO:          4          0.0400     -79569.7241    -112441.1152      32871.3911          0.3691       5413.0000       2288.3733         43.2277    -120250.5458          0.0000          0.0000         64.8296        316.2988   60027929.8207
 
-INFO:          8          0.0800     -21388.2288     -30806.5935       9418.3648          1.3861       3663.4124       2880.3445        374.2741     -37830.4891          0.0000          0.0000        105.8647        257.1573   13762591.4986        262.3222        262.3222        200.0000     -17002.8038        -53.4288        -49.4064        -51.6819        -59.1981
+INFO:          6          0.0600     -79569.1818    -111608.0163      32038.8344          0.5461       5864.0810       2321.7549         73.9144    -119932.5948          0.0000          0.0000         64.8283        308.2877   60027929.8207
 
-INFO:         10          0.1000     -21377.2316     -30778.9030       9401.6714          1.3874       3653.1848       2874.0612        377.8245     -37789.5232          0.0000          0.0000        105.5498        256.7015   13770934.5212        262.4017        262.4017        200.0000     -16996.8850        -53.4224        -49.1897        -51.6971        -59.3803
+INFO:          8          0.0800     -79568.4670    -110495.2498      30926.7828          0.7187       6452.8673       2367.5371        117.8054    -119498.3116          0.0000          0.0000         64.8521        297.5872   60027929.8207
+
+INFO:         10          0.1000     -79567.5794    -109152.3059      29584.7264          0.8851       7140.0870       2425.2162        176.5546    -118959.1324          0.0000          0.0000         64.9687        284.6735   60027929.8207
+
+INFO:         12          0.1200     -79566.5609    -107639.9255      28073.3646          1.0433       7880.5940       2494.0557        251.4677    -118331.2658          0.0000          0.0000         65.2229        270.1307   60027929.8207
+
+INFO:         14          0.1400     -79565.4363    -106027.8791      26462.4428          1.1908       8626.7617       2573.1033        342.9247    -117636.3660          0.0000          0.0000         65.6972        254.6299   60027929.8207
+
+INFO:         16          0.1600     -79564.2590    -104392.3043      24828.0452          1.3247       9332.0331       2661.2028        449.7261    -116901.7422          0.0000          0.0000         66.4760        238.9032   60027929.8207
+
+INFO:         18          0.1800     -79563.1202    -102811.9171      23248.7968          1.4412       9954.3449       2757.0476        568.6151    -116159.5694          0.0000          0.0000         67.6448        223.7072   60027929.8207
+
+INFO:         20          0.2000     -79562.1065    -101362.7584      21800.6519          1.5362      10459.1620       2859.2160        694.0605    -115444.5221          0.0000          0.0000         69.3253        209.7727   60027929.8207
 
  
 [STEP6] Deallocate Arrays
  
 Output_Time> Averaged timer profile (Min, Max)
-  total time      =       0.294
-    setup         =       0.206
-    dynamics      =       0.088
-      energy      =       0.051
-      integrator  =       0.015
+  total time      =       2.389
+    setup         =       0.843
+    dynamics      =       1.546
+      energy      =       0.503
+      integrator  =       0.011
       migration   =       0.000
-      pairlist    =       0.080 (       0.078,       0.082)
+      pairlist    =       1.277 (       1.075,       1.541)
   energy           
-    bond          =       0.000 (       0.000,       0.000)
+    bond          =       0.002 (       0.002,       0.002)
     enm           =       0.000 (       0.000,       0.000)
-    angle         =       0.000 (       0.000,       0.000)
-    dihedral      =       0.000 (       0.000,       0.000)
+    angle         =       0.004 (       0.004,       0.005)
+    dihedral      =       0.000 (       0.000,       0.001)
     base stacking =       0.000 (       0.000,       0.000)
-    nonbond       =       0.037 (       0.035,       0.040)
-      CG exv      =       0.000 (       0.000,       0.000)
+    nonbond       =       0.185 (       0.169,       0.209)
+      CG exv      =       0.002 (       0.002,       0.002)
       CG DNA bp   =       0.000 (       0.000,       0.000)
       CG DNA exv  =       0.000 (       0.000,       0.000)
-      CG ele      =       0.025 (       0.024,       0.026)
+      CG ele      =       0.115 (       0.104,       0.131)
       CG PWMcos   =       0.000 (       0.000,       0.000)
       CG PWMcosns =       0.000 (       0.000,       0.000)
       CG IDR-HPS  =       0.000 (       0.000,       0.000)
       CG IDR-KH   =       0.000 (       0.000,       0.000)
       CG KH       =       0.000 (       0.000,       0.000)
-      CG WCA      =       0.001 (       0.000,       0.001)
-      CG ISOLF    =       0.011 (       0.010,       0.014)
+      CG WCA      =       0.008 (       0.005,       0.011)
+      CG ISOLF    =       0.060 (       0.053,       0.070)
       CG LJ       =       0.000 (       0.000,       0.000)
     CG IDR-MPIPI  =       0.000 (       0.000,       0.000)
       Contact     =       0.000 (       0.000,       0.000)

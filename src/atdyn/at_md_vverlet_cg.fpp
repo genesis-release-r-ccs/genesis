@@ -921,7 +921,7 @@ contains
     type(s_dynamics),         intent(inout) :: dynamics
     type(s_ensemble), target, intent(inout) :: ensemble
     type(s_constraints),      intent(inout) :: constraints
-    type(s_boundary),         intent(inout) :: boundary
+    type(s_boundary), target, intent(inout) :: boundary
     type(s_dynvars),  target, intent(inout) :: dynvars
 
     ! local variables
@@ -936,6 +936,7 @@ contains
     real(wp)                  :: h_dt, q_dt, size_scale(1:3), vel_scale
     real(wp)                  :: virial_constraint(3,3)
     integer                   :: i, j, i_ndegf, natom, maxiter
+    integer                   :: is, ie, quotient, remainder, count
 
     real(wp),         pointer :: mass(:), inv_mass(:)
     real(wp),         pointer :: coord(:,:), coord_ref(:,:), temporary(:,:)
@@ -943,7 +944,9 @@ contains
     real(wp),         pointer :: virial(:,:), viri_const(:,:)
     real(wp),         pointer :: bmoment(:), bmoment_ref(:)
     real(wp),         pointer :: pmass, pforce(:)
-    real(wp),         pointer :: random_f(:,:)
+    real(wp),         pointer :: random_f(:,:), random_f1(:,:)
+    logical,          pointer :: fixatm(:)
+    integer,          pointer :: istart, iend
 
 
     ! use pointers
@@ -967,6 +970,10 @@ contains
     vel_ref     => dynvars%velocity_ref
     force       => dynvars%force
     random_f    => dynvars%random_force
+    random_f1   => dynvars%random_force1
+    istart      => dynvars%istart_atom
+    iend        => dynvars%iend_atom
+    fixatm      => boundary%fixatm
     temporary   => dynvars%temporary
     virial      => dynvars%virial
     viri_const  => dynvars%virial_const
@@ -1000,6 +1007,11 @@ contains
     if (dynvars%step == 1) then
 
       dynamics%iseed = dynamics%iseed + my_country_rank
+
+      if (dynamics%multiple_random_seed) then
+        call random_term
+        call random_init(dynamics%iseed)
+      end if
 
       ! pmass and stochastic force (pforce)
       !
@@ -1040,46 +1052,83 @@ contains
 
       end if
 
+#ifdef HAVE_MPI_GENESIS
+      call mpi_bcast(pforce, 3, mpi_wp_real, 0, mpi_comm_country, ierror)
+#endif
+
       ! random force
       !
       factor   = 2.0_wp*gamma_t*KBOLTZ*temp0/h_dt
 
-      do j = 1, natom
+      random_f(1:3,1:natom) = 0.0_wp
+
+#ifdef HAVE_MPI_GENESIS
+      allocate(dynvars%displs(0:nproc_country-1),     &
+               dynvars%recv_count(0:nproc_country-1), &
+               stat = ierror)
+
+      do j = 0, nproc_country - 1
+
+        quotient  = natom / nproc_country
+        remainder = mod(natom, nproc_country)
+
+        if (j <= (remainder - 1)) then
+          quotient = quotient + 1
+          is       = quotient * j + 1
+          ie       = is + quotient - 1
+        else
+          is       = (quotient + 1)*remainder + &
+                     quotient*(j - remainder) + 1
+          ie       = is + quotient - 1
+        end if
+        dynvars%recv_count(j) = 3*(ie-is+1)
+        if (my_country_rank == j) then
+          istart = is
+          iend   = ie
+        end if
+
+      end do
+
+      dynvars%displs(0) = 0
+      do j = 0, nproc_country - 2
+        dynvars%displs(j+1) = dynvars%displs(j) + dynvars%recv_count(j)
+      end do
+
+      do j = istart, iend
+
+        if (fixatm(j)) cycle
+
         sigma = sqrt(mass(j) * factor)
-  
-        rsq = 2.0_wp
-        do while (rsq >= 1.0_wp)
-          v1  = 2.0_wp*random_get() - 1.0_wp
-          v2  = 2.0_wp*random_get() - 1.0_wp
-          rsq = v1*v1 + v2*v2
-        end do
-        rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-        grandom(1) = rsq * v1
 
-        rsq = 2.0_wp
-        do while (rsq >= 1.0_wp)
-          v1  = 2.0_wp*random_get() - 1.0_wp
-          v2  = 2.0_wp*random_get() - 1.0_wp
-          rsq = v1*v1 + v2*v2
-        end do
-        rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-        grandom(2) = rsq * v1
-  
-        rsq = 2.0_wp
-        do while (rsq >= 1.0_wp)
-          v1  = 2.0_wp*random_get() - 1.0_wp
-          v2  = 2.0_wp*random_get() - 1.0_wp
-          rsq = v1*v1 + v2*v2
-        end do
-        rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-        grandom(3) = rsq * v1
+        grandom(1) = random_get_gauss()
+        grandom(2) = random_get_gauss()
+        grandom(3) = random_get_gauss()
+        random_f1(1:3,j-istart+1) = sigma*grandom(1:3)
 
+      end do
+      count = dynvars%recv_count(my_country_rank)
+      call mpi_allgatherv(random_f1, count, mpi_wp_real,    &
+                          random_f, dynvars%recv_count,     &
+                          dynvars%displs, mpi_wp_real,      &
+                          mpi_comm_country, ierror)
+
+#else
+      do j = 1, natom
+
+        if (fixatm(j)) cycle
+
+        sigma = sqrt(mass(j) * factor)
+
+        grandom(1) = random_get_gauss()
+        grandom(2) = random_get_gauss()
+        grandom(3) = random_get_gauss()
         random_f(1:3,j) = sigma*grandom(1:3)
 
       end do
- 
+#endif
+
     end if
-    
+
     ! iteration of barostats
     !
     do i = 1, maxiter
@@ -1181,7 +1230,7 @@ contains
     type(s_dynamics),         intent(in)    :: dynamics
     type(s_ensemble), target, intent(inout) :: ensemble
     type(s_constraints),      intent(inout) :: constraints
-    type(s_boundary),         intent(inout) :: boundary
+    type(s_boundary), target, intent(inout) :: boundary
     type(s_dynvars),  target, intent(inout) :: dynvars
 
     ! local variables
@@ -1196,6 +1245,7 @@ contains
     real(wp)                  :: virial_constraint(1:3,1:3)
     real(wp)                  :: h_dt, q_dt, vel_scale
     integer                   :: i, j, i_ndegf, natom, maxiter
+    integer                   :: count
 
     real(wp),         pointer :: mass(:), inv_mass(:)
     real(wp),         pointer :: force_add(:,:)
@@ -1204,7 +1254,9 @@ contains
     real(wp),         pointer :: virial(:,:), viri_const(:,:)
     real(wp),         pointer :: bmoment(:), bmoment_ref(:)
     real(wp),         pointer :: pmass, pforce(:)
-    real(wp),         pointer :: random_f(:,:)
+    real(wp),         pointer :: random_f(:,:), random_f1(:,:)
+    logical,          pointer :: fixatm(:)
+    integer,          pointer :: istart, iend
 
 
     ! use pointers
@@ -1229,6 +1281,10 @@ contains
     coord       => dynvars%coord
     force       => dynvars%force
     random_f    => dynvars%random_force
+    random_f1   => dynvars%random_force1
+    istart      => dynvars%istart_atom
+    iend        => dynvars%iend_atom
+    fixatm      => boundary%fixatm
     force_add   => dynvars%temporary
     virial      => dynvars%virial
     viri_const  => dynvars%virial_const
@@ -1295,42 +1351,43 @@ contains
 
     end if
 
+#ifdef HAVE_MPI_GENESIS
+    call mpi_bcast(pforce, 3, mpi_wp_real, 0, mpi_comm_country, ierror)
+#endif
+
     ! random force
     !
     factor   = 2.0_wp*gamma_t*KBOLTZ*temp0/dt
 
-    do j = 1, natom
+#ifdef HAVE_MPI_GENESIS
+    do j = istart, iend
+      if (fixatm(j)) cycle
+
       sigma = sqrt(mass(j) * factor)
 
-      rsq = 2.0_wp
-      do while (rsq >= 1.0_wp)
-        v1  = 2.0_wp*random_get() - 1.0_wp
-        v2  = 2.0_wp*random_get() - 1.0_wp
-        rsq = v1*v1 + v2*v2
-      end do
-      rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-      grandom(1) = rsq * v1
+      grandom(1) = random_get_gauss()
+      grandom(2) = random_get_gauss()
+      grandom(3) = random_get_gauss()
+      random_f1(1:3,j-istart+1) = sigma*grandom(1:3)
 
-      rsq = 2.0_wp
-      do while (rsq >= 1.0_wp)
-        v1  = 2.0_wp*random_get() - 1.0_wp
-        v2  = 2.0_wp*random_get() - 1.0_wp
-        rsq = v1*v1 + v2*v2
-      end do
-      rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-      grandom(2) = rsq * v1
+    end do
+    count = dynvars%recv_count(my_country_rank)
+    call mpi_allgatherv(random_f1, count, mpi_wp_real,    &
+                        random_f, dynvars%recv_count,     &
+                        dynvars%displs, mpi_wp_real,      &
+                        mpi_comm_country, ierror)
+#else
+    do j = 1, natom
+      if (fixatm(j)) cycle
 
-      rsq = 2.0_wp
-      do while (rsq >= 1.0_wp)
-        v1  = 2.0_wp*random_get() - 1.0_wp
-        v2  = 2.0_wp*random_get() - 1.0_wp
-        rsq = v1*v1 + v2*v2
-      end do
-      rsq   = sqrt(-2.0_wp * log(rsq) / rsq)
-      grandom(3) = rsq * v1
+      sigma = sqrt(mass(j) * factor)
 
+      grandom(1) = random_get_gauss()
+      grandom(2) = random_get_gauss()
+      grandom(3) = random_get_gauss()
       random_f(1:3,j) = sigma*grandom(1:3)
     end do
+#endif
    
     vel_ref(1:3,1:natom) = vel(1:3,1:natom)
 
