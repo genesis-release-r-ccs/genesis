@@ -2159,9 +2159,9 @@ contains
       if (.not. present(var_size2)) call error_msg("Alloc_Enefunc> Missing argument.")
 
       if (allocated(enefunc%cg_LJ_type)) then
-        if (size(enefunc%cg_LJ_type, 1) /= var_size) deallocate(enefunc%cg_LJ_type)
+        if (size(enefunc%cg_LJ_type, 1) /= var_size5) deallocate(enefunc%cg_LJ_type)
       end if
-      if (.not. allocated(enefunc%cg_LJ_type)) allocate(enefunc%cg_LJ_type(var_size))
+      if (.not. allocated(enefunc%cg_LJ_type)) allocate(enefunc%cg_LJ_type(var_size5))
 
       if (allocated(enefunc%cg_LJ_bead)) then
         if (size(enefunc%cg_LJ_bead, 1) /= var_size) deallocate(enefunc%cg_LJ_bead)

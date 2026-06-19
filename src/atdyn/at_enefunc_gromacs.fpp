@@ -2485,7 +2485,7 @@ if (main_rank) write(MsgOut, "(a20,f11.6)") "ISOLF pairlistdist: ", enefunc%cg_p
     end do
 
     ! Allocate LJ enefunc arrays
-    call alloc_enefunc(enefunc, EneFuncCGLJ, n_beads, n_names)
+    call alloc_enefunc(enefunc, EneFuncCGLJ, n_beads, n_names, molecule%num_atoms)
 
     ! Save number of beads
     enefunc%num_cg_particle_LJ = n_beads

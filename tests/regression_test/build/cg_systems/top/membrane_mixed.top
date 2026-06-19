@@ -1,0 +1,12 @@
+; Implicit Solvent Lipid Forcefield (iSoLF)
+#include "./itp/isolf.itp"
+
+[ system ]
+CG membrane model
+
+[ molecules ]
+DOPC 1600
+DOPS 400
+
+[ cg_ele_chain_pairs ]
+ON 1 - 2000 : 1 - 2000
