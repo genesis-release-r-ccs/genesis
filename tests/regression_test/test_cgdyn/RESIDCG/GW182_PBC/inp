@@ -7,7 +7,6 @@ forcefield            = RESIDCG
 electrostatic         = CUTOFF
 cg_cutoffdist_ele     = 35.0
 cg_pairlistdist_WF    = 24.0
-cg_pairlistdist_126   = 24.0
 cg_pairlistdist_ele   = 38.0
 cg_sol_ionic_strength = 0.15
 

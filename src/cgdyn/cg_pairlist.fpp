@@ -51,7 +51,6 @@ contains
   !  Subroutine    setup_pairlist
   !> @brief        Initializes, allocates, and sets up pairlists for nonbonded interactions.
   !! @authors      JJ
-  !! @param[in]    boundary : boundary condition information
   !! @param[in]    enefunc  : potential energy functions information
   !! @param[in]    domain   : domain information
   !! @param[inout] pairlist : pair-list information
@@ -379,7 +378,8 @@ contains
         i_idr_hps = cg_IDR_HPS(ixx)
         i_idr_mpipi = cg_IDR_MPIPI(ixx)
         i_idr     = i_idr_kh + i_idr_hps + i_idr_mpipi
-        i_126     = i_idr + i_kh
+        ! i_126 excludes MPIPI: MPIPI uses pairdist2_WF, not pairdist2_126
+        i_126     = i_idr_kh + i_idr_hps + i_kh
 
         if (i_dna /= 0) then
           chain_idx = chain_id(ixx)
@@ -416,10 +416,10 @@ contains
                                 num_nb15_kh, num_nb15_idr_kh,                 &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
-              ! case 1: pairlistdist_exv < rij < pairlistdist_DNAbp 
+              ! case 2: pairlistdist_exv < rij < pairlistdist_DNAbp
               !         interaction of Base pair and IDR
               !
-              else if ((i_dna>0.or.i_126>0) .and. rij2 < pairdist2_DNAbp) then
+              else if ((i_dna>0 .or. i_126>0 .or. i_idr_mpipi>0) .and. rij2 < pairdist2_DNAbp) then
 
                 call pairlist_DNA_idr_check(dna_check, cg_pro_use_KH,         &
                                 cg_IDR_KH, cg_IDR_HPS, cg_IDR_MPIPI,          &
@@ -431,7 +431,21 @@ contains
                                 num_nb15_base, num_nb15_kh, num_nb15_idr_kh,  &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
-              ! case 3: pairlist2_DNAbp < rij < pairlist2_126
+              ! case 3: pairlist2_DNAbp < rij < pairdist2_WF
+              !         MPIPI uses Wang-Frenkel pairlist distance
+              !
+              else if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
+
+                call pairlist_idr_check(cg_pro_use_KH, cg_IDR_KH, cg_IDR_HPS, &
+                                cg_IDR_MPIPI,                                 &
+                                chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
+                                i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
+                                i_idr_hps, i_idr_mpipi,                       &
+                                num_nb15_kh, num_nb15_idr_kh,                 &
+                                num_nb15_idr_hps, num_nb15_idr_mpipi)
+
+              ! case 4: pairdist2_WF < rij < pairlist2_126
+              !         HPS/KH only; MPIPI already excluded beyond pairdist2_WF
               !
               else if (i_126 > 0 .and. rij2 < pairdist2_126) then
 
@@ -439,7 +453,7 @@ contains
                                 cg_IDR_MPIPI,                                 &
                                 chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
                                 i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
-                                i_idr_hps, i_idr_mpipi,                       &
+                                i_idr_hps, 0,                                 &
                                 num_nb15_kh, num_nb15_idr_kh,                 &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
@@ -479,10 +493,10 @@ contains
                                 num_nb15_kh, num_nb15_idr_kh,                 &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
-              ! case 1: pairlistdist_exv < rij < pairlistdist_DNAbp
+              ! case 2: pairlistdist_exv < rij < pairlistdist_DNAbp
               !         interaction of Base pair and IDR
               !
-              else if ((i_dna>0.or.i_126>0) .and. rij2 < pairdist2_DNAbp) then
+              else if ((i_dna>0 .or. i_126>0 .or. i_idr_mpipi>0) .and. rij2 < pairdist2_DNAbp) then
 
                 call pairlist_DNA_idr_check(dna_check, cg_pro_use_KH,         &
                                 cg_IDR_KH, cg_IDR_HPS, cg_IDR_MPIPI,          &
@@ -494,7 +508,21 @@ contains
                                 num_nb15_base, num_nb15_kh, num_nb15_idr_kh,  &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
-              ! case 3: pairlist2_DNAbp < rij < pairlist2_126
+              ! case 3: pairlist2_DNAbp < rij < pairdist2_WF
+              !         MPIPI uses Wang-Frenkel pairlist distance
+              !
+              else if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
+
+                call pairlist_idr_check(cg_pro_use_KH, cg_IDR_KH, cg_IDR_HPS, &
+                                cg_IDR_MPIPI,                                 &
+                                chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
+                                i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
+                                i_idr_hps, i_idr_mpipi,                       &
+                                num_nb15_kh, num_nb15_idr_kh,                 &
+                                num_nb15_idr_hps, num_nb15_idr_mpipi)
+
+              ! case 4: pairdist2_WF < rij < pairlist2_126
+              !         HPS/KH only; MPIPI already excluded beyond pairdist2_WF
               !
               else if (i_126 > 0 .and. rij2 < pairdist2_126) then
 
@@ -502,7 +530,7 @@ contains
                                 cg_IDR_MPIPI,                                 &
                                 chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
                                 i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
-                                i_idr_hps, i_idr_mpipi,                       &
+                                i_idr_hps, 0,                                 &
                                 num_nb15_kh, num_nb15_idr_kh,                 &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
@@ -514,11 +542,11 @@ contains
 
         end do
 
-        if (i_126 > 0) then
+        if (i_126 > 0 .or. i_idr_mpipi > 0) then
 
           do inbc = 1, far_cells_count(i)
 
-            j = far_cells(inbc,i) 
+            j = far_cells(inbc,i)
             start_j = start_atom(j)
 
             do iy = 1, natom(j)
@@ -527,13 +555,27 @@ contains
               dij(1:3) = rtmp(1:3) - coord(iyy,1:3)
               rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
 
-              if (rij2 < pairdist2_126) then
+              ! case 3: MPIPI uses Wang-Frenkel pairlist distance
+              !
+              if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
 
                 call pairlist_idr_check(cg_pro_use_KH, cg_IDR_KH, cg_IDR_HPS, &
                                 cg_IDR_MPIPI,                                 &
                                 chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
                                 i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
                                 i_idr_hps, i_idr_mpipi,                       &
+                                num_nb15_kh, num_nb15_idr_kh,                 &
+                                num_nb15_idr_hps, num_nb15_idr_mpipi)
+
+              ! case 4: HPS/KH only; MPIPI already excluded beyond pairdist2_WF
+              !
+              else if (i_126 > 0 .and. rij2 < pairdist2_126) then
+
+                call pairlist_idr_check(cg_pro_use_KH, cg_IDR_KH, cg_IDR_HPS, &
+                                cg_IDR_MPIPI,                                 &
+                                chain_id, id_l2g, cg_kh_mol_pair, iyy,        &
+                                i_atom, chain_idx, i_idr, i_kh, i_idr_kh,     &
+                                i_idr_hps, 0,                                 &
                                 num_nb15_kh, num_nb15_idr_kh,                 &
                                 num_nb15_idr_hps, num_nb15_idr_mpipi)
 
@@ -1025,7 +1067,8 @@ contains
       i_idr_hps = cg_IDR_HPS(ixx)
       i_idr_mpipi = cg_IDR_MPIPI(ixx)
       i_idr     = i_idr_kh + i_idr_hps + i_idr_mpipi
-      i_126     = i_idr + i_kh
+      ! i_126 excludes MPIPI: MPIPI uses pairdist2_WF, not pairdist2_126
+      i_126     = i_idr_kh + i_idr_hps + i_kh
 
       if (i_dna /= 0) then
         chain_idx = chain_id(ixx)
@@ -1046,7 +1089,7 @@ contains
 
       if (i <= ncell) then
 
-        do iyy = ixx+1, start_atom(i+1) 
+        do iyy = ixx+1, start_atom(i+1)
 
           if (exclusion_mask(iyy,ixx) /= 1) then
 
@@ -1074,10 +1117,10 @@ contains
                                 cg_idr_kh_list, cg_idr_hps_list,              &
                                 cg_idr_mpipi_list)
 
-            ! case 1: pairlistdist_exv < rij < pairlistdist_DNAbp 
+            ! case 2: pairlistdist_exv < rij < pairlistdist_DNAbp
             !         interaction of Base pair and IDR
             !
-            else if ((i_dna>0.or.i_126>0) .and. rij2 < pairdist2_DNAbp) then
+            else if ((i_dna>0 .or. i_126>0 .or. i_idr_mpipi>0) .and. rij2 < pairdist2_DNAbp) then
 
               call pairlist_DNA_idr(k_base, k_kh, k_idr_kh, k_idr_hps,       &
                                 k_idr_mpipi,                                 &
@@ -1094,7 +1137,25 @@ contains
                                 cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
                                 cg_idr_mpipi_list)
 
-            ! case 3: pairlist2_DNAbp < rij < pairlist2_126
+            ! case 3: pairlist2_DNAbp < rij < pairdist2_WF
+            !         MPIPI uses Wang-Frenkel pairlist distance
+            !
+            else if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
+
+              call pairlist_idr(k_kh, k_idr_kh, k_idr_hps, k_idr_mpipi,      &
+                                cg_pro_use_KH,                               &
+                                cg_IDR_KH, cg_IDR_HPS, cg_IDR_MPIPI,         &
+                                chain_id, id_l2g,                            &
+                                cg_kh_mol_pair, iyy, i_atom, chain_idx,      &
+                                i_idr, i_kh, i_idr_kh, i_idr_hps,            &
+                                i_idr_mpipi, num_nb15_kh,                    &
+                                num_nb15_idr_kh, num_nb15_idr_hps,           &
+                                num_nb15_idr_mpipi,                          &
+                                cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
+                                cg_idr_mpipi_list)
+
+            ! case 4: pairdist2_WF < rij < pairlist2_126
+            !         HPS/KH only; MPIPI already excluded beyond pairdist2_WF
             !
             else if (i_126 > 0 .and. rij2 < pairdist2_126) then
 
@@ -1104,7 +1165,7 @@ contains
                                 chain_id, id_l2g,                            &
                                 cg_kh_mol_pair, iyy, i_atom, chain_idx,      &
                                 i_idr, i_kh, i_idr_kh, i_idr_hps,            &
-                                i_idr_mpipi, num_nb15_kh,                    &
+                                0, num_nb15_kh,                              &
                                 num_nb15_idr_kh, num_nb15_idr_hps,           &
                                 num_nb15_idr_mpipi,                          &
                                 cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
@@ -1124,7 +1185,7 @@ contains
         start_j = start_atom(j)
 
         do iy = 1, natom(j)
-     
+
           iyy = iy + start_j
 
           if (exclusion_mask(iyy,ixx) /= 1) then
@@ -1154,10 +1215,10 @@ contains
                                 cg_idr_mpipi_list)
 
 
-            ! case 1: pairlistdist_exv < rij < pairlistdist_DNAbp 
+            ! case 2: pairlistdist_exv < rij < pairlistdist_DNAbp
             !         interaction of Base pair and IDR
             !
-            else if ((i_dna>0.or.i_126>0) .and. rij2 < pairdist2_DNAbp) then
+            else if ((i_dna>0 .or. i_126>0 .or. i_idr_mpipi>0) .and. rij2 < pairdist2_DNAbp) then
 
               call pairlist_DNA_idr(k_base, k_kh, k_idr_kh, k_idr_hps,       &
                                 k_idr_mpipi,                                 &
@@ -1174,10 +1235,10 @@ contains
                                 cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
                                 cg_idr_mpipi_list)
 
-
-            ! case 3: pairlist2_DNAbp < rij < pairlist2_126
+            ! case 3: pairlist2_DNAbp < rij < pairdist2_WF
+            !         MPIPI uses Wang-Frenkel pairlist distance
             !
-            else if (i_126 > 0 .and. rij2 < pairdist2_126) then
+            else if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
 
               call pairlist_idr(k_kh, k_idr_kh, k_idr_hps, k_idr_mpipi,      &
                                 cg_pro_use_KH,                               &
@@ -1191,6 +1252,23 @@ contains
                                 cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
                                 cg_idr_mpipi_list)
 
+            ! case 4: pairdist2_WF < rij < pairlist2_126
+            !         HPS/KH only; MPIPI already excluded beyond pairdist2_WF
+            !
+            else if (i_126 > 0 .and. rij2 < pairdist2_126) then
+
+              call pairlist_idr(k_kh, k_idr_kh, k_idr_hps, k_idr_mpipi,      &
+                                cg_pro_use_KH,                               &
+                                cg_IDR_KH, cg_IDR_HPS, cg_IDR_MPIPI,         &
+                                chain_id, id_l2g,                            &
+                                cg_kh_mol_pair, iyy, i_atom, chain_idx,      &
+                                i_idr, i_kh, i_idr_kh, i_idr_hps,            &
+                                0, num_nb15_kh,                              &
+                                num_nb15_idr_kh, num_nb15_idr_hps,           &
+                                num_nb15_idr_mpipi,                          &
+                                cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
+                                cg_idr_mpipi_list)
+
             end if
 
           end if
@@ -1199,7 +1277,7 @@ contains
 
       end do
 
-      if (i_126 > 0) then
+      if (i_126 > 0 .or. i_idr_mpipi > 0) then
 
         do inbc = 1, far_cells_count(i)
 
@@ -1212,7 +1290,9 @@ contains
             dij(1:3) = rtmp(1:3) - coord(iyy,1:3)
             rij2 = dij(1)*dij(1) + dij(2)*dij(2) + dij(3)*dij(3)
 
-            if (rij2 < pairdist2_126) then
+            ! case 3: MPIPI uses Wang-Frenkel pairlist distance
+            !
+            if ((i_idr_mpipi>0 .or. i_126>0) .and. rij2 < pairdist2_WF) then
 
               call pairlist_idr(k_kh, k_idr_kh, k_idr_hps, k_idr_mpipi,      &
                                 cg_pro_use_KH,                               &
@@ -1221,6 +1301,22 @@ contains
                                 cg_kh_mol_pair, iyy, i_atom, chain_idx,      &
                                 i_idr, i_kh, i_idr_kh, i_idr_hps,            &
                                 i_idr_mpipi, num_nb15_kh,                    &
+                                num_nb15_idr_kh, num_nb15_idr_hps,           &
+                                num_nb15_idr_mpipi,                          &
+                                cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
+                                cg_idr_mpipi_list)
+
+            ! case 4: HPS/KH only; MPIPI already excluded beyond pairdist2_WF
+            !
+            else if (i_126 > 0 .and. rij2 < pairdist2_126) then
+
+              call pairlist_idr(k_kh, k_idr_kh, k_idr_hps, k_idr_mpipi,      &
+                                cg_pro_use_KH,                               &
+                                cg_IDR_KH, cg_IDR_HPS, cg_IDR_MPIPI,         &
+                                chain_id, id_l2g,                            &
+                                cg_kh_mol_pair, iyy, i_atom, chain_idx,      &
+                                i_idr, i_kh, i_idr_kh, i_idr_hps,            &
+                                0, num_nb15_kh,                              &
                                 num_nb15_idr_kh, num_nb15_idr_hps,           &
                                 num_nb15_idr_mpipi,                          &
                                 cg_kh_list, cg_idr_kh_list, cg_idr_hps_list, &
