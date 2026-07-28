@@ -1031,6 +1031,9 @@ if test x"${with_cuda}" != x"no"; then
     if test ${NVCC_VER} -ge 1200000; then
       GENCODEFLAG+=' --generate-code=arch=compute_90,code=\"sm_90,compute_90\"'
     fi
+    if test ${NVCC_VER} -ge 1208000; then
+      GENCODEFLAG+=' --generate-code=arch=compute_100,code=\"sm_100,compute_100\"'
+    fi
   fi
 
 # NVCCFLAG
