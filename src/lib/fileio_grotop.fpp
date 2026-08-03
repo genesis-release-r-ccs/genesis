@@ -963,7 +963,7 @@ contains
     integer                  :: ierr
     character(MaxLine)       :: error
 
-    character(100), allocatable :: strs(:)
+    character(MaxFilename), allocatable :: strs(:)
 
     ! parse filename string
     !
