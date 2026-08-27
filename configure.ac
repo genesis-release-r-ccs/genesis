@@ -700,7 +700,7 @@ if test x"${with_lapack}" == x"yes"; then
     lapacklib="lapack"
     LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
-          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
+          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],[${blaslink} ${OPT_LD_LAPACK}])
     LDFLAGS+=" -llapack ${blaslink}"
 
   elif test x"${FC_ACT}" = x"nvfortran"; then
@@ -708,7 +708,7 @@ if test x"${with_lapack}" == x"yes"; then
     LDFLAGS+=" -llapack ${blaslink}"
     LDFLAGS+=${OPT_LD_LAPACK}
     AC_CHECK_LIB([${lapacklib}], [dsyev],
-          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],["${blaslink} ${OPT_LD_LAPACK}"])
+          [LDFLAGS+=" -llapack ${blaslink}"], [AC_MSG_ERROR([lapack is not correct])],[${blaslink} ${OPT_LD_LAPACK}])
     LDFLAGS+=" -llapack ${blaslink}"
 
   elif test x"${FC_ACT}" = x"gfortran" -o \
