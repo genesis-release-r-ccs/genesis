@@ -5672,6 +5672,11 @@ contains
       domain%pairlist_kernel = PLK_Fugaku
       domain%nonbond_kernel  = NBK_Fugaku
 
+    case (NBK_GPU)
+
+      domain%pairlist_kernel = PLK_GPU
+      domain%nonbond_kernel  = NBK_GPU
+
     case (NBK_Spica)
 
       domain%pairlist_kernel = PLK_Spica
