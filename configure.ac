@@ -230,6 +230,16 @@ elif test x"${enable_mpi}" = x"yes" ; then
   mpi_probe_fc=""
   AS_IF([test -n "${MPIFC}"], [mpi_probe_fc="${MPIFC}"], [mpi_probe_fc="${FC}"])
 
+  dnl ---- 0) Fujitsu MPI wrapper: none of the generic probes below understand it
+  dnl        (mpifrtpx/mpifrt take -V, not --version/-show/--showme:version), so
+  dnl        classify it directly instead of falling through to "unknown". ----
+  mpi_probe_fc_base=`AS_BASENAME(["$mpi_probe_fc"])`
+  case "x${mpi_probe_fc_base}" in
+    xmpifrtpx|xmpifrt)
+      mpitype="Fujitsu"
+      ;;
+    *)
+
   dnl ---- 1) OpenMPI-style showme (ONLY if supported) ----
   AS_IF([${mpi_probe_fc} --showme:version >/dev/null 2>&1], [
     mpi_ver_info="$(${mpi_probe_fc} --showme:version 2>/dev/null)"
@@ -273,6 +283,8 @@ elif test x"${enable_mpi}" = x"yes" ; then
   else
     mpitype="unknown"
   fi
+      ;;
+  esac
 
 fi
 AC_MSG_RESULT([${mpitype}])
