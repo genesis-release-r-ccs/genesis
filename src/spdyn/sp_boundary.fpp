@@ -587,6 +587,7 @@ contains
           do j = 2, ny
             do i = 2, nx
               if (i*j*k == nproc_city) then
+                defined_proc = .true.
                 itype = itype + 1
                 nc(1,itype) = i
                 nc(2,itype) = j
