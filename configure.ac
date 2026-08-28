@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(genesis, [2.1.6], genesis@riken.jp)
+AC_INIT(genesis, [2.2.0], genesis@riken.jp)
 AC_CONFIG_SRCDIR([src/spdyn/spdyn.fpp])
 AC_CONFIG_HEADER([src/config.h])
 
@@ -2133,12 +2133,28 @@ AC_SUBST(FCFLAGS_FPP__PGI_NOOPT)
 
 ## check compile information
 #
-test -d .git && rm -f src/GENESIS_VERSION
-test -d .git && git checkout src/GENESIS_VERSION
+if test -d .git; then
+  if command -v perl >/dev/null 2>&1; then
+    git config --local filter.version-date.smudge "perl version_scripts/version.pl"
+    git config --local filter.version-date.clean  "perl version_scripts/version_remove.pl"
+  fi
+  rm -f src/GENESIS_VERSION
+  git checkout src/GENESIS_VERSION
+fi
+
+GENESIS_VERSION_STRING="`cat src/GENESIS_VERSION | sed -e 's/\$GENESIS_VERSION\$: //'`"
+case "${GENESIS_VERSION_STRING}" in
+  *'$GENESIS_VERSION$'*)
+    if test -d .git; then
+      GENESIS_VERSION_STRING="`git log --date=short --pretty=format:'%h [%ai]' -1 2>/dev/null`"
+    fi
+    test -z "${GENESIS_VERSION_STRING}" && GENESIS_VERSION_STRING="unknown"
+    ;;
+esac
 
 AC_DEFINE_UNQUOTED([COMPILE_HOST],["`hostname`"],[hostname])
 AC_DEFINE_UNQUOTED([COMPILE_USER],["`whoami`"],[username])
-AC_DEFINE_UNQUOTED([COMPILE_GENESIS_VERSION],["`cat src/GENESIS_VERSION | sed -e 's/\$GENESIS_VERSION\$: //'`"],[genesis version])
+AC_DEFINE_UNQUOTED([COMPILE_GENESIS_VERSION],["${GENESIS_VERSION_STRING}"],[genesis version])
 AC_DEFINE_UNQUOTED([COMPILE_FC_VER],["`${FC_ACT} ${VER_OPT} 2>&1 | sed -e '/^$/d'| head -1`"],[fortran compiler version])
 AC_DEFINE_UNQUOTED([COMPILE_CC_VER],["`${CC_ACT} ${VER_OPT} 2>&1 | sed -e '/^$/d'| head -1`"],[c compiler version])
 AC_DEFINE_UNQUOTED([COMPILE_DEFINED_VARIABLES],["${DEFINED_VARIABLES}"],[defined variables])
