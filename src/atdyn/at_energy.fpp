@@ -157,6 +157,7 @@ module at_energy_mod
   public  :: read_ctrl_energy
   public  :: setup_energy
   public  :: compute_energy
+  public  :: compute_energy_condition_only
   public  :: output_energy
   private :: compute_energy_charmm
   private :: compute_energy_charmm19
@@ -4878,5 +4879,108 @@ contains
 
   end subroutine allreduce_eneforce_multi
 #endif
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Subroutine    compute_energy_condition_only
+  !> @brief        calculate only the energy terms whose potential depends
+  !!               on the REMD condition (temperature): EEF1/GBSA solvation
+  !!               and CG (RESIDCG) Debye-Huckel electrostatics
+  !! @param[in]    molecule  : molecule information
+  !! @param[in]    enefunc   : potential energy functions information
+  !! @param[in]    pairlist  : pairlist information
+  !! @param[in]    boundary  : boundary condition information
+  !! @param[in]    coord     : coordinates
+  !! @param[in]    coord_pbc : coordinates wrapped for PBC
+  !! @param[out]   u_cond     : condition-dependent energy
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  subroutine compute_energy_condition_only(molecule, enefunc, pairlist, &
+                                           boundary, coord, coord_pbc,  &
+                                           u_cond)
+
+    ! formal arguments
+    type(s_molecule),        intent(in)    :: molecule
+    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_pairlist),        intent(in)    :: pairlist
+    type(s_boundary),        intent(in)    :: boundary
+    real(wp),                intent(in)    :: coord(:,:)
+    real(wp),                intent(in)    :: coord_pbc(:,:)
+    real(wp),                intent(out)   :: u_cond
+
+    ! local variables
+    logical                  :: nonb_ene
+    real(wp)                 :: eelec, evdw, esolv
+    real(wp)                 :: virial(3,3)
+    real(dp)                 :: u_cond_dp, u_cond_local
+    real(wp),    allocatable :: force_omp(:,:,:)
+
+
+    allocate(force_omp(3, molecule%num_atoms, nthread))
+
+    u_cond_dp  = 0.0_dp
+    force_omp = 0.0_wp
+    virial    = 0.0_wp
+    nonb_ene  = .true.
+
+    if (enefunc%eef1_use) then
+      eelec = 0.0_wp
+      evdw  = 0.0_wp
+      esolv = 0.0_wp
+
+      call compute_energy_nonbond_eef1(enefunc, molecule, pairlist, nonb_ene, &
+                                       coord, force_omp, virial,              &
+                                       eelec, evdw, esolv)
+
+      u_cond_dp = u_cond_dp + real(esolv, dp)
+
+    else if (enefunc%gbsa_use) then
+      esolv = 0.0_wp
+
+      call compute_energy_gbsa(enefunc, molecule, pairlist, nonb_ene, &
+                               coord, force_omp, virial, esolv)
+
+      u_cond_dp = u_cond_dp + real(esolv, dp)
+    end if
+
+    if (enefunc%cg_ele_calc .and. enefunc%forcefield == ForcefieldRESIDCG) then
+      eelec = 0.0_wp
+
+      select case (boundary%type)
+
+      case (BoundaryTypePBC)
+        call compute_energy_CG_ele_pbc(enefunc, boundary, pairlist, &
+                                       coord_pbc, force_omp, virial, eelec)
+
+      case (BoundaryTypeNOBC)
+        call compute_energy_CG_ele(enefunc, pairlist, coord, force_omp, &
+                                   virial, eelec)
+
+      case default
+        call error_msg('Compute_Energy_Condition_Only> Bad boundary condition for CG ele.')
+
+      end select
+
+      u_cond_dp = u_cond_dp + real(eelec, dp)
+    end if
+
+#ifdef HAVE_MPI_GENESIS
+    ! sum the contributions of the atoms handled by each MPI process
+    ! within this replica (relevant when a replica is itself decomposed
+    ! across more than one MPI rank)
+    !
+    u_cond_local = u_cond_dp
+    call mpi_allreduce(u_cond_local, u_cond_dp, 1, mpi_real8, mpi_sum, &
+                       mpi_comm_country, ierror)
+#endif
+
+    u_cond = real(u_cond_dp, wp)
+
+    deallocate(force_omp)
+
+    return
+
+  end subroutine compute_energy_condition_only
 
 end module at_energy_mod

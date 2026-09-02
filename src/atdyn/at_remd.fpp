@@ -2274,7 +2274,8 @@ contains
 
     case(RemdTemperature)
 
-      call temperature_remd(dimno, exptrn, molecule, dynvars, remd, enefunc)
+      call temperature_remd(dimno, exptrn, molecule, dynvars, remd, enefunc, &
+                            boundary, pairlist)
 
     case(RemdPressure)
 
@@ -2601,7 +2602,8 @@ contains
   !
   !======1=========2=========3=========4=========5=========6=========7=========8
 
-  subroutine temperature_remd(dimno, exptrn, molecule, dynvars, remd, enefunc)
+  subroutine temperature_remd(dimno, exptrn, molecule, dynvars, remd, enefunc, &
+                              boundary, pairlist)
 
     ! formal arguments
     integer,                  intent(in)    :: dimno
@@ -2610,6 +2612,8 @@ contains
     type(s_dynvars),          intent(inout) :: dynvars
     type(s_remd),     target, intent(inout) :: remd
     type(s_enefunc),  target, intent(inout) :: enefunc
+    type(s_boundary),         intent(in)    :: boundary
+    type(s_pairlist),         intent(in)    :: pairlist
 
     ! local variables
     integer                   :: i, j, k
@@ -2619,6 +2623,8 @@ contains
     real(wp)                  :: energy_i, energy_j, delta
     real(wp)                  :: before_gather
     logical                   :: do_trial, do_exchange
+    logical                   :: use_cond_energy
+    real(wp)                  :: u_cond
     integer,          pointer :: total_nreplicas, iseed
     integer,          pointer :: num_criteria(:,:,:), num_exchanges(:,:,:)
     integer,          pointer :: parmidsets(:,:)
@@ -2626,7 +2632,8 @@ contains
     real(wp),         pointer :: parameters(:,:)
     real(wp),         pointer :: after_gather(:), random_table(:,:)
     real(wp),     allocatable :: xi_gather(:,:)
-    real(dp),     allocatable :: u(:), u_gather(:,:)   
+    real(dp),     allocatable :: u(:), u_gather(:,:)
+    real(wp),     allocatable :: u_cond_self(:), u_cond_other(:)
 
 
     total_nreplicas => remd%total_nreplicas
@@ -2681,6 +2688,81 @@ contains
       enefunc%abmd%tmp_uk = enefunc%abmd%uk
     endif
 
+    ! calculate condition-dependent energy (EEF1/GBSA solvation, CG
+    ! electrostatics) at own temperature and at the neighboring replica's
+    ! temperature, using only the local (own-rank) coordinates; the
+    ! condition-independent part of the potential is assumed unchanged,
+    ! so only this part needs to be re-evaluated across conditions
+    !
+    use_cond_energy = enefunc%eef1_use .or. enefunc%gbsa_use .or. &
+                      enefunc%cg_ele_calc
+
+    if (use_cond_energy) then
+      allocate(u_cond_self(total_nreplicas), u_cond_other(total_nreplicas))
+
+      call compute_energy_condition_only(molecule, enefunc, pairlist, &
+                                         boundary, dynvars%coord,      &
+                                         dynvars%coord_pbc, u_cond)
+      before_gather = u_cond
+#ifdef HAVE_MPI_GENESIS
+      call mpi_allgather(before_gather, 1, mpi_wp_real, &
+                         u_cond_self,    1, mpi_wp_real, &
+                         mpi_comm_airplane, ierror)
+#endif
+
+      ! remove the condition-dependent part evaluated at the replica's own
+      ! condition from the gathered total energy; it will be re-added
+      ! per-pair using the correct (cross) condition below
+      !
+      do i = 1, total_nreplicas
+        remd%potential_energy(i) = remd%potential_energy(i) - u_cond_self(i)
+      end do
+
+      parmsetid_i = repid2parmsetid(my_country_no+1)
+      call get_neighbouring_parmsetid(dimno, exptrn, remd, parmsetid_i, neighid)
+
+      if (neighid /= 0) then
+
+        ! temporarily switch to the neighboring replica's temperature
+        !
+        temp_j = parameters(dimno,parmidsets(neighid,dimno))
+        if (enefunc%eef1_use) then
+          call setup_eef1_temperature(temp_j, enefunc)
+        else if (enefunc%gbsa_use) then
+          enefunc%gbsa%temperature = temp_j
+        end if
+        if (enefunc%cg_ele_calc) then
+          enefunc%cg_ele_sol_T = temp_j
+        end if
+
+        call compute_energy_condition_only(molecule, enefunc, pairlist, &
+                                           boundary, dynvars%coord,      &
+                                           dynvars%coord_pbc, u_cond)
+
+        ! restore own temperature
+        !
+        temp_i = parameters(dimno,parmidsets(parmsetid_i,dimno))
+        if (enefunc%eef1_use) then
+          call setup_eef1_temperature(temp_i, enefunc)
+        else if (enefunc%gbsa_use) then
+          enefunc%gbsa%temperature = temp_i
+        end if
+        if (enefunc%cg_ele_calc) then
+          enefunc%cg_ele_sol_T = temp_i
+        end if
+
+      else
+        u_cond = 0.0_wp
+      end if
+
+      before_gather = u_cond
+#ifdef HAVE_MPI_GENESIS
+      call mpi_allgather(before_gather, 1, mpi_wp_real, &
+                         u_cond_other,   1, mpi_wp_real, &
+                         mpi_comm_airplane, ierror)
+#endif
+    end if
+
     ! replica exchange
     !
     do i = 1, total_nreplicas
@@ -2720,6 +2802,12 @@ contains
                                      u_gather(repid_i, repid_i))  &
                          - beta_j * (u_gather(repid_j, repid_j) - &
                                      u_gather(repid_i, repid_j))
+        endif
+        if (use_cond_energy) then
+          delta  = delta + beta_i * (u_cond_other(repid_j) - &
+                                     u_cond_self (repid_i)) &
+                         - beta_j * (u_cond_self (repid_j) - &
+                                     u_cond_other(repid_i))
         endif
 
         ! Metropolis criterion
@@ -2772,6 +2860,11 @@ contains
       deallocate(u_gather)
       deallocate(u)
     endif
+
+    if (use_cond_energy) then
+      deallocate(u_cond_self)
+      deallocate(u_cond_other)
+    end if
 
     return
 
