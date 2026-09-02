@@ -4901,8 +4901,8 @@ contains
                                            u_cond)
 
     ! formal arguments
-    type(s_molecule),        intent(in)    :: molecule
-    type(s_enefunc),         intent(in)    :: enefunc
+    type(s_molecule),        intent(inout) :: molecule
+    type(s_enefunc),         intent(inout) :: enefunc
     type(s_pairlist),        intent(in)    :: pairlist
     type(s_boundary),        intent(in)    :: boundary
     real(wp),                intent(in)    :: coord(:,:)
@@ -4938,8 +4938,8 @@ contains
     else if (enefunc%gbsa_use) then
       esolv = 0.0_wp
 
-      call compute_energy_gbsa(enefunc, molecule, pairlist, nonb_ene, &
-                               coord, force_omp, virial, esolv)
+      call compute_energy_gbsa(enefunc, molecule, pairlist, coord, &
+                               force_omp, esolv)
 
       u_cond_dp = u_cond_dp + real(esolv, dp)
     end if
