@@ -967,6 +967,8 @@ if test x"${with_cuda}" != x"no"; then
   AC_DEFINE(CUDAGPU, 1, [defined if cuda_gpu is used.])
   DEFINED_VARIABLES+=" -DCUDAGPU"
 
+  AC_SEARCH_LIBS([dlclose], [dl])
+
   if test x"${FC_ACT}" = x"pgf90"; then
     OPT_LD_CUDA+="-Mcuda -L${cuda_lib_path} -lcudart -lstdc++"
     OPT_FC_CUDA+="-Mcuda "
