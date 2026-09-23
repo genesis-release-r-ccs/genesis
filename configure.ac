@@ -1367,6 +1367,17 @@ else
     elif test x"${FC_ACT}" = x"nvfortran"; then
       FCFLAGS="-O2 -fast  -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
       FCFLAGS_NOSIMD="-O2 -Mvect=nosimd -Munroll=c:1 -Mnoframe -Mlre -Mpre -m64 -Mflushz -pc 64 -mcmodel=medium -Mbackslash"
+      # -Mpre is rejected by nvfortran on AArch64 (e.g. Grace)
+      AC_MSG_CHECKING([whether ${FC} accepts -Mpre])
+      AC_LANG_PUSH([Fortran])
+      save_FCFLAGS="$FCFLAGS"
+      FCFLAGS="-Mpre"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],
+        [AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])
+         FCFLAGS_NOSIMD=`echo "${FCFLAGS_NOSIMD}" | sed -e 's/ -Mpre / /'`])
+      FCFLAGS="$save_FCFLAGS"
+      AC_LANG_POP([Fortran])
 
     elif test x"${FC_ACT}" = x"frtpx" -o x"${FC_ACT}" = x"frt" ; then
       FCFLAGS="-Kocl"
