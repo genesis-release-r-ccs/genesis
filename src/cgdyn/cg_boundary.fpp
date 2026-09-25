@@ -576,7 +576,7 @@ contains
                      'is not a power of 2.')
     if (nproc_country < 8) &
       call error_msg('Error: Setup_Processor_Number - Number of processes '//&
-                     'should be greater than 8.')
+                     'should be 8 or more.')
 
     extend1 = .false.
     if (ensemble == EnsembleNPT  .or. &

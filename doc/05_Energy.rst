@@ -1251,6 +1251,19 @@ where :math:`\mu=1` and :math:`r_c=3\sigma` is the cutoff, and
 
 is used to garantee that the potential minimum is :math:`-\varepsilon`.
 
+.. note::
+  When preparing initial coordinates for the HPS, CALVADOS, and MPIPI
+  models, care should be taken to avoid overlapping particles: the
+  repulsive core of these potentials (in particular the Wang-Frenkel
+  term used in MPIPI) is very steep at short distance, and a poorly
+  prepared initial structure can prevent energy minimization from
+  converging.  For instructions on how to generate initial files for
+  the HPS, CALVADOS, and MPIPI models, please refer to the
+  "GENESIS-CG-tool" GitHub repository
+  (https://github.com/genesis-release-r-ccs/genesis_cg_tool).  More
+  detailed usage instructions will be provided in the tutorials on the
+  GENESIS website.
+
 Structure and context-based RNA model
 -------------------------------------
 

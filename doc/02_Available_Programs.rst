@@ -250,6 +250,16 @@ To avoid such problems, the users may have to use smaller number of MPI processo
 (which makes cells larger) or shorter pairlistdist (making much cells in one domain),
 or reconstruct a larger system.
 
+In **CGDYN**, the requirement is different: because of the kd-tree-based
+dynamic load balancing described above, the number of MPI processors
+must be at least 8, and must be a power of 2 (i.e. :math:`2^n`,
+:math:`n \geq 3`: 8, 16, 32, ...). If this requirement is not satisfied,
+one of the following error messages will be shown:
+::
+
+  Error: Setup_Processor_Number - Number of processes is not a power of 2.
+  Error: Setup_Processor_Number - Number of processes should be 8 or more.
+
 
 Available sections
 ------------------
