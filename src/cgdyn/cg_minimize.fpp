@@ -393,15 +393,7 @@ contains
 
     call communicate_force(domain, comm)
 
-    dynvars%total_pene = dynvars%energy%bond          &
-                       + dynvars%energy%angle         &
-                       + dynvars%energy%urey_bradley  &
-                       + dynvars%energy%dihedral      &
-                       + dynvars%energy%improper      &
-                       + dynvars%energy%cmap          &
-                       + dynvars%energy%electrostatic &
-                       + dynvars%energy%van_der_waals &
-                       + dynvars%energy%restraint_position
+    dynvars%total_pene = compute_total_pene(enefunc, dynvars%energy)
     dynvars%energy%total = dynvars%total_pene
 
     rmsg = 0.0_dp
@@ -455,15 +447,7 @@ contains
       
       ! Broad cast total energy
       !
-      dynvars%total_pene = dynvars%energy%bond          &
-                         + dynvars%energy%angle         &
-                         + dynvars%energy%urey_bradley  &
-                         + dynvars%energy%dihedral      &
-                         + dynvars%energy%improper      &
-                         + dynvars%energy%cmap          &
-                         + dynvars%energy%electrostatic &
-                         + dynvars%energy%van_der_waals &
-                         + dynvars%energy%restraint_position
+      dynvars%total_pene = compute_total_pene(enefunc, dynvars%energy)
 
       dynvars%energy%total = dynvars%total_pene
 

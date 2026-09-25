@@ -21,6 +21,7 @@ module cg_dynvars_mod
   use cg_ensemble_str_mod
   use cg_boundary_str_mod
   use cg_enefunc_str_mod
+  use cg_energy_str_mod
   use cg_domain_str_mod
   use molecules_str_mod
   use messages_mod
@@ -42,6 +43,7 @@ module cg_dynvars_mod
   public  :: setup_dynvars
   public  :: output_dynvars
   public  :: compute_dynvars
+  public  :: compute_total_pene
   private :: output_dynvars_genesis
   private :: output_dynvars_charmm
   private :: output_dynvars_namd
@@ -307,34 +309,7 @@ contains
 
     ! potential energy(t+dt) and total energy(t+dt)
     !
-    dynvars%total_pene = dynvars%energy%bond               &
-                       + dynvars%energy%angle              &
-                       + dynvars%energy%urey_bradley       &
-                       + dynvars%energy%dihedral           &
-                       + dynvars%energy%base_stacking      &
-                       + dynvars%energy%improper           &
-                       + dynvars%energy%electrostatic      &
-                       + dynvars%energy%van_der_waals      &
-                       + dynvars%energy%restraint_distance &
-                       + dynvars%energy%restraint_position &
-                       + dynvars%energy%restraint_rmsd     &
-                       + dynvars%energy%restraint_emfit    &
-                       + dynvars%energy%contact            &
-                       + dynvars%energy%noncontact         &
-                       + dynvars%energy%base_pairing       &
-                       + dynvars%energy%cg_DNA_exv         &
-                       + dynvars%energy%cg_exv             &
-                       + dynvars%energy%cg_KH_inter_pro    &
-                       + dynvars%energy%cg_IDR_KH          &
-                       + dynvars%energy%cg_IDR_HPS         &
-                       + dynvars%energy%cg_IDR_MPIPI       &
-                       + dynvars%energy%PWMcos             &
-                       + dynvars%energy%PWMcosns
-
-    if (enefunc%dispersion_corr /= Disp_Corr_NONE) then
-      dynvars%total_pene = dynvars%total_pene + &
-                           dynvars%energy%disp_corr_energy
-    end if
+    dynvars%total_pene = compute_total_pene(enefunc, dynvars%energy)
     dynvars%total_energy = &
                dynvars%total_pene + dynvars%total_kene
 
@@ -375,6 +350,61 @@ contains
     return
 
   end subroutine compute_dynvars
+
+  !======1=========2=========3=========4=========5=========6=========7=========8
+  !
+  !  Function      compute_total_pene
+  !> @brief        Sum every potential energy term into a single scalar.
+  !! @param[in]    enefunc : potential energy functions information
+  !! @param[in]    energy  : energy components
+  !
+  !  Shared by compute_dynvars (MD/REMD path) and steepest_descent
+  !  (MIN path, in cg_minimize.fpp) so both paths always agree on which
+  !  terms make up the total potential energy.
+  !
+  !======1=========2=========3=========4=========5=========6=========7=========8
+
+  function compute_total_pene(enefunc, energy) result(total_pene)
+
+    ! formal arguments
+    type(s_enefunc), intent(in) :: enefunc
+    type(s_energy),  intent(in) :: energy
+
+    ! return value
+    real(dp)                    :: total_pene
+
+
+    total_pene = energy%bond               &
+               + energy%angle              &
+               + energy%urey_bradley       &
+               + energy%dihedral           &
+               + energy%base_stacking      &
+               + energy%improper           &
+               + energy%electrostatic      &
+               + energy%van_der_waals      &
+               + energy%restraint_distance &
+               + energy%restraint_position &
+               + energy%restraint_rmsd     &
+               + energy%restraint_emfit    &
+               + energy%contact            &
+               + energy%noncontact         &
+               + energy%base_pairing       &
+               + energy%cg_DNA_exv         &
+               + energy%cg_exv             &
+               + energy%cg_KH_inter_pro    &
+               + energy%cg_IDR_KH          &
+               + energy%cg_IDR_HPS         &
+               + energy%cg_IDR_MPIPI       &
+               + energy%PWMcos             &
+               + energy%PWMcosns
+
+    if (enefunc%dispersion_corr /= Disp_Corr_NONE) then
+      total_pene = total_pene + energy%disp_corr_energy
+    end if
+
+    return
+
+  end function compute_total_pene
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
