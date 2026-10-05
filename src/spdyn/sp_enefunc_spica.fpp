@@ -2,8 +2,7 @@
 !
 !  Module   sp_enefunc_spica_mod
 !> @brief   define potential energy functions
-!! @authors Jaewoon Jung (JJ), Takeshi Imai (TI), Chigusa Kobayashi (CK),
-!!          Takaharu Mori (TM), Yuji Sugita (YS)
+!! @authors Jaewoon Jung (JJ)
 !
 !  (c) Copyright 2014 RIKEN. All rights reserved.
 !
@@ -61,7 +60,7 @@ contains
   !
   !  Subroutine    define_enefunc_spica
   !> @brief        a driver subroutine for defining potential energy functions
-  !! @authors      YS, TI, JJ, CK
+  !! @authors      JJ
   !! @param[in]    ene_info    : ENERGY section control parameters information
   !! @param[in]    par         : SPICA PAR information
   !! @param[in]    localres    : local restraint information
@@ -168,7 +167,7 @@ contains
   !
   !  Subroutine    setup_enefunc_bond
   !> @brief        define BOND term for each cell in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      JJ
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -191,12 +190,12 @@ contains
     integer                  :: i, j, icel_local, k
     integer                  :: icel1, icel2, ix1, ix2
     integer                  :: nbond, nbond_p, i1, i2, i3, found, found1
-    integer                  :: nenmt_p, nenmp_p, key, ndat, num
+    integer                  :: nenmt_p, nenmp_p, key, ndat, num, pbc_int
     character(6)             :: ci1, ci2, ci3, ri1, ri2
-    real(wp)                 :: dij(3), rij2, pairdist2
+    real(wp)                 :: dij(3), rij2, pairdist2, cwork(3,2)
     integer,     allocatable :: temporary_list(:,:)
 
-    real(wp),        pointer :: force(:,:), dist(:,:)
+    real(wp),        pointer :: force(:,:), dist(:,:), coord(:,:)
     integer,         pointer :: nwater(:), bond(:), list(:,:,:)
     integer,         pointer :: nexcl(:), n14(:)
     integer,         pointer :: excl_list(:,:,:), n14_list(:,:,:)
@@ -205,18 +204,20 @@ contains
     integer(int2),   pointer :: id_g2l(:,:)
     integer,         pointer :: mol_bond_list(:,:)
     character(6),    pointer :: mol_cls_name(:)
-    real(wp),        pointer :: coord_pbc(:,:,:)
+    real(wp),        pointer :: coord_pbc(:,:,:), box_size(:)
     integer,         pointer :: bond_pbc(:,:)
 
 
     mol_bond_list => molecule%bond_list
     mol_cls_name  => molecule%atom_cls_name
+    coord         => molecule%atom_coord
 
     ncel      => domain%num_cell_local
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
     coord_pbc => domain%coord_pbc 
     nwater    => domain%num_water
+    box_size  => domain%system_size
 
     bond      => enefunc%num_bond
 
@@ -304,8 +305,8 @@ contains
     call mpi_allreduce(mpi_in_place, k, 1, mpi_integer, &
                        mpi_max, mpi_comm_country, ierror)
 #endif
-    MaxBond  = 2*k
-    BondMove = MaxBond / 3 ! yyzhang for small testing system, just set BondMove = MaxBond
+    MaxBond  = 4*k
+    BondMove = MaxBond / 2 ! yyzhang for small testing system, just set BondMove = MaxBond
     bond(1:ncel) = 0
     if (main_rank) then
       write(MsgOut,*) 'sp_enefunc_str    ::MaxBond      : ', MaxBond
@@ -363,7 +364,11 @@ contains
                         par%bond_force_const(j)
                   dist (bond(icel_local),icel_local)   = &
                         par%bond_dist_min(j)
-                  bond_pbc(bond(icel_local),icel_local) = 13
+                  cwork(1:3,1) = coord(1:3,i1)
+                  cwork(1:3,2) = coord(1:3,i2)
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  bond_pbc(bond(icel_local),icel_local) = pbc_int
                           
                   exit
                 end if
@@ -424,7 +429,7 @@ contains
   !
   !  Subroutine    setup_enefunc_enm 
   !> @brief        define BOND term for each cell in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      JJ
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -543,7 +548,7 @@ contains
     call mpi_allreduce(mpi_in_place, found, 1, mpi_integer, &
                        mpi_max, mpi_comm_country, ierror)
 #endif
-    MaxEnm  = 3*found
+    MaxEnm  = 4*found
     enm(1:ncelb) = 0
     if (main_rank) then
       write(MsgOut,*) 'sp_enefunc_str    ::MaxEnm       : ', MaxEnm
@@ -642,7 +647,7 @@ contains
   !
   !  Subroutine    setup_enefunc_angl
   !> @brief        define ANGLE term for each cell in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      JJ
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    domain      : domain information
@@ -666,10 +671,12 @@ contains
     integer                  :: icel1, icel2
     integer                  :: nangl, nangl_p, found
     integer                  :: nenmu_p, nenmq_p, key
-    integer                  :: list(3)
+    integer                  :: list(3), pbc_int
     character(6)             :: ci1, ci2, ci3, ri1, ri2, ri3
+    real(wp)                 :: cwork(3,3), dij(3)
 
-    real(wp),        pointer :: force(:,:), theta(:,:)
+    real(wp),        pointer :: force(:,:), theta(:,:), coord(:,:)
+    real(wp),        pointer :: box_size(:)
     real(wp),        pointer :: ubforce(:,:), ubrmin(:,:)
     integer,         pointer :: angle(:), alist(:,:,:)
     integer,         pointer :: ncel
@@ -680,7 +687,7 @@ contains
     character(6),    pointer :: mol_cls_name(:), mol_res_name(:)
     integer,         pointer :: angl_pbc(:,:,:)
 
-
+    coord         => molecule%atom_coord
     mol_angl_list => molecule%angl_list
     mol_cls_name  => molecule%atom_cls_name
     mol_res_name  => molecule%residue_name
@@ -689,6 +696,7 @@ contains
     cell_pair => domain%cell_pair
     id_g2l    => domain%id_g2l
     nwater    => domain%num_water
+    box_size  => domain%system_size
 
     angle     => enefunc%num_angle
 
@@ -776,8 +784,8 @@ contains
     call mpi_allreduce(mpi_in_place, found, 1, mpi_integer, &
                        mpi_max, mpi_comm_country, ierror)
 #endif
-    MaxAngle  = 2*found
-    AngleMove = MaxAngle / 3
+    MaxAngle  = 4*found
+    AngleMove = MaxAngle / 2
     angle(1:ncel) = 0
     if (main_rank) then
       write(MsgOut,*) 'sp_enefunc_str    ::MaxAngle     : ', MaxAngle
@@ -839,7 +847,18 @@ contains
                             par%angle_enm_lj_eps(k)
                       ubrmin(angle(icel_local),icel_local) = &
                             par%angle_enm_lj_sigma(k)
-                      angl_pbc(1:3,angle(icel_local),icel_local) = 13
+                      cwork(1:3,1) = coord(1:3,list(1))
+                      cwork(1:3,2) = coord(1:3,list(2))
+                      cwork(1:3,3) = coord(1:3,list(3))
+                      dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                      call check_pbc(box_size, dij, pbc_int)
+                      angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                      dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                      call check_pbc(box_size, dij, pbc_int)
+                      angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                      dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                      call check_pbc(box_size, dij, pbc_int)
+                      angl_pbc(3,angle(icel_local),icel_local) = pbc_int
                       key = 1
                       exit
                     end if
@@ -870,7 +889,18 @@ contains
                        par%angl_ub_force_const(j)
                   ubrmin(angle(icel_local),icel_local)  = &
                      par%angl_ub_rmin(j)
-                  angl_pbc(1:3,angle(icel_local),icel_local) = 13
+                  cwork(1:3,1) = coord(1:3,list(1))
+                  cwork(1:3,2) = coord(1:3,list(2))
+                  cwork(1:3,3) = coord(1:3,list(3))
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(1,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,3) - cwork(1:3,2)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(2,angle(icel_local),icel_local) = pbc_int
+                  dij(1:3) = cwork(1:3,1) - cwork(1:3,3)
+                  call check_pbc(box_size, dij, pbc_int)
+                  angl_pbc(3,angle(icel_local),icel_local) = pbc_int
                   exit
     
                 end if
@@ -911,7 +941,7 @@ contains
   !
   !  Subroutine    setup_enefunc_dihe
   !> @brief        define DIHEDRAL term in potential energy function
-  !! @authors      YS, JJ, TM
+  !! @authors      JJ
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -1050,8 +1080,8 @@ contains
     call mpi_allreduce(mpi_in_place, found, 1, mpi_integer, &
                        mpi_max, mpi_comm_country, ierror)
 #endif
-    MaxDihe = MaxDihe * 2
-    DiheMove = MaxDihe / 3
+    MaxDihe = MaxDihe * 4
+    DiheMove = MaxDihe / 2
     if (main_rank) then
       write(MsgOut,*) 'sp_enefunc_str    ::MaxDihe      : ', MaxDihe
       write(MsgOut,*) 'sp_enefunc_str    ::DiheMove     : ', DiheMove
@@ -1181,7 +1211,7 @@ contains
   !
   !  Subroutine    setup_enefunc_impr
   !> @brief        define IMPROPER term in potential energy function
-  !! @authors      YS,JJ,HO
+  !! @authors      JJ
   !! @param[in]    par      : CHARMM PAR information
   !! @param[in]    molecule : molecule information
   !! @param[in]    domain   : domain information
@@ -1601,7 +1631,7 @@ contains
   !
   !  Subroutine    setup_enefunc_nonb
   !> @brief        define NON-BOND term in potential energy function
-  !! @authors      YS, JJ, TI
+  !! @authors      JJ
   !! @param[in]    par         : CHARMM PAR information
   !! @param[in]    molecule    : molecule information
   !! @param[in]    constraints : constraints information
@@ -2458,5 +2488,49 @@ contains
     return
 
   end subroutine count_nonb_excl_spica
+
+    subroutine check_pbc(box_size, dij, pbc_int)
+
+    real(wp),         intent(in)    :: box_size(:)
+    real(wp),         intent(inout) :: dij(:)
+    integer,          intent(inout) :: pbc_int
+
+    integer                  :: i, j, k
+
+    if (dij(1) > box_size(1)/2.0_dp) then
+      i = 0
+      dij(1) = dij(1) - box_size(1)
+    else if (dij(1) < -box_size(1)/2.0_dp) then
+      i = 2
+      dij(1) = dij(1) + box_size(1)
+    else
+      i = 1
+    end if
+
+    if (dij(2) > box_size(2)/2.0_dp) then
+      j = 0
+      dij(2) = dij(2) - box_size(2)
+    else if (dij(2) < -box_size(2)/2.0_dp) then
+      j = 2
+      dij(2) = dij(2) + box_size(2)
+    else
+      j = 1
+    end if
+
+    if (dij(3) > box_size(3)/2.0_dp) then
+      k = 0
+      dij(3) = dij(3) - box_size(3)
+    else if (dij(3) < -box_size(3)/2.0_dp) then
+      k = 2
+      dij(3) = dij(3) + box_size(3)
+    else
+      k = 1
+    end if
+
+    pbc_int = i + j*3 + k*9
+
+    return
+
+  end subroutine check_pbc
 
 end module sp_enefunc_spica_mod

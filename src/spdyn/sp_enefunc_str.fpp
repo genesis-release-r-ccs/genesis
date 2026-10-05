@@ -981,8 +981,8 @@ contains
       end if
 
       if (.not. allocated(enefunc%num_bond)) &
-        allocate(enefunc%num_bond       (var_size), &
-                 enefunc%num_enm        (var_size), &
+        allocate(enefunc%num_bond       (var_size),  &
+                 enefunc%num_enm        (var_size1), &
                  enefunc%num_angle      (var_size), &
                  enefunc%num_dihedral   (var_size), &
                  enefunc%num_rb_dihedral(var_size), &
@@ -1099,14 +1099,14 @@ contains
       end if
 
       if (.not. allocated(enefunc%enm_dist_min)) &
-        allocate(enefunc%enm_list       (2, MaxBond, var_size), &
-                 enefunc%enm_force_const(MaxBond, var_size),    &
-                 enefunc%enm_dist_min   (MaxBond, var_size),    &
+        allocate(enefunc%enm_list       (2, MaxEnm, var_size), &
+                 enefunc%enm_force_const(MaxEnm, var_size),    &
+                 enefunc%enm_dist_min   (MaxEnm, var_size),    &
                  stat = alloc_stat)
 
-      enefunc%enm_list       (1:2, 1:MaxBond, 1:var_size) = 0
-      enefunc%enm_force_const(1:MaxBond, 1:var_size)      = 0.0_wp
-      enefunc%enm_dist_min   (1:MaxBond, 1:var_size)      = 0.0_wp
+      enefunc%enm_list       (1:2, 1:MaxEnm, 1:var_size) = 0
+      enefunc%enm_force_const(1:MaxEnm, 1:var_size)      = 0.0_wp
+      enefunc%enm_dist_min   (1:MaxEnm, 1:var_size)      = 0.0_wp
 
     case (EneFuncExcl)
 
