@@ -51,7 +51,7 @@ contains
 
     ! local variables
     integer                  :: alloc_stat, dealloc_stat
-    integer                  :: nthread
+    integer                  :: nthread_actual
     logical                  :: prime_flag
 
     integer,     allocatable :: globrank(:), locrank(:)
@@ -136,9 +136,15 @@ contains
       write(MsgOut,'(a,i10)') '  number of MPI processes   = ', nproc_world
 
 #ifdef OMP
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+        write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+        call error_msg('Setup_Mpi_Md> OpenMP thread count mismatch')
+      end if
+
       write(MsgOut,'(a,i10)') '  number of OpenMP threads  = ', nthread
 #else
       nthread = 1

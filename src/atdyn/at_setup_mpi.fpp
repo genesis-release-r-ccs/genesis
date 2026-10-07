@@ -29,7 +29,7 @@ module at_setup_mpi_mod
   use mpi
 #endif
 #ifdef OMP
-    use omp_lib, only: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+    use omp_lib, only:  omp_get_num_threads
 #endif
 
   implicit none
@@ -61,7 +61,7 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: color, key, nthread
+    integer                  :: color, key, nthread_actual
     integer                  :: node_recip, node_real, expon
     logical                  :: prime_flag
 
@@ -182,9 +182,15 @@ contains
       write(MsgOut,'(a,i10)') '  number of MPI processes   = ', nproc_world
 
 #ifdef OMP
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+        write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+        call error_msg('Setup_Mpi_Md> OpenMP thread count mismatch')
+      end if
+
       write(MsgOut,'(a,i10)') '  number of OpenMP threads  = ', nthread
 #else
       nthread = 1
@@ -206,9 +212,14 @@ contains
 #else
 
 #ifdef OMP
-    !$omp parallel shared(nthread)
-    nthread = omp_get_num_threads()
+    !$omp parallel shared(nthread_actual)
+    nthread_actual = omp_get_num_threads()
     !$omp end parallel
+    if (nthread_actual /= nthread) then
+      write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+      write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+      call error_msg('Setup_Mpi_Md> OpenMP thread count mismatch')
+    end if
     write(MsgOut,'(a,i10)') '  number of OpenMP threads  = ', nthread
 #else
     nthread = 1
@@ -242,7 +253,7 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: thread
+    integer                  :: nthread_actual
     integer                  :: nreplicas, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon
@@ -391,9 +402,14 @@ contains
                               nproc_country
 #ifdef OMP
 
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+        write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+        call error_msg('Setup_Mpi_Remd> OpenMP thread count mismatch')
+      end if
       write(MsgOut,'(a,i10)') '  number of OpenMP threads               = ', &
                               nthread
 #else
@@ -463,6 +479,7 @@ contains
     integer                  :: ndocks, nproc_per_dock
     integer                  :: color, key, temp, temp2
     integer                  :: node_recip, node_real, expon
+    integer                  :: nthread_actual
     character(6)             :: mast, nonb1, nonb2
     logical                  :: prime_flag
 
@@ -613,9 +630,14 @@ contains
                               nproc_country
 #ifdef OMP
 
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+        write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+        call error_msg('Setup_Mpi_Bias> OpenMP thread count mismatch')
+      end if
       write(MsgOut,'(a,i10)') '  number of OpenMP threads               = ', &
                               nthread
 #else
@@ -682,7 +704,7 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: nthread
+    integer                  :: nthread_actual
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon
@@ -836,9 +858,14 @@ contains
                               nproc_country
 #ifdef OMP
 
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+        write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+        call error_msg('Setup_Mpi_Rpath> OpenMP thread count mismatch')
+      end if
       write(MsgOut,'(a,i10)') '  number of OpenMP threads               = ', &
                               nthread
 #else
@@ -921,9 +948,13 @@ contains
 
 #ifdef OMP
 
-    !$omp parallel shared(nthread)
-    nthread = omp_get_num_threads()
+    !$omp parallel shared(nthread_actual)
+    nthread_actual = omp_get_num_threads()
     !$omp end parallel
+    if (nthread_actual /= nthread) then
+      call error_msg('Setup_Mpi_RPath> OpenMP thread count mismatch. ' // &
+             'Check OMP_NUM_THREADS and resource allocation.')
+    end if
     write(MsgOut,'(a,i10)') '  number of OpenMP threads  = ', &
                             nthread
 #else
@@ -960,7 +991,7 @@ contains
     ! local variables
     real(wp)                 :: ratio, recip
     integer                  :: i, alloc_stat, dealloc_stat
-    integer                  :: nthread
+    integer                  :: nthread_actual
     integer                  :: nreplica, nproc_per_rep
     integer                  :: color, key, temp
     integer                  :: node_recip, node_real, expon
@@ -1107,9 +1138,13 @@ contains
                               nproc_country
 #ifdef OMP
 
-      !$omp parallel shared(nthread)
-      nthread = omp_get_num_threads()
+      !$omp parallel shared(nthread_actual)
+      nthread_actual = omp_get_num_threads()
       !$omp end parallel
+      if (nthread_actual /= nthread) then
+        call error_msg('Setup_Mpi_Vib> OpenMP thread count mismatch. ' // &
+               'Check OMP_NUM_THREADS and resource allocation.')
+      end if
       write(MsgOut,'(a,i10)') '  number of OpenMP threads               = ', &
                               nthread
 #else
@@ -1192,9 +1227,13 @@ contains
 
 #ifdef OMP
 
-    !$omp parallel shared(nthread)
-    nthread = omp_get_num_threads()
+    !$omp parallel shared(nthread_actual)
+    nthread_actual = omp_get_num_threads()
     !$omp end parallel
+    if (nthread_actual /= nthread) then
+      call error_msg('Setup_Mpi_Vib> OpenMP thread count mismatch. ' // &
+             'Check OMP_NUM_THREADS and resource allocation.')
+    end if
     write(MsgOut,'(a,i10)') '  number of OpenMP threads  = ', &
                             nthread
 #else

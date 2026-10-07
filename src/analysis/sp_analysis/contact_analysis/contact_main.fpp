@@ -58,6 +58,8 @@ program contact_main
   type(s_contact_ctrl_data)  :: contact_ctrl_data
   type(s_contact_option)     :: contact_option
 
+  integer                    :: nthread_actual
+
 
 #ifdef HAVE_MPI_GENESIS
   call mpi_init(ierror)
@@ -73,6 +75,15 @@ program contact_main
 
 #ifdef OMP
   nthread = omp_get_max_threads()
+  !$omp parallel shared(nthread_actual)
+  nthread_actual = omp_get_num_threads()
+  !$omp end parallel
+
+  if (nthread_actual /= nthread) then
+    write(MsgOut,'(a,i10)') '  expected OpenMP threads = ', nthread
+    write(MsgOut,'(a,i10)') '  actual OpenMP threads   = ', nthread_actual
+    call error_msg('OpenMP thread count mismatch')
+  end if
 #else
   nthread = 1
 #endif
