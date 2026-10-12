@@ -1200,6 +1200,8 @@ contains
     boundary%box_size_y = exp(bmoment(2)*dt) * boundary%box_size_y_ref
     boundary%box_size_z = exp(bmoment(3)*dt) * boundary%box_size_z_ref
 
+    call rescale_coord_pbc_trans(boundary, size_scale, dynvars%trans)
+
     ! update barostat momentum
     !
     dynvars%barostat_momentum(1:3) = bmoment(1:3)

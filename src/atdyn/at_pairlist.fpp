@@ -37,6 +37,7 @@ module at_pairlist_mod
   ! subroutines
   public  :: setup_pairlist
   public  :: update_pairlist
+  public  :: rescale_coord_pbc_trans
   private :: update_pairlist_nobc
   private :: update_pairlist_nobc_gbsa
   private :: update_pairlist_nobc_cg
@@ -2827,6 +2828,15 @@ contains
     return
 
   end subroutine update_coord_pbc
+
+  subroutine rescale_coord_pbc_trans(boundary, box_scale, trans)
+    type(s_boundary), intent(in) :: boundary
+    real(wp), intent(in) :: box_scale(3)
+    real(wp), intent(inout) :: trans(:,:)
+    trans(1,:) = box_scale(1)*(trans(1,:)+boundary%origin_x)-boundary%origin_x
+    trans(2,:) = box_scale(2)*(trans(2,:)+boundary%origin_y)-boundary%origin_y
+    trans(3,:) = box_scale(3)*(trans(3,:)+boundary%origin_z)-boundary%origin_z
+  end subroutine rescale_coord_pbc_trans
 
   !======1=========2=========3=========4=========5=========6=========7=========8
   !
