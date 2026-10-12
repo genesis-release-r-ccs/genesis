@@ -1657,6 +1657,8 @@ contains
                               + 2.0_wp*ekin/d_ndegf + pforce(2))/pmass
       bmoment(3) = 0.0_wp
 
+      bmoment(1:3)  = exp(-gamma_p*q_dt/2.0_wp)*bmoment(1:3)
+
     end if
 
     return
