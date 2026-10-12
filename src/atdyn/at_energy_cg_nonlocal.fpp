@@ -2923,7 +2923,7 @@ contains
         ! virial
         !
         do l = 1, 3
-          virial(1:3, l) = virial(1:3, l) - dij(1:3) * grad(l)
+          virial(1:3, l) = virial(1:3, l) + dij(1:3) * grad(l)
         end do
 
       end do
@@ -3155,15 +3155,15 @@ contains
           !         virial_omp(1:3, l,id) = virial_omp(1:3, l,id) - dij(1:3) * grad(l)
           !         virial_tmp(1:3, l) = virial_tmp(1:3, l) - dij(1:3) * grad(l)
           !       end do
-          virial_tmp(1,1) = virial_tmp(1,1) - dij(1)*grad(1)
-          virial_tmp(2,1) = virial_tmp(2,1) - dij(2)*grad(1)
-          virial_tmp(3,1) = virial_tmp(3,1) - dij(3)*grad(1)
-          virial_tmp(1,2) = virial_tmp(1,2) - dij(1)*grad(2)
-          virial_tmp(2,2) = virial_tmp(2,2) - dij(2)*grad(2)
-          virial_tmp(3,2) = virial_tmp(3,2) - dij(3)*grad(2)
-          virial_tmp(1,3) = virial_tmp(1,3) - dij(1)*grad(3)
-          virial_tmp(2,3) = virial_tmp(2,3) - dij(2)*grad(3)
-          virial_tmp(3,3) = virial_tmp(3,3) - dij(3)*grad(3)
+          virial_tmp(1,1) = virial_tmp(1,1) + dij(1)*grad(1)
+          virial_tmp(2,1) = virial_tmp(2,1) + dij(2)*grad(1)
+          virial_tmp(3,1) = virial_tmp(3,1) + dij(3)*grad(1)
+          virial_tmp(1,2) = virial_tmp(1,2) + dij(1)*grad(2)
+          virial_tmp(2,2) = virial_tmp(2,2) + dij(2)*grad(2)
+          virial_tmp(3,2) = virial_tmp(3,2) + dij(3)*grad(2)
+          virial_tmp(1,3) = virial_tmp(1,3) + dij(1)*grad(3)
+          virial_tmp(2,3) = virial_tmp(2,3) + dij(2)*grad(3)
+          virial_tmp(3,3) = virial_tmp(3,3) + dij(3)*grad(3)
 
         end do
 
