@@ -933,7 +933,7 @@ contains
     real(wp)                  :: gamma_t, gamma_p
     real(wp)                  :: sigma
     real(wp)                  :: v1, v2, rsq, grandom(1:3), fcm(0:4)
-    real(wp)                  :: h_dt, q_dt, size_scale(1:3), vel_scale
+    real(wp)                  :: h_dt, q_dt, size_scale(1:3), vel_scale, drift_scale(1:3)
     real(wp)                  :: virial_constraint(3,3)
     integer                   :: i, j, i_ndegf, natom, maxiter
     integer                   :: is, ie, quotient, remainder, count
@@ -1175,6 +1175,8 @@ contains
       ! VV1
       !
       size_scale(1:3) = exp(bmoment(1:3)*dt)
+      drift_scale(1:3) = dt*exp(0.5_wp*bmoment(1:3)*dt) * &
+                        powersinh_double(0.5_wp*bmoment(1:3)*dt)
       do j = 1, natom
         vel(1,j) = vel(1,j) + h_dt*force(1,j)*inv_mass(j)
         vel(2,j) = vel(2,j) + h_dt*force(2,j)*inv_mass(j)
@@ -1184,9 +1186,9 @@ contains
         vel(2,j) = vel(2,j) + h_dt*random_f(2,j)*inv_mass(j)
         vel(3,j) = vel(3,j) + h_dt*random_f(3,j)*inv_mass(j)
 
-        coord(1,j) = size_scale(1)*coord_ref(1,j) + vel(1,j)*dt
-        coord(2,j) = size_scale(2)*coord_ref(2,j) + vel(2,j)*dt
-        coord(3,j) = size_scale(3)*coord_ref(3,j) + vel(3,j)*dt
+        coord(1,j) = size_scale(1)*coord_ref(1,j) + vel(1,j)*drift_scale(1)
+        coord(2,j) = size_scale(2)*coord_ref(2,j) + vel(2,j)*drift_scale(2)
+        coord(3,j) = size_scale(3)*coord_ref(3,j) + vel(3,j)*drift_scale(3)
       end do 
 
     end do
