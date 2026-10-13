@@ -1045,7 +1045,7 @@ contains
 
       else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
         pmass = real(i_ndegf+2,wp)*KBOLTZ*temp0/(3.0_wp*(2.0_wp*PI*gamma_p)**2)
-        sigma = sqrt(2.0_wp*gamma_p*pmass*KBOLTZ*temp0/dt)
+        sigma = sqrt(gamma_p*pmass*KBOLTZ*temp0/dt)
         pforce(1) = sigma * random_get_gauss()
         pforce(2) = pforce(1)
         pforce(3) = 0.0_wp
@@ -1346,7 +1346,7 @@ contains
       pforce(3) = sigma * random_get_gauss()
 
     else if (ensemble%isotropy == IsotropyZ_Fixed_SEMI_ISO) then
-      sigma = sqrt(2.0_wp*gamma_p*pmass*KBOLTZ*temp0/dt)
+      sigma = sqrt(gamma_p*pmass*KBOLTZ*temp0/dt)
       pforce(1) = sigma * random_get_gauss()
       pforce(2) = pforce(1)
       pforce(3) = 0.0_wp
