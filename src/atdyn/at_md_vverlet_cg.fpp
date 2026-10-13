@@ -1587,7 +1587,7 @@ contains
 
     ! velocities are scaled according to scaled eta(t+1/4dt)
     !
-    vel_scale(1:3) = exp(-h_dt*bmoment(1:3)*(1.0_wp+3.0_wp/d_ndegf))
+    vel_scale(1:3) = exp(-h_dt*(bmoment(1:3)+sum(bmoment(1:3))/d_ndegf))
     do i = 1, natom
       vel(1:3,i) = vel(1:3,i) * vel_scale(1:3)
     end do
