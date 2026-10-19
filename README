@@ -1,13 +1,13 @@
 =====================================
-GENESIS 2.1.6
+GENESIS 2.2.0
 =====================================
 
 GENESIS website
 ===============
-https://www.r-ccs.riken.jp/labs/cbrt/
+https://mdgenesis.org/
 
-- System requirements and installation guide: https://www.r-ccs.riken.jp/labs/cbrt/installation/
-- Demo and tutorials: https://www.r-ccs.riken.jp/labs/cbrt/tutorials2022/
+- System requirements and installation guide: https://mdgenesis.org/docs/installation/
+- Demo and tutorials: https://mdgenesis.org/docs/tutorial_2022/
 
 Project Leader: Yuji Sugita (RIKEN)
 
@@ -19,7 +19,8 @@ Project Leader: Yuji Sugita (RIKEN)
   Hiraku Oshima (RIKEN),
   Cheng Tan (RIKEN),
   Diego Ugarte (RIKEN),
-  Kiyoshi Yagi (RIKEN). 
+  Kiyoshi Yagi (RIKEN),
+  Tomoaki Yagi (RIKEN). 
 
   Other developers/contributors for older versions:
   Motoshi Kamiya (RIKEN), 
@@ -32,7 +33,8 @@ Project Leader: Yuji Sugita (RIKEN)
   Yosuke Sumiya (RIKEN),
   Florence Tama (RIKEN/Nagoya University),
   Shoji Takada (Kyoto Univ.),
-  Isseki Yu (RIKEN/Maebashi Institute of Technology).
+  Isseki Yu (RIKEN/Maebashi Institute of Technology),
+  Yangyang Zhang (RIKEN/Osaka Univ.).
 
   Tadashi Ando (RIKEN),
   Michael Feig (Michigan State University), 
@@ -58,7 +60,7 @@ Project Leader: Yuji Sugita (RIKEN)
   Hideyo Yoshida (JSOL Corporation), Kenta Chaki (JSOL Corporation),
   Kazuhiro Hashiba (VINAS)
 
-  Copyright (C) 2014-2023 RIKEN. All Rights Reserved
+  Copyright (C) 2014-2026 RIKEN. All Rights Reserved
 
 What is GENESIS?
 ================
@@ -91,7 +93,7 @@ DOI: 10.1002/jcc.24874
 
 Copyright Notices
 =================
-  Copyright (C) 2014-2023 RIKEN.
+  Copyright (C) 2014-2026 RIKEN.
 
   GENESIS is free software; you can redistribute it and/or
   modify it provided that the following conditions are met:
@@ -101,7 +103,7 @@ Copyright Notices
 
   (2) In addition, proper citations should be given for each specific 
       methods used. Visit the website,
-        https://www.r-ccs.riken.jp/labs/cbrt/citations/
+        https://mdgenesis.org/docs/citation/
       to see how to cite the original papers.
 
   (3) We ask the users to make their best effort to cite the papers in 
