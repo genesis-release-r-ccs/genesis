@@ -160,8 +160,7 @@ latex_elements = {
   Hiraku Oshima (RIKEN/University of Hyogo),
   Cheng Tan (RIKEN),
   Diego Ugarte (RIKEN),
-  Kiyoshi Yagi (RIKEN/University of Tsukuba),
-  Tomoaki Yagi (RIKEN).
+  Kiyoshi Yagi (RIKEN/University of Tsukuba).
 
   Current developers/contributors
   Motoshi Kamiya (RIKEN/IMS), 
